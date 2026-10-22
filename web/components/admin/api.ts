@@ -45,6 +45,7 @@ import type {
   OneTimePassword,
   OrgKind,
   Page,
+  Role,
   Settings,
   SettingsInput,
   UserCreated,
@@ -74,9 +75,35 @@ const state = {
 
 let actor: AuditActor = { id: 1, username: "admin", full_name: "Admin" };
 
-/** Mock only: tell the fake API who is signed in (the real one reads the session). */
-export function setMockActor(user: AuditActor): void {
-  actor = { id: user.id, username: user.username, full_name: user.full_name };
+/**
+ * Mock only: tell the fake API who is signed in (the real one reads the
+ * session). The signed-in account is matched to a mock user by username so
+ * the self-protection rules can be tried; unknown accounts are added to the
+ * mock list as admins.
+ */
+export function setMockActor(user: AuditActor & { role?: Role }): void {
+  let row = state.users.find((u) => u.username === user.username);
+  if (!row) {
+    // Keep the session's id (the pages use it for the self-protection rules);
+    // a mock row that happens to carry the same id moves out of the way.
+    const clash = state.users.find((u) => u.id === user.id);
+    if (clash) clash.id = 1000 + clash.id;
+    row = {
+      id: user.id,
+      username: user.username,
+      full_name: user.full_name,
+      role: user.role ?? "admin",
+      role_label: ROLE_LABELS[user.role ?? "admin"],
+      is_active: true,
+      employee: null,
+      branch_ids: [],
+      last_login_at: nowIso(),
+      last_login_at_bs: approxBs(nowIso()),
+      created_at: nowIso(),
+    };
+    state.users.push(row);
+  }
+  actor = { id: row.id, username: row.username, full_name: row.full_name };
 }
 
 function respond<T>(value: T): Promise<T> {

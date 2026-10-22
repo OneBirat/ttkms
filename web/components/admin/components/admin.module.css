@@ -34,7 +34,7 @@
 .filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 10px 12px;
   padding: 14px 16px;
   margin-bottom: 16px;
@@ -105,9 +105,12 @@
 
 .rowActions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 2px;
+  max-width: 220px;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .ghost {

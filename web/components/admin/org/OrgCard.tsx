@@ -131,11 +131,6 @@ export function OrgCard({
           </h2>
           <p className={styles.cardNote}>{note}</p>
         </div>
-        {canEdit && !adding ? (
-          <button type="button" className="btn" onClick={() => setAdding(true)}>
-            + {label.add}
-          </button>
-        ) : null}
       </div>
 
       {error ? (
@@ -244,8 +239,20 @@ export function OrgCard({
         ) : null}
       </ul>
 
+      {canEdit && !adding ? (
+        <div className={styles.addRow}>
+          <button type="button" className={styles.ghost} onClick={() => setAdding(true)}>
+            + {label.add}
+          </button>
+        </div>
+      ) : null}
+
       {canEdit && adding ? (
-        <form className={`${styles.inlineForm} ${styles.addRow}`} onSubmit={(e) => void submitAdd(e)} noValidate>
+        <form
+          className={`${styles.inlineForm} ${styles.addRow}`}
+          onSubmit={(e) => void submitAdd(e)}
+          noValidate
+        >
           <label htmlFor={`${kind}-new`} className="sr-only">
             New {label.one} name
           </label>

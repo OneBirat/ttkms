@@ -279,6 +279,7 @@ function UsersScreen() {
           <DataTable
             columns={COLUMNS}
             rows={rows}
+            compact
             caption="Users"
             emptyText={users.loading ? "Loading…" : "No users match these filters."}
           />
