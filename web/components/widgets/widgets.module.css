@@ -1,0 +1,28 @@
+.widget {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 140px;
+  padding: 18px 20px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title {
+  font-size: 16px;
+}
+
+.note {
+  color: var(--color-muted);
+}
+
+.unknown {
+  border-style: dashed;
+  color: var(--color-muted);
+}

@@ -1,0 +1,88 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--color-sidebar);
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  padding: 32px 28px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.tile {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.brandName {
+  font-weight: 600;
+}
+
+.brandSub {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.title {
+  font-size: 22px;
+  margin-bottom: 20px;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: block;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--touch);
+  cursor: pointer;
+}
+
+.checkbox input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.error {
+  padding: 10px 12px;
+  border-radius: var(--radius-input);
+  background: var(--pill-danger-bg);
+  color: var(--pill-danger-fg);
+  font-size: 14px;
+}
+
+.submit {
+  width: 100%;
+}

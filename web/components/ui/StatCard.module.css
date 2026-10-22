@@ -1,0 +1,50 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 96px;
+  padding: 14px 18px;
+  border-left: 4px solid var(--pill-neutral-fg);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.card:hover {
+  box-shadow: 0 2px 10px rgba(27, 35, 40, 0.08);
+  color: inherit;
+}
+
+.card[data-tone="ok"] {
+  border-left-color: var(--pill-ok-fg);
+}
+
+.card[data-tone="low"] {
+  border-left-color: var(--pill-low-fg);
+}
+
+.card[data-tone="danger"] {
+  border-left-color: var(--pill-danger-fg);
+}
+
+.card[data-tone="leave"] {
+  border-left-color: var(--pill-leave-fg);
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--color-muted);
+}
