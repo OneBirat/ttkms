@@ -1,0 +1,356 @@
+/* Phone photo capture (docs/design/PhotoCapture.dc.html) and the shared flow. */
+
+.page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px 12px;
+  background: var(--color-sidebar);
+  color: #fff;
+}
+
+.back {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  text-decoration: none;
+}
+
+.back:hover {
+  background: var(--color-sidebar-hover);
+  color: #fff;
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+}
+
+.headerTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.headerSub {
+  font-size: 12px;
+  color: #a9b6bd;
+}
+
+.flow {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.start {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 32px 20px;
+}
+
+.guide {
+  text-align: center;
+  font-size: 14px;
+  color: #4a555c;
+}
+
+.actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.big {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.bigPrimary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.bigPrimary:hover {
+  background: var(--color-primary-hover);
+}
+
+.big:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hint {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--pill-low-bg);
+  color: var(--pill-low-fg);
+  font-size: 13px;
+}
+
+.error {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--pill-danger-bg);
+  color: var(--pill-danger-fg);
+  font-size: 13px;
+}
+
+/* camera */
+
+.camera {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #0b1114;
+  color: #fff;
+  min-height: 520px;
+  border-radius: inherit;
+}
+
+.viewport {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 380px;
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mirrored {
+  transform: scaleX(-1);
+}
+
+.oval {
+  position: absolute;
+  width: 230px;
+  height: 290px;
+  border-radius: 50%;
+  border: 3px dashed #fff;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -58%);
+  pointer-events: none;
+}
+
+.viewportText {
+  position: absolute;
+  top: 18px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 14px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.cameraBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 36px 30px;
+}
+
+.cameraCancel {
+  min-width: 64px;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.shutter {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 5px solid #fff;
+  background: #fff;
+  box-shadow: inset 0 0 0 4px #0b1114;
+  cursor: pointer;
+}
+
+.shutter:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.switch {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: #24323a;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.switch:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* review */
+
+.review {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 28px 20px;
+}
+
+.circle {
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #2a3439;
+  position: relative;
+  touch-action: none;
+  cursor: grab;
+}
+
+.circle:active {
+  cursor: grabbing;
+}
+
+.circle img {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.zoomRow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.zoomLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.zoom {
+  width: 80%;
+  accent-color: var(--color-primary);
+  min-height: 44px;
+}
+
+/* done */
+
+.done {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.doneIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--pill-ok-bg);
+  color: var(--pill-ok-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doneTitle {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.status {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+/* compact variant inside a dialog */
+
+.compact .start,
+.compact .review {
+  padding: 8px 0 0;
+}
+
+.compact .camera {
+  border-radius: 12px;
+  min-height: 460px;
+}
+
+.compact .viewport {
+  min-height: 340px;
+}

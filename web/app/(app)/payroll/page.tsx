@@ -1,14 +1,6 @@
-import type { Metadata } from "next";
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "People & payroll" };
-
-export default function PayrollPage() {
-  return (
-    <ModulePlaceholder
-      name="payroll"
-      title="People & payroll"
-      subtitle="Employees, salaries and monthly payroll"
-    />
-  );
+/** /payroll opens the Employees screen. */
+export default function PayrollIndexPage() {
+  redirect("/payroll/employees");
 }
