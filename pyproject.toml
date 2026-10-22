@@ -1,0 +1,27 @@
+[project]
+name = "ttk"
+version = "0.1.0"
+description = "TTK - stock, attendance and payroll for a kitchen-appliance business in Nepal"
+requires-python = ">=3.12,<3.13"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "static", "media"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+ignore = ["B008"]  # FastAPI's Depends()/Form() in defaults
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "migrations", "tests"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -p no:cacheprovider"
+filterwarnings = [
+    "ignore::DeprecationWarning:pydyf",
+]

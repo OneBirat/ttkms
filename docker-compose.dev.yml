@@ -5,9 +5,11 @@ services:
     environment:
       POSTGRES_USER: ttk
       POSTGRES_PASSWORD: ttk_dev_pass
-      POSTGRES_DB: ttk_main
+      POSTGRES_DB: ttk
     ports: ["5433:5432"]
-    volumes: [pgdata:/var/lib/postgresql/data]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
     restart: unless-stopped
   adminer:
     image: adminer:5
@@ -15,7 +17,7 @@ services:
     environment:
       ADMINER_DEFAULT_DRIVER: pgsql
       ADMINER_DEFAULT_SERVER: db
-      ADMINER_DEFAULT_DB: ttk_main
+      ADMINER_DEFAULT_DB: ttk
       ADMINER_DEFAULT_USERNAME: ttk
     ports: ["8080:8080"]
     depends_on: [db]
