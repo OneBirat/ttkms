@@ -20,10 +20,10 @@ from app.core.auth import require_role
 from app.core.modules import Module, NavItem, WidgetContext
 from app.core.schemas import ModuleStatusOut
 
-#: Who marks attendance and reads the report.
-MARKING_ROLES = {"admin", "manager"}
-#: Who may open the module at all (index endpoint).
-ROLES = {"admin", "manager", "store_keeper", "staff"}
+#: Who marks attendance and reads the report; staff and store keepers have no attendance screens
+#: yet, so the whole module (sidebar entries and /api/attendance/*) is limited to these roles.
+ROLES = {"admin", "manager"}
+MARKING_ROLES = ROLES
 
 router = APIRouter(dependencies=[Depends(require_role(*ROLES))])
 

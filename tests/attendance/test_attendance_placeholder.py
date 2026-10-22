@@ -8,12 +8,19 @@ pytestmark = pytest.mark.anyio
 
 
 async def test_attendance_index_still_coming_soon(client, make_user, login):
-    await make_user("clerk", role="staff")
-    await login("clerk")
+    await make_user("boss", role="manager")
+    await login("boss")
     response = await client.get("/api/attendance")
     assert response.status_code == 200
     assert response.json()["status"] == "coming_soon"
     assert module.name == "attendance"
+
+
+async def test_staff_cannot_open_the_module(client, make_user, login):
+    await make_user("clerk", role="staff")
+    await login("clerk")
+    response = await client.get("/api/attendance")
+    assert response.status_code == 403
 
 
 async def test_sidebar_entries_for_managers(client, make_user, login):
