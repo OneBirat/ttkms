@@ -1,0 +1,65 @@
+/* Shared print stylesheet for WeasyPrint PDFs (app/core/export.py:to_pdf).
+   Paths are relative to this file: static/css/ -> static/vendor/fonts/. */
+
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; src: url("../vendor/fonts/IBMPlexSans-Regular.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 500; src: url("../vendor/fonts/IBMPlexSans-Medium.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600; src: url("../vendor/fonts/IBMPlexSans-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; src: url("../vendor/fonts/IBMPlexMono-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Noto Sans Devanagari"; font-weight: 400; src: url("../vendor/fonts/NotoSansDevanagari-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Noto Sans Devanagari"; font-weight: 600; src: url("../vendor/fonts/NotoSansDevanagari-SemiBold.woff2") format("woff2"); }
+
+@page {
+  size: A4;
+  margin: 30mm 14mm 20mm 14mm;
+  @top-left {
+    content: element(print-header);
+    vertical-align: bottom;
+    padding-bottom: 4mm;
+  }
+  @bottom-left {
+    content: element(print-legend);
+    vertical-align: middle;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-family: "IBM Plex Sans", "Noto Sans Devanagari", sans-serif;
+    font-size: 8.5pt;
+    color: #5B6670;
+    vertical-align: middle;
+  }
+}
+
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "IBM Plex Sans", "Noto Sans Devanagari", sans-serif;
+  font-size: 10pt;
+  line-height: 1.4;
+  color: #1B2328;
+}
+[lang="ne"], .np { font-family: "Noto Sans Devanagari", "IBM Plex Sans", sans-serif; }
+.num { font-family: "IBM Plex Mono", monospace; text-align: right; }
+.muted { color: #5B6670; }
+
+.print-header { position: running(print-header); width: 182mm; border-bottom: 1.5pt solid #0E6B6B; padding-bottom: 2mm; }
+.print-header__row { display: flex; justify-content: space-between; align-items: baseline; font-size: 9pt; color: #5B6670; }
+.print-header__company { font-weight: 600; color: #0E6B6B; font-size: 11pt; }
+.print-header__title { font-size: 15pt; font-weight: 600; margin-top: 1mm; }
+.print--landscape .print-header { width: 269mm; }
+
+.print-legend { position: running(print-legend); font-size: 8.5pt; }
+.print-legend .pill { margin-right: 4pt; }
+
+.pill { display: inline-block; padding: 0.5pt 7pt; border-radius: 999pt; font-size: 8.5pt; font-weight: 500; background: #ECEEEA; color: #4A555D; }
+.pill--ok { background: #E3F0EE; color: #0A5454; }
+.pill--low { background: #FCEFD9; color: #8A4205; }
+.pill--danger { background: #F6DCD3; color: #8E2F12; }
+.pill--leave { background: #E3E8F4; color: #253F73; }
+.pill--neutral { background: #ECEEEA; color: #4A555D; }
+
+.print-intro, .print-note { color: #5B6670; font-size: 9.5pt; }
+.print-table { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; }
+.print-table th, .print-table td { padding: 2.2mm 2.5mm; border-bottom: 0.5pt solid #E2E5E1; text-align: left; vertical-align: middle; }
+.print-table th { font-size: 8.5pt; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: #5B6670; background: #F4F5F2; }
+.print-table thead { display: table-header-group; }
+.print-table tr { page-break-inside: avoid; }
+.print-table .num { text-align: right; }

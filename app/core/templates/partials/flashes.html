@@ -1,0 +1,8 @@
+{% set messages = flashes() if flashes else [] %}
+{% if messages %}
+<div class="flashes">
+  {% for f in messages %}
+  <div class="alert alert--{{ f.level }}" role="status">{{ f.message }}</div>
+  {% endfor %}
+</div>
+{% endif %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% from "macros/ui.html" import page_header, empty_state %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+{{ page_header(title, subtitle) }}
+<div class="card">
+  {{ empty_state("Coming soon", "The " ~ title ~ " module is being built in its own worktree and will appear here once merged.") }}
+</div>
+{% endblock %}

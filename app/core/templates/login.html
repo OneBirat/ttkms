@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · TTK</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="login-page">
+  <main class="login-card" aria-labelledby="login-title">
+    <div class="brand brand--light">
+      <span class="brand__mark" aria-hidden="true">TT</span>
+      <span class="brand__text">
+        <span class="brand__name">TTK Stock</span>
+        <span class="brand__sub">Stock &amp; attendance</span>
+      </span>
+    </div>
+    <h1 class="login-card__title" id="login-title">Sign in</h1>
+    {% if error %}
+    <div class="alert alert--danger" role="alert">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/login" class="form" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="field">
+        <label class="field__label" for="username">Username</label>
+        <input class="input" id="username" name="username" value="{{ username or '' }}" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+      </div>
+      <div class="field">
+        <label class="field__label" for="password">Password</label>
+        <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <label class="checkbox">
+        <input type="checkbox" name="remember" value="on"{% if remember %} checked{% endif %}>
+        <span>Keep me signed in</span>
+      </label>
+      <button class="btn btn--primary btn--block" type="submit">Sign in</button>
+    </form>
+    <p class="login-card__foot muted">{{ today.ad }}{% if today.available %} · {{ today.bs_en }}{% endif %}</p>
+  </main>
+</body>
+</html>

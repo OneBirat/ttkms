@@ -1,0 +1,24 @@
+{# Base for every PDF. Context: title, company, printed_by, printed_at (HeaderDate), legend [(label, tone)]. #}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  {% block head %}{% endblock %}
+</head>
+<body class="print{% if landscape %} print--landscape{% endif %}">
+  <div class="print-header">
+    <div class="print-header__row">
+      <span class="print-header__company">{{ company }}</span>
+      <span class="print-header__meta">{{ printed_at.full }}{% if printed_by %} · Printed by {{ printed_by }}{% endif %}</span>
+    </div>
+    <div class="print-header__title">{{ title }}</div>
+  </div>
+  <div class="print-legend">
+    {% for label, tone in legend %}<span class="pill pill--{{ tone }}">{{ label }}</span>{% endfor %}
+  </div>
+  <main class="print-body">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

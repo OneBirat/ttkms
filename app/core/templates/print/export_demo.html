@@ -1,0 +1,28 @@
+{% extends "print/base.html" %}
+{% block content %}
+<p class="print-intro">Sample export proving Devanagari text, BS dates, status pills and page numbers render correctly in PDF.</p>
+<table class="print-table">
+  <thead>
+    <tr>
+      {% for col in columns %}
+      <th{% if col.number_format %} class="num"{% endif %}>{{ col.label }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      {% for col in columns %}
+      {% set value = row[col.key] %}
+      <td{% if col.number_format %} class="num"{% endif %}>
+        {%- if col.key == "status" %}<span class="pill pill--{{ {'ok': 'ok', 'low': 'low', 'out': 'danger'}.get(value, 'neutral') }}">{{ value|capitalize }}</span>
+        {%- elif col.key == "updated" %}{{ value }} <span class="muted" lang="ne">({{ value|np_digits }})</span>
+        {%- else %}{{ value }}{% endif -%}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="print-note" lang="ne">नेपाली पाठ परीक्षण: सबै सामानहरूको मौज्दात कार्तिक ४, २०८३ सम्मको हो।</p>
+{% endblock %}

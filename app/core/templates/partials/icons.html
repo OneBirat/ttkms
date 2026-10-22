@@ -1,0 +1,22 @@
+{# Inline SVG icons (no icon font, no CDN). Usage: {% from "partials/icons.html" import icon %}{{ icon("box") }} #}
+{% macro icon(name, size=18) -%}
+<svg class="icon icon--{{ name }}" width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+{%- if name == "home" %}<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>
+{%- elif name == "box" %}<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/>
+{%- elif name == "clock" %}<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+{%- elif name == "users" %}<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5A5 5 0 0 1 21.5 20"/>
+{%- elif name == "shield" %}<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>
+{%- elif name == "logout" %}<path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4"/><path d="M18 12H9"/>
+{%- elif name == "menu" %}<path d="M4 7h16M4 12h16M4 17h16"/>
+{%- elif name == "inbox" %}<path d="M3 13l2.5-8h13L21 13v6H3z"/><path d="M3 13h5l1.5 3h5L16 13h5"/>
+{%- elif name == "chevron-left" %}<path d="M15 5l-7 7 7 7"/>
+{%- elif name == "chevron-right" %}<path d="M9 5l7 7-7 7"/>
+{%- elif name == "close" %}<path d="M6 6l12 12M18 6L6 18"/>
+{%- elif name == "file" %}<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/>
+{%- elif name == "alert" %}<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17v1"/>
+{%- elif name == "calendar" %}<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
+{%- elif name == "check" %}<path d="M5 12l4 4L19 6"/>
+{%- else %}<circle cx="12" cy="12" r="4"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}
