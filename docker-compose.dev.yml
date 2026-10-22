@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:16
+    container_name: ttk-db
+    environment:
+      POSTGRES_USER: ttk
+      POSTGRES_PASSWORD: ttk_dev_pass
+      POSTGRES_DB: ttk_main
+    ports: ["5433:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    restart: unless-stopped
+  adminer:
+    image: adminer:5
+    container_name: ttk-adminer
+    environment:
+      ADMINER_DEFAULT_DRIVER: pgsql
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DEFAULT_DB: ttk_main
+      ADMINER_DEFAULT_USERNAME: ttk
+    ports: ["8080:8080"]
+    depends_on: [db]
+    restart: unless-stopped
+volumes:
+  pgdata:
