@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Items</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-weight:600;color:#5B6670;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid #E2E5E1;white-space:nowrap}
+.tbl td{padding:7px 12px;border-bottom:1px solid #EEF0EC;white-space:nowrap}
+.num{text-align:right!important;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#C9D2D7;text-decoration:none;font-size:14px;min-height:24px}
+.nav:hover{background:#22323B;color:#FFFFFF}
+.field{display:flex;align-items:center;gap:8px;border:1px solid #CBD2CC;border-radius:8px;padding:0 12px;min-height:44px;background:#FFFFFF;box-sizing:border-box}
+.field input,.field select{border:none;outline:none;font:inherit;color:#1B2328;background:transparent;width:100%;min-width:0}
+.pill{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.ghost{min-height:36px;padding:0 10px;border-radius:8px;border:1px solid transparent;background:transparent;color:#0E6B6B;font:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.card{background:#FFFFFF;border:1px solid #E2E5E1;border-radius:12px;box-sizing:border-box}
+.cat{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:44px;padding:0 12px;border-radius:8px;border:none;font:inherit;font-size:14px;text-align:left;cursor:pointer}
+.ct{width:100%;border-collapse:collapse;font-size:13px}
+.ct th{position:sticky;top:0;background:#F4F5F2;text-align:left;font-weight:600;color:#5B6670;font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:7px 10px;white-space:nowrap}
+.ct td{padding:5px 10px;border-bottom:1px solid #EEF0EC;white-space:nowrap;height:30px}
+.ct tr:hover td{background:#F7FAF9}
+.seg{min-height:36px;padding:0 12px;border-radius:7px;border:none;font:inherit;font-size:13px;cursor:pointer}
+.vchip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 6px 0 12px;border-radius:999px;background:#E3F0EE;color:#0A4F4F;font-size:13px;font-weight:600}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; background: #17222A; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+<div style="width: 34px; height: 34px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Stock &amp; attendance</span></div>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 12px 6px">Stock</div>
+<a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a class="nav" href="StockEntry.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a class="nav" href="Movements.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a class="nav" href="Items.dc.html" aria-current="page" style="background: #24363F; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Attendance</div>
+<a class="nav" href="AttendanceMark.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a class="nav" href="AttendanceReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">People &amp; payroll</div>
+<a class="nav" href="Employees.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a class="nav" href="SalaryReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 9.5v5M18 9.5v5"></path></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Admin</div>
+<a class="nav" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 420px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Items</h1>
+<p style="margin: 0; color: #5B6670; font-size: 14px">Each product has its own variations, and stock is counted per variation. Click a product to see its calendar and sales patterns.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<button type="button" onClick="{{openProduct}}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: none; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add product</button>
+</div>
+</header>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<section aria-label="Products" class="card" style="flex: 3 1 520px; min-width: 0; padding: 14px 10px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 0 8px">
+<div class="field" style="flex: 1 1 220px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" aria-label="Search products or variations" placeholder="Search product or variation, e.g. cooker 3" value="{{q}}" onInput="{{setQ}}"></div>
+<div role="group" aria-label="View" style="display: inline-flex; gap: 2px; background: #EEF0EC; padding: 3px; border-radius: 9px">
+<button type="button" class="seg" aria-pressed="{{compactOn}}" onClick="{{showCompact}}" style="{{compactBtn}}">Compact</button>
+<button type="button" class="seg" aria-pressed="{{groupedOn}}" onClick="{{showGrouped}}" style="{{groupedBtn}}">Grouped</button>
+</div>
+<label style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; cursor: pointer"><input type="checkbox" checked="{{showCode}}" onChange="{{toggleCode}}" style="width: 18px; height: 18px; accent-color: #0E6B6B">Show codes</label>
+<button type="button" title="Download a printable A4 PDF of this list (follows search and Show codes)" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"></path></svg>PDF</button>
+<button type="button" title="Print this list" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v7H8z"></path></svg>Print</button>
+<sc-if value="{{groupedOn}}" hint-placeholder-val="{{ false }}"><button type="button" class="ghost" onClick="{{expandAll}}" style="min-height: 44px">{{expandLabel}}</button></sc-if>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 0 8px">
+<span style="font-size: 13px; color: #5B6670; flex: 1 1 240px">{{summary}}</span>
+<span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; background: #EAF5F3; color: #0A5454; border-radius: 999px; padding: 6px 12px"><strong style="font-weight: 600">Today in</strong><span style="font-family: 'IBM Plex Mono', monospace">+{{todayIn}} pcs</span></span>
+<span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; background: #FDF3E3; color: #8A4205; border-radius: 999px; padding: 6px 12px"><strong style="font-weight: 600">Today out</strong><span style="font-family: 'IBM Plex Mono', monospace">−{{todayOut}} pcs</span></span>
+</div>
+<sc-if value="{{compactOn}}" hint-placeholder-val="{{ true }}">
+<div style="overflow-x: auto; border: 1px solid #E2E5E1; border-radius: 10px">
+<table class="ct">
+<thead><tr><th scope="col">Product</th><th scope="col">Variation</th><sc-if value="{{showCode}}" hint-placeholder-val="{{ true }}"><th scope="col">Code</th></sc-if><th scope="col" style="text-align: right" title="Purchased or produced today">In today</th><th scope="col" style="text-align: right" title="Sold or used today">Out today</th><th scope="col" style="text-align: right">In stock</th><th scope="col" style="text-align: right">Reorder</th><th scope="col">Status</th><th scope="col"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Actions</span></th></tr></thead>
+<tbody>
+<sc-for list="{{flat}}" as="r" hint-placeholder-count="12">
+<tr style="{{r.rowStyle}}"><td style="{{r.prodStyle}}"><a href="ProductDetail.dc.html" style="color: #1B2328; text-decoration: none">{{r.product}}</a></td><td>{{r.size}}</td><sc-if value="{{showCode}}" hint-placeholder-val="{{ true }}"><td style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #5B6670">{{r.code}}</td></sc-if><td style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: {{r.inColor}}">{{r.tin}}</td><td style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: {{r.outColor}}">{{r.tout}}</td><td style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600">{{r.stock}}</td><td style="text-align: right; font-family: 'IBM Plex Mono', monospace; color: #5B6670">{{r.reorder}}</td><td><span style="{{r.stStyle}}">{{r.status}}</span></td><td style="text-align: right"><button type="button" class="ghost" style="min-height: 28px; padding: 0 8px">Edit</button></td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</sc-if>
+<sc-if value="{{groupedOn}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{products}}" as="p" hint-placeholder-count="6">
+<div style="border: 1px solid #E2E5E1; border-radius: 10px; overflow: hidden">
+<button type="button" aria-expanded="{{p.open}}" onClick="{{p.toggle}}" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 8px 14px; border: none; background: {{p.bg}}; font: inherit; text-align: left; cursor: pointer; color: #1B2328">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true" style="{{p.chev}}"><path d="M9 6l6 6-6 6"></path></svg>
+<span style="display: flex; flex-direction: column; flex: 1 1 200px; min-width: 0"><span style="font-weight: 600; font-size: 15px">{{p.name}}</span><span style="font-size: 12px; color: #5B6670">{{p.attr}}: {{p.sizes}}</span></span>
+<span style="font-size: 13px; color: #3E4A52">{{p.vcount}} variations</span>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; min-width: 64px; text-align: right">{{p.total}} pcs</span>
+<sc-if value="{{p.hasLow}}" hint-placeholder-val="{{ false }}"><span class="pill" style="background: #FCEFD9; color: #8A4205">{{p.lowText}}</span></sc-if>
+<sc-if value="{{p.allOk}}" hint-placeholder-val="{{ true }}"><span class="pill" style="background: #E3F0EE; color: #0A5454">OK</span></sc-if>
+</button>
+<sc-if value="{{p.open}}" hint-placeholder-val="{{ false }}">
+<div style="border-top: 1px solid #E2E5E1; overflow-x: auto">
+<table class="tbl">
+<thead><tr><th scope="col" style="padding-left: 44px">{{p.attr}}</th><sc-if value="{{showCode}}" hint-placeholder-val="{{ true }}"><th scope="col">Code</th></sc-if><th scope="col" class="num">In today</th><th scope="col" class="num">Out today</th><th scope="col" class="num">In stock</th><th scope="col" class="num">Reorder at</th><th scope="col">Status</th><th scope="col"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Actions</span></th></tr></thead>
+<tbody>
+<sc-for list="{{p.variants}}" as="v" hint-placeholder-count="3">
+<tr><td style="padding-left: 44px; font-weight: 500">{{v.size}}</td><sc-if value="{{showCode}}" hint-placeholder-val="{{ true }}"><td style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5B6670">{{v.code}}</td></sc-if><td class="num" style="color: {{v.inColor}}">{{v.tin}}</td><td class="num" style="color: {{v.outColor}}">{{v.tout}}</td><td class="num">{{v.stock}}</td><td class="num">{{v.reorder}}</td><td><span class="pill" style="{{v.stStyle}}">{{v.status}}</span></td><td><button type="button" class="ghost">Edit</button></td></tr>
+</sc-for>
+<tr><td colspan="{{groupSpan}}" style="padding-left: 36px; border-bottom: none"><button type="button" class="ghost">+ Add variation to {{p.name}}</button> <a href="ProductDetail.dc.html" style="font-size: 13px; font-weight: 500; margin-left: 12px">View sales &amp; purchase history</a></td></tr>
+</tbody>
+</table>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</section>
+</div>
+</main>
+<sc-if value="{{showProduct}}" hint-placeholder-val="{{ false }}">
+<div style="position: fixed; inset: 0; background: rgba(15,24,29,.55); display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px; box-sizing: border-box; z-index: 20; overflow-y: auto">
+<dc-import name="AddProduct" on-close="{{close}}" hint-size="600px,800px"></dc-import>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var s = this.state || {};
+var cat = s.cat || 'All';
+var q = s.q || '';
+var open = s.open || { 'SS Black cooker': true };
+var view = s.view || 'compact';
+var showCode = s.code !== false;
+var set = function (o) { self.setState(o); };
+var modal = s.modal || null;
+var sizesArr = s.sizes || ['2.5 L', '3 L', '5 L'];
+var draft = s.draft || '';
+var pname = s.pname === undefined ? 'SS Black cooker' : s.pname;
+var data = [
+['Pressure cookers', 'SS Black cooker', 'Capacity', ['2 L', '2.5 L', '3 L', '5 L']],
+['Pressure cookers', 'Aluminium cooker', 'Capacity', ['3 L', '5 L', '7.5 L']],
+['Pressure cookers', 'Induction base cooker', 'Capacity', ['3 L', '5 L']],
+['Cookware', 'Steel kadhai', 'Diameter', ['24 cm', '26 cm', '30 cm']],
+['Cookware', 'Non-stick tawa', 'Diameter', ['26 cm', '28 cm']],
+['Cookware', 'Non-stick fry pan', 'Diameter', ['24 cm', '28 cm']],
+['Gas stoves', 'Glass top gas stove', 'Burners', ['2 burner', '3 burner']],
+['Small appliances', 'Rice cooker', 'Capacity', ['1 L', '1.8 L', '2.8 L']],
+['Small appliances', 'Electric kettle', 'Capacity', ['1.5 L', '1.8 L']],
+['Small appliances', 'Mixer grinder', 'Wattage', ['500 W', '750 W']],
+['Utensils', 'Steel spoon set', 'Pieces in set', ['6 pcs', '12 pcs']],
+['Utensils', 'Cooker gasket', 'Fits', ['2–3 L', '5 L']]
+];
+var n = 0;
+var all = data.map(function (d) {
+var variants = d[3].map(function (sz) {
+n++;
+var stock = (n * 7 + 3) % 23;
+var reorder = 4 + (n % 3) * 2;
+var st = stock === 0 ? 'Out' : stock <= reorder ? 'Low' : 'OK';
+var tin = (n % 5 === 0) ? 4 + n % 7 : 0;
+var tout = (n * 3) % 4 === 1 ? 1 + n % 3 : 0;
+return { tinN: tin, toutN: tout, tin: tin ? '+' + tin : '–', tout: tout ? '−' + tout : '–', inColor: tin ? '#0A5454' : '#9AA4A9', outColor: tout ? '#8A4205' : '#9AA4A9', size: sz, code: d[1].split(' ').map(function (w) { return w[0]; }).join('').toUpperCase() + '-' + sz.replace(/[^0-9a-zA-Z.]/g, '').toUpperCase(), stock: stock, reorder: reorder, status: st, stStyle: st === 'Out' ? 'background: #F6DCD3; color: #8E2F12' : st === 'Low' ? 'background: #FCEFD9; color: #8A4205' : 'background: #E3F0EE; color: #0A5454' };
+});
+return { cat: d[0], name: d[1], attr: d[2], variants: variants };
+});
+var cats = ['All', 'Pressure cookers', 'Cookware', 'Gas stoves', 'Small appliances', 'Utensils'];
+var ql = q.trim().toLowerCase();
+var words = ql ? ql.split(/\s+/) : [];
+var match = function (p, v) { var hay = (p.name + ' ' + v.size).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) > -1; }); };
+var list = all.filter(function (p) { return (!ql || p.variants.some(function (v) { return match(p, v); })); });
+var anyClosed = list.some(function (p) { return !open[p.name]; });
+var products = list.map(function (p) {
+var vs = ql ? p.variants.filter(function (v) { return match(p, v); }) : p.variants;
+var isOpen = !!open[p.name] || !!ql;
+var low = p.variants.filter(function (v) { return v.status !== 'OK'; }).length;
+return {
+name: p.name, cat: p.cat, attr: p.attr, sizes: p.variants.map(function (v) { return v.size; }).join(', '),
+vcount: p.variants.length, total: p.variants.reduce(function (a, v) { return a + v.stock; }, 0),
+hasLow: low > 0, allOk: low === 0, lowText: low + (low === 1 ? ' variation low' : ' variations low'),
+open: isOpen, bg: isOpen ? '#F3F8F7' : '#FFFFFF', chev: isOpen ? 'transform: rotate(90deg); flex: none' : 'flex: none',
+variants: vs,
+toggle: function () { var o = Object.assign({}, open); o[p.name] = !open[p.name]; set({ open: o }); }
+};
+});
+var flat = [];
+list.forEach(function (p) {
+var vs = ql ? p.variants.filter(function (v) { return match(p, v); }) : p.variants;
+vs.forEach(function (v, i) {
+flat.push({ product: i === 0 ? p.name : '', prodStyle: i === 0 ? 'font-weight: 600' : '', rowStyle: i === 0 ? 'border-top: 2px solid #E2E5E1' : '', size: v.size, code: v.code, tin: v.tin, tout: v.tout, inColor: v.inColor, outColor: v.outColor, stock: v.stock, reorder: v.reorder, status: v.status, stStyle: 'padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; ' + v.stStyle });
+});
+});
+var segOn = 'background: #FFFFFF; color: #0A5454; font-weight: 600; box-shadow: 0 1px 2px rgba(23,34,42,.12)';
+var segOff = 'background: transparent; color: #3E4A52';
+var skuCount = list.reduce(function (a, p) { return a + p.variants.length; }, 0);
+return {
+cats: cats.map(function (c) {
+var cnt = c === 'All' ? all.length : all.filter(function (p) { return p.cat === c; }).length;
+var on = c === cat;
+return { name: c === 'All' ? 'All categories' : c, count: cnt, on: on ? 'true' : 'false', style: on ? 'background: #0E6B6B; color: #FFFFFF; font-weight: 600' : 'background: transparent; color: #1B2328', pick: function () { set({ cat: c }); } };
+}),
+q: q, setQ: function (ev) { set({ q: ev.target.value }); },
+showProduct: modal === 'product', showCat: modal === 'cat',
+openProduct: function () { set({ modal: 'product' }); },
+openCat: function () { set({ modal: 'cat' }); },
+close: function () { set({ modal: null }); },
+pname: pname, setPname: function (ev) { set({ pname: ev.target.value }); },
+sizeDraft: draft, setDraft: function (ev) { set({ draft: ev.target.value }); },
+addSize: function () { var t = draft.trim(); if (t && sizesArr.indexOf(t) < 0) set({ sizes: sizesArr.concat([t]), draft: '' }); },
+sizes: sizesArr.map(function (z) { return { t: z, label: 'Remove ' + z, remove: function () { set({ sizes: sizesArr.filter(function (x) { return x !== z; }) }); } }; }),
+createNote: sizesArr.length ? 'Creates ' + sizesArr.length + ' stock item' + (sizesArr.length > 1 ? 's' : '') + ': ' + sizesArr.map(function (z) { return (pname || 'Product') + ' ' + z; }).join(', ') + '.' : 'Creates 1 stock item with no sizes.',
+products: products, flat: flat,
+todayIn: all.reduce(function (a, p) { return a + p.variants.reduce(function (b, v) { return b + v.tinN; }, 0); }, 0),
+todayOut: all.reduce(function (a, p) { return a + p.variants.reduce(function (b, v) { return b + v.toutN; }, 0); }, 0),
+showCode: showCode, toggleCode: function () { set({ code: !showCode }); }, groupSpan: showCode ? 8 : 7,
+compactOn: view === 'compact', groupedOn: view === 'grouped',
+compactBtn: view === 'compact' ? segOn : segOff, groupedBtn: view === 'grouped' ? segOn : segOff,
+showCompact: function () { set({ view: 'compact' }); }, showGrouped: function () { set({ view: 'grouped' }); },
+summary: list.length + ' products · ' + skuCount + ' variations tracked' + (ql ? ' · matching "' + q + '"' : ''),
+expandLabel: anyClosed ? 'Expand all' : 'Collapse all',
+expandAll: function () { var o = {}; list.forEach(function (p) { o[p.name] = anyClosed; }); set({ open: o }); }
+};
+}
+}
+</script>
+</body>
+</html>

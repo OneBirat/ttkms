@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stock entry (mobile)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500;600&amp;family=Noto+Sans+Devanagari:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.mono{font-family:'IBM Plex Mono',monospace}
+.step{width:44px;height:44px;border-radius:10px;border:1px solid #CBD2CC;background:#FFFFFF;font:inherit;font-size:22px;line-height:1;color:#1B2328;cursor:pointer;display:flex;align-items:center;justify-content:center}
+@keyframes ttkDrawer{from{transform:translateX(-100%)}to{transform:none}}
+@keyframes ttkIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2; display: flex; flex-direction: column">
+
+<header style="background: #17222A; color: #FFFFFF; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 10px">
+<button type="button" aria-label="Open menu" aria-expanded="{{menuOpenS}}" onClick="{{openMenu}}" style="width: 44px; height: 44px; border-radius: 10px; border: none; background: transparent; color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+<div style="display: flex; flex-direction: column; flex: 1"><span style="font-size: 17px; font-weight: 600">Stock entry</span><span style="font-size: 12px; color: #A9B6BD"><span style="font-family: 'Noto Sans Devanagari', sans-serif">मंगलबार, कार्तिक ४</span> · Kartik 4, 2083</span></div>
+</div>
+<div role="group" aria-label="View" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: #24363F; border-radius: 10px; padding: 3px">
+<button type="button" aria-pressed="{{newOn}}" onClick="{{showNew}}" style="{{newTab}}">New entry</button>
+<button type="button" aria-pressed="{{todayOn}}" onClick="{{showToday}}" style="{{todayTab}}">Today · {{todayCount}}</button>
+</div>
+</header>
+
+<sc-if value="{{newOnB}}" hint-placeholder-val="{{ true }}">
+<div style="flex: 1; overflow-y: auto; padding: 14px 14px 110px; display: flex; flex-direction: column; gap: 12px">
+<div role="group" aria-label="Entry type" style="position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: #E6E9E4; border-radius: 999px; padding: 4px">
+<div aria-hidden="true" style="{{knob}}"></div>
+<button type="button" aria-pressed="{{pOn}}" onClick="{{setP}}" style="{{pBtn}}"><span>Purchase</span><span style="{{npStyle}}">खरिद</span></button>
+<button type="button" aria-pressed="{{cOn}}" onClick="{{setC}}" style="{{cBtn}}"><span>Consumption</span><span style="{{npStyle}}">खपत</span></button>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px">
+<label for="m-date" style="font-size: 13px; font-weight: 600">Date (BS)</label>
+<div style="display: flex; align-items: center; gap: 8px; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 10px; min-height: 44px; box-sizing: border-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><input id="m-date" value="2083-07-04" class="mono" style="border: none; outline: none; font-size: 14px; width: 104px; background: transparent; color: #1B2328"></div>
+</div>
+</div>
+
+<div style="display: flex; align-items: baseline; justify-content: space-between; padding: 2px 2px 0"><h2 style="margin: 0; font-size: 15px; font-weight: 600">Items · {{rowCount}}</h2><span style="font-size: 12px; color: #5B6670">{{totalQty}} pcs total</span></div>
+
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="2">
+<div style="{{r.cardStyle}}">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px">
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<span style="font-size: 15px; font-weight: 600">{{r.product}}</span>
+<span style="font-size: 13px; color: #3E4A52">{{r.variation}} · <span style="{{r.stockStyle}}">{{r.stockText}}</span></span>
+</div>
+<button type="button" aria-label="{{r.removeLabel}}" onClick="{{r.remove}}" style="width: 40px; height: 40px; border-radius: 8px; border: none; background: transparent; color: #8A949A; cursor: pointer; display: flex; align-items: center; justify-content: center; flex: none"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg></button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<button type="button" class="step" aria-label="{{r.decLabel}}" onClick="{{r.dec}}">−</button>
+<button type="button" aria-label="{{r.padLabel}}" onClick="{{r.openPad}}" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #CBD2CC; border-radius: 10px; min-height: 44px; background: #FFFFFF; font: inherit; color: #1B2328; cursor: pointer"><span class="mono" style="font-size: 20px; font-weight: 600">{{r.qty}}</span><span style="font-size: 13px; color: #5B6670">pcs</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8C9A93" stroke-width="2" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"></path></svg></button>
+<button type="button" class="step" aria-label="{{r.incLabel}}" onClick="{{r.inc}}">+</button>
+</div>
+<sc-if value="{{r.warn}}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size: 12px; color: #8A4205">{{r.warnText}}</span></sc-if>
+<div style="border: 1px solid #E2E5E1; border-radius: 8px; padding: 0 10px; min-height: 40px; display: flex; align-items: center; box-sizing: border-box"><input aria-label="{{r.remarkLabel}}" placeholder="Remarks (optional)" style="border: none; outline: none; font: inherit; font-size: 13px; width: 100%; background: transparent; color: #1B2328"></div>
+</div>
+</sc-for>
+
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 26px 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center">
+<div style="width: 64px; height: 64px; border-radius: 50%; background: {{emptyTint}}; color: {{ink}}; display: flex; align-items: center; justify-content: center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"></path></svg></div>
+<span style="font-size: 16px; font-weight: 600">No items yet</span>
+<span style="font-size: 13px; color: #5B6670; max-width: 260px">{{emptyHint}}</span>
+</div>
+</sc-if>
+<button type="button" onClick="{{openPicker}}" style="{{addStyle}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>{{addLabel}}</button>
+</div>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1px solid #E2E5E1; padding: 12px 14px 22px; display: flex; align-items: center; gap: 12px; box-shadow: 0 -6px 16px rgba(23,34,42,.06)">
+<div style="display: flex; flex-direction: column; flex: 1; min-width: 0"><span style="font-size: 12px; color: #5B6670">{{saveCaption}}</span><span style="font-size: 15px; font-weight: 600; color: {{ink}}">{{saveTotal}}</span></div>
+<button type="button" onClick="{{save}}" aria-disabled="{{saveDisabled}}" style="{{saveStyle}}">{{saveLabel}}</button>
+</div>
+</sc-if>
+
+<sc-if value="{{todayOnB}}" hint-placeholder-val="{{ false }}">
+<div style="flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<button type="button" aria-pressed="{{tfInOn}}" onClick="{{tfIn}}" style="{{tfInStyle}}"><span style="font-size: 12px; color: #3E4A52">Purchased today</span><span class="mono" style="font-size: 22px; font-weight: 600; color: #0A5454">+{{tIn}}</span><span style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #0A5454; font-weight: 600">{{tInN}} entries · {{tfInCta}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></span></button>
+<button type="button" aria-pressed="{{tfOutOn}}" onClick="{{tfOut}}" style="{{tfOutStyle}}"><span style="font-size: 12px; color: #3E4A52">Sold / used today</span><span class="mono" style="font-size: 22px; font-weight: 600; color: #8A4205">−{{tOut}}</span><span style="display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #8A4205; font-weight: 600">{{tOutN}} entries · {{tfOutCta}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></span></button>
+</div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 2px 2px 0"><h2 style="margin: 0; font-size: 15px; font-weight: 600">{{tfTitle}}</h2><sc-if value="{{tfFiltered}}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{tfAll}}" style="min-height: 36px; border: none; background: transparent; padding: 0 4px; font: inherit; font-size: 13px; font-weight: 600; color: #0E6B6B; cursor: pointer">Show all</button></sc-if></div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 4px 14px">
+<sc-for list="{{today}}" as="e" hint-placeholder-count="6">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid #EEF0EC"><div style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span style="font-size: 14px; font-weight: 500">{{e.item}}</span><span style="font-size: 12px; color: #5B6670">{{e.meta}}</span></div><span class="mono" style="{{e.badge}}">{{e.qty}}</span></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{pickerOpen}}" hint-placeholder-val="{{ false }}">
+<div onClick="{{closePicker}}" style="position: absolute; inset: 0; background: rgba(15,24,29,.5); display: flex; align-items: flex-end">
+<div onClick="{{stop}}" role="dialog" aria-modal="true" aria-labelledby="pick-h" style="width: 100%; max-height: 82%; background: #FFFFFF; border-radius: 18px 18px 0 0; display: flex; flex-direction: column">
+<div style="display: flex; justify-content: center; padding-top: 8px"><span style="width: 40px; height: 4px; border-radius: 2px; background: #CBD2CC"></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 16px"><h2 id="pick-h" style="margin: 0; font-size: 17px; font-weight: 600">{{addLabel}}</h2><button type="button" aria-label="Close" onClick="{{closePicker}}" style="width: 44px; height: 44px; border: none; background: transparent; font-size: 24px; color: #5B6670; cursor: pointer">×</button></div>
+<div style="padding: 0 16px 10px"><div style="display: flex; align-items: center; gap: 8px; border: 1px solid #CBD2CC; border-radius: 10px; padding: 0 12px; min-height: 46px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" aria-label="Search product or variation" placeholder="Search, e.g. cooker 3" value="{{q}}" onInput="{{setQ}}" style="border: none; outline: none; font: inherit; font-size: 15px; width: 100%; background: transparent; color: #1B2328"></div></div>
+<div style="overflow-y: auto; padding: 0 8px 20px">
+<sc-for list="{{options}}" as="o" hint-placeholder-count="8">
+<button type="button" onClick="{{o.pick}}" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 54px; padding: 8px 10px; border: none; border-bottom: 1px solid #EEF0EC; background: #FFFFFF; font: inherit; text-align: left; cursor: pointer; color: #1B2328"><span style="display: flex; flex-direction: column"><span style="font-size: 15px; font-weight: 500">{{o.product}} · {{o.variation}}</span><span style="font-size: 12px; color: #5B6670">{{o.code}}</span></span><span style="{{o.stockStyle}}">{{o.stockText}}</span></button>
+</sc-for>
+<sc-if value="{{noMatch}}" hint-placeholder-val="{{ false }}"><p style="margin: 16px 10px; font-size: 14px; color: #5B6670">No product matches. Add new products from Items.</p></sc-if>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{menuOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 6; display: flex">
+<nav aria-label="Main" style="width: 300px; max-width: 82%; height: 100%; background: #17222A; padding: 16px 10px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; animation: ttkDrawer .22s ease">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px">
+<div style="width: 36px; height: 36px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column; flex: 1"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Anita · Butwal</span></div>
+<button type="button" aria-label="Close menu" onClick="{{closeMenu}}" style="position: relative; z-index: 1; width: 44px; height: 44px; flex: none; border: none; border-radius: 10px; background: #24363F; color: #FFFFFF; font-size: 24px; line-height: 1; cursor: pointer">×</button>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 14px 14px 6px">Stock</div>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border-radius: 10px; text-decoration: none; font-size: 15px; color: #C9D2D7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a href="StockEntryMobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border-radius: 10px; text-decoration: none; font-size: 15px; background: #24363F; color: #FFFFFF; font-weight: 600"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a href="Movements.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border-radius: 10px; text-decoration: none; font-size: 15px; color: #C9D2D7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a href="Items.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border-radius: 10px; text-decoration: none; font-size: 15px; color: #C9D2D7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 14px 14px 6px">Attendance</div>
+<a href="AttendanceMark.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border-radius: 10px; text-decoration: none; font-size: 15px; color: #C9D2D7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a href="AttendanceReport.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border-radius: 10px; text-decoration: none; font-size: 15px; color: #C9D2D7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 14px 14px 6px">People &amp; payroll</div>
+<a href="Employees.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border-radius: 10px; text-decoration: none; font-size: 15px; color: #C9D2D7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a href="SalaryReport.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border-radius: 10px; text-decoration: none; font-size: 15px; color: #C9D2D7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 14px 14px 6px">Admin</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border-radius: 10px; text-decoration: none; font-size: 15px; color: #C9D2D7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+<div style="flex: 1"></div>
+<button type="button" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border: none; border-top: 1px solid #24363F; background: transparent; color: #C9D2D7; font: inherit; font-size: 15px; cursor: pointer; text-align: left"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"></path></svg>Log out</button>
+</nav>
+<div aria-hidden="true" onClick="{{closeMenu}}" style="flex: 1; background: rgba(15,24,29,.5)"></div>
+</div>
+</sc-if>
+
+<sc-if value="{{switchErr}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 7; background: rgba(15,24,29,.55); display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box">
+<div role="alertdialog" aria-modal="true" aria-labelledby="sw-h" aria-describedby="sw-d" style="width: 100%; max-width: 340px; background: #FFFFFF; border-radius: 16px; padding: 22px 18px 16px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; animation: ttkIn .2s ease; box-shadow: 0 20px 40px rgba(15,24,29,.25)">
+<span style="width: 52px; height: 52px; border-radius: 999px; background: #F6DCD3; color: #8E2F12; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path></svg></span>
+<h2 id="sw-h" style="margin: 0; font-size: 18px; font-weight: 700; color: #1B2328">Can't switch to {{switchTo}}</h2>
+<p id="sw-d" style="margin: 0; font-size: 14px; line-height: 1.45; color: #3E4A52">You have {{rowCount}} unsaved {{curName}} item(s). Save them first, or clear them to switch.</p>
+<p style="margin: 0; font-family: 'Noto Sans Devanagari', sans-serif; font-size: 14px; font-weight: 600; line-height: 1.5; color: #3E4A52">पहिले {{curNp}} सेभ गर्नुहोस् वा खाली गर्नुहोस्।</p>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; margin-top: 6px">
+<button type="button" onClick="{{errDismiss}}" style="min-height: 46px; border: 1px solid #CBD2CC; border-radius: 10px; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; color: #1B2328; cursor: pointer">Keep editing</button>
+<button type="button" onClick="{{errClear}}" style="min-height: 46px; border: none; border-radius: 10px; background: #8E2F12; font: inherit; font-size: 14px; font-weight: 600; color: #FFFFFF; cursor: pointer">Clear &amp; switch</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{savedShow}}" hint-placeholder-val="{{ false }}">
+<section role="dialog" aria-modal="true" aria-labelledby="sv-h" style="{{sv.box}}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px 20px 18px; text-align: center">
+<span style="{{sv.icon}}"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L19 7"></path></svg></span>
+<h2 id="sv-h" style="margin: 0; font-size: 22px; font-weight: 700">{{sv.title}}</h2>
+<span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 15px; font-weight: 600; color: #3E4A52">{{sv.titleNp}}</span>
+<span style="font-size: 13px; color: #3E4A52">{{sv.sub}}</span>
+</div>
+<div style="flex: 1; overflow-y: auto; padding: 0 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column; background: #FFFFFF; border-radius: 12px; padding: 4px 14px">
+<span style="font-size: 12px; font-weight: 600; color: #5B6670; text-transform: uppercase; letter-spacing: .04em; padding: 10px 0 4px">Just saved</span>
+<sc-for list="{{sv.items}}" as="it" hint-placeholder-count="2">
+<div style="display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-top: 1px solid #EEF0EC; font-size: 15px"><span style="min-width: 0">{{it.name}}</span><span class="mono" style="{{sv.qtyStyle}}">{{it.qty}}</span></div>
+</sc-for>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; background: #FFFFFF; border-radius: 12px; padding: 14px"><span style="font-size: 14px; color: #3E4A52">{{sv.todayLabel}}</span><span class="mono" style="{{sv.bigQty}}">{{sv.todayTotal}}</span></div>
+</div>
+<div style="padding: 14px 16px 22px; display: flex; flex-direction: column; gap: 8px">
+<button type="button" onClick="{{savedDismiss}}" style="{{sv.btn}}">Skip · back to entry</button>
+<button type="button" onClick="{{savedToday}}" style="min-height: 44px; border: none; background: transparent; font: inherit; font-size: 14px; font-weight: 600; color: #3E4A52; cursor: pointer">View all of today</button>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{padOpen}}" hint-placeholder-val="{{ false }}">
+<div onClick="{{padCancel}}" style="position: absolute; inset: 0; background: rgba(15,24,29,.5); display: flex; align-items: flex-end">
+<div onClick="{{stop}}" role="dialog" aria-modal="true" aria-labelledby="pad-h" style="width: 100%; background: #FFFFFF; border-radius: 18px 18px 0 0; display: flex; flex-direction: column; gap: 12px; padding: 8px 16px 20px; box-sizing: border-box">
+<div style="display: flex; justify-content: center"><span style="width: 40px; height: 4px; border-radius: 2px; background: #CBD2CC"></span></div>
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px"><div style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><h2 id="pad-h" style="margin: 0; font-size: 16px; font-weight: 600">{{padTitle}}</h2><span style="{{padStockStyle}}">{{padStock}}</span></div><button type="button" aria-label="Cancel" onClick="{{padCancel}}" style="width: 44px; height: 44px; flex: none; border: none; background: transparent; font-size: 24px; color: #5B6670; cursor: pointer">×</button></div>
+<div role="status" aria-live="polite" style="{{padBox}}"><span class="mono" style="font-size: 40px; font-weight: 600; letter-spacing: .02em">{{padVal}}</span><span style="font-size: 16px; color: #5B6670">pcs</span></div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{padKeys}}" as="k" hint-placeholder-count="12">
+<button type="button" aria-label="{{k.label}}" onClick="{{k.press}}" style="{{k.style}}">{{k.text}}</button>
+</sc-for>
+</div>
+<button type="button" onClick="{{padDone}}" style="{{padDoneStyle}}">Done</button>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"startEmpty":{"editor":"boolean","default":false},"startMenu":{"editor":"boolean","default":false},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var s = this.state || {};
+var set = function (o) { self.setState(o); };
+var view = s.view || 'new';
+var type = s.type || 'purchase';
+var isP = type === 'purchase';
+var rows = s.rows || (this.props.startEmpty ? [] : [{ k: 'SBC-3L', q: 12 }, { k: 'RC-1.8L', q: 4 }]);
+var catalog = [
+['SS Black cooker', '2 L', 'SBC-2L', 7], ['SS Black cooker', '2.5 L', 'SBC-2.5L', 14], ['SS Black cooker', '3 L', 'SBC-3L', 10], ['SS Black cooker', '5 L', 'SBC-5L', 0],
+['Aluminium cooker', '3 L', 'AC-3L', 15], ['Aluminium cooker', '5 L', 'AC-5L', 22],
+['Steel kadhai', '24 cm', 'SK-24CM', 4], ['Steel kadhai', '26 cm', 'SK-26CM', 11],
+['Non-stick tawa', '26 cm', 'NT-26CM', 2], ['Non-stick tawa', '28 cm', 'NT-28CM', 9],
+['Glass top gas stove', '2 burner', 'GTGS-2BURNER', 7], ['Glass top gas stove', '3 burner', 'GTGS-3BURNER', 14],
+['Rice cooker', '1 L', 'RC-1L', 21], ['Rice cooker', '1.8 L', 'RC-1.8L', 5], ['Rice cooker', '2.8 L', 'RC-2.8L', 12],
+['Electric kettle', '1.8 L', 'EK-1.8L', 3], ['Mixer grinder', '750 W', 'MG-750W', 17], ['Cooker gasket', '5 L', 'CG-5L', 22]
+];
+var find = function (k) { return catalog.filter(function (c) { return c[2] === k; })[0]; };
+var stockStyle = function (n) { return n === 0 ? 'color: #8E2F12; font-weight: 600' : n <= 5 ? 'color: #8A4205; font-weight: 600' : 'color: #5B6670'; };
+var segOn = 'position: relative; z-index: 1; min-height: 40px; border: none; border-radius: 8px; font: inherit; font-size: 14px; cursor: pointer; ';
+var pad = s.pad && rows[s.pad.i] ? s.pad : null;
+var padRow = pad ? find(rows[pad.i].k) : null;
+var total = rows.reduce(function (a, r) { return a + r.q; }, 0);
+var anyWarn = false;
+var rowVals = rows.map(function (r, i) {
+var c = find(r.k);
+var over = !isP && r.q > c[3];
+if (over || r.q <= 0) anyWarn = true;
+var upd = function (q) { var nr = rows.slice(); nr[i] = { k: r.k, q: Math.max(0, q) }; set({ rows: nr }); };
+return {
+product: c[0], variation: c[1], qty: r.q,
+stockText: 'in stock ' + c[3] + ' pcs', stockStyle: stockStyle(c[3]),
+warn: over || r.q <= 0, warnText: r.q <= 0 ? 'Enter a quantity above 0.' : 'Only ' + c[3] + ' pcs in stock. You can still save, but stock will go negative.',
+cardStyle: 'background: #FFFFFF; border: 1px solid ' + (over || r.q <= 0 ? '#E6B877' : '#E2E5E1') + '; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px',
+inc: function () { upd(r.q + 1); }, dec: function () { upd(r.q - 1); },
+openPad: function () { set({ pad: { i: i, val: '' } }); }, padLabel: 'Type quantity for ' + c[0] + ' ' + c[1] + ', now ' + r.q,
+remove: function () { set({ rows: rows.filter(function (x, j) { return j !== i; }) }); },
+removeLabel: 'Remove ' + c[0] + ' ' + c[1], incLabel: 'Increase ' + c[0] + ' ' + c[1], decLabel: 'Decrease ' + c[0] + ' ' + c[1], remarkLabel: 'Remarks for ' + c[0] + ' ' + c[1]
+};
+});
+var q = (s.q || '').toLowerCase().trim();
+var words = q ? q.split(/\s+/) : [];
+var opts = catalog.filter(function (c) { var hay = (c[0] + ' ' + c[1]).toLowerCase(); return words.every(function (w) { return hay.indexOf(w) > -1; }); });
+var inRows = rows.map(function (r) { return r.k; });
+var options = opts.map(function (c) {
+var added = inRows.indexOf(c[2]) > -1;
+return { product: c[0], variation: c[1], code: added ? c[2] + ' · already added, tap to add 1 more' : c[2], stockText: c[3] + ' pcs', stockStyle: 'font-family: IBM Plex Mono, monospace; font-size: 13px; ' + stockStyle(c[3]),
+pick: function () {
+var nr = rows.slice(); var idx = inRows.indexOf(c[2]);
+if (idx > -1) nr[idx] = { k: c[2], q: nr[idx].q + 1 }; else nr.push({ k: c[2], q: 1 });
+set({ rows: nr, picker: false, q: '' });
+} };
+});
+var today = [
+['Glass top gas stove · 2 burner', 6, 'Anita · 10:42', true], ['Steel kadhai · 26 cm', 3, 'Counter sale · Bikash · 11:20', false],
+['Cooker gasket · 5 L', 20, 'Anita · 10:42', true], ['SS Black cooker · 3 L', 2, 'Counter sale · Bikash · 11:05', false],
+['Rice cooker · 1.8 L', 4, 'Anita · 09:55', true], ['Non-stick tawa · 28 cm', 1, 'Display damage · Sita · 10:15', false],
+['SS Black cooker · 2.5 L', 8, 'Kamala · 09:30', true], ['Steel spoon set · 12 pcs', 4, 'Counter sale · Bikash · 09:48', false]
+];
+var added = s.added || [];
+var sv = s.saved || null;
+today = added.concat(today);
+var tin = today.filter(function (t) { return t[3]; }), tout = today.filter(function (t) { return !t[3]; });
+var tf = s.tf || 'all';
+var cardBtn = 'border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; text-align: left; font: inherit; color: #1B2328; cursor: pointer; ';
+var sumq = function (l) { return l.reduce(function (a, t) { return a + t[1]; }, 0); };
+var blocked = rows.length === 0 || rows.some(function (r) { return r.q <= 0; });
+return {
+newOn: view === 'new' ? 'true' : 'false', todayOn: view === 'today' ? 'true' : 'false', newOnB: view === 'new', todayOnB: view === 'today',
+newTab: segOn + (view === 'new' ? 'background: #FFFFFF; color: #17222A; font-weight: 600' : 'background: transparent; color: #C9D2D7'),
+todayTab: segOn + (view === 'today' ? 'background: #FFFFFF; color: #17222A; font-weight: 600' : 'background: transparent; color: #C9D2D7'),
+showNew: function () { set({ view: 'new' }); }, showToday: function () { set({ view: 'today' }); },
+todayCount: today.length,
+pOn: isP ? 'true' : 'false', cOn: isP ? 'false' : 'true', pOnB: isP, cOnB: !isP,
+setP: function () { if (isP) return; if (rows.length) { set({ switchErr: 'purchase' }); return; } set({ type: 'purchase', switchErr: null }); },
+setC: function () { if (!isP) return; if (rows.length) { set({ switchErr: 'consumption' }); return; } set({ type: 'consumption', switchErr: null }); },
+switchErr: !!s.switchErr && rows.length > 0, switchTo: s.switchErr === 'purchase' ? 'Purchase' : 'Consumption',
+curName: isP ? 'purchase' : 'consumption', curNp: isP ? 'खरिद' : 'खपत',
+errDismiss: function () { set({ switchErr: null }); },
+errClear: function () { set({ rows: [], type: s.switchErr || type, switchErr: null }); },
+knob: 'position: absolute; top: 4px; bottom: 4px; width: calc(50% - 4px); left: ' + (isP ? '4px' : '50%') + '; border-radius: 999px; background: ' + (isP ? '#0E6B6B' : '#9A4A06') + '; transition: left .25s ease, background .25s ease',
+pBtn: 'position: relative; z-index: 1; min-height: 52px; padding: 4px 6px; border: none; border-radius: 999px; background: transparent; font: inherit; font-size: 15px; line-height: 1.15; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1px; ' + (isP ? 'color: #FFFFFF; font-weight: 700' : 'color: #3E4A52; font-weight: 600'),
+cBtn: 'position: relative; z-index: 1; min-height: 52px; padding: 4px 6px; border: none; border-radius: 999px; background: transparent; font: inherit; font-size: 15px; line-height: 1.15; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1px; ' + (isP ? 'color: #3E4A52; font-weight: 600' : 'color: #FFFFFF; font-weight: 700'),
+npStyle: "font-family: 'Noto Sans Devanagari', sans-serif; font-size: 13px; font-weight: 600; opacity: .9",
+rows: rowVals, rowCount: rows.length, totalQty: total,
+isEmpty: rows.length === 0, emptyTint: isP ? '#EAF5F3' : '#FDF3E3',
+addStyle: 'display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; border-radius: 12px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; border: 1.5px dashed ' + (isP ? '#0E6B6B; color: #0A5454; background: #F2F8F7' : '#9A4A06; color: #8A4205; background: #FDF7EE'),
+addLabel: isP ? 'Add purchase' : 'Add consumption',
+emptyHint: isP ? 'Tap "Add purchase" and search, e.g. "cooker 3". Add every item purchased, then save once.' : 'Tap "Add consumption" for each product sold or used today, then save once.',
+openPicker: function () { set({ picker: true }); }, closePicker: function () { set({ picker: false, q: '' }); },
+pickerOpen: !!s.picker, q: s.q || '', setQ: function (e) { set({ q: e.target.value }); },
+options: options, noMatch: options.length === 0,
+ink: isP ? '#0A5454' : '#8A4205',
+saveCaption: rows.length === 0 ? 'Nothing to save yet' : rows.length + (rows.length === 1 ? ' item' : ' items') + (anyWarn ? ' · check highlighted' : ''),
+saveTotal: (isP ? '+' : '−') + total + ' pcs',
+saveLabel: isP ? 'Save purchase' : 'Save consumption',
+saveDisabled: blocked ? 'true' : 'false',
+saveStyle: 'min-height: 50px; padding: 0 22px; border-radius: 12px; border: none; font: inherit; font-size: 15px; font-weight: 600; ' + (blocked ? 'background: #C9D2CF; color: #5B6670; cursor: not-allowed' : 'cursor: pointer; color: #FFFFFF; background: ' + (isP ? '#0E6B6B' : '#9A4A06')),
+save: function () { if (blocked) return;
+var items = rows.map(function (r) { var c = find(r.k); return { name: c[0] + ' · ' + c[1], q: r.q }; });
+var addT = items.map(function (it) { return [it.name, it.q, 'You · just now', isP]; });
+var id = Date.now();
+set({ rows: [], added: addT.concat(added), saved: { id: id, isP: isP, items: items, total: total } }); },
+padOpen: !!pad, padTitle: padRow ? padRow[0] + ' · ' + padRow[1] : '', padStock: padRow ? 'In stock ' + padRow[3] + ' pcs · was ' + rows[pad.i].q : '', padStockStyle: 'font-size: 13px; ' + (padRow ? stockStyle(padRow[3]) : ''),
+padVal: pad ? (pad.val === '' ? '0' : pad.val) : '0',
+padBox: 'display: flex; align-items: baseline; justify-content: center; gap: 8px; border: 2px solid ' + (isP ? '#0E6B6B' : '#9A4A06') + '; border-radius: 12px; padding: 10px; background: ' + (isP ? '#F2F8F7' : '#FDF7EE'),
+padKeys: ['1','2','3','4','5','6','7','8','9','C','0','del'].map(function (t) {
+var isFn = t === 'C' || t === 'del';
+return { text: t === 'del' ? '⌫' : t, label: t === 'C' ? 'Clear' : t === 'del' ? 'Delete last digit' : t,
+style: 'min-height: 56px; border: none; border-radius: 12px; font: inherit; font-size: ' + (isFn ? '18px' : '24px') + '; font-weight: 600; cursor: pointer; font-family: ' + (isFn ? 'inherit' : 'IBM Plex Mono, monospace') + '; background: ' + (isFn ? '#E6E9E4; color: #3E4A52' : '#F4F5F2; color: #1B2328'),
+press: function () { if (!pad) return; var v = pad.val; if (t === 'C') v = ''; else if (t === 'del') v = v.slice(0, -1); else if (v.length < 5) v = (v === '0' ? '' : v) + t; set({ pad: { i: pad.i, val: v } }); } };
+}),
+padCancel: function () { set({ pad: null }); },
+padDone: function () { if (!pad) return; var nr = rows.slice(); nr[pad.i] = { k: rows[pad.i].k, q: parseInt(pad.val || '0', 10) }; set({ rows: nr, pad: null }); },
+padDoneStyle: 'min-height: 52px; border: none; border-radius: 12px; font: inherit; font-size: 16px; font-weight: 700; color: #FFFFFF; cursor: pointer; background: ' + (isP ? '#0E6B6B' : '#9A4A06'),
+stop: function (e) { if (e && e.stopPropagation) e.stopPropagation(); },
+menuOpen: s.menu === undefined ? !!this.props.startMenu : !!s.menu, menuOpenS: (s.menu === undefined ? !!this.props.startMenu : !!s.menu) ? 'true' : 'false', openMenu: function () { set({ menu: true }); }, closeMenu: function () { set({ menu: false }); },
+savedShow: !!sv, savedDismiss: function () { set({ saved: null }); }, savedToday: function () { set({ saved: null, view: 'today' }); },
+sv: sv ? { title: (sv.isP ? 'Purchase saved' : 'Consumption saved'), titleNp: sv.isP ? 'खरिद सेभ भयो' : 'खपत सेभ भयो', sub: sv.items.length + ' item(s) · ' + (sv.isP ? '+' : '−') + sv.total + ' pcs · Kartik 4, 2083 · just now',
+items: sv.items.map(function (it) { return { name: it.name, qty: (sv.isP ? '+' : '−') + it.q }; }),
+todayLabel: sv.isP ? 'Purchased today so far (' + tin.length + ' entries)' : 'Sold / used today so far (' + tout.length + ' entries)',
+todayTotal: (sv.isP ? '+' : '−') + (sv.isP ? sumq(tin) : sumq(tout)) + ' pcs',
+qtyStyle: 'font-weight: 600; color: ' + (sv.isP ? '#0A5454' : '#8A4205'),
+box: 'position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; animation: ttkIn .25s ease; background: ' + (sv.isP ? '#E3F0EE' : '#FCEFD9') + ';',
+icon: 'width: 64px; height: 64px; flex: none; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #FFFFFF; background: ' + (sv.isP ? '#0E6B6B' : '#9A4A06'),
+bigQty: 'font-size: 20px; font-weight: 700; color: ' + (sv.isP ? '#0A5454' : '#8A4205'),
+btn: 'min-height: 52px; border: none; border-radius: 12px; font: inherit; font-size: 16px; font-weight: 700; color: #FFFFFF; cursor: pointer; background: ' + (sv.isP ? '#0E6B6B' : '#9A4A06') } : { items: [] },
+tfInOn: tf === 'in' ? 'true' : 'false', tfOutOn: tf === 'out' ? 'true' : 'false', tfFiltered: tf !== 'all',
+tfIn: function () { set({ tf: tf === 'in' ? 'all' : 'in' }); }, tfOut: function () { set({ tf: tf === 'out' ? 'all' : 'out' }); }, tfAll: function () { set({ tf: 'all' }); },
+tfInCta: tf === 'in' ? 'Showing' : 'View', tfOutCta: tf === 'out' ? 'Showing' : 'View',
+tfInStyle: cardBtn + 'background: #EAF5F3; border: 2px solid ' + (tf === 'in' ? '#0E6B6B' : 'transparent'),
+tfOutStyle: cardBtn + 'background: #FDF3E3; border: 2px solid ' + (tf === 'out' ? '#9A4A06' : 'transparent'),
+tfTitle: tf === 'in' ? 'Purchased today · ' + tin.length + ' items' : tf === 'out' ? 'Sold / used today · ' + tout.length + ' items' : 'All entries today · ' + today.length,
+today: (tf === 'in' ? tin : tf === 'out' ? tout : today).map(function (t) { return { item: t[0], meta: t[2], qty: (t[3] ? '+' : '−') + t[1], badge: 'padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: ' + (t[3] ? '#E3F0EE; color: #0A5454' : '#FCEFD9; color: #8A4205') }; }),
+tIn: sumq(tin), tInN: tin.length, tOut: sumq(tout), tOutN: tout.length
+};
+}
+}
+</script>
+</body>
+</html>

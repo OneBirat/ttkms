@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stock entry</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;family=Noto+Sans+Devanagari:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-weight:600;color:#5B6670;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 8px;border-bottom:1px solid #E2E5E1;white-space:nowrap}
+.tbl td{padding:10px 8px;border-bottom:1px solid #EEF0EC;vertical-align:top}
+.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#C9D2D7;text-decoration:none;font-size:14px;min-height:24px}
+.nav:hover{background:#22323B;color:#FFFFFF}
+.field{display:flex;align-items:center;gap:8px;border:1px solid #CBD2CC;border-radius:8px;padding:0 12px;min-height:44px;background:#FFFFFF;box-sizing:border-box}
+.field input,.field select{border:none;outline:none;font:inherit;color:#1B2328;background:transparent;width:100%;min-width:0}
+@keyframes ttkNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+@keyframes ttkPulse{0%,100%{box-shadow:0 0 0 0 rgba(142,47,18,.45)}50%{box-shadow:0 0 0 6px rgba(142,47,18,0)}}
+@keyframes ttkPop{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+</style>
+</helmet>
+<div style="position: relative; display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; background: #17222A; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+<div style="width: 34px; height: 34px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Stock &amp; attendance</span></div>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 12px 6px">Stock</div>
+<a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a class="nav" href="StockEntry.dc.html" aria-current="page" style="background: #24363F; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a class="nav" href="Movements.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a class="nav" href="Items.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Attendance</div>
+<a class="nav" href="AttendanceMark.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a class="nav" href="AttendanceReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">People &amp; payroll</div>
+<a class="nav" href="Employees.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a class="nav" href="SalaryReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 9.5v5M18 9.5v5"></path></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Admin</div>
+<a class="nav" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+<header style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Stock entry</h1>
+<p style="margin: 0; color: #5B6670; font-size: 14px">One form for purchases and consumption. Opening stock is set when a product is added. All rows save together, or none do.</p>
+</header>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<form style="flex: 3 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+<fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+<legend style="font-size: 13px; font-weight: 600; color: #5B6670; padding: 0 0 8px">Entry type</legend>
+<div style="display: inline-flex; flex-wrap: wrap; gap: 4px; background: #EEF0EC; padding: 4px; border-radius: 10px; align-self: flex-start">
+<button type="button" onClick="{{formP}}" aria-pressed="{{fpOn}}" style="{{fpStyle}}">Purchase</button>
+<button type="button" onClick="{{formC}}" aria-pressed="{{fcOn}}" style="{{fcStyle}}">Consumption</button>
+</div>
+</fieldset>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="addate" style="font-size: 13px; font-weight: 600">Date (AD)</label>
+<div class="field"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><input id="addate" type="date" value="2026-10-20"></div>
+<span style="font-size: 12px; color: #5B6670">Tuesday, 20 October 2026</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="bsdate" style="font-size: 13px; font-weight: 600">Date (BS) <span style="font-family: 'Noto Sans Devanagari', sans-serif; font-weight: 600; color: #5B6670">· मिति</span></label>
+<div class="field"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><input id="bsdate" value="2083-07-04"></div>
+<span style="font-size: 12px; color: #5B6670"><span style="font-family: 'Noto Sans Devanagari', sans-serif">मंगलबार, कार्तिक ४, २०८३</span> · changing either date updates the other</span>
+</div>
+</div>
+<div style="overflow-x: auto">
+<table class="tbl" style="min-width: 680px">
+<thead><tr><th scope="col" style="width: 28px">#</th><th scope="col">Item</th><th scope="col" class="num" style="width: 90px">In stock</th><th scope="col" style="width: 150px">Quantity</th><th scope="col">Remarks</th><th scope="col" style="width: 44px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Remove</span></th></tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="3">
+<tr>
+<td style="padding-top: 22px; color: #5B6670">{{r.n}}</td>
+<td style="min-width: 240px">
+<sc-if value="{{r.closed}}" hint-placeholder-val="{{ true }}"><button type="button" aria-haspopup="listbox" aria-expanded="{{r.openS}}" aria-label="{{r.itemLabel}}" onClick="{{r.toggle}}" style="{{r.btnStyle}}"><span style="flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.item}}</span><sc-if value="{{r.locked}}" hint-placeholder-val="{{ false }}"><span title="Locked: quantity entered" style="color: #8C9A93; display: flex"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 018 0v4"></path></svg></span></sc-if><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="{{r.chevStyle}}"><path d="M6 9l6 6 6-6"></path></svg></button></sc-if><sc-if value="{{r.open}}" hint-placeholder-val="{{ false }}"><div style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 2px solid #0E6B6B; border-radius: 8px; background: #FFFFFF; box-sizing: border-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0E6B6B" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="text" role="combobox" aria-expanded="true" aria-label="{{r.itemLabel}}" autofocus placeholder="{{r.searchPh}}" value="{{fq}}" onInput="{{setFq}}" style="border: none; outline: none; font: inherit; font-size: 14px; width: 100%; min-width: 0; background: transparent; color: #1B2328"><button type="button" aria-label="Close list" onClick="{{r.toggle}}" style="width: 28px; height: 28px; flex: none; border: none; background: transparent; color: #5B6670; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="transform: rotate(180deg)"><path d="M6 9l6 6 6-6"></path></svg></button></div></sc-if>
+<sc-if value="{{r.open}}" hint-placeholder-val="{{ false }}">
+<div style="margin-top: 6px; border: 1px solid #CBD2CC; border-radius: 8px; background: #FFFFFF; box-shadow: 0 8px 20px rgba(23,34,42,.12); overflow: hidden">
+<div role="listbox" aria-label="{{r.itemLabel}}" style="max-height: 220px; overflow-y: auto">
+<sc-for list="{{r.options}}" as="o" hint-placeholder-count="5">
+<button type="button" role="option" onClick="{{o.pick}}" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 40px; padding: 6px 12px; border: none; border-bottom: 1px solid #EEF0EC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328; text-align: left; cursor: pointer"><span>{{o.name}}</span><span style="{{o.stockStyle}}">{{o.stock}}</span></button>
+</sc-for>
+<sc-if value="{{r.noOptions}}" hint-placeholder-val="{{ false }}"><div style="padding: 12px; font-size: 13px; color: #5B6670">{{r.noText}}</div></sc-if>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{r.hasHint}}" hint-placeholder-val="{{ false }}"><div style="margin-top: 6px; font-size: 12px; color: #5B6670">{{r.hint}}</div></sc-if>
+</td>
+<td class="num" style="padding-top: 22px">{{r.stock}}</td>
+<td><div class="field"><input aria-label="{{r.qtyLabel}}" value="{{r.qty}}" onInput="{{r.setQty}}" placeholder="0" inputmode="numeric" style="text-align: right"><span style="color: #5B6670; font-size: 13px">pcs</span></div></td>
+<td><div class="field"><input aria-label="{{r.remLabel}}" placeholder="Optional"></div></td>
+<td><div style="display: flex; align-items: center; gap: 6px; justify-content: flex-end"><sc-if value="{{r.point}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="font-size: 22px; line-height: 1; animation: ttkNudge .7s ease-in-out infinite">👉</span></sc-if><button type="button" aria-label="{{r.delLabel}}" onClick="{{r.del}}" style="{{r.delStyle}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg></button></div></td>
+</tr>
+</sc-for>
+<sc-if value="{{showEmpty}}" hint-placeholder-val="{{ false }}">
+<tr><td colspan="6" style="padding: 36px 8px; text-align: center; color: #5B6670; font-size: 14px"><div style="font-size: 15px; font-weight: 600; color: #1B2328; margin-bottom: 4px">No rows yet</div>{{emptyText}}</td></tr>
+</sc-if>
+</tbody>
+</table>
+</div>
+<div style="display: flex; justify-content: center; padding: 4px 24px">
+<button type="button" onClick="{{addRow}}" style="{{addStyle}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span style="font-family: 'IBM Plex Sans', 'Noto Sans Devanagari', sans-serif; line-height: 1; white-space: nowrap">{{addLabel}} · {{addNp}}</span></button>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #EEF0EC; padding-top: 16px">
+<span style="{{footStyle}}">{{footText}}</span>
+<div style="display: flex; gap: 10px">
+<button type="button" onClick="{{clearForm}}" style="cursor: pointer; min-height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328">Clear</button>
+<button type="button" onClick="{{saveForm}}" aria-disabled="{{saveOff}}" style="{{saveStyle}}">{{saveLabel}}</button>
+</div>
+</div>
+</form>
+<aside aria-labelledby="recent-h" style="flex: 1 1 300px; min-width: 0; background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 18px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px"><h2 id="recent-h" style="margin: 0; font-size: 16px; font-weight: 600">Today's entries</h2><span style="font-size: 12px; color: #5B6670">Kartik 4, 2083</span></div>
+<div role="group" aria-label="Show entries for" style="position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: #EEF0EC; border-radius: 999px; padding: 4px">
+<div aria-hidden="true" style="{{knob}}"></div>
+<button type="button" aria-pressed="{{pOn}}" onClick="{{showP}}" style="{{pBtn}}">Purchase</button>
+<button type="button" aria-pressed="{{cOn}}" onClick="{{showC}}" style="{{cBtn}}">Consumption</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="background: {{tint}}; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #4A555C">Entries</span><span style="font-size: 22px; font-weight: 600">{{count}}</span></div>
+<div style="background: {{tint}}; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #4A555C">Total quantity</span><span style="font-size: 22px; font-weight: 600; color: {{ink}}">{{total}} pcs</span></div>
+</div>
+<div style="display: flex; flex-direction: column; font-size: 14px">
+<sc-for list="{{list}}" as="e" hint-placeholder-count="5">
+<div style="display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid #EEF0EC"><div style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span>{{e.item}}</span><span style="font-size: 12px; color: #5B6670">{{e.meta}}</span></div><span style="{{e.badge}}">{{e.qty}}</span></div>
+</sc-for>
+</div>
+<a href="Movements.dc.html" style="font-size: 14px">Full stock report</a>
+</aside>
+</div>
+</main>
+<sc-if value="{{svOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 48; background: rgba(15,24,29,.55); display: flex; align-items: flex-start; justify-content: center; padding: 64px 16px; box-sizing: border-box">
+<div role="dialog" aria-modal="true" aria-labelledby="sv-h" style="{{svBox}}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 26px 24px 16px">
+<span style="{{svIcon}}"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L19 7"></path></svg></span>
+<h2 id="sv-h" style="margin: 0; font-size: 21px; font-weight: 700">{{svTitle}}</h2>
+<span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 15px; font-weight: 600; color: #3E4A52">{{svTitleNp}}</span>
+<span style="font-size: 13px; color: #3E4A52">{{svSub}}</span>
+</div>
+<div style="padding: 0 24px; display: flex; flex-direction: column; gap: 12px">
+<div style="background: #FFFFFF; border-radius: 12px; padding: 4px 16px; max-height: 260px; overflow-y: auto">
+<span style="display: block; font-size: 12px; font-weight: 600; color: #5B6670; text-transform: uppercase; letter-spacing: .04em; padding: 10px 0 4px">Just saved</span>
+<sc-for list="{{svItems}}" as="it" hint-placeholder-count="3">
+<div style="display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid #EEF0EC; font-size: 15px"><span>{{it.name}}</span><span style="{{svQty}}">{{it.qty}}</span></div>
+</sc-for>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; background: #FFFFFF; border-radius: 12px; padding: 14px 16px; font-size: 14px"><span style="color: #3E4A52">{{svTodayLabel}}</span><span style="{{svBig}}">{{svTodayTotal}}</span></div>
+</div>
+<div style="display: flex; gap: 10px; padding: 18px 24px 22px">
+<button type="button" onClick="{{svNew}}" style="{{svBtn}}">New entry</button>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{lockShow}}" hint-placeholder-val="{{ false }}">
+<div role="alert" style="position: absolute; top: 24px; left: 50%; transform: translateX(-50%); z-index: 40; width: min(440px, calc(100% - 32px)); background: #FFFFFF; border: 1px solid #E0A895; border-left: 5px solid #8E2F12; border-radius: 12px; padding: 14px 16px; box-shadow: 0 16px 36px rgba(15,24,29,.22); display: flex; gap: 12px; align-items: flex-start; animation: ttkPop .2s ease">
+<span style="width: 36px; height: 36px; flex: none; border-radius: 999px; background: #F6DCD3; color: #8E2F12; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 018 0v4"></path></svg></span>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 3px"><span style="font-size: 15px; font-weight: 700; color: #1B2328">Item can't be changed</span><span style="font-size: 14px; line-height: 1.45; color: #3E4A52">Row {{lockRow}} already has a quantity. Delete this row 👉 🗑 and add a new item instead.</span><span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 13px; font-weight: 600; color: #3E4A52">सामान बदल्न मिल्दैन। यो लाइन मेटाएर नयाँ सामान थप्नुहोस्।</span></div>
+<button type="button" aria-label="Dismiss" onClick="{{lockClose}}" style="width: 32px; height: 32px; flex: none; border: none; background: transparent; font-size: 20px; color: #5B6670; cursor: pointer">×</button>
+</div>
+</sc-if>
+<sc-if value="{{swOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 50; background: rgba(15,24,29,.55); display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box">
+<div role="alertdialog" aria-modal="true" aria-labelledby="dsw-h" aria-describedby="dsw-d" style="width: 100%; max-width: 420px; background: #FFFFFF; border-radius: 16px; padding: 26px 24px 20px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; box-shadow: 0 20px 40px rgba(15,24,29,.25)">
+<span style="width: 56px; height: 56px; border-radius: 999px; background: #F6DCD3; color: #8E2F12; display: flex; align-items: center; justify-content: center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path></svg></span>
+<h2 id="dsw-h" style="margin: 0; font-size: 19px; font-weight: 700">Can't switch to {{swTo}}</h2>
+<p id="dsw-d" style="margin: 0; font-size: 14px; line-height: 1.5; color: #3E4A52">You have {{swCount}} unsaved {{swFrom}} row(s). Save them first, or clear them to switch.</p>
+<p style="margin: 0; font-family: 'Noto Sans Devanagari', sans-serif; font-size: 14px; font-weight: 600; line-height: 1.5; color: #3E4A52">पहिले {{swNp}} सेभ गर्नुहोस् वा खाली गर्नुहोस्।</p>
+<div style="display: flex; gap: 10px; width: 100%; margin-top: 8px">
+<button type="button" onClick="{{swClose}}" style="flex: 1; min-height: 44px; border: 1px solid #CBD2CC; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; color: #1B2328; cursor: pointer">Keep editing</button>
+<button type="button" onClick="{{swClear}}" style="flex: 1; min-height: 44px; border: none; border-radius: 8px; background: #8E2F12; font: inherit; font-size: 14px; font-weight: 600; color: #FFFFFF; cursor: pointer">Clear &amp; switch</button>
+</div>
+</div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var tab = (this.state && this.state.tab) || 'purchase';
+var fs = this.state || {};
+var fIsP = (fs.ftype || 'purchase') === 'purchase';
+var CAT = [['SS Black cooker · 2 L', 7], ['SS Black cooker · 2.5 L', 14], ['SS Black cooker · 3 L', 4], ['SS Black cooker · 5 L', 0], ['Aluminium cooker · 3 L', 15], ['Aluminium cooker · 5 L', 22], ['Steel kadhai · 24 cm', 4], ['Steel kadhai · 26 cm', 11], ['Non-stick tawa · 26 cm', 2], ['Non-stick tawa · 28 cm', 9], ['Glass top gas stove · 2 burner', 7], ['Glass top gas stove · 3 burner', 14], ['Rice cooker · 1 L', 21], ['Rice cooker · 1.8 L', 12], ['Rice cooker · 2.8 L', 3], ['Electric kettle · 1.8 L', 3], ['Mixer grinder · 750 W', 2], ['Cooker gasket · 5 L', 22]];
+var stockOf = function (n) { var c = CAT.filter(function (x) { return x[0] === n; })[0]; return c ? c[1] : null; };
+var SAMPLE = [{ item: 'SS Black cooker · 3 L', qty: '24' }, { item: 'Rice cooker · 1.8 L', qty: '10' }, { item: 'Steel kadhai · 26 cm', qty: '' }];
+var frows = fs.frows || SAMPLE;
+var fCount = frows.length;
+var dupN = 0;
+var fq = fs.fq || '';
+var fWords = fq.toLowerCase().trim().split(/\s+/).filter(Boolean);
+var match = function (c) { var h = c[0].toLowerCase(); return fWords.every(function (w) { return h.indexOf(w) > -1; }); };
+var saveBad = fCount === 0 || frows.some(function (r) { return !r.item || !(parseInt(r.qty, 10) > 0); });
+var sv = fs.saved || null;
+var setRows = function (nr) { self.setState({ frows: nr }); };
+var stockStyleOf = function (n) { return 'font-family: IBM Plex Mono, monospace; font-size: 12px; ' + (n === 0 ? 'color: #8E2F12; font-weight: 600' : n <= 5 ? 'color: #8A4205; font-weight: 600' : 'color: #5B6670'); };
+var segBase = 'min-height: 40px; padding: 0 18px; border-radius: 8px; border: none; font: inherit; font-size: 14px; cursor: pointer; ';
+var P = [
+['Glass top gas stove · 2 burner', 6, 'Anita · 10:42'],
+['Cooker gasket · 5 L', 20, 'Anita · 10:42'],
+['Rice cooker · 1.8 L', 4, 'Anita · 09:55'],
+['SS Black cooker · 2.5 L', 8, 'Kamala · 09:30'],
+['Electric kettle · 1.8 L', 5, 'Kamala · 09:30']
+];
+var C = [
+['Steel kadhai · 26 cm', 3, 'Counter sale · Bikash · 11:20'],
+['SS Black cooker · 3 L', 2, 'Counter sale · Bikash · 11:05'],
+['Non-stick tawa · 28 cm', 1, 'Display damage · Sita · 10:15'],
+['Steel spoon set · 12 pcs', 4, 'Counter sale · Bikash · 09:48']
+];
+var isP = tab === 'purchase';
+P = (fs.addP || []).concat(P); C = (fs.addC || []).concat(C);
+var svList = fs.saved ? (fs.saved.isP ? P : C) : [];
+var src = isP ? P : C;
+var total = src.reduce(function (a, r) { return a + r[1]; }, 0);
+var base = 'position: relative; z-index: 1; min-height: 40px; border: none; border-radius: 999px; background: transparent; font: inherit; font-size: 14px; cursor: pointer; transition: color .2s; ';
+return {
+swOpen: !!fs.sw, swTo: fs.sw === 'purchase' ? 'Purchase' : 'Consumption', swFrom: fIsP ? 'purchase' : 'consumption', swNp: fIsP ? 'खरिद' : 'खपत', swCount: fCount,
+formP: function () { if (fIsP) return; if (fCount) { self.setState({ sw: 'purchase' }); return; } self.setState({ ftype: 'purchase' }); },
+formC: function () { if (!fIsP) return; if (fCount) { self.setState({ sw: 'consumption' }); return; } self.setState({ ftype: 'consumption' }); },
+swClose: function () { self.setState({ sw: null }); },
+swClear: function () { self.setState({ ftype: fs.sw, frows: [], sw: null }); },
+clearForm: function () { setRows([]); },
+addRow: function () { self.setState({ frows: frows.concat([{ item: '', qty: '' }]), openRow: frows.length, fq: '' }); },
+showEmpty: fCount === 0,
+rows: frows.map(function (r, i) {
+var used = frows.map(function (x) { return x.item; });
+var q = parseInt(r.qty, 10) || 0;
+var locked = !!r.item && q > 0;
+var isOpen = fs.openRow === i;
+var pointing = !!fs.lock && fs.lock.row === i;
+var upd = function (patch) { var nr = frows.slice(); nr[i] = Object.assign({}, r, patch); return nr; };
+var st = r.item ? stockOf(r.item) : null;
+var avail = CAT.filter(function (c) { return used.indexOf(c[0]) < 0 || c[0] === r.item; });
+return { n: i + 1, item: r.item || 'Select item…', hint: r.item ? '' : 'Pick an item first', hasHint: !r.item && !isOpen,
+stock: st === null ? '–' : st + ' pcs', qty: r.qty, locked: locked, open: isOpen, closed: !isOpen, searchPh: r.item ? r.item + ' — type to change' : 'Type to search, e.g. cooker 3', openS: isOpen ? 'true' : 'false',
+chevStyle: 'flex: none; color: ' + (locked ? '#B5BEB9' : '#5B6670') + '; transition: transform .2s; ' + (isOpen ? 'transform: rotate(180deg)' : ''),
+btnStyle: 'display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 0 12px; border-radius: 8px; font: inherit; font-size: 14px; cursor: pointer; box-sizing: border-box; border: 1px solid ' + (isOpen ? '#0E6B6B' : '#CBD2CC') + '; background: ' + (locked ? '#F4F5F2; color: #3E4A52' : '#FFFFFF; color: ' + (r.item ? '#1B2328' : '#5B6670')),
+toggle: function () {
+if (locked) { var id = Date.now(); self.setState({ openRow: null, lock: { row: i, id: id } }); clearTimeout(self._lockT); self._lockT = setTimeout(function () { var c = self.state || {}; if (c.lock && c.lock.id === id) self.setState({ lock: null }); }, 5000); return; }
+self.setState({ openRow: isOpen ? null : i, fq: '' });
+},
+options: avail.filter(match).map(function (c) { return { name: c[0], stock: c[1] + ' pcs', stockStyle: stockStyleOf(c[1]), pick: function () { self.setState({ frows: upd({ item: c[0] }), openRow: null, fq: '' }); } }; }),
+noOptions: avail.filter(match).length === 0, noText: avail.length ? 'No item matches "' + fq + '". Ask an admin to add it.' : 'All items are already in the list.',
+setQty: function (e) { var v = String(e && e.target ? e.target.value : '').replace(/[^0-9]/g, ''); setRows(upd({ qty: v })); },
+point: pointing,
+delStyle: 'width: 44px; height: 44px; flex: none; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; ' + (pointing ? 'border: 2px solid #8E2F12; background: #F6DCD3; color: #8E2F12; animation: ttkPulse 1s ease-in-out infinite' : 'border: 1px solid #E2E5E1; background: #FFFFFF; color: #5B6670'),
+itemLabel: 'Item, row ' + (i + 1), qtyLabel: 'Quantity, row ' + (i + 1), remLabel: 'Remarks, row ' + (i + 1), delLabel: 'Remove row ' + (i + 1),
+del: function () { self.setState({ frows: frows.filter(function (x, j) { return j !== i; }), lock: null, openRow: null }); } };
+}),
+fq: fq, setFq: function (e) { self.setState({ fq: e && e.target ? e.target.value : '' }); },
+saveOff: saveBad ? 'true' : 'false',
+footStyle: 'font-size: 14px; ' + (fs.saveTried && saveBad ? 'color: #8E2F12; font-weight: 600' : 'color: #5B6670'),
+saveForm: function () {
+if (saveBad) { self.setState({ saveTried: true }); return; }
+var items = frows.map(function (r) { return { name: r.item, q: parseInt(r.qty, 10) }; });
+var tot = items.reduce(function (a, it) { return a + it.q; }, 0);
+var add = items.map(function (it) { return [it.name, it.q, 'You · just now']; });
+var patch = { saved: { isP: fIsP, items: items, total: tot }, saveTried: false, openRow: null, tab: fIsP ? 'purchase' : 'consumption' };
+if (fIsP) patch.addP = add.concat(fs.addP || []); else patch.addC = add.concat(fs.addC || []);
+self.setState(patch);
+},
+svOpen: !!fs.saved,
+svNew: function () { self.setState({ saved: null, frows: [] }); },
+svTitle: sv && sv.isP ? 'Purchase saved' : 'Consumption saved', svTitleNp: sv && sv.isP ? 'खरिद सेभ भयो' : 'खपत सेभ भयो',
+svSub: sv ? sv.items.length + ' item(s) · ' + (sv.isP ? '+' : '−') + sv.total + ' pcs · Kartik 4, 2083 (20 Oct 2026)' : '',
+svItems: sv ? sv.items.map(function (it) { return { name: it.name, qty: (sv.isP ? '+' : '−') + it.q + ' pcs' }; }) : [],
+svTodayLabel: sv && sv.isP ? 'Purchased today so far (' + svList.length + ' entries)' : 'Sold / used today so far (' + svList.length + ' entries)',
+svTodayTotal: sv ? (sv.isP ? '+' : '−') + svList.reduce(function (a, r) { return a + r[1]; }, 0) + ' pcs' : '',
+svQty: 'font-family: IBM Plex Mono, monospace; font-weight: 600; color: ' + (sv && !sv.isP ? '#8A4205' : '#0A5454'),
+svBig: 'font-family: IBM Plex Mono, monospace; font-size: 20px; font-weight: 700; color: ' + (sv && !sv.isP ? '#8A4205' : '#0A5454'),
+svBox: 'width: 100%; max-width: 520px; border-radius: 16px; box-shadow: 0 24px 48px rgba(15,24,29,.3); background: ' + (sv && !sv.isP ? '#FCEFD9' : '#E3F0EE'),
+svIcon: 'width: 60px; height: 60px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #FFFFFF; background: ' + (sv && !sv.isP ? '#9A4A06' : '#0E6B6B'),
+svBtn: 'flex: 1; min-height: 48px; border: none; border-radius: 10px; font: inherit; font-size: 15px; font-weight: 700; color: #FFFFFF; cursor: pointer; background: ' + (sv && !sv.isP ? '#9A4A06' : '#0E6B6B'),
+lockShow: !!fs.lock, lockRow: fs.lock ? fs.lock.row + 1 : '', lockClose: function () { self.setState({ lock: null }); },
+emptyText: fIsP ? 'Click "Add purchase" and pick the items you purchased.' : 'Click "Add consumption" for each item sold or used.',
+addLabel: fIsP ? 'Add purchase' : 'Add consumption', addNp: fIsP ? 'खरिद थप्नुहोस्' : 'खपत थप्नुहोस्',
+addStyle: 'width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 16px; border-radius: 10px; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; border: 1.5px dashed ' + (fIsP ? '#0E6B6B; color: #0A5454; background: #F2F8F7' : '#9A4A06; color: #8A4205; background: #FDF7EE'),
+footText: fCount === 0 ? 'No rows to save' : (fs.saveTried && saveBad) ? 'Pick an item and enter a quantity in every row before saving.' : fCount + (fCount === 1 ? ' row' : ' rows') + ' · ' + frows.reduce(function (a, r) { return a + (parseInt(r.qty, 10) || 0); }, 0) + ' pcs',
+fpOn: fIsP ? 'true' : 'false', fcOn: fIsP ? 'false' : 'true',
+fpStyle: segBase + (fIsP ? 'background: #FFFFFF; color: #0A5454; font-weight: 600; box-shadow: 0 1px 2px rgba(23,34,42,.12)' : 'background: transparent; color: #3E4A52'),
+fcStyle: segBase + (!fIsP ? 'background: #FFFFFF; color: #8A4205; font-weight: 600; box-shadow: 0 1px 2px rgba(23,34,42,.12)' : 'background: transparent; color: #3E4A52'),
+saveLabel: fIsP ? 'Save purchase' : 'Save consumption',
+saveStyle: 'min-height: 44px; padding: 0 22px; border-radius: 8px; border: none; font: inherit; font-size: 14px; font-weight: 600; color: #FFFFFF; background: ' + (fIsP ? '#0E6B6B' : '#9A4A06') + (saveBad ? '; opacity: .45; cursor: not-allowed' : '; cursor: pointer'),
+pOn: isP ? 'true' : 'false', cOn: isP ? 'false' : 'true',
+showP: function () { self.setState({ tab: 'purchase' }); },
+showC: function () { self.setState({ tab: 'consumption' }); },
+knob: 'position: absolute; top: 4px; bottom: 4px; width: calc(50% - 4px); left: ' + (isP ? '4px' : '50%') + '; border-radius: 999px; background: ' + (isP ? '#0E6B6B' : '#9A4A06') + '; transition: left .25s ease, background .25s ease',
+pBtn: base + (isP ? 'color: #FFFFFF; font-weight: 600' : 'color: #3E4A52'),
+cBtn: base + (isP ? 'color: #3E4A52' : 'color: #FFFFFF; font-weight: 600'),
+tint: isP ? '#EAF5F3' : '#FDF3E3',
+ink: isP ? '#0A5454' : '#8A4205',
+count: src.length, total: total,
+list: src.map(function (r) { return { item: r[0], meta: r[2], qty: (isP ? '+' : '−') + r[1], badge: 'align-self: center; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: ' + (isP ? '#E3F0EE; color: #0A5454' : '#FCEFD9; color: #8A4205') }; })
+};
+}
+}
+</script>
+</body>
+</html>
