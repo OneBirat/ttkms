@@ -1,0 +1,42 @@
+/* Stock report (docs/design/Movements.dc.html). */
+
+.filters {
+  padding: 16px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.filter {
+  flex: 1 1 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.filterWide {
+  flex-basis: 180px;
+}
+
+.totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.table {
+  padding: 8px 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pager {
+  padding: 0 8px;
+}
+
+.ad {
+  color: var(--color-muted);
+}
