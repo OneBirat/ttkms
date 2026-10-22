@@ -1,45 +1,36 @@
-"""App factory: middleware, static files, error handlers, core routes and module loading."""
+"""App factory: middleware, error handlers, core API routes and module loading.
+
+FastAPI is a JSON API under ``/api``; the Next.js app in ``web/`` proxies ``/api/*`` to it so the
+session cookie stays same-origin.
+"""
 
 from __future__ import annotations
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.exception_handlers import http_exception_handler as fastapi_http_exception_handler
-from fastapi.responses import Response
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
-from app.config import STATIC_DIR, settings
+from app.config import settings
 from app.core import auth, routes
 from app.core.csrf import csrf_protect
 from app.core.modules import Module
 from app.core.sessions import SessionMiddleware
-from app.core.templating import render
 from app.modules import admin, attendance, payroll, stock
 
-# The four modules, imported exactly once, in sidebar order. Each is mounted under /<name>.
+# The four modules, imported exactly once, in sidebar order. Each is mounted under /api/<name>.
 MODULES: list[Module] = [stock.module, attendance.module, payroll.module, admin.module]
 
 
-async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> Response:
-    wants_html = "text/html" in request.headers.get("accept", "") or bool(
-        request.headers.get("HX-Request")
-    )
-    if exc.status_code in (403, 404) and wants_html:
-        return render(
-            request,
-            f"errors/{exc.status_code}.html",
-            {"detail": exc.detail},
-            status_code=exc.status_code,
-        )
-    return await fastapi_http_exception_handler(request, exc)
+async def login_required_handler(request: Request, exc: auth.LoginRequired) -> JSONResponse:
+    return JSONResponse({"detail": "login required"}, status_code=401)
 
 
 def create_app() -> FastAPI:
-    # Swagger/ReDoc UIs load from a CDN, which a LAN deployment may not reach: keep only the JSON.
+    # Swagger UI loads from a CDN: dev only (a LAN deployment may have no internet).
     app = FastAPI(
-        title="TTK",
-        docs_url=None,
+        title="TTK API",
+        docs_url=None if settings.is_prod else "/api/docs",
         redoc_url=None,
+        openapi_url=None if settings.is_prod else "/api/openapi.json",
         dependencies=[Depends(csrf_protect)],
     )
     app.add_middleware(
@@ -50,11 +41,8 @@ def create_app() -> FastAPI:
         same_site="lax",
         https_only=settings.session_https_only,
     )
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     app.state.modules = MODULES
-
-    app.add_exception_handler(auth.LoginRequired, auth.login_required_handler)
-    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(auth.LoginRequired, login_required_handler)
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:
@@ -63,7 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(routes.router)
     for module in MODULES:
-        app.include_router(module.router, prefix=f"/{module.name}", tags=[module.name])
+        app.include_router(module.router, prefix=f"/api/{module.name}", tags=[module.name])
     return app
 
 

@@ -1,34 +1,41 @@
-"""Authentication: session-cookie login, the current-user dependency and the role guard.
+"""Authentication: JSON login/logout, the current-user dependency and the role guard.
 
-* ``GET/POST /login``, ``POST /logout``
-* :func:`get_current_user` (``CurrentUser``) - raises :class:`LoginRequired`, which the app turns
-  into a redirect to ``/login?next=...`` (or ``HX-Redirect`` for HTMX requests)
+* ``GET /api/auth/csrf``, ``POST /api/auth/login``, ``GET /api/auth/me``, ``POST /api/auth/logout``
+* :func:`get_current_user` (``CurrentUser``) raises :class:`LoginRequired`, which the app turns
+  into a ``401 {"detail": "login required"}`` response
 * :func:`require_role` - ``Depends(require_role("admin", "manager"))`` -> 403 for other roles
+
+Sessions are signed cookies (stateless). Without "Keep me signed in" the cookie dies with the
+browser and the session is additionally rejected server-side after
+``settings.session_short_max_age_hours``; with it the cookie lives
+``settings.session_max_age_days``. Logging out clears the cookie but cannot revoke a copy of it.
 """
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime
 from functools import cache
 from typing import Annotated
-from urllib.parse import quote
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from fastapi.responses import RedirectResponse, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import Response
 from sqlalchemy import select
 
-from app.core.csrf import rotate_csrf_token
+from app.config import settings
+from app.core.csrf import get_csrf_token, rotate_csrf_token
 from app.core.models import Role, User, normalize_username
+from app.core.schemas import CsrfOut, ErrorOut, LoginIn, SessionOut, UserOut
 from app.core.services import record_audit
 from app.core.sessions import PERSIST_KEY
-from app.core.templating import render
 from app.db import DbSession
 
-router = APIRouter(tags=["auth"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 SESSION_USER_KEY = "user_id"
+SESSION_ISSUED_KEY = "_issued"
 _hasher = PasswordHasher()
 
 
@@ -56,30 +63,30 @@ def _dummy_hash() -> str:
     return hash_password("not-a-real-password")
 
 
-def is_safe_next(url: str | None) -> bool:
-    """Only same-site absolute paths are accepted as post-login redirects."""
-    return bool(url) and url.startswith("/") and not url.startswith("//") and "\\" not in url
-
-
 class LoginRequired(Exception):
-    def __init__(self, next_url: str = "/") -> None:
-        super().__init__("login required")
-        self.next_url = next_url
+    pass
 
 
-def _current_path(request: Request) -> str:
-    query = f"?{request.url.query}" if request.url.query else ""
-    return f"{request.url.path}{query}"
+def _session_expired(request: Request) -> bool:
+    if request.session.get(PERSIST_KEY):
+        return False
+    issued = request.session.get(SESSION_ISSUED_KEY)
+    if not isinstance(issued, int | float):
+        return True
+    return time.time() - issued > settings.session_short_max_age_hours * 3600
 
 
 async def get_current_user(request: Request, db: DbSession) -> User:
     user_id = request.session.get(SESSION_USER_KEY)
     if user_id is None:
-        raise LoginRequired(_current_path(request))
+        raise LoginRequired()
+    if _session_expired(request):
+        request.session.clear()
+        raise LoginRequired()
     user = await db.get(User, int(user_id))
     if user is None or not user.is_active:
         request.session.clear()
-        raise LoginRequired(_current_path(request))
+        raise LoginRequired()
     request.state.user = user
     return user
 
@@ -104,48 +111,26 @@ def require_role(*roles: str | Role):
     return dependency
 
 
-def login_required_handler(request: Request, exc: LoginRequired) -> Response:
-    next_url = exc.next_url if is_safe_next(exc.next_url) else "/"
-    login_url = "/login" if next_url == "/" else f"/login?next={quote(next_url, safe='/?=&')}"
-    if request.headers.get("HX-Request"):
-        return Response(
-            status_code=status.HTTP_401_UNAUTHORIZED, headers={"HX-Redirect": login_url}
-        )
-    return RedirectResponse(login_url, status_code=status.HTTP_303_SEE_OTHER)
+@router.get("/csrf", response_model=CsrfOut)
+async def csrf(request: Request) -> CsrfOut:
+    """Returns the CSRF token for this session (and starts a session if there is none)."""
+    return CsrfOut(csrf_token=get_csrf_token(request))
 
 
-@router.get("/login", name="login")
-async def login_form(request: Request, next: str = "/") -> Response:
-    if request.session.get(SESSION_USER_KEY):
-        return RedirectResponse("/", status_code=status.HTTP_303_SEE_OTHER)
-    return render(request, "login.html", {"next": next if is_safe_next(next) else "/"})
-
-
-@router.post("/login", name="login_submit")
-async def login_submit(
-    request: Request,
-    db: DbSession,
-    username: Annotated[str, Form()],
-    password: Annotated[str, Form()],
-    remember: Annotated[bool, Form()] = False,
-    next: Annotated[str, Form()] = "/",
-) -> Response:
-    next_url = next if is_safe_next(next) else "/"
-    uname = normalize_username(username)
+@router.post(
+    "/login",
+    response_model=SessionOut,
+    responses={401: {"model": ErrorOut}, 403: {"model": ErrorOut}},
+)
+async def login(request: Request, db: DbSession, payload: LoginIn) -> SessionOut:
+    uname = normalize_username(payload.username)
     user = await db.scalar(select(User).where(User.username == uname))
-    ok = user is not None and user.is_active and verify_password(user.password_hash, password)
-    if user is None:
-        verify_password(_dummy_hash(), password)
-    if not ok:
-        return render(
-            request,
-            "login.html",
-            {"next": next_url, "username": username, "error": "Invalid username or password."},
-            status_code=status.HTTP_401_UNAUTHORIZED,
-        )
-    assert user is not None
+    # Always run one argon2 verification so unknown, inactive and wrong-password all take as long.
+    password_ok = verify_password(user.password_hash if user else _dummy_hash(), payload.password)
+    if user is None or not user.is_active or not password_ok:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password.")
     if needs_rehash(user.password_hash):
-        user.password_hash = hash_password(password)
+        user.password_hash = hash_password(payload.password)
     user.last_login_at = datetime.now(UTC)
     await record_audit(
         db, module="core", action="login", entity="user", entity_id=user.id, user_id=user.id
@@ -154,12 +139,19 @@ async def login_submit(
 
     request.session.clear()
     request.session[SESSION_USER_KEY] = user.id
-    request.session[PERSIST_KEY] = bool(remember)
-    rotate_csrf_token(request)
-    return RedirectResponse(next_url, status_code=status.HTTP_303_SEE_OTHER)
+    request.session[PERSIST_KEY] = payload.remember
+    request.session[SESSION_ISSUED_KEY] = int(time.time())
+    token = rotate_csrf_token(request)
+    request.state.user = user
+    return SessionOut(user=UserOut.from_user(user), csrf_token=token)
 
 
-@router.post("/logout", name="logout")
+@router.get("/me", response_model=SessionOut, responses={401: {"model": ErrorOut}})
+async def me(request: Request, user: CurrentUser) -> SessionOut:
+    return SessionOut(user=UserOut.from_user(user), csrf_token=get_csrf_token(request))
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def logout(request: Request, db: DbSession) -> Response:
     user_id = request.session.get(SESSION_USER_KEY)
     if user_id is not None:
@@ -168,4 +160,4 @@ async def logout(request: Request, db: DbSession) -> Response:
         )
         await db.commit()
     request.session.clear()
-    return RedirectResponse("/login", status_code=status.HTTP_303_SEE_OTHER)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

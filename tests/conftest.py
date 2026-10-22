@@ -10,14 +10,13 @@ so tests never see each other's rows.
 from __future__ import annotations
 
 import asyncio
-import re
 from collections.abc import AsyncIterator, Callable, Coroutine
 from typing import Any
 
 import pytest
 from alembic import command
 from alembic.config import Config
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -31,7 +30,6 @@ from app.main import app
 from migrations.env_helper import MODULES
 
 TEST_DB_URL = settings.resolved_test_database_url
-_CSRF_RE = re.compile(r'name="csrf_token" value="([^"]+)"')
 
 assert make_url(TEST_DB_URL).database != make_url(settings.database_url).database, (
     "TEST_DATABASE_URL must not point at the main database"
@@ -118,7 +116,7 @@ def make_user(db: AsyncSession) -> MakeUser:
     async def _make(
         username: str = "admin",
         password: str = "secret123",
-        role: Role = Role.admin,
+        role: Role | str = Role.admin,
         full_name: str | None = None,
         is_active: bool = True,
     ) -> User:
@@ -126,7 +124,7 @@ def make_user(db: AsyncSession) -> MakeUser:
             username=username,
             password_hash=hash_password(password),
             full_name=full_name or username.replace("_", " ").title(),
-            role=role,
+            role=Role(role),
             is_active=is_active,
         )
         db.add(user)
@@ -136,26 +134,20 @@ def make_user(db: AsyncSession) -> MakeUser:
     return _make
 
 
-def csrf_token_from(html: str) -> str:
-    match = _CSRF_RE.search(html)
-    assert match, "no csrf_token hidden input in page"
-    return match.group(1)
-
-
 @pytest.fixture
 def login(client: AsyncClient):
-    async def _login(username: str, password: str = "secret123", remember: bool = False):
-        page = await client.get("/login")
-        assert page.status_code == 200
-        data = {
-            "username": username,
-            "password": password,
-            "csrf_token": csrf_token_from(page.text),
-        }
-        if remember:
-            data["remember"] = "on"
-        response = await client.post("/login", data=data)
-        assert response.status_code == 303, response.text
+    """JSON login the way the Next.js app does it: fetch the CSRF token, then POST."""
+
+    async def _login(
+        username: str, password: str = "secret123", remember: bool = False
+    ) -> Response:
+        token = (await client.get("/api/auth/csrf")).json()["csrf_token"]
+        response = await client.post(
+            "/api/auth/login",
+            json={"username": username, "password": password, "remember": remember},
+            headers={"X-CSRF-Token": token},
+        )
+        assert response.status_code == 200, response.text
         return response
 
     return _login

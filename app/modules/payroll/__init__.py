@@ -1,28 +1,25 @@
 """People & payroll module - placeholder.
 
 The feat/payroll worktree builds this module and only touches app/modules/payroll/,
-migrations/payroll/ and tests/payroll/. Put models in app/modules/payroll/models.py (schema
-"payroll"), templates under app/modules/payroll/templates/payroll/, and register dashboard
-widgets on the Module below.
+migrations/payroll/, tests/payroll/ and its pages under web/. Put models in
+app/modules/payroll/models.py (schema "payroll"), API routes on the router below (mounted at
+/api/payroll), and register dashboard widgets on the Module.
 """
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends
 
 from app.core.auth import require_role
 from app.core.modules import Module, NavItem, coming_soon_widget
-from app.core.templating import render_placeholder
+from app.core.schemas import ModuleStatusOut
 
 ROLES = {"admin", "manager"}
 
 router = APIRouter(dependencies=[Depends(require_role(*ROLES))])
 
 
-@router.get("", name="payroll:index")
-async def index(request: Request) -> Response:
-    return render_placeholder(
-        request, title="People & payroll", subtitle="Employees, salaries and monthly payroll"
-    )
+@router.get("", response_model=ModuleStatusOut, name="payroll:index")
+async def index() -> ModuleStatusOut:
+    return ModuleStatusOut(module="payroll", title="People & payroll", status="coming_soon")
 
 
 module = Module(
@@ -30,5 +27,7 @@ module = Module(
     title="People & payroll",
     router=router,
     nav=[NavItem(label="Overview", path="/payroll", icon="users", roles=set(ROLES))],
-    dashboard_widgets=[coming_soon_widget("People & payroll")],
+    dashboard_widgets=[
+        coming_soon_widget("People & payroll", "Employees, salaries and monthly payroll")
+    ],
 )

@@ -1,12 +1,13 @@
 """Module registry.
 
 Each feature module (``app/modules/<name>/__init__.py``) exports ``module = Module(...)``.
-``app.main`` imports the four modules once, from a fixed list, mounts each router under
-``/<name>`` and builds the sidebar and the dashboard from this registry - so a module worktree
-never has to edit core files.
+``app.main`` imports the four modules once, from a fixed list, and mounts each router under
+``/api/<name>``. The Next.js app builds its sidebar from ``GET /api/registry`` and its dashboard
+from ``GET /api/dashboard`` - so a module worktree never has to edit core files.
 
-Dashboard widgets are async callables ``widget(ctx: WidgetContext) -> str`` that return an HTML
-fragment; render a module template with ``ctx.render("stock/widgets/low_stock.html", {...})``.
+Dashboard widgets are async callables ``widget(ctx: WidgetContext) -> dict`` returning
+``{"kind": str, "title": str, "data": {...}}``; the frontend picks a component by ``kind``
+(``web/components/widgets/index.tsx``).
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ MODULE_NAMES: tuple[str, ...] = ("stock", "attendance", "payroll", "admin")
 @dataclass
 class NavItem:
     label: str
-    path: str
+    path: str  # frontend path, e.g. "/stock/items"
     icon: str
     roles: set[str]
 
@@ -47,13 +48,8 @@ class WidgetContext:
     user: User
     db: AsyncSession
 
-    def render(self, template_name: str, context: dict[str, Any] | None = None) -> str:
-        from app.core.templating import render_fragment
 
-        return render_fragment(self.request, template_name, context or {})
-
-
-DashboardWidget = Callable[[WidgetContext], Awaitable[str]]
+DashboardWidget = Callable[[WidgetContext], Awaitable[dict[str, Any]]]
 
 
 @dataclass
@@ -67,12 +63,15 @@ class Module:
     def visible_nav(self, role: str | None) -> list[NavItem]:
         return [item for item in self.nav if item.visible_to(role)]
 
+    def allowed(self, role: str | None) -> bool:
+        return bool(self.visible_nav(role))
+
 
 def coming_soon_widget(title: str, note: str = "") -> DashboardWidget:
     """Placeholder dashboard widget used by the module stubs."""
 
-    async def widget(ctx: WidgetContext) -> str:
-        return ctx.render("partials/widget_coming_soon.html", {"title": title, "note": note})
+    async def widget(ctx: WidgetContext) -> dict[str, Any]:
+        return {"kind": "coming_soon", "title": title, "data": {"note": note}}
 
     widget.__name__ = f"coming_soon_{title.lower().replace(' ', '_')}"
     return widget

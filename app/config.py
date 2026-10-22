@@ -7,14 +7,19 @@ reads its own ``.env`` (own APP_PORT, same database).
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 APP_DIR = BASE_DIR / "app"
 STATIC_DIR = BASE_DIR / "static"
 MEDIA_DIR = BASE_DIR / "media"
+
+PLACEHOLDER_SECRETS = frozenset({"CHANGE_ME", "change-me", "change-me-dev-only", "secret", ""})
+log = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -30,6 +35,7 @@ class Settings(BaseSettings):
     # Session cookie (Starlette SessionMiddleware + itsdangerous)
     session_cookie: str = "ttk_session"
     session_max_age_days: int = 14  # cookie lifetime when "Keep me signed in" is ticked
+    session_short_max_age_hours: int = 12  # server-side lifetime of a plain (browser) session
     session_https_only: bool = False  # the app may run on a LAN over plain HTTP
 
     # Used by `python -m app.cli seed` / `create-admin` when set; otherwise the CLI prompts.
@@ -54,6 +60,18 @@ class Settings(BaseSettings):
 
         url = make_url(self.database_url)
         return url.set(database=f"{url.database}_test").render_as_string(hide_password=False)
+
+    @model_validator(mode="after")
+    def _check_secret_key(self) -> Settings:
+        weak = self.secret_key in PLACEHOLDER_SECRETS or len(self.secret_key) < 32
+        if weak and self.is_prod:
+            raise ValueError(
+                "SECRET_KEY is a placeholder or too short for APP_ENV=prod; generate one with "
+                "python -c 'import secrets; print(secrets.token_urlsafe(48))'"
+            )
+        if weak:
+            log.warning("SECRET_KEY is weak - fine for local development, never for production")
+        return self
 
 
 settings = Settings()

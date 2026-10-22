@@ -1,21 +1,23 @@
+from types import SimpleNamespace
+
 import pytest
 from sqlalchemy import select
 
 from app.config import settings
-from app.core.auth import hash_password, is_safe_next, verify_password
+from app.core import auth
+from app.core.auth import hash_password, verify_password
 from app.core.models import AuditLog, Role
 
 pytestmark = pytest.mark.anyio
 
-HTML = {"Accept": "text/html"}
+
+def _session_cookies(response) -> list[str]:
+    prefix = settings.session_cookie + "="
+    return [h for h in response.headers.get_list("set-cookie") if h.startswith(prefix)]
 
 
-def _session_cookie_headers(response) -> list[str]:
-    return [
-        h
-        for h in response.headers.get_list("set-cookie")
-        if h.startswith(settings.session_cookie + "=")
-    ]
+async def _csrf(client) -> str:
+    return (await client.get("/api/auth/csrf")).json()["csrf_token"]
 
 
 def test_password_hashing_roundtrip():
@@ -26,160 +28,142 @@ def test_password_hashing_roundtrip():
     assert not verify_password("not-a-hash", "x")
 
 
-def test_is_safe_next():
-    assert is_safe_next("/stock")
-    assert is_safe_next("/stock?page=2")
-    assert not is_safe_next("//evil.example")
-    assert not is_safe_next("https://evil.example")
-    assert not is_safe_next("")
-    assert not is_safe_next(None)
-    assert not is_safe_next("/\\evil")
+async def test_anonymous_requests_get_401_json(client):
+    for path in ("/api/auth/me", "/api/dashboard", "/api/registry", "/api/stock"):
+        response = await client.get(path)
+        assert response.status_code == 401, path
+        assert response.json() == {"detail": "login required"}
 
 
-async def test_anonymous_is_redirected_to_login(client):
-    response = await client.get("/")
-    assert response.status_code == 303
-    assert response.headers["location"] == "/login"
-
-    response = await client.get("/stock?tab=items")
-    assert response.status_code == 303
-    assert response.headers["location"] == "/login?next=/stock?tab=items"
-
-
-async def test_anonymous_htmx_request_gets_hx_redirect(client):
-    response = await client.get("/", headers={"HX-Request": "true"})
-    assert response.status_code == 401
-    assert response.headers["HX-Redirect"] == "/login"
-
-
-async def test_login_page_renders(client):
-    response = await client.get("/login")
+async def test_csrf_endpoint_starts_a_session(client):
+    response = await client.get("/api/auth/csrf")
     assert response.status_code == 200
-    assert 'name="csrf_token"' in response.text
-    assert "Keep me signed in" in response.text
-    assert 'class="login-page"' in response.text
+    assert len(response.json()["csrf_token"]) > 20
+    assert _session_cookies(response), "a session cookie is issued"
 
 
-async def test_login_wrong_password(client, make_user, login):
+async def test_login_wrong_password(client, make_user):
     await make_user("admin")
-    page = await client.get("/login")
-    from tests.conftest import csrf_token_from
-
+    token = await _csrf(client)
     response = await client.post(
-        "/login",
-        data={"username": "admin", "password": "nope", "csrf_token": csrf_token_from(page.text)},
+        "/api/auth/login",
+        json={"username": "admin", "password": "nope"},
+        headers={"X-CSRF-Token": token},
     )
     assert response.status_code == 401
-    assert "Invalid username or password." in response.text
+    assert response.json() == {"detail": "Invalid username or password."}
 
 
-async def test_unknown_user_gets_same_error(client):
-    page = await client.get("/login")
-    from tests.conftest import csrf_token_from
+async def test_unknown_and_inactive_users_get_the_same_error(client, make_user):
+    await make_user("gone", is_active=False)
+    token = await _csrf(client)
+    for username in ("ghost", "gone"):
+        response = await client.post(
+            "/api/auth/login",
+            json={"username": username, "password": "secret123"},
+            headers={"X-CSRF-Token": token},
+        )
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Invalid username or password."}
 
+
+async def test_login_validates_payload(client):
+    token = await _csrf(client)
     response = await client.post(
-        "/login",
-        data={"username": "ghost", "password": "x", "csrf_token": csrf_token_from(page.text)},
+        "/api/auth/login", json={"username": ""}, headers={"X-CSRF-Token": token}
     )
-    assert response.status_code == 401
-    assert "Invalid username or password." in response.text
+    assert response.status_code == 422
 
 
-async def test_login_success_then_dashboard(client, make_user, login, db):
+async def test_login_success_then_me(client, make_user, login, db):
     user = await make_user("admin", full_name="Site Admin")
     response = await login("admin")
-    assert response.headers["location"] == "/"
-    cookies = _session_cookie_headers(response)
+    body = response.json()
+    assert body["user"] == {
+        "id": user.id,
+        "username": "admin",
+        "full_name": "Site Admin",
+        "role": "admin",
+        "role_label": "Admin",
+        "employee_id": None,
+        "last_login_at": body["user"]["last_login_at"],
+    }
+    assert body["user"]["last_login_at"] is not None
+    assert body["csrf_token"]
+    cookies = _session_cookies(response)
     assert len(cookies) == 1
     assert "Max-Age" not in cookies[0], "without 'keep me signed in' the cookie is a session cookie"
-    assert "httponly" in cookies[0].lower()
+    assert "httponly" in cookies[0].lower() and "samesite=lax" in cookies[0].lower()
 
-    page = await client.get("/")
-    assert page.status_code == 200
-    assert "Site Admin" in page.text
+    me = await client.get("/api/auth/me")
+    assert me.status_code == 200
+    assert me.json()["user"]["username"] == "admin"
+    assert me.json()["csrf_token"] == body["csrf_token"]
 
     audit = (await db.execute(select(AuditLog).where(AuditLog.action == "login"))).scalars().all()
     assert len(audit) == 1 and audit[0].user_id == user.id
-    await db.refresh(user)
-    assert user.last_login_at is not None
 
 
 async def test_keep_me_signed_in_sets_max_age(client, make_user, login):
     await make_user("admin")
     response = await login("admin", remember=True)
-    cookies = _session_cookie_headers(response)
+    cookies = _session_cookies(response)
     assert f"Max-Age={settings.session_max_age_days * 86400}" in cookies[0]
+
+
+async def test_short_session_expires_server_side(client, make_user, login, monkeypatch):
+    await make_user("admin")
+    await login("admin", remember=False)
+    assert (await client.get("/api/auth/me")).status_code == 200
+    later = auth.time.time() + (settings.session_short_max_age_hours + 1) * 3600
+    monkeypatch.setattr(auth, "time", SimpleNamespace(time=lambda: later))
+    assert (await client.get("/api/auth/me")).status_code == 401
+
+
+async def test_persistent_session_does_not_expire_early(client, make_user, login, monkeypatch):
+    await make_user("admin")
+    await login("admin", remember=True)
+    later = auth.time.time() + (settings.session_short_max_age_hours + 1) * 3600
+    monkeypatch.setattr(auth, "time", SimpleNamespace(time=lambda: later))
+    assert (await client.get("/api/auth/me")).status_code == 200
 
 
 async def test_username_is_normalised(client, make_user, login):
     await make_user("admin")
-    response = await login("  ADMIN ")
-    assert response.status_code == 303
-
-
-async def test_inactive_user_cannot_log_in(client, make_user):
-    await make_user("gone", is_active=False)
-    page = await client.get("/login")
-    from tests.conftest import csrf_token_from
-
-    response = await client.post(
-        "/login",
-        data={
-            "username": "gone",
-            "password": "secret123",
-            "csrf_token": csrf_token_from(page.text),
-        },
-    )
-    assert response.status_code == 401
-
-
-async def test_next_parameter_is_honoured_but_only_when_safe(client, make_user):
-    await make_user("admin")
-    page = await client.get("/login?next=//evil.example")
-    assert 'name="next" value="/"' in page.text
-
-    from tests.conftest import csrf_token_from
-
-    token = csrf_token_from(page.text)
-    response = await client.post(
-        "/login",
-        data={"username": "admin", "password": "secret123", "csrf_token": token, "next": "/stock"},
-    )
-    assert response.status_code == 303
-    assert response.headers["location"] == "/stock"
+    assert (await login("  ADMIN ")).status_code == 200
 
 
 async def test_logout_clears_session(client, make_user, login, db):
     await make_user("admin")
-    await login("admin")
-    page = await client.get("/")
-    from tests.conftest import csrf_token_from
-
-    response = await client.post("/logout", data={"csrf_token": csrf_token_from(page.text)})
-    assert response.status_code == 303
-    assert response.headers["location"] == "/login"
-    assert (await client.get("/")).status_code == 303
+    token = (await login("admin")).json()["csrf_token"]
+    response = await client.post("/api/auth/logout", headers={"X-CSRF-Token": token})
+    assert response.status_code == 204
+    cleared = _session_cookies(response)
+    assert cleared and "expires=Thu, 01 Jan 1970" in cleared[0]
+    assert (await client.get("/api/auth/me")).status_code == 401
     actions = (await db.execute(select(AuditLog.action))).scalars().all()
     assert "logout" in actions
+
+
+async def test_deactivated_user_is_logged_out(client, make_user, login, db):
+    user = await make_user("admin")
+    await login("admin")
+    user.is_active = False
+    await db.flush()
+    assert (await client.get("/api/auth/me")).status_code == 401
 
 
 async def test_require_role_blocks_other_roles(client, make_user, login):
     await make_user("clerk", role=Role.staff)
     await login("clerk")
-    response = await client.get("/admin", headers=HTML)
+    response = await client.get("/api/admin")
     assert response.status_code == 403
-    assert "You do not have access to this page" in response.text
-
-    api_response = await client.get("/admin")  # non-HTML clients get JSON
-    assert api_response.status_code == 403
-    assert api_response.json()["detail"]
-
-    assert (await client.get("/attendance")).status_code == 200
+    assert response.json()["detail"] == "You do not have access to this page."
+    assert (await client.get("/api/attendance")).status_code == 200
 
 
-async def test_logged_in_user_visiting_login_is_redirected(client, make_user, login):
-    await make_user("admin")
-    await login("admin")
-    response = await client.get("/login")
-    assert response.status_code == 303
-    assert response.headers["location"] == "/"
+def test_require_role_rejects_unknown_roles():
+    with pytest.raises(ValueError):
+        auth.require_role("superuser")
+    with pytest.raises(ValueError):
+        auth.require_role()

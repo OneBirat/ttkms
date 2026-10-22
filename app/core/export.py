@@ -1,7 +1,7 @@
 """Excel and PDF exports shared by every module.
 
 * :func:`to_xlsx` ``(title, meta_lines, columns, rows) -> bytes`` - openpyxl; bold frozen header
-  row, column widths from content, numbers stay numbers.
+  row, column widths from content, numbers stay numbers, text never becomes a formula.
 * :func:`to_pdf` ``(template_name, context, landscape=False) -> bytes`` - WeasyPrint, A4, shared
   print stylesheet ``static/css/print.css`` with a running header (company, title, BS+AD date,
   printed by), footer (legend + "Page X of Y") and the embedded Noto Sans Devanagari font.
@@ -42,7 +42,7 @@ class Column:
     key: str
     label: str
     width: float | None = None
-    number_format: str | None = None
+    number_format: str | None = None  # e.g. "0", "#,##0.00", "yyyy-mm-dd"
     align: str | None = None  # "left" | "right" | "center"
 
 
@@ -66,7 +66,12 @@ def _cell_value(row: Mapping[str, Any] | Sequence[Any], column: Column, index: i
     value = row.get(column.key) if isinstance(row, Mapping) else row[index]
     if isinstance(value, bool):
         return "Yes" if value else "No"
-    if isinstance(value, (*_NUMBER_TYPES, date, datetime)) or value is None:
+    if isinstance(value, datetime):
+        # Excel has no timezones: store Kathmandu wall-clock time.
+        if value.tzinfo is not None:
+            value = value.astimezone(bsdate.KATHMANDU).replace(tzinfo=None)
+        return value
+    if isinstance(value, (*_NUMBER_TYPES, date)) or value is None:
         return value
     return str(value)
 
@@ -112,12 +117,14 @@ def to_xlsx(
         for i, col in enumerate(cols, start=1):
             value = _cell_value(row, col, i - 1)
             cell = ws.cell(row=r, column=i, value=value)
+            if isinstance(value, str) and cell.data_type == "f":
+                cell.data_type = "s"  # text starting with "=" must stay text, never a formula
             if isinstance(value, _NUMBER_TYPES):
                 cell.alignment = Alignment(horizontal=col.align or "right")
-                if col.number_format:
-                    cell.number_format = col.number_format
             elif col.align:
                 cell.alignment = Alignment(horizontal=col.align)
+            if col.number_format and isinstance(value, (*_NUMBER_TYPES, date, datetime)):
+                cell.number_format = col.number_format
             widths[i - 1] = max(widths[i - 1], len("" if value is None else str(value)))
         r += 1
 
@@ -147,11 +154,16 @@ def to_pdf(template_name: str, context: Mapping[str, Any], landscape: bool = Fal
     html = env.get_template(template_name).render(full_context)
     try:
         from weasyprint import CSS, HTML
-    except OSError as exc:  # pango/cairo missing
+        from weasyprint.text.fonts import FontConfiguration
+    except (ImportError, OSError) as exc:  # not installed, or pango/cairo missing
         raise PDFUnavailable(
             "WeasyPrint cannot load its native libraries. On macOS run `brew install pango`."
         ) from exc
-    stylesheets = [CSS(filename=str(PRINT_CSS))]
+    # @font-face rules in CSS objects only apply when the same FontConfiguration is shared.
+    font_config = FontConfiguration()
+    stylesheets = [CSS(filename=str(PRINT_CSS), font_config=font_config)]
     if landscape:
-        stylesheets.append(CSS(string="@page { size: A4 landscape; }"))
-    return HTML(string=html, base_url=f"{STATIC_DIR}/").write_pdf(stylesheets=stylesheets)
+        stylesheets.append(CSS(string="@page { size: A4 landscape; }", font_config=font_config))
+    return HTML(string=html, base_url=f"{STATIC_DIR}/").write_pdf(
+        stylesheets=stylesheets, font_config=font_config
+    )

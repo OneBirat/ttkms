@@ -7,3 +7,9 @@ __pycache__/
 media/
 .DS_Store
 *.log
+
+# Next.js frontend (web/)
+web/node_modules/
+web/.next/
+web/out/
+web/.env*.local

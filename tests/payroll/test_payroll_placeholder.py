@@ -11,9 +11,9 @@ pytestmark = pytest.mark.anyio
 async def test_payroll_placeholder(client, make_user, login):
     await make_user("manager", role="manager")
     await login("manager")
-    response = await client.get("/payroll")
+    response = await client.get("/api/payroll")
     assert response.status_code == 200
-    assert "Coming soon" in response.text
+    assert response.json()["status"] == "coming_soon"
     assert module.name == "payroll"
 
 

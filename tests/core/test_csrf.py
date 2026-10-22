@@ -1,45 +1,40 @@
 import pytest
 
-from tests.conftest import csrf_token_from
-
 pytestmark = pytest.mark.anyio
+
+LOGIN = {"username": "a", "password": "b"}
 
 
 async def test_post_without_token_is_rejected(client):
-    await client.get("/login")  # establishes a session
-    response = await client.post("/login", data={"username": "a", "password": "b"})
+    await client.get("/api/auth/csrf")  # establishes a session
+    response = await client.post("/api/auth/login", json=LOGIN)
     assert response.status_code == 403
     assert "CSRF" in response.json()["detail"]
 
 
 async def test_post_with_wrong_token_is_rejected(client):
-    await client.get("/login")
-    response = await client.post(
-        "/login", data={"username": "a", "password": "b", "csrf_token": "forged"}
-    )
+    await client.get("/api/auth/csrf")
+    response = await client.post("/api/auth/login", json=LOGIN, headers={"X-CSRF-Token": "forged"})
     assert response.status_code == 403
 
 
 async def test_post_without_any_session_is_rejected(client):
     response = await client.post(
-        "/login", data={"username": "a", "password": "b", "csrf_token": "whatever"}
+        "/api/auth/login", json=LOGIN, headers={"X-CSRF-Token": "whatever"}
     )
     assert response.status_code == 403
 
 
-async def test_header_token_is_accepted_for_htmx(client, make_user, login):
+async def test_form_field_fallback_is_accepted(client, make_user, login):
     await make_user("admin")
-    await login("admin")
-    page = await client.get("/")
-    token = csrf_token_from(page.text)
-    assert f'hx-headers=\'{{"X-CSRF-Token": "{token}"}}\'' in page.text
-    response = await client.post("/logout", headers={"X-CSRF-Token": token})
-    assert response.status_code == 303
+    token = (await login("admin")).json()["csrf_token"]
+    response = await client.post("/api/auth/logout", data={"csrf_token": token})
+    assert response.status_code == 204
 
 
-async def test_token_rotates_at_login(client, make_user, login):
+async def test_token_rotates_at_login_and_is_reported_by_me(client, make_user, login):
     await make_user("admin")
-    before = csrf_token_from((await client.get("/login")).text)
-    await login("admin")
-    after = csrf_token_from((await client.get("/")).text)
+    before = (await client.get("/api/auth/csrf")).json()["csrf_token"]
+    after = (await login("admin")).json()["csrf_token"]
     assert before != after
+    assert (await client.get("/api/auth/me")).json()["csrf_token"] == after

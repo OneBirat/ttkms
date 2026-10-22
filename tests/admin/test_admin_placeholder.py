@@ -10,13 +10,13 @@ pytestmark = pytest.mark.anyio
 async def test_admin_placeholder(client, make_user, login):
     await make_user("admin")
     await login("admin")
-    response = await client.get("/admin")
+    response = await client.get("/api/admin")
     assert response.status_code == 200
-    assert "Coming soon" in response.text
+    assert response.json()["status"] == "coming_soon"
     assert module.name == "admin"
 
 
 async def test_admin_is_admin_only(client, make_user, login):
     await make_user("manager", role="manager")
     await login("manager")
-    assert (await client.get("/admin")).status_code == 403
+    assert (await client.get("/api/admin")).status_code == 403

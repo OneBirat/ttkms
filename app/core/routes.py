@@ -1,7 +1,8 @@
-"""Core pages: the dashboard shell and the export demo routes (deliberately not in the nav)."""
+"""Core JSON endpoints: registry, dashboard, today's date, BS conversion and the export demo."""
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -22,11 +23,39 @@ from app.core.export import (
 )
 from app.core.models import Branch, Department, Employee, EmployeeStatus, User
 from app.core.modules import WidgetContext
+from app.core.schemas import (
+    BsConvertOut,
+    DashboardOut,
+    ErrorOut,
+    ModuleOut,
+    NavItemOut,
+    RegistryOut,
+    StatOut,
+    TodayOut,
+    TodayText,
+    WidgetOut,
+)
 from app.core.services import company_name
-from app.core.templating import render
 from app.db import DbSession
 
-router = APIRouter()
+router = APIRouter(prefix="/api", tags=["core"])
+
+
+@router.get("/registry", response_model=RegistryOut, responses={401: {"model": ErrorOut}})
+async def registry(request: Request, user: CurrentUser) -> RegistryOut:
+    """Modules in sidebar order, nav items filtered to the caller's role."""
+    modules = []
+    for module in request.app.state.modules:
+        nav = [
+            NavItemOut(label=i.label, path=i.path, icon=i.icon, roles=sorted(i.roles))
+            for i in module.visible_nav(user.role)
+        ]
+        modules.append(
+            ModuleOut(
+                name=module.name, title=module.title, nav=nav, allowed=module.allowed(user.role)
+            )
+        )
+    return RegistryOut(modules=modules)
 
 
 async def _count(db: AsyncSession, model: Any, *where: Any) -> int:
@@ -36,25 +65,76 @@ async def _count(db: AsyncSession, model: Any, *where: Any) -> int:
     return int(await db.scalar(stmt) or 0)
 
 
-@router.get("/", name="dashboard")
-async def dashboard(request: Request, user: CurrentUser, db: DbSession) -> Response:
+@router.get("/dashboard", response_model=DashboardOut, responses={401: {"model": ErrorOut}})
+async def dashboard(request: Request, user: CurrentUser, db: DbSession) -> DashboardOut:
     stats = [
-        {
-            "label": "Active employees",
-            "value": await _count(db, Employee, Employee.status == EmployeeStatus.active),
-            "hint": "core.employees",
-            "tone": "ok",
-        },
-        {"label": "Branches", "value": await _count(db, Branch), "hint": "core.branches"},
-        {"label": "Departments", "value": await _count(db, Department), "hint": "core.departments"},
-        {"label": "Users", "value": await _count(db, User), "hint": "core.users"},
+        StatOut(
+            label="Active employees",
+            value=await _count(db, Employee, Employee.status == EmployeeStatus.active),
+            hint="core.employees",
+            tone="ok",
+            href="/payroll",
+        ),
+        StatOut(label="Branches", value=await _count(db, Branch), hint="core.branches"),
+        StatOut(label="Departments", value=await _count(db, Department), hint="core.departments"),
+        StatOut(label="Users", value=await _count(db, User), hint="core.users", href="/admin"),
     ]
-    widgets: list[tuple[Any, str]] = []
     ctx = WidgetContext(request=request, user=user, db=db)
+    widgets: list[WidgetOut] = []
     for module in request.app.state.modules:
         for widget in module.dashboard_widgets:
-            widgets.append((module, await widget(ctx)))
-    return render(request, "dashboard.html", {"stats": stats, "widgets": widgets})
+            result = await widget(ctx)
+            widgets.append(
+                WidgetOut(
+                    module=module.name,
+                    kind=str(result.get("kind", "unknown")),
+                    title=str(result.get("title", module.title)),
+                    data=dict(result.get("data") or {}),
+                )
+            )
+    return DashboardOut(stats=stats, widgets=widgets)
+
+
+@router.get("/today", response_model=TodayOut)
+async def today() -> TodayOut:
+    header = bsdate.header_date()
+    return TodayOut(
+        ad=header.ad_date,
+        bs=header.bs_date.isoformat() if header.bs_date else None,
+        available=header.available,
+        text=TodayText(np=header.np, bs_en=header.bs_en, ad=header.ad, full=header.full),
+    )
+
+
+@router.get(
+    "/bsdate/convert",
+    response_model=BsConvertOut,
+    responses={422: {"model": ErrorOut}, 503: {"model": ErrorOut}},
+)
+async def convert_date(ad: date | None = None, bs: str | None = None) -> BsConvertOut:
+    """Convert one date either way: ``?ad=2026-10-20`` or ``?bs=2083-07-04``."""
+    if not bsdate.is_available():
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="BS calendar table not installed (app/core/bs_calendar_data.py).",
+        )
+    try:
+        if ad is not None:
+            bs_date = bsdate.ad_to_bs(ad)
+        elif bs is not None:
+            bs_date = bsdate.parse_bs(bs)
+            ad = bsdate.bs_to_ad(bs_date)
+        else:
+            raise ValueError("pass either ?ad=YYYY-MM-DD or ?bs=YYYY-MM-DD")
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
+    return BsConvertOut(
+        ad=ad,
+        bs=bs_date.isoformat(),
+        bs_text=bs_date.format(),
+        bs_text_np=bs_date.format(nepali=True),
+        weekday_np=bsdate.weekday_name(ad, nepali=True),
+    )
 
 
 # --------------------------------------------------------------------------- export demo
