@@ -1,4 +1,4 @@
-/* Stock entry (docs/design/StockEntry.dc.html). */
+/* Stock entry, desktop (design/stock/StockEntry.dc.html) + pop-ups shared with the phone layout. */
 
 .layout {
   display: flex;
@@ -32,10 +32,74 @@
   padding: 0 0 8px;
 }
 
-.meta {
+/* Purchase / Consumption segmented control: white active with teal / amber text. */
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--color-border-soft);
+  padding: 4px;
+  border-radius: 10px;
+  align-self: flex-start;
+}
+
+.segButton {
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #3e4a52;
+  cursor: pointer;
+}
+
+.segTeal,
+.segAmber {
+  background: var(--color-card);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(23, 34, 42, 0.12);
+}
+
+.segTeal {
+  color: var(--pill-ok-fg);
+}
+
+.segAmber {
+  color: var(--pill-low-fg);
+}
+
+/* Date row: AD left, BS right, always two equal halves. */
+.dates {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.dateCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dateLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dateLabelNp {
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.dateNote {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.dateBad {
+  border-color: #b23a1b !important;
 }
 
 .tableWrap {
@@ -56,24 +120,32 @@
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 8px 12px;
+  padding: 10px 8px;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
 
 .table td {
-  padding: 7px 12px;
+  padding: 10px 8px;
   border-bottom: 1px solid var(--color-border-soft);
   vertical-align: top;
 }
 
-.rowWarn td {
-  background: #fff8ec;
+.num {
+  text-align: right !important;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
 }
 
 .rowIndex {
   padding-top: 22px !important;
   color: var(--color-muted);
+}
+
+.itemCell {
+  min-width: 260px;
+  width: 36%;
 }
 
 .stockCell {
@@ -90,28 +162,175 @@
   font-size: 13px;
 }
 
-.warn {
+/* Item cell: closed button / open search + list. */
+.itemButton {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--pill-low-fg);
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
 }
 
-.warnField {
-  border-color: #b9701f !important;
+.itemEmpty {
+  color: var(--color-muted);
 }
 
-.help {
+.itemLocked {
+  background: var(--color-bg);
+  color: #3e4a52;
+}
+
+.itemText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lockIcon {
+  color: #8c9a93;
+  display: flex;
+}
+
+.chevron {
+  flex: none;
+  display: flex;
+  color: var(--color-muted);
+}
+
+.itemLocked .chevron {
+  color: #b5beb9;
+}
+
+.itemHint {
   margin-top: 6px;
   font-size: 12px;
   color: var(--color-muted);
 }
 
-.removeButton {
+.itemSearch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-input);
+  background: var(--color-card);
+  color: var(--color-primary);
+}
+
+.itemSearch input {
+  border: none;
+  outline: none;
+  font-size: 14px;
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.closeList {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.listWrap {
+  margin-top: 6px;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  background: var(--color-card);
+  box-shadow: 0 8px 20px rgba(23, 34, 42, 0.12);
+  overflow: hidden;
+}
+
+.list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  white-space: nowrap;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: none;
+  border-bottom: 1px solid var(--color-border-soft);
+  background: var(--color-card);
+  font-size: 14px;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:last-child {
+  border-bottom: none;
+}
+
+.optionActive,
+.option:hover {
+  background: #f3f8f7;
+}
+
+.optionStock {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.stockOk {
+  color: var(--color-muted);
+}
+
+.stockLow {
+  color: var(--pill-low-fg);
+  font-weight: 600;
+}
+
+.stockOut {
+  color: var(--pill-danger-fg);
+  font-weight: 600;
+}
+
+.noMatch {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+/* Delete button, pulsing when the lock pop-up points at it. */
+.deleteWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.deleteButton {
   width: 44px;
   height: 44px;
+  flex: none;
   border-radius: var(--radius-input);
   border: 1px solid var(--color-border);
   background: var(--color-card);
@@ -122,17 +341,193 @@
   cursor: pointer;
 }
 
-.rowButtons {
+.deletePulse {
+  border: 2px solid var(--pill-danger-fg);
+  background: var(--pill-danger-bg);
+  color: var(--pill-danger-fg);
+}
+
+.pointer {
+  font-size: 22px;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .deletePulse {
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  .pointer {
+    animation: nudge 0.7s ease-in-out infinite;
+  }
+
+  .lockToast {
+    animation: pop 0.2s ease;
+  }
+
+  .knob {
+    transition:
+      left 0.25s ease,
+      background 0.25s ease;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(142, 47, 18, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(142, 47, 18, 0);
+  }
+}
+
+@keyframes nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.emptyCell {
+  padding: 36px 8px !important;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.emptyTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+
+/* "+ Add purchase · खरिद थप्नुहोस्" */
+.addWrap {
+  display: flex;
+  justify-content: center;
+  padding: 4px 24px;
+}
+
+.addButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px dashed;
+}
+
+.addLabel {
+  font-family: "IBM Plex Sans", "Noto Sans Devanagari", sans-serif;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.addTeal {
+  border-color: var(--color-primary);
+  color: var(--pill-ok-fg);
+  background: #f2f8f7;
+}
+
+.addAmber {
+  border-color: #9a4a06;
+  color: var(--pill-low-fg);
+  background: #fdf7ee;
+}
+
+.errorText {
+  font-size: 13px;
+  color: var(--pill-danger-fg);
+}
+
+.footer {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: 16px;
+}
+
+.footerText {
+  font-size: 14px;
+  color: var(--color-muted);
+}
+
+.footerBad {
+  color: var(--pill-danger-fg);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
   gap: 10px;
 }
 
-.dashed {
-  border-style: dashed;
-  border-color: #8c9a93;
+.saveButton {
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: var(--radius-input);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
 }
 
+.saveOff {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.teal {
+  background: var(--color-primary);
+}
+
+.amber {
+  background: #9a4a06;
+}
+
+.bgTeal {
+  background: var(--color-primary);
+}
+
+.bgAmber {
+  background: #9a4a06;
+}
+
+.inkTeal {
+  color: var(--pill-ok-fg);
+}
+
+.inkAmber {
+  color: var(--pill-low-fg);
+}
+
+/* Today's entries panel */
 .aside {
   flex: 1 1 300px;
   min-width: 0;
@@ -183,14 +578,6 @@
   background: #9a4a06;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .knob {
-    transition:
-      left 0.25s ease,
-      background 0.25s ease;
-  }
-}
-
 .switch button {
   position: relative;
   z-index: 1;
@@ -198,7 +585,6 @@
   border: none;
   border-radius: 999px;
   background: transparent;
-  font: inherit;
   font-size: 14px;
   color: #3e4a52;
   cursor: pointer;
@@ -215,6 +601,27 @@
   gap: 10px;
 }
 
+.tint {
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tintIn {
+  background: #eaf5f3;
+}
+
+.tintOut {
+  background: #fdf3e3;
+}
+
+.tintLabel {
+  font-size: 12px;
+  color: #4a555c;
+}
+
 .totalValue {
   font-size: 22px;
   font-weight: 600;
@@ -224,6 +631,11 @@
   display: flex;
   flex-direction: column;
   font-size: 14px;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--color-muted);
 }
 
 .entry {
@@ -255,57 +667,295 @@
   white-space: nowrap;
 }
 
-/* Searchable item select */
-.combo {
-  position: relative;
+.badgeIn {
+  background: var(--pill-ok-bg);
+  color: var(--pill-ok-fg);
 }
 
-.listbox {
-  position: absolute;
-  z-index: 10;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  max-height: 260px;
-  overflow: auto;
-  margin: 0;
-  padding: 4px;
-  list-style: none;
-  background: var(--color-card);
-  border: 1px solid var(--color-input-border);
-  border-radius: var(--radius-input);
-  box-shadow: 0 10px 30px rgba(15, 24, 29, 0.15);
+.badgeOut {
+  background: var(--pill-low-bg);
+  color: var(--pill-low-fg);
 }
 
-.option {
+/* Pop-ups */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 24, 29, 0.55);
   display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 40px;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 6px;
+  justify-content: center;
+  padding: 20px;
+}
+
+.backdropTop {
+  z-index: 48;
+  align-items: flex-start;
+  padding: 64px 16px;
+  overflow-y: auto;
+}
+
+.switchDialog {
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-card);
+  border-radius: 16px;
+  padding: 26px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(15, 24, 29, 0.25);
+  outline: none;
+}
+
+.warnIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--pill-danger-bg);
+  color: var(--pill-danger-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.switchTitle {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.switchText {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #3e4a52;
+}
+
+.switchNp {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #3e4a52;
+}
+
+.switchButtons {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.keepButton,
+.clearSwitchButton {
+  flex: 1;
+  min-height: 44px;
+  border-radius: var(--radius-input);
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.option[aria-selected="true"],
-.option:hover {
-  background: #f3f8f7;
+.keepButton {
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+  color: var(--color-text);
 }
 
-.optionActive {
-  background: var(--pill-ok-bg) !important;
+.clearSwitchButton {
+  border: none;
+  background: var(--pill-danger-fg);
+  color: #fff;
 }
 
-.optionStock {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-muted);
-  white-space: nowrap;
+/* Saved dialog */
+.savedBox {
+  width: 100%;
+  max-width: 520px;
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(15, 24, 29, 0.3);
+  outline: none;
 }
 
-.noMatch {
-  padding: 10px;
+.savedTeal {
+  background: var(--pill-ok-bg);
+}
+
+.savedAmber {
+  background: var(--pill-low-bg);
+}
+
+.savedHead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 26px 24px 16px;
+}
+
+.savedIcon {
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.savedTitle {
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.savedNp {
+  font-size: 15px;
+  font-weight: 600;
+  color: #3e4a52;
+}
+
+.savedSub {
   font-size: 13px;
+  color: #3e4a52;
+}
+
+.savedBody {
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.savedList {
+  background: var(--color-card);
+  border-radius: 12px;
+  padding: 4px 16px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.savedListTitle {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 0 4px;
+}
+
+.savedRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-border-soft);
+  font-size: 15px;
+}
+
+.savedQty {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.savedToday {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-card);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: #3e4a52;
+}
+
+.savedBig {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.savedButtons {
+  display: flex;
+  gap: 10px;
+  padding: 18px 24px 22px;
+}
+
+.savedButton {
+  flex: 1;
+  min-height: 48px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* Lock pop-up, top centre */
+.lockToast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(440px, calc(100% - 32px));
+  background: var(--color-card);
+  border: 1px solid #e0a895;
+  border-left: 5px solid var(--pill-danger-fg);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 16px 36px rgba(15, 24, 29, 0.22);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.lockIconWrap {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--pill-danger-bg);
+  color: var(--pill-danger-fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lockText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lockTitle {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.lockBody {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #3e4a52;
+}
+
+.lockNp {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3e4a52;
+}
+
+.lockClose {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  color: var(--color-muted);
+  cursor: pointer;
 }

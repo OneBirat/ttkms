@@ -1,0 +1,21 @@
+/*
+ * Global rules for the phone layout of /stock/entry. The page sets
+ * data-stock-mobile on <html> while the phone layout is shown; it brings its
+ * own header and menu drawer, so the shared sidebar and page padding go.
+ * TODO(main): a mobile drawer in AppShell would make this unnecessary.
+ */
+@media (max-width: 640px) {
+  html[data-stock-mobile] nav[aria-label="Main"],
+  html[data-stock-mobile] .skip-link {
+    display: none;
+  }
+
+  html[data-stock-mobile] body {
+    overflow: hidden;
+  }
+
+  html[data-stock-mobile] main {
+    padding: 0;
+    gap: 0;
+  }
+}

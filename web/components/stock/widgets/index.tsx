@@ -61,84 +61,78 @@ export function LowStockWidget({ widget }: { widget: Widget }) {
   const loaded = useAsync(() => (given ? Promise.resolve(given) : api.getLowStock()), "stock_low");
   const rows = (given ?? loaded.data)?.rows ?? [];
   return (
-    <section id="low" aria-labelledby="low-h" className={`card ${styles.widget}`}>
-      <div className={styles.head}>
-        <div className={styles.headText}>
-          <h2 id="low-h" className={styles.title}>
-            {widget.title || "Low in stock"}
-          </h2>
-          <span className={styles.sub}>
-            {loaded.loading && !given ? "Loading…" : `${plural(rows.length, "item")} at or below their reorder level · out of stock first`}
-          </span>
+    <div className={styles.lowRow}>
+      <section id="low" aria-labelledby="low-h" className={`card ${styles.widget} ${styles.lowCard}`}>
+        <div className={styles.head}>
+          <div className={styles.headText}>
+            <h2 id="low-h" className={styles.title}>
+              {widget.title || "Low in stock"}
+            </h2>
+            <span className={styles.sub}>
+              {loaded.loading && !given ? "Loading…" : `${plural(rows.length, "item")} at or below their reorder level · out of stock first`}
+            </span>
+          </div>
+          <div className={styles.headActions}>
+            <a href="/stock/shopping-list/print?auto=1" target="_blank" rel="noopener" className="btn btn--sm">
+              Print shopping list
+            </a>
+          </div>
         </div>
-        <div className={styles.headActions}>
-          <Link href="/stock/items">Set reorder levels</Link>
-          <a href="/stock/shopping-list/print?auto=1" target="_blank" rel="noopener" className="btn btn--sm">
-            Print shopping list
-          </a>
-        </div>
-      </div>
-      <div className={styles.scroll}>
-        <table className={shared.tbl}>
-          <thead>
-            <tr>
-              <th scope="col">Item</th>
-              <th scope="col">Status</th>
-              <th scope="col" className={shared.num}>
-                In stock
-              </th>
-              <th scope="col" className={shared.num}>
-                Reorder at
-              </th>
-              <th scope="col" className={shared.num}>
-                Short by
-              </th>
-              <th scope="col" className={shared.num}>
-                Days left
-              </th>
-              <th scope="col">Last purchased</th>
-              <th scope="col">
-                <span className="sr-only">Action</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && !loaded.loading ? (
+        <div className={styles.scroll}>
+          <table className={shared.tbl}>
+            <thead>
               <tr>
-                <td colSpan={8} className={shared.status} style={{ textAlign: "center", padding: 20 }}>
-                  Every variation is above its reorder level.
-                </td>
+                <th scope="col">Item</th>
+                <th scope="col">Status</th>
+                <th scope="col" className={shared.num}>
+                  In stock
+                </th>
+                <th scope="col">Last purchased</th>
+                <th scope="col">
+                  <span className="sr-only">Action</span>
+                </th>
               </tr>
-            ) : null}
-            {rows.map((r) => (
-              <tr key={r.variation_id}>
-                <td className={styles.item}>
-                  <Link href={`/stock/products/${r.product_id}`} style={{ color: "inherit", textDecoration: "none" }}>
-                    {r.product_name} · {r.variation_name}
-                  </Link>
-                </td>
-                <td>
-                  <Pill status={r.status} label={r.status === "out" ? "Out of stock" : STATUS_LABEL[r.status]} />
-                </td>
-                <td className={`${shared.num} ${shared.strong}`}>
-                  {r.in_stock} <span className={styles.pcs}>pcs</span>
-                </td>
-                <td className={shared.num}>{r.reorder_level}</td>
-                <td className={shared.num}>{r.short_by}</td>
-                <td className={shared.num}>{r.in_stock === 0 ? 0 : r.days_left === null ? "—" : `~${r.days_left}`}</td>
-                <td>{r.last_purchase_bs ? `${r.last_purchase_bs} · ${r.last_purchase_qty} pcs` : "—"}</td>
-                <td>
-                  <Link href={`/stock/entry?type=purchase&item=${r.variation_id}`} className={styles.rowLink}>
-                    Record purchase
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <span className={styles.foot}>Days left = in stock ÷ average daily consumption over the last 30 days.</span>
-    </section>
+            </thead>
+            <tbody>
+              {rows.length === 0 && !loaded.loading ? (
+                <tr>
+                  <td colSpan={5} className={shared.status} style={{ textAlign: "center", padding: 20 }}>
+                    Every variation is above its reorder level.
+                  </td>
+                </tr>
+              ) : null}
+              {rows.map((r) => (
+                <tr key={r.variation_id}>
+                  <td className={styles.item}>
+                    <Link href={`/stock/products/${r.product_id}`} style={{ color: "inherit", textDecoration: "none" }}>
+                      {r.product_name} · {r.variation_name}
+                    </Link>
+                  </td>
+                  <td>
+                    <Pill status={r.status} label={r.status === "out" ? "Out of stock" : STATUS_LABEL[r.status]} />
+                  </td>
+                  <td className={`${shared.num} ${shared.strong}`}>
+                    {r.in_stock} <span className={styles.pcs}>pcs</span>
+                  </td>
+                  <td>{r.last_purchase_bs ? `${r.last_purchase_bs} · ${r.last_purchase_qty} pcs` : "—"}</td>
+                  <td>
+                    <Link href={`/stock/entry?type=purchase&item=${r.variation_id}`} className={styles.rowLink}>
+                      Record purchase
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {/* Slot for the attendance module's "Attendance today" widget (not built here).
+          TODO(main): render that widget into this column on the shared dashboard. */}
+      <aside aria-label="Attendance today" data-slot="attendance_today" className={`card ${styles.widget} ${styles.slot}`}>
+        <h2 className={styles.title}>Attendance today</h2>
+        <span className={styles.sub}>Shown here once the attendance widget is wired in.</span>
+      </aside>
+    </div>
   );
 }
 
