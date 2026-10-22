@@ -26,6 +26,6 @@ module = Module(
     name="attendance",
     title="Attendance",
     router=router,
-    nav=[NavItem(label="Overview", path="/attendance", icon="clock", roles=set(ROLES))],
+    nav=[NavItem(label="Overview", path="/attendance", icon="calendar", roles=set(ROLES))],
     dashboard_widgets=[coming_soon_widget("Attendance", "Daily attendance, late marks and leave")],
 )

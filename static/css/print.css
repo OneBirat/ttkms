@@ -1,65 +1,106 @@
-/* Shared print stylesheet for WeasyPrint PDFs (app/core/export.py:to_pdf).
-   Paths are relative to this file: static/css/ -> static/vendor/fonts/. */
+/* Shared print stylesheet for WeasyPrint PDFs (app/core/export.py:to_pdf), after
+   docs/design/ExportPdf.dc.html. Paths are relative to this file: static/css/ -> static/vendor/fonts/. */
 
 @font-face { font-family: "IBM Plex Sans"; font-weight: 400; src: url("../vendor/fonts/IBMPlexSans-Regular.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Sans"; font-weight: 500; src: url("../vendor/fonts/IBMPlexSans-Medium.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Sans"; font-weight: 600; src: url("../vendor/fonts/IBMPlexSans-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 700; src: url("../vendor/fonts/IBMPlexSans-SemiBold.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Mono"; font-weight: 400; src: url("../vendor/fonts/IBMPlexMono-Regular.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500; src: url("../vendor/fonts/IBMPlexMono-Medium.woff2") format("woff2"); }
 @font-face { font-family: "Noto Sans Devanagari"; font-weight: 400; src: url("../vendor/fonts/NotoSansDevanagari-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Noto Sans Devanagari"; font-weight: 500; src: url("../vendor/fonts/NotoSansDevanagari-Medium.woff2") format("woff2"); }
 @font-face { font-family: "Noto Sans Devanagari"; font-weight: 600; src: url("../vendor/fonts/NotoSansDevanagari-SemiBold.woff2") format("woff2"); }
 
+/* A4 portrait by default; to_pdf(landscape=True) appends "@page { size: A4 landscape }".
+   The running header sits in the top margin, the running footer (legend + page numbers)
+   in the bottom margin. Widths below equal the page width minus the side margins. */
 @page {
   size: A4;
-  margin: 30mm 14mm 20mm 14mm;
+  margin: 30mm 12mm 18mm 12mm;
   @top-left {
     content: element(print-header);
     vertical-align: bottom;
-    padding-bottom: 4mm;
+    padding-bottom: 3mm;
   }
   @bottom-left {
-    content: element(print-legend);
-    vertical-align: middle;
-  }
-  @bottom-right {
-    content: "Page " counter(page) " of " counter(pages);
-    font-family: "IBM Plex Sans", "Noto Sans Devanagari", sans-serif;
-    font-size: 8.5pt;
-    color: #5B6670;
-    vertical-align: middle;
+    content: element(print-footer);
+    vertical-align: top;
+    padding-top: 2mm;
   }
 }
 
 html, body { margin: 0; padding: 0; }
 body {
   font-family: "IBM Plex Sans", "Noto Sans Devanagari", sans-serif;
-  font-size: 10pt;
+  font-size: 10px;
   line-height: 1.4;
   color: #1B2328;
 }
 [lang="ne"], .np { font-family: "Noto Sans Devanagari", "IBM Plex Sans", sans-serif; }
-.num { font-family: "IBM Plex Mono", monospace; text-align: right; }
-.muted { color: #5B6670; }
+.num, .tt { font-family: "IBM Plex Mono", monospace; text-align: right; }
+.muted { color: #4A555C; }
 
-.print-header { position: running(print-header); width: 182mm; border-bottom: 1.5pt solid #0E6B6B; padding-bottom: 2mm; }
-.print-header__row { display: flex; justify-content: space-between; align-items: baseline; font-size: 9pt; color: #5B6670; }
-.print-header__company { font-weight: 600; color: #0E6B6B; font-size: 11pt; }
-.print-header__title { font-size: 15pt; font-weight: 600; margin-top: 1mm; }
-.print--landscape .print-header { width: 269mm; }
+/* Header: TT tile + title/subtitle on the left, Nepali date + "Generated ... by ..." on the right. */
+.print-header {
+  position: running(print-header);
+  width: 186mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  border-bottom: 2px solid #0E6B6B;
+  padding-bottom: 10px;
+}
+.print--landscape .print-header,
+.print--landscape .print-footer { width: 273mm; }
+.print-header__left { display: flex; align-items: center; gap: 12px; }
+.print-header__tile {
+  width: 34px; height: 34px; border-radius: 7px; background: #0E6B6B; color: #FFFFFF;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;
+}
+.print-header__titles { display: flex; flex-direction: column; gap: 2px; }
+.print-header__title { margin: 0; font-size: 18px; font-weight: 700; }
+.print-header__subtitle { font-size: 11px; color: #4A555C; }
+.print-header__right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 10px; color: #4A555C; text-align: right; }
+.print-header__np { font-family: "Noto Sans Devanagari", sans-serif; font-size: 11px; color: #1B2328; }
 
-.print-legend { position: running(print-legend); font-size: 8.5pt; }
-.print-legend .pill { margin-right: 4pt; }
+/* Footer: legend on the left, "Page X of Y" on the right, rule above. */
+.print-footer {
+  position: running(print-footer);
+  width: 186mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 9px;
+  color: #4A555C;
+  border-top: 1px solid #D5D9D5;
+  padding-top: 6px;
+}
+.print-footer__legend .pill { margin-right: 4pt; }
+.print-footer__page::after { content: "Page " counter(page) " of " counter(pages); }
 
-.pill { display: inline-block; padding: 0.5pt 7pt; border-radius: 999pt; font-size: 8.5pt; font-weight: 500; background: #ECEEEA; color: #4A555D; }
+.pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 8.5px; font-weight: 600; background: #ECEEEA; color: #4A555D; }
 .pill--ok { background: #E3F0EE; color: #0A5454; }
 .pill--low { background: #FCEFD9; color: #8A4205; }
 .pill--danger { background: #F6DCD3; color: #8E2F12; }
 .pill--leave { background: #E3E8F4; color: #253F73; }
 .pill--neutral { background: #ECEEEA; color: #4A555D; }
 
-.print-intro, .print-note { color: #5B6670; font-size: 9.5pt; }
-.print-table { width: 100%; border-collapse: collapse; margin: 3mm 0 4mm; }
-.print-table th, .print-table td { padding: 2.2mm 2.5mm; border-bottom: 0.5pt solid #E2E5E1; text-align: left; vertical-align: middle; }
-.print-table th { font-size: 8.5pt; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: #5B6670; background: #F4F5F2; }
-.print-table thead { display: table-header-group; }
-.print-table tr { page-break-inside: avoid; }
-.print-table .num { text-align: right; }
+/* Stat boxes row (ExportPdf sample). */
+.print-stats { display: flex; gap: 10px; margin-bottom: 12px; }
+.print-stat { flex: 1; border: 1px solid #D5D9D5; border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column; }
+.print-stat__label { font-size: 9px; color: #4A555C; text-transform: uppercase; letter-spacing: .05em; }
+.print-stat__value { font-size: 15px; font-weight: 700; }
+
+/* Grid table (.pg in the design): bordered cells, centred by default, names left-aligned. */
+.pg { border-collapse: collapse; table-layout: fixed; width: 100%; font-size: 10px; margin: 12px 0; }
+.pg th, .pg td { border: 1px solid #D5D9D5; text-align: center; padding: 0 4px; height: 19px; vertical-align: middle; }
+.pg thead th { background: #F1F3F0; color: #3E4A52; font-weight: 600; height: 30px; line-height: 1.15; }
+.pg thead { display: table-header-group; }
+.pg tr { page-break-inside: avoid; }
+.pg .nm { text-align: left; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: #1B2328; }
+.pg .num { text-align: right; }
+.pg tfoot th, .pg tfoot td { background: #F1F3F0; font-weight: 700; }
+
+.print-intro, .print-note { color: #4A555C; font-size: 9.5px; margin: 0 0 6px; }

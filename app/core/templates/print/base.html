@@ -1,4 +1,6 @@
-{# Base for every PDF. Context: title, company, printed_by, printed_at (HeaderDate), legend [(label, tone)]. #}
+{# Base for every PDF, after docs/design/ExportPdf.dc.html.
+   Context: title, subtitle (optional), company, printed_by, printed_at (HeaderDate),
+   generated_at (text), legend [(label, tone)] or legend_text. #}
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,16 +9,29 @@
   {% block head %}{% endblock %}
 </head>
 <body class="print{% if landscape %} print--landscape{% endif %}">
-  <div class="print-header">
-    <div class="print-header__row">
-      <span class="print-header__company">{{ company }}</span>
-      <span class="print-header__meta">{{ printed_at.full }}{% if printed_by %} · Printed by {{ printed_by }}{% endif %}</span>
+  <header class="print-header">
+    <div class="print-header__left">
+      <span class="print-header__tile" aria-hidden="true">TT</span>
+      <div class="print-header__titles">
+        <h1 class="print-header__title">{{ title }}</h1>
+        <span class="print-header__subtitle">{{ company }}{% if subtitle %} · {{ subtitle }}{% endif %}</span>
+      </div>
     </div>
-    <div class="print-header__title">{{ title }}</div>
-  </div>
-  <div class="print-legend">
-    {% for label, tone in legend %}<span class="pill pill--{{ tone }}">{{ label }}</span>{% endfor %}
-  </div>
+    <div class="print-header__right">
+      {% if printed_at.available %}<span class="print-header__np" lang="ne">{{ printed_at.np }}</span>{% endif %}
+      <span>Generated {{ generated_at }}{% if printed_by %} by {{ printed_by }}{% endif %}</span>
+    </div>
+  </header>
+  <footer class="print-footer">
+    <span class="print-footer__legend">
+      {%- block legend -%}
+        {%- if legend_text -%}{{ legend_text }}{%- else -%}
+          {%- for label, tone in legend %}<span class="pill pill--{{ tone }}">{{ label }}</span>{% endfor -%}
+        {%- endif -%}
+      {%- endblock -%}
+    </span>
+    <span class="print-footer__page"></span>
+  </footer>
   <main class="print-body">
     {% block content %}{% endblock %}
   </main>

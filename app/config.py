@@ -8,9 +8,11 @@ reads its own ``.env`` (own APP_PORT, same database).
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
+from typing import Literal
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,7 +32,7 @@ class Settings(BaseSettings):
     database_url: str
     secret_key: str
     app_port: int = 8000
-    app_env: str = "dev"  # "dev" | "prod"
+    app_env: Literal["dev", "prod"] = "dev"
 
     # Session cookie (Starlette SessionMiddleware + itsdangerous)
     session_cookie: str = "ttk_session"
@@ -43,7 +45,7 @@ class Settings(BaseSettings):
     admin_password: str | None = None
 
     # The test-suite creates and migrates this database itself.
-    # Defaults to "<database>_test" on the same server.
+    # Defaults to "<database>_test_<checkout dir>" on the same server.
     test_database_url: str | None = None
 
     timezone: str = "Asia/Kathmandu"
@@ -58,8 +60,18 @@ class Settings(BaseSettings):
             return self.test_database_url
         from sqlalchemy.engine import make_url
 
+        # One test database per checkout, so worktrees running `make test` at the same time
+        # never reset each other's schemas: ttk_test_ttkms, ttk_test_ttk_stock, ...
+        suffix = re.sub(r"[^a-z0-9_]+", "_", BASE_DIR.name.lower()).strip("_")
         url = make_url(self.database_url)
-        return url.set(database=f"{url.database}_test").render_as_string(hide_password=False)
+        return url.set(database=f"{url.database}_test_{suffix}").render_as_string(
+            hide_password=False
+        )
+
+    @field_validator("app_env", mode="before")
+    @classmethod
+    def _normalise_env(cls, value: object) -> object:
+        return value.strip().lower() if isinstance(value, str) else value
 
     @model_validator(mode="after")
     def _check_secret_key(self) -> Settings:

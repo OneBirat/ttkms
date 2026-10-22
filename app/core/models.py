@@ -125,9 +125,10 @@ class Department(Base):
         return f"<Department {self.id} {self.name!r}>"
 
 
-# Employee codes are assigned by the database: E-001, E-002, ... (lpad to 3 digits, grows past 999).
+# Employee codes are assigned by the database function core.next_employee_code(): E-001, E-002,
+# ... zero-padded to at least 3 digits and growing past 999 (E-1000).
 employee_code_seq = Sequence("employee_code_seq", schema=SCHEMA, metadata=Base.metadata)
-EMPLOYEE_CODE_DEFAULT_SQL = "'E-' || lpad(nextval('core.employee_code_seq')::text, 3, '0')"
+EMPLOYEE_CODE_DEFAULT_SQL = "core.next_employee_code()"
 
 
 class Employee(Base, TimestampMixin):

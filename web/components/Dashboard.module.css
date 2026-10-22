@@ -1,23 +1,21 @@
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
 }
 
 .widgets {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
 }
 
-.footer {
-  margin-top: 32px;
-  font-size: 13px;
-  color: var(--color-muted);
+.widgets > * {
+  flex: 1 1 100%;
+  min-width: 0;
 }
 
-.footer a {
-  display: inline-block;
-  padding: 8px 2px;
+.footer {
+  font-size: 13px;
+  color: var(--color-muted);
 }

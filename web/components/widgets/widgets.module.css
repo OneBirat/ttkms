@@ -1,9 +1,10 @@
+/* Dashboard section cards from docs/design/Main.dc.html. */
+
 .widget {
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 140px;
-  padding: 18px 20px;
+  gap: 12px;
 }
 
 .head {
@@ -11,18 +12,25 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
 }
 
 .title {
-  font-size: 16px;
+  font-size: 17px;
+  font-weight: 600;
 }
 
 .note {
+  font-size: 13px;
   color: var(--color-muted);
 }
 
 .unknown {
   border-style: dashed;
+}
+
+.unknownTitle {
+  font-size: 15px;
+  font-weight: 600;
   color: var(--color-muted);
 }

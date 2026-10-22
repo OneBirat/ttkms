@@ -124,9 +124,10 @@ make test
 ```
 
 The suite uses a real Postgres database: `TEST_DATABASE_URL` or, by default, the main database's
-name + `_test` (`ttk_test`) on the same server. It is created if missing, its schemas are reset, the
-core migrations are run through Alembic, and each test runs in a rolled-back transaction. When two
-worktrees run tests at the same time give each its own `TEST_DATABASE_URL`.
+name + `_test_` + the checkout directory (`ttk_test_ttkms`, `ttk_test_ttk_stock`, ...) on the same
+server, so worktrees never share a test database. It is created if missing, its schemas are reset,
+every module's migrations are run through Alembic, and each test runs in a rolled-back transaction.
+The core downgrade/upgrade round-trip test uses a further throwaway database (`..._roundtrip`).
 
 Skipped until their inputs exist: the BS round-trip tests (need the calendar table, below) and the
 PDF tests (need pango). The frontend is checked with `make web-lint` and `make web-build`.

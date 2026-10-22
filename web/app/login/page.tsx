@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Icon } from "@/components/icons";
 import {
   ApiError,
   apiFetch,
@@ -11,6 +12,9 @@ import {
   type LoginRequest,
 } from "@/lib/api";
 import styles from "./login.module.css";
+
+/* Sign-in screen from docs/design/Login.dc.html: dark page, brand block above
+   a white card with username, password (show/hide), "Keep me signed in". */
 
 function Brand() {
   return (
@@ -33,6 +37,7 @@ function LoginForm() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -71,42 +76,59 @@ function LoginForm() {
   }
 
   return (
-    <form className={styles.form} onSubmit={onSubmit} noValidate>
-      <div className={styles.field}>
-        <label htmlFor="login-username" className="label">
+    <form className={styles.card} onSubmit={onSubmit} noValidate>
+      <h1 className={styles.title}>Sign in</h1>
+      {error ? (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className={styles.group}>
+        <label htmlFor="login-username" className={styles.label}>
           Username
         </label>
-        <input
-          id="login-username"
-          name="username"
-          type="text"
-          className="input"
-          autoComplete="username"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          required
-          autoFocus
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-        />
+        <div className={styles.field}>
+          <input
+            id="login-username"
+            name="username"
+            type="text"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            required
+            autoFocus
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+          />
+        </div>
       </div>
-      <div className={styles.field}>
-        <label htmlFor="login-password" className="label">
+      <div className={styles.group}>
+        <label htmlFor="login-password" className={styles.label}>
           Password
         </label>
-        <input
-          id="login-password"
-          name="password"
-          type="password"
-          className="input"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
+        <div className={styles.field}>
+          <input
+            id="login-password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          <button
+            type="button"
+            className={styles.eye}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-pressed={showPassword}
+            onClick={() => setShowPassword((value) => !value)}
+          >
+            <Icon name={showPassword ? "eye-off" : "eye"} />
+          </button>
+        </div>
       </div>
-      <label className={styles.checkbox} htmlFor="login-remember">
+      <label className={styles.remember} htmlFor="login-remember">
         <input
           id="login-remember"
           name="remember"
@@ -114,20 +136,12 @@ function LoginForm() {
           checked={remember}
           onChange={(event) => setRemember(event.target.checked)}
         />
-        Keep me signed in
+        Keep me signed in on this device
       </label>
-      {error ? (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      ) : null}
-      <button
-        type="submit"
-        className={`btn btn--primary ${styles.submit}`}
-        disabled={submitting}
-      >
+      <button type="submit" className={styles.submit} disabled={submitting}>
         {submitting ? "Signing in…" : "Sign in"}
       </button>
+      <p className={styles.note}>Forgot your password? Ask an admin to reset it.</p>
     </form>
   );
 }
@@ -135,12 +149,11 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <main id="main" className={styles.page}>
-      <div className={`card ${styles.card}`}>
+      <div className={styles.column}>
         <Brand />
-        <h1 className={styles.title}>Sign in</h1>
         <Suspense
           fallback={
-            <p className="muted" role="status">
+            <p className={styles.loading} role="status">
               Loading…
             </p>
           }

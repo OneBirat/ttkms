@@ -74,7 +74,8 @@ async def _reset_schemas(url: str) -> None:
 def migrated_database() -> str:
     asyncio.run(_ensure_database(TEST_DB_URL))
     asyncio.run(_reset_schemas(TEST_DB_URL))
-    command.upgrade(alembic_config(TEST_DB_URL), "head")
+    for module in MODULES:  # core first, then every module (an empty versions/ is fine)
+        command.upgrade(alembic_config(TEST_DB_URL, module), "head")
     return TEST_DB_URL
 
 
