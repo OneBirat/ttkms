@@ -79,7 +79,7 @@ export function StockEntryPage() {
 
   // Row problems, in the order the design shows them.
   const problems = rows.map((row, index) => {
-    if (row.variationId === null) return "Choose an item.";
+    if (row.variationId === null) return row.qty.trim() === "" ? null : "Choose an item.";
     const first = rows.findIndex((r) => r.variationId === row.variationId);
     if (first !== index) return `Already in row ${first + 1}. Merge or change the item.`;
     const qty = toInt(row.qty);
@@ -90,7 +90,7 @@ export function StockEntryPage() {
     return null;
   });
   const attention = problems.filter(Boolean).length;
-  const complete = rows.every((r, i) => !problems[i] && r.qty.trim() !== "");
+  const complete = rows.every((r, i) => !problems[i] && r.variationId !== null && r.qty.trim() !== "");
   const canSave = rows.length > 0 && complete && !!parsedDate && !saving;
 
   const update = (key: number, patch: Partial<Row>) =>

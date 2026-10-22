@@ -874,10 +874,10 @@ export function writeProduct(request: CreateProductRequest): Product {
   }
   const openingAd = bsOr422(request.opening_date_bs, "opening_date_bs");
   const names: string[] = [];
-  const variations =
-    request.variations_by === "No variations" && request.variations.length === 0
-      ? [{ name: "Standard", opening: 0, reorder_level: 5 }]
-      : request.variations;
+  // No variations listed = a single stock item (the popup's "save as a single item").
+  const variations = request.variations.length === 0
+    ? [{ name: "Standard", opening: 0, reorder_level: 5 }]
+    : request.variations;
   for (const item of variations) {
     const vName = cleanName(item.name, "variations", "variation name");
     if (isDuplicateVariation(names, vName)) {

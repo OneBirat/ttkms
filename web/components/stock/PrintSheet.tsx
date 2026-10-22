@@ -69,7 +69,8 @@ export function PrintSheet({ title, subtitle, today, auto, ready, wide, legend, 
         {ready ? children : <p className="muted">Preparing…</p>}
         <footer className={styles.foot}>
           <span>{legend}</span>
-          <span className={styles.pageNumber} />
+          {/* Page numbers: browsers cannot print counter(page) in body content; the
+              WeasyPrint PDF (backend TODO) adds "Page N of M" in its running footer. */}
         </footer>
       </article>
     </>

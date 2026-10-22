@@ -210,10 +210,6 @@
   color: var(--color-muted);
 }
 
-.pageNumber::after {
-  content: "Page " counter(page);
-}
-
 @media print {
   .sheet {
     max-width: none;

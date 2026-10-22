@@ -85,7 +85,8 @@ export function variationCode(productName: string, variationName: string): strin
 
 /** Every word of the query must appear in "product variation" (case-insensitive). */
 export function matchesSearch(query: string, productName: string, variationName: string): boolean {
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  // Separators such as "·" (pasted from "Product · Variation") are ignored.
+  const words = query.trim().toLowerCase().split(/[\s·|,/]+/).filter(Boolean);
   if (words.length === 0) return true;
   const hay = `${productName} ${variationName}`.toLowerCase();
   return words.every((w) => hay.includes(w));
