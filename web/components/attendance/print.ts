@@ -140,10 +140,12 @@ function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
   const foot = withFooter
     ? `<tfoot><tr><th class="nm" style="font-weight:700">Staff present (all ${m.summary.staff})</th>` +
       m.staff_present
-        .map((n) =>
+        .map((n, i) =>
           n === null
             ? `<td class="tt off">–</td>`
-            : `<td class="tt${isLowPresence(n, m.summary.staff) ? " low" : ""}" style="font-weight:700">${n}</td>`,
+            : m.open_days[i]
+              ? `<td class="tt"></td>`
+              : `<td class="tt${isLowPresence(n, m.summary.staff) ? " low" : ""}" style="font-weight:700">${n}</td>`,
         )
         .join("") +
       `<td colspan="6" style="font-size:9px;color:#4A555C">avg ${m.summary.avg_present.toFixed(1)} / day</td></tr></tfoot>`

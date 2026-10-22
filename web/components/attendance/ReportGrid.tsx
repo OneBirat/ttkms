@@ -29,6 +29,8 @@ export interface ReportGridProps {
   groups: GridGroup[] | null;
   /** Staff present per day for everyone in the filter (not just the page). */
   staffPresent: (number | null)[];
+  /** Days nobody has marked yet: shown blank in the footer. */
+  openDays: boolean[];
   staffCount: number;
   avgPresent: number;
   wide: boolean;
@@ -66,6 +68,7 @@ export function ReportGrid({
   rows,
   groups,
   staffPresent,
+  openDays,
   staffCount,
   avgPresent,
   wide,
@@ -170,16 +173,21 @@ export function ReportGrid({
             {days.map((day, i) => {
               const n = staffPresent[i];
               const off = n === null;
-              const cls = [styles.footCell, off ? styles.footOff : isLowPresence(n, staffCount) ? styles.footLow : ""]
+              const open = !off && openDays[i];
+              const cls = [
+                styles.footCell,
+                off || open ? styles.footOff : isLowPresence(n, staffCount) ? styles.footLow : "",
+              ]
                 .filter(Boolean)
                 .join(" ");
+              const title = off
+                ? "Weekly off"
+                : open
+                  ? `${bsDayLabel(monthName, day)}: not marked yet`
+                  : `${n} of ${staffCount} present on ${bsDayLabel(monthName, day)}`;
               return (
-                <td
-                  key={day.bs_date}
-                  className={cls}
-                  title={off ? "Weekly off" : `${n} of ${staffCount} present on ${bsDayLabel(monthName, day)}`}
-                >
-                  {off ? "–" : wide ? `${n} / ${staffCount}` : n}
+                <td key={day.bs_date} className={cls} title={title}>
+                  {off ? "–" : open ? "·" : wide ? `${n} / ${staffCount}` : n}
                 </td>
               );
             })}

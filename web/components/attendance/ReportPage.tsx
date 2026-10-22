@@ -14,6 +14,7 @@ import {
   formatAdRange,
   formatRate,
   groupByDepartment,
+  openDays,
   paginate,
   presenceSummary,
   sliceRows,
@@ -160,6 +161,7 @@ export function ReportPage() {
   const presence = useMemo(() => presenceSummary(viewRows, days), [viewRows, days]);
   const totals = useMemo(() => sumTotals(viewRows), [viewRows]);
   const staffPresent = useMemo(() => staffPresentPerDay(viewRows, days), [viewRows, days]);
+  const open = useMemo(() => openDays(viewRows, days), [viewRows, days]);
   const paged = useMemo(() => paginate(viewRows, page, PER_PAGE), [viewRows, page]);
 
   // Department headers show whole-filter headcount and rate even on a partial page.
@@ -438,6 +440,7 @@ export function ReportPage() {
             rows={paged.items}
             groups={gridGroups}
             staffPresent={staffPresent}
+            openDays={open}
             staffCount={viewRows.length}
             avgPresent={presence.avg_present}
             wide={view === "week"}

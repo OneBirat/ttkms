@@ -44,7 +44,7 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
   ];
   const presentRow = (prefix: SheetCell[]) => [
     ...prefix,
-    ...model.staff_present.map((n) => (n === null ? "–" : n)),
+    ...model.staff_present.map((n, i) => (n === null ? "–" : model.open_days[i] ? "" : n)),
     `avg ${s.avg_present.toFixed(1)}`,
   ];
 

@@ -173,6 +173,19 @@ export function staffPresentPerDay(
   });
 }
 
+/**
+ * Days (not weekly off) on which nobody has a mark yet - typically days still
+ * ahead in the current month. They are left out of averages and shown blank.
+ */
+export function openDays(rows: readonly ReportRow[], days: readonly DayHeader[]): boolean[] {
+  return days.map(
+    (day, i) =>
+      !day.is_weekly_off &&
+      rows.length > 0 &&
+      rows.every((row) => (row.cells[i]?.status ?? "not_marked") === "not_marked"),
+  );
+}
+
 export interface PresenceSummary {
   /** Working days in the range (not weekly off). */
   working_days: number;
@@ -189,13 +202,14 @@ export function presenceSummary(
   days: readonly DayHeader[],
 ): PresenceSummary {
   const perDay = staffPresentPerDay(rows, days);
+  const open = openDays(rows, days);
   let working = 0;
   let present = 0;
-  for (const n of perDay) {
-    if (n === null) continue;
+  perDay.forEach((n, i) => {
+    if (n === null || open[i]) return;
     working += 1;
     present += n;
-  }
+  });
   const avg = working ? present / working : 0;
   return {
     working_days: working,

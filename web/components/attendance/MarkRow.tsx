@@ -52,7 +52,6 @@ function MarkRowInner({ employee, value, onChange }: MarkRowProps) {
           aria-label={`In time, ${employee.name}`}
           inputMode="numeric"
           pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
-          placeholder="09:00"
           maxLength={5}
           value={value.in_time}
           onChange={(e) => onChange(employee.id, { in_time: e.target.value })}
@@ -64,7 +63,6 @@ function MarkRowInner({ employee, value, onChange }: MarkRowProps) {
           aria-label={`Out time, ${employee.name}`}
           inputMode="numeric"
           pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
-          placeholder="17:30"
           maxLength={5}
           value={value.out_time}
           onChange={(e) => onChange(employee.id, { out_time: e.target.value })}

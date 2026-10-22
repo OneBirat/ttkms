@@ -10,6 +10,7 @@ import {
   isLowPresence,
   isValidTime,
   matchesQuery,
+  openDays,
   paginate,
   paidDays,
   presenceSummary,
@@ -154,6 +155,19 @@ describe("staff present per day", () => {
     assert.equal(s.present_days, 5);
     assert.ok(Math.abs(s.avg_present - 5 / 3) < 1e-9);
     assert.ok(Math.abs((s.rate ?? 0) - 5 / 9) < 1e-9);
+  });
+  it("leaves days nobody has marked out of the average", () => {
+    const future = [
+      row(employee(1, 1), ["present", "not_marked", "weekly_off", "not_marked"]),
+      row(employee(2, 1), ["absent", "not_marked", "weekly_off", "not_marked"]),
+    ];
+    assert.deepEqual(openDays(future, days), [false, true, false, true]);
+    const s = presenceSummary(future, days);
+    assert.equal(s.working_days, 1);
+    assert.equal(s.present_days, 1);
+    assert.equal(s.avg_present, 1);
+    assert.equal(s.rate, 0.5);
+    assert.deepEqual(openDays([], days), [false, false, false, false]);
   });
   it("flags days under 80% of staff", () => {
     assert.equal(isLowPresence(20, 24), false);

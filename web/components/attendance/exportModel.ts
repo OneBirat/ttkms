@@ -11,6 +11,7 @@ import {
   formatAdRange,
   groupByDepartment,
   matchesQuery,
+  openDays,
   presenceSummary,
   sortRows,
   staffPresentPerDay,
@@ -52,6 +53,8 @@ export interface ExportModel {
   groups: DepartmentGroup[];
   rows: ReportRow[];
   staff_present: (number | null)[];
+  /** True for days nobody has marked yet (shown blank). */
+  open_days: boolean[];
   rate_all: number | null;
 }
 
@@ -116,6 +119,7 @@ export function buildExportModel(
     groups: groupByDepartment(rows),
     rows,
     staff_present: staffPresentPerDay(rows, report.month.days),
+    open_days: openDays(rows, report.month.days),
     rate_all: attendanceRate(rows),
   };
 }
