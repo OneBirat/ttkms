@@ -64,9 +64,9 @@ test("stock colour: red at 0, amber at 5 or fewer", () => {
 test("date lines: AD weekday + long date, BS Nepali weekday + date, in sync", () => {
   assert.equal(adLongLine("2026-10-20"), "Tuesday, 20 October 2026");
   const bs = safeAdToBs("2026-10-20");
-  assert.deepEqual(bs, { year: 2083, month: 7, day: 4 });
-  assert.equal(bsNepaliLine(bs, "2026-10-20"), "मंगलबार, कार्तिक ४, २०८३");
-  assert.equal(safeAdToBs("1999-01-01"), null);
+  assert.deepEqual(bs, { year: 2083, month: 7, day: 3 });
+  assert.equal(bsNepaliLine(bs), "मंगलबार, कार्तिक ३, २०८३");
+  assert.equal(safeAdToBs("1800-01-01"), null);
   assert.equal(safeAdToBs("not a date"), null);
 });
 

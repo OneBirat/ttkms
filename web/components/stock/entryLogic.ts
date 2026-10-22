@@ -4,7 +4,8 @@
  * __tests__/entry.test.mjs.
  */
 
-import { adToBs, formatBsLongNp, parseBsIso, weekdayOf, WEEKDAY_NAMES_NP, type BsDate } from "./calendar";
+import { adToBs, formatAd, formatBs, type BsDate } from "@/lib/bsdate";
+import { parseBsIso } from "./calendar";
 import type { EntryType, StockStatus } from "./types";
 
 /** One row of the form. `qty` is kept as typed (digits only) until save. */
@@ -132,42 +133,19 @@ export function stockTone(inStock: number): StockStatus {
   return inStock <= 0 ? "out" : inStock <= 5 ? "low" : "ok";
 }
 
-const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTHS_EN = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 /** "Tuesday, 20 October 2026" — the line under the AD date field. */
 export function adLongLine(ad: string): string {
-  const [y, m, d] = ad.split("-").map(Number);
-  if (!y || !m || !d) return "";
-  return `${WEEKDAYS_EN[weekdayOf(ad)]}, ${d} ${MONTHS_EN[m - 1]} ${y}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(ad) ? formatAd(ad) : "";
 }
 
 /** "मंगलबार, कार्तिक ४, २०८३" — the line under the BS date field. */
-export function bsNepaliLine(bs: BsDate, ad: string): string {
-  return `${WEEKDAY_NAMES_NP[weekdayOf(ad)]}, ${formatBsLongNp(bs)}`;
+export function bsNepaliLine(bs: BsDate): string {
+  return formatBs(bs, { lang: "ne", weekday: true });
 }
 
 /** BS for an AD date, or null when the AD date is outside the calendar table. */
 export function safeAdToBs(ad: string): BsDate | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(ad)) return null;
-  try {
-    return adToBs(ad);
-  } catch {
-    return null;
-  }
+  return adToBs(ad);
 }
 
 /** Parsed BS date from the typed text, or null while it is incomplete / invalid. */

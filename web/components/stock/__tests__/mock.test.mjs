@@ -19,7 +19,7 @@ import {
 import { adToBs, formatBsIso, addDays } from "../calendar.ts";
 import { StockApiError } from "../types.ts";
 
-const NOW = new Date(2026, 9, 23, 11, 0, 0); // 23 Oct 2026 = Kartik 7, 2083
+const NOW = new Date(2026, 9, 23, 11, 0, 0); // 23 Oct 2026 = Kartik 6, 2083
 
 beforeEach(() => resetMockState(NOW));
 

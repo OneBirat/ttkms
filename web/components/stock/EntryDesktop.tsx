@@ -97,7 +97,7 @@ export function EntryDesktop({ form }: { form: EntryForm }) {
               <span id="entry-bs-note" className={styles.dateNote}>
                 {form.bs ? (
                   <>
-                    <span lang="ne">{bsNepaliLine(form.bs, form.dateAd)}</span> · changing either date updates the other
+                    <span lang="ne">{bsNepaliLine(form.bs)}</span> · changing either date updates the other
                   </>
                 ) : (
                   "Enter the date as YYYY-MM-DD (Bikram Sambat)"
