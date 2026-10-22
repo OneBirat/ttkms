@@ -1,14 +1,6 @@
-import type { Metadata } from "next";
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Attendance" };
-
-export default function AttendancePage() {
-  return (
-    <ModulePlaceholder
-      name="attendance"
-      title="Attendance"
-      subtitle="Daily attendance, late marks and leave"
-    />
-  );
+/** /attendance has no screen of its own: go to Mark attendance. */
+export default function AttendanceIndex() {
+  redirect("/attendance/mark");
 }

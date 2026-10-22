@@ -1,0 +1,139 @@
+/* Styles shared by the attendance screens (field wrappers, checkboxes, pager). */
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch);
+  padding: 0 12px;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  background: var(--color-card);
+  color: var(--color-muted);
+}
+
+.field:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-width: 0;
+  min-height: calc(var(--touch) - 2px);
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.field select {
+  cursor: pointer;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.pagerButtons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pagerLabel {
+  padding: 0 6px;
+}
+
+.pagerBtn {
+  min-width: 40px;
+  min-height: var(--touch);
+  padding: 0 8px;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  background: var(--color-card);
+  color: var(--color-text);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.pagerBtn:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.pagerBtn[aria-current="page"] {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.pagerBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.perPage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.perPage select {
+  min-height: 40px;
+  padding: 0 8px;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  background: var(--color-card);
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.status {
+  font-size: 14px;
+  color: var(--color-muted);
+}
+
+.error {
+  padding: 12px 16px;
+  border: 1px solid var(--pill-danger-fg);
+  border-radius: var(--radius-input);
+  background: var(--pill-danger-bg);
+  color: var(--pill-danger-fg);
+  font-size: 14px;
+}
+
+.ok {
+  padding: 10px 14px;
+  border-radius: var(--radius-input);
+  background: var(--pill-ok-bg);
+  color: var(--pill-ok-fg);
+  font-size: 14px;
+}
