@@ -26,7 +26,10 @@ module = Module(
     name="payroll",
     title="People & payroll",
     router=router,
-    nav=[NavItem(label="Overview", path="/payroll", icon="users", roles=set(ROLES))],
+    nav=[
+        NavItem(label="Employees", path="/payroll/employees", icon="users", roles=set(ROLES)),
+        NavItem(label="Salary report", path="/payroll/report", icon="banknote", roles=set(ROLES)),
+    ],
     dashboard_widgets=[
         coming_soon_widget("People & payroll", "Employees, salaries and monthly payroll")
     ],
