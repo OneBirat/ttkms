@@ -1,0 +1,108 @@
+/* Stock widgets on the dashboard (docs/design/Main.dc.html) and the /stock overview. */
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.widget {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.sub {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.headActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.headActions a:not(.btn) {
+  font-size: 14px;
+  padding: 0 6px;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.item {
+  font-weight: 500;
+}
+
+.pcs {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.rowLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--color-input-border);
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.rowLink:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.foot {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.search {
+  min-height: 40px;
+  color: var(--color-muted);
+}
+
+.search input {
+  width: 160px;
+}

@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
-import { ModulePlaceholder } from "@/components/ModulePlaceholder";
+import { Suspense } from "react";
+import { StockOverview } from "@/components/stock/StockOverview";
 
 export const metadata: Metadata = { title: "Stock" };
 
 export default function StockPage() {
   return (
-    <ModulePlaceholder
-      name="stock"
-      title="Stock"
-      subtitle="Items, purchases, sales and stock levels"
-    />
+    <Suspense fallback={<p className="muted">Loading…</p>}>
+      <StockOverview />
+    </Suspense>
   );
 }

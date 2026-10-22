@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { BsDateInput } from "@/components/ui/BsDateInput";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -39,14 +40,20 @@ let rowSeq = 1;
 const newRow = (): Row => ({ key: rowSeq++, variationId: null, qty: "", remarks: "" });
 
 export function StockEntryPage() {
+  // /stock/entry?type=purchase&item=<variation id> (dashboard links) preselects the form.
+  const params = useSearchParams();
+  const presetType = params.get("type");
+  const presetItem = Number(params.get("item")) || null;
   const [version, setVersion] = useState(0);
   const today = useAsync(() => api.getToday(), "today");
   const products = useAsync(() => api.listProducts(), `products:${version}`);
-  const [type, setType] = useState<MovementType>("purchase");
+  const [type, setType] = useState<MovementType>(
+    presetType === "consumption" || presetType === "opening" ? presetType : "purchase",
+  );
   const [dateBs, setDateBs] = useState("");
   const [reference, setReference] = useState("");
   const [supplier, setSupplier] = useState("");
-  const [rows, setRows] = useState<Row[]>(() => [newRow()]);
+  const [rows, setRows] = useState<Row[]>(() => [{ ...newRow(), variationId: presetItem }]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
