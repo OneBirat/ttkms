@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Attendance report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;family=Noto+Sans+Devanagari:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#C9D2D7;text-decoration:none;font-size:14px;min-height:24px}
+.nav:hover{background:#22323B;color:#FFFFFF}
+.field{display:flex;align-items:center;gap:8px;border:1px solid #CBD2CC;border-radius:8px;padding:0 12px;min-height:44px;background:#FFFFFF;box-sizing:border-box}
+.field input,.field select{border:none;outline:none;font:inherit;color:#1B2328;background:transparent;width:100%;min-width:0}
+.grid{border-collapse:separate;border-spacing:3px;font-size:12px}
+.grid th{font-weight:600;color:#5B6670;font-size:11px;padding:4px 2px;text-align:center}
+.grid td{text-align:center}
+.cell{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
+.wcell{width:104px;height:44px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-weight:600;font-size:12px}
+.tot{font-family:'IBM Plex Mono',monospace;font-size:13px;padding:0 8px}
+.key{display:inline-flex;align-items:center;gap:6px;font-size:13px}
+.seg{min-height:40px;padding:0 16px;border-radius:8px;border:none;font:inherit;font-size:14px;cursor:pointer}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;font:inherit;font-size:13px;cursor:pointer}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; background: #17222A; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+<div style="width: 34px; height: 34px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Stock &amp; attendance</span></div>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 12px 6px">Stock</div>
+<a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a class="nav" href="StockEntry.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a class="nav" href="Movements.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a class="nav" href="Items.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Attendance</div>
+<a class="nav" href="AttendanceMark.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a class="nav" href="AttendanceReport.dc.html" aria-current="page" style="background: #24363F; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">People &amp; payroll</div>
+<a class="nav" href="Employees.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a class="nav" href="SalaryReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 9.5v5M18 9.5v5"></path></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Admin</div>
+<a class="nav" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Attendance report</h1>
+<p style="margin: 0; color: #5B6670; font-size: 14px">{{subtitle}}</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<div role="group" aria-label="Period" style="display: inline-flex; gap: 4px; background: #E6E9E4; padding: 4px; border-radius: 10px">
+<button type="button" class="seg" aria-pressed="{{monthOn}}" onClick="{{showMonth}}" style="{{monthBtn}}">Month</button>
+<button type="button" class="seg" aria-pressed="{{weekOn}}" onClick="{{showWeek}}" style="{{weekBtn}}">Week</button>
+</div>
+<sc-if value="{{weekOn}}" hint-placeholder-val="{{ false }}">
+<div style="display: inline-flex; align-items: center; gap: 6px">
+<button type="button" aria-label="Previous week" onClick="{{prevWeek}}" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 18px; color: #1B2328; cursor: pointer">‹</button>
+<span style="min-width: 170px; text-align: center; font-size: 14px; font-weight: 600">{{weekLabel}}</span>
+<button type="button" aria-label="Next week" onClick="{{nextWeek}}" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 18px; color: #1B2328; cursor: pointer">›</button>
+</div>
+</sc-if>
+<div class="field" style="width: 150px"><select aria-label="Month (BS)"><option>Ashoj 2083</option><option>Kartik 2083</option></select></div>
+<a href="ExportExcel.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font-size: 14px; color: #1B2328; text-decoration: none; box-sizing: border-box">Excel</a>
+<a href="ExportPdf.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font-size: 14px; color: #1B2328; text-decoration: none; box-sizing: border-box">PDF</a>
+</div>
+</header>
+<section aria-label="Departments" style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{chips}}" as="ch" hint-placeholder-count="6">
+<button type="button" class="chip" aria-pressed="{{ch.on}}" onClick="{{ch.pick}}" style="{{ch.style}}"><span style="font-weight: 600">{{ch.name}}</span><span>{{ch.count}}</span><sc-if value="{{ch.hasRate}}" hint-placeholder-val="{{ true }}"><span style="{{ch.rateStyle}}">{{ch.rate}}</span></sc-if></button>
+</sc-for>
+</section>
+<section aria-label="Filters" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+<div class="field" style="flex: 1 1 240px; max-width: 320px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" aria-label="Search employee name or ID" placeholder="Search name or ID" value="{{q}}" onInput="{{setQ}}"></div>
+<label style="display: flex; align-items: center; gap: 8px; font-size: 14px"><span style="font-weight: 600">Sort by</span><span class="field" style="width: 190px"><select value="{{sort}}" onChange="{{setSort}}"><option value="dept">Department, then name</option><option value="name">Name</option><option value="absent">Most absences</option><option value="late">Most late days</option></select></span></label>
+<label style="display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; cursor: pointer"><input type="checkbox" checked="{{group}}" onChange="{{toggleGroup}}" style="width: 18px; height: 18px; accent-color: #0E6B6B">Group by department</label>
+</section>
+<section aria-label="Staff summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px">
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Staff in view</span><span style="font-size: 24px; font-weight: 600">{{sumStaff}}</span></div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Present per working day</span><span style="font-size: 24px; font-weight: 600">{{sumAvg}} <span style="font-size: 15px; color: #5B6670; font-weight: 500">avg · {{sumRate}}</span></span></div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Total present days</span><span style="font-size: 24px; font-weight: 600">{{sumPresent}}</span></div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Late arrivals</span><span style="font-size: 24px; font-weight: 600">{{sumLate}}</span></div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Absences · leave</span><span style="font-size: 24px; font-weight: 600">{{sumAbsent}} <span style="font-size: 15px; color: #5B6670; font-weight: 500">· {{sumLeave}}</span></span></div>
+</section>
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center">
+<span class="key"><span class="cell" style="background: #DDEEEB; color: #0A5454">P</span>Present</span>
+<span class="key"><span class="cell" style="background: #B9DCD7; color: #073F3F">L</span>Late</span>
+<span class="key"><span class="cell" style="background: #FCEFD9; color: #8A4205">H</span>Half day</span>
+<span class="key"><span class="cell" style="background: #E3E8F4; color: #253F73">V</span>Leave</span>
+<span class="key"><span class="cell" style="background: #F6DCD3; color: #8E2F12">A</span>Absent</span>
+<span class="key"><span class="cell" style="background: #ECEEEA; color: #6B757B">–</span>Weekly off (Sat)</span>
+<span class="key" style="font-family: 'Noto Sans Devanagari', sans-serif; color: #5B6670">आ आइत · सो सोम · मं मंगल · बु बुध · बि बिही · शु शुक्र · श शनि</span>
+</div>
+<section aria-label="Attendance grid" style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px; overflow-x: auto">
+<table class="grid">
+<thead>
+<tr>
+<th scope="col" style="text-align: left; padding-right: 12px; min-width: 180px">Employee</th>
+<sc-for list="{{heads}}" as="d" hint-placeholder-count="30"><th scope="col" style="{{d.style}}" title="{{d.full}}"><span style="display: flex; flex-direction: column; align-items: center; gap: 2px"><span style="font-size: 12px">{{d.n}}</span><span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 10px; font-weight: 500">{{d.wd}}</span><sc-if value="{{d.wide}}" hint-placeholder-val="{{ false }}"><span style="font-size: 10px; font-weight: 500">{{d.ad}}</span></sc-if></span></th></sc-for>
+<th scope="col" class="tot">P</th><th scope="col" class="tot">L</th><th scope="col" class="tot">H</th><th scope="col" class="tot">V</th><th scope="col" class="tot">A</th><th scope="col" class="tot">Paid days</th>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+<sc-if value="{{r.head}}" hint-placeholder-val="{{ false }}">
+<tr><th scope="rowgroup" colspan="{{span}}" style="text-align: left; padding: 14px 4px 6px; font-size: 13px; color: #1B2328; border-bottom: 1px solid #E2E5E1"><span style="font-weight: 600">{{r.dept}}</span><span style="font-weight: 400; color: #5B6670"> · {{r.count}} employees · {{r.rate}} attendance</span></th></tr>
+</sc-if>
+<sc-if value="{{r.emp}}" hint-placeholder-val="{{ true }}">
+<tr>
+<th scope="row" style="text-align: left; padding-right: 12px; white-space: nowrap"><span style="display: flex; flex-direction: column"><span style="font-size: 14px; color: #1B2328; font-weight: 500">{{r.name}}</span><span style="font-size: 11px; color: #5B6670; font-weight: 400">{{r.meta}}</span></span></th>
+<sc-for list="{{r.cells}}" as="c" hint-placeholder-count="30"><td>
+<sc-if value="{{c.wide}}" hint-placeholder-val="{{ false }}"><span class="wcell" style="{{c.style}}" title="{{c.title}}"><span>{{c.label}}</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500">{{c.time}}</span></span></sc-if>
+<sc-if value="{{c.small}}" hint-placeholder-val="{{ true }}"><span class="cell" style="{{c.style}}" title="{{c.title}}">{{c.code}}</span></sc-if>
+</td></sc-for>
+<td class="tot">{{r.p}}</td><td class="tot">{{r.l}}</td><td class="tot">{{r.h}}</td><td class="tot">{{r.v}}</td><td class="tot">{{r.a}}</td><td class="tot" style="font-weight: 600; color: #1B2328">{{r.paid}}</td>
+</tr>
+</sc-if>
+</sc-for>
+</tbody>
+<tfoot>
+<tr>
+<th scope="row" style="text-align: left; padding: 12px 12px 0 0; font-size: 13px; color: #1B2328; font-weight: 600; white-space: nowrap; border-top: 1px solid #E2E5E1">Staff present</th>
+<sc-for list="{{dayTotals}}" as="t" hint-placeholder-count="30"><td style="{{t.style}}" title="{{t.title}}">{{t.v}}</td></sc-for>
+<td colspan="6" style="padding: 12px 8px 0; text-align: left; font-size: 13px; color: #5B6670; white-space: nowrap; border-top: 1px solid #E2E5E1">avg {{sumAvg}} of {{sumStaff}} per day</td>
+</tr>
+</tfoot>
+</table>
+<sc-if value="{{empty}}" hint-placeholder-val="{{ false }}"><p style="margin: 16px 4px; font-size: 14px; color: #5B6670">No employees match this filter.</p></sc-if>
+</section>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: #5B6670">
+<span>{{footer}}</span>
+<div style="display: flex; gap: 6px"><button type="button" aria-label="Previous page" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">‹</button><button type="button" aria-current="page" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #0E6B6B; background: #0E6B6B; color: #FFFFFF; font: inherit">1</button><button type="button" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">2</button><button type="button" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">3</button><button type="button" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">4</button><button type="button" aria-label="Next page" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">›</button></div>
+</div>
+<p style="margin: 0; font-size: 13px; color: #5B6670">Paid days = present + late + leave + weekly off + half a day for each half day. Rules can be changed in Settings.</p>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var s = this.state || {};
+var view = s.view || 'month';
+var wk = s.week || 3;
+var dept = s.dept || 'All';
+var sort = s.sort || 'dept';
+var group = s.group !== false;
+var q = s.q || '';
+var set = function (o) { self.setState(o); };
+
+var look = {
+P: { s: 'background: #DDEEEB; color: #0A5454', t: 'Present' },
+L: { s: 'background: #B9DCD7; color: #073F3F', t: 'Late' },
+H: { s: 'background: #FCEFD9; color: #8A4205', t: 'Half day' },
+V: { s: 'background: #E3E8F4; color: #253F73', t: 'Leave' },
+A: { s: 'background: #F6DCD3; color: #8E2F12', t: 'Absent' },
+W: { s: 'background: #ECEEEA; color: #6B757B', t: 'Weekly off' }
+};
+var wdShort = ['आ', 'सो', 'मं', 'बु', 'बि', 'शु', 'श'];
+var wdFull = ['आइतबार', 'सोमबार', 'मंगलबार', 'बुधबार', 'बिहीबार', 'शुक्रबार', 'शनिबार'];
+var weeks = [[1, 3], [4, 10], [11, 17], [18, 24], [25, 30]];
+var depts = [
+['Store', ['Anita Gurung', 'Ramesh K.C.', 'Dipak Adhikari', 'Kamala Bhandari', 'Nabin Poudel']],
+['Kitchen', ['Bikash Shrestha', 'Gita Magar', 'Hari Bista', 'Laxmi Karki', 'Prakash Rana']],
+['Housekeeping', ['Sita Thapa', 'Maya Tamang', 'Rita Shahi', 'Sunita B.K.', 'Bimala Oli']],
+['Front desk', ['Priya Rai', 'Suman Tamang', 'Aarati Joshi', 'Kiran Lama']],
+['Accounts', ['Rajesh Pandey', 'Sabina Khadka', 'Manoj Dahal', 'Asmita Ghimire', 'Bishal Neupane']]
+];
+var emps = [];
+depts.forEach(function (d) { d[1].forEach(function (n) { emps.push({ name: n, dept: d[0], id: 'E-' + String(emps.length + 1).padStart(3, '0'), i: emps.length }); }); });
+
+var range = view === 'week' ? weeks[wk - 1] : [1, 30];
+var days = [];
+for (var d = range[0]; d <= range[1]; d++) days.push(d);
+var wide = view === 'week';
+var two = function (n) { return String(n).padStart(2, '0'); };
+var hm = function (m) { return two(Math.floor(m / 60)) + ':' + two(m % 60); };
+var adOf = function (day) { return day <= 14 ? 'Sep ' + (16 + day) : 'Oct ' + (day - 14); };
+var statusOf = function (ei, day) {
+var w = (3 + day) % 7;
+if (w === 6) return { c: 'W', h: 0 };
+var h = (ei * 37 + day * 17 + ei * day * 7) % 100;
+var c = h < 3 ? 'A' : h < 12 ? 'L' : h < 14 ? 'H' : h < 17 ? 'V' : 'P';
+return { c: c, h: h };
+};
+
+var heads = days.map(function (day) {
+var w = (3 + day) % 7;
+return { n: day, wd: wdShort[w], ad: adOf(day), wide: wide, full: 'Ashoj ' + day + ' · ' + adOf(day) + ' · ' + wdFull[w], style: (wide ? 'width: 108px' : 'width: 30px') + (w === 6 ? '; color: #8E2F12' : '') };
+});
+
+var stats = function (e) {
+var n = { P: 0, L: 0, H: 0, V: 0, A: 0, W: 0 };
+var cells = days.map(function (day) {
+var st = statusOf(e.i, day);
+n[st.c]++;
+var time = '';
+if (st.c === 'P') time = hm(530 + st.h % 14) + '–' + hm(1040 + st.h % 30);
+else if (st.c === 'L') time = hm(575 + st.h % 40) + '–' + hm(1045 + st.h % 25);
+else if (st.c === 'H') time = hm(535 + st.h % 10) + '–' + hm(780 + st.h % 20);
+return { code: st.c === 'W' ? '–' : st.c, label: st.c === 'W' ? 'Off' : look[st.c].t, time: time, style: look[st.c].s, title: 'Ashoj ' + day + ': ' + look[st.c].t + (time ? ' ' + time : ''), wide: wide, small: !wide };
+});
+var work = days.length - n.W;
+return { cells: cells, n: n, work: work, paid: n.P + n.L + n.V + n.W + n.H / 2, att: n.P + n.L + n.H / 2 };
+};
+
+var all = emps.map(function (e) { var st = stats(e); return Object.assign({}, e, st); });
+var deptRate = function (list) {
+var a = 0, w = 0;
+list.forEach(function (e) { a += e.att; w += e.work; });
+return w ? Math.round(a / w * 100) + '%' : '–';
+};
+
+var chips = [{ name: 'All departments', key: 'All', count: all.length, rate: deptRate(all) }].concat(depts.map(function (d) {
+var list = all.filter(function (e) { return e.dept === d[0]; });
+return { name: d[0], key: d[0], count: list.length, rate: deptRate(list) };
+})).map(function (c) {
+var on = c.key === dept;
+return { name: c.name, count: c.count, rate: c.rate, hasRate: true, on: on ? 'true' : 'false', rateStyle: on ? 'color: #D4ECE9' : 'color: #5B6670', style: on ? 'background: #0E6B6B; color: #FFFFFF; border: 1px solid #0E6B6B' : 'background: #FFFFFF; color: #1B2328; border: 1px solid #CBD2CC', pick: function () { set({ dept: c.key }); } };
+});
+
+var ql = q.trim().toLowerCase();
+var list = all.filter(function (e) {
+return (dept === 'All' || e.dept === dept) && (!ql || e.name.toLowerCase().indexOf(ql) > -1 || e.id.toLowerCase().indexOf(ql) > -1);
+});
+var byName = function (a, b) { return a.name.localeCompare(b.name); };
+var key = {
+dept: byName,
+name: byName,
+absent: function (a, b) { return b.n.A - a.n.A || byName(a, b); },
+late: function (a, b) { return b.n.L - a.n.L || byName(a, b); }
+}[sort];
+var useGroup = group || sort === 'dept';
+list.sort(function (a, b) {
+if (useGroup && a.dept !== b.dept) return depts.findIndex(function (d) { return d[0] === a.dept; }) - depts.findIndex(function (d) { return d[0] === b.dept; });
+return key(a, b);
+});
+
+var rows = [];
+var last = null;
+list.forEach(function (e) {
+if (group && e.dept !== last) {
+var dl = list.filter(function (x) { return x.dept === e.dept; });
+rows.push({ head: true, emp: false, dept: e.dept, count: dl.length, rate: deptRate(dl) });
+last = e.dept;
+}
+rows.push({ head: false, emp: true, name: e.name, meta: e.id + ' · ' + e.dept, cells: e.cells, p: e.n.P, l: e.n.L, h: e.n.H, v: e.n.V, a: e.n.A, paid: e.paid });
+});
+
+var offDays = days.filter(function (day) { return (3 + day) % 7 === 6; }).length;
+var workDays = days.length - offDays;
+var presentSum = 0;
+var dayTotals = days.map(function (day, di) {
+var c = 0;
+list.forEach(function (e) { var x = e.cells[di].code; if (x === 'P' || x === 'L' || x === 'H') c++; });
+var off = (3 + day) % 7 === 6;
+if (!off) presentSum += c;
+var base = 'padding-top: 12px; font-family: \'IBM Plex Mono\', monospace; font-size: 12px; font-weight: 600; border-top: 1px solid #E2E5E1; ' + (wide ? 'width: 104px' : 'width: 30px');
+return { v: off ? '–' : (wide ? c + ' / ' + list.length : String(c)), title: off ? 'Weekly off' : c + ' of ' + list.length + ' present on Ashoj ' + day, style: base + (off ? '; color: #6B757B' : (c < list.length * 0.8 ? '; color: #8E2F12' : '; color: #0A5454')) };
+});
+var sum = function (k) { return list.reduce(function (a, e) { return a + e.n[k]; }, 0); };
+var avg = workDays ? presentSum / workDays : 0;
+var on = 'background: #FFFFFF; color: #0A5454; font-weight: 600; box-shadow: 0 1px 2px rgba(23,34,42,.12)';
+var off = 'background: transparent; color: #3E4A52';
+var wr = weeks[wk - 1];
+var subtitle = view === 'week'
+? 'Week ' + wk + ' of Ashoj 2083 · Ashoj ' + wr[0] + '–' + wr[1] + ' · ' + adOf(wr[0]) + ' – ' + adOf(wr[1]) + ' 2026'
+: 'Ashoj 2083 · 17 Sep – 16 Oct 2026 · 26 working days';
+
+return {
+subtitle: subtitle,
+monthOn: view === 'month', weekOn: view === 'week',
+monthBtn: view === 'month' ? on : off, weekBtn: view === 'week' ? on : off,
+showMonth: function () { set({ view: 'month' }); },
+showWeek: function () { set({ view: 'week' }); },
+prevWeek: function () { set({ week: Math.max(1, wk - 1) }); },
+nextWeek: function () { set({ week: Math.min(weeks.length, wk + 1) }); },
+weekLabel: 'Ashoj ' + wr[0] + '–' + wr[1] + ' (week ' + wk + ')',
+chips: chips,
+q: q, setQ: function (ev) { set({ q: ev.target.value }); },
+sort: sort, setSort: function (ev) { set({ sort: ev.target.value }); },
+group: group, toggleGroup: function () { set({ group: !group }); },
+heads: heads, rows: rows, span: days.length + 7,
+empty: list.length === 0,
+dayTotals: dayTotals,
+sumStaff: list.length,
+sumAvg: avg.toFixed(1),
+sumRate: list.length ? Math.round(avg / list.length * 100) + '%' : '–',
+sumPresent: presentSum,
+sumLate: sum('L'),
+sumAbsent: sum('A'),
+sumLeave: sum('V'),
+footer: 'Showing ' + list.length + ' of ' + all.length + ' sample employees · with 100+ staff the list pages at 25 per page, and Excel/PDF export the full list'
+};
+}
+}
+</script>
+</body>
+</html>

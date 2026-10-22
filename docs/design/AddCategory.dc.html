@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add category dialog</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div role="dialog" aria-modal="true" aria-labelledby="cd-h" style="width: 440px; max-width: 100%; background: #FFFFFF; border-radius: 14px; box-shadow: 0 20px 50px rgba(15,24,29,.3); display: flex; flex-direction: column; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid #E2E5E1">
+<h2 id="cd-h" style="margin: 0; font-size: 18px; font-weight: 600">Add category</h2>
+<button type="button" aria-label="Close" onClick="{{close}}" style="width: 40px; height: 40px; border-radius: 8px; border: none; background: transparent; color: #5B6670; font-size: 22px; cursor: pointer">×</button>
+</div>
+<div style="padding: 18px 22px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="ac-name" style="font-size: 13px; font-weight: 600">Category name</label>
+<div style="display: flex; align-items: center; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 12px; min-height: 44px; box-sizing: border-box"><input id="ac-name" placeholder="e.g. Dinner sets" style="border: none; outline: none; font: inherit; color: #1B2328; background: transparent; width: 100%"></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="ac-parent" style="font-size: 13px; font-weight: 600">Inside <span style="font-weight: 400; color: #5B6670">(optional, for a sub-category)</span></label>
+<div style="display: flex; align-items: center; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 12px; min-height: 44px; box-sizing: border-box"><select id="ac-parent" style="border: none; outline: none; font: inherit; color: #1B2328; background: transparent; width: 100%"><option>None, top level</option><option>Pressure cookers</option><option>Cookware</option><option>Gas stoves</option><option>Small appliances</option><option>Utensils</option></select></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="ac-attr" style="font-size: 13px; font-weight: 600">Products here are usually sized by</label>
+<div style="display: flex; align-items: center; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 12px; min-height: 44px; box-sizing: border-box"><select id="ac-attr" style="border: none; outline: none; font: inherit; color: #1B2328; background: transparent; width: 100%"><option>Capacity</option><option>Diameter</option><option>Burners</option><option>Wattage</option><option>Pieces in set</option><option>No sizes</option></select></div>
+<span style="font-size: 12px; color: #5B6670">Pre-fills the Add product form; each product can still change it.</span>
+</div>
+</div>
+<div style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid #E2E5E1">
+<button type="button" onClick="{{close}}" style="min-height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328; cursor: pointer">Cancel</button>
+<button type="button" onClick="{{close}}" style="min-height: 44px; padding: 0 22px; border-radius: 8px; border: none; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Add category</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"onClose":{"editor":null},"$preview":{"width":440,"height":470}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+return { close: function () { if (self.props.onClose) self.props.onClose(); } };
+}
+}
+</script>
+</body>
+</html>

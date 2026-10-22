@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stock entry</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;family=Noto+Sans+Devanagari:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-weight:600;color:#5B6670;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 8px;border-bottom:1px solid #E2E5E1;white-space:nowrap}
+.tbl td{padding:10px 8px;border-bottom:1px solid #EEF0EC;vertical-align:top}
+.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#C9D2D7;text-decoration:none;font-size:14px;min-height:24px}
+.nav:hover{background:#22323B;color:#FFFFFF}
+.field{display:flex;align-items:center;gap:8px;border:1px solid #CBD2CC;border-radius:8px;padding:0 12px;min-height:44px;background:#FFFFFF;box-sizing:border-box}
+.field input,.field select{border:none;outline:none;font:inherit;color:#1B2328;background:transparent;width:100%;min-width:0}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; background: #17222A; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+<div style="width: 34px; height: 34px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Stock &amp; attendance</span></div>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 12px 6px">Stock</div>
+<a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a class="nav" href="StockEntry.dc.html" aria-current="page" style="background: #24363F; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a class="nav" href="Movements.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a class="nav" href="Items.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Attendance</div>
+<a class="nav" href="AttendanceMark.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a class="nav" href="AttendanceReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">People &amp; payroll</div>
+<a class="nav" href="Employees.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a class="nav" href="SalaryReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 9.5v5M18 9.5v5"></path></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Admin</div>
+<a class="nav" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+<header style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Stock entry</h1>
+<p style="margin: 0; color: #5B6670; font-size: 14px">One form for opening stock, purchases and consumption. All rows save together, or none do.</p>
+</header>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<form style="flex: 3 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+<fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+<legend style="font-size: 13px; font-weight: 600; color: #5B6670; padding: 0 0 8px">Entry type</legend>
+<div style="display: inline-flex; flex-wrap: wrap; gap: 4px; background: #EEF0EC; padding: 4px; border-radius: 10px; align-self: flex-start">
+<button type="button" aria-pressed="true" style="min-height: 40px; padding: 0 18px; border-radius: 8px; border: none; background: #FFFFFF; color: #0A5454; font: inherit; font-size: 14px; font-weight: 600; box-shadow: 0 1px 2px rgba(23,34,42,.12)">Purchase</button>
+<button type="button" aria-pressed="false" style="min-height: 40px; padding: 0 18px; border-radius: 8px; border: none; background: transparent; color: #3E4A52; font: inherit; font-size: 14px">Consumption</button>
+<button type="button" aria-pressed="false" style="min-height: 40px; padding: 0 18px; border-radius: 8px; border: none; background: transparent; color: #3E4A52; font: inherit; font-size: 14px">Opening stock</button>
+</div>
+</fieldset>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="bsdate" style="font-size: 13px; font-weight: 600">Date (BS)</label>
+<div class="field"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><input id="bsdate" value="2083-07-04"></div>
+<span style="font-size: 12px; color: #5B6670">Kartik 4 · 20 Oct 2026 AD</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="ref" style="font-size: 13px; font-weight: 600">Bill / reference no. <span style="font-weight: 400; color: #5B6670">(optional)</span></label>
+<div class="field"><input id="ref" placeholder="e.g. 1042"></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="supplier" style="font-size: 13px; font-weight: 600">Supplier <span style="font-weight: 400; color: #5B6670">(optional)</span></label>
+<div class="field"><input id="supplier" placeholder="Supplier name"></div>
+</div>
+</div>
+<div style="overflow-x: auto">
+<table class="tbl" style="min-width: 680px">
+<thead><tr><th scope="col" style="width: 28px">#</th><th scope="col">Item</th><th scope="col" class="num" style="width: 90px">In stock</th><th scope="col" style="width: 150px">Quantity</th><th scope="col">Remarks</th><th scope="col" style="width: 44px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Remove</span></th></tr></thead>
+<tbody>
+<tr>
+<td style="padding-top: 22px; color: #5B6670">1</td>
+<td><div class="field"><select aria-label="Item, row 1"><option>SS Black cooker · 3 L</option></select></div><div style="margin-top: 6px; font-size: 12px; color: #5B6670">Pressure cookers · type "cooker 3" to find</div></td>
+<td class="num" style="padding-top: 22px">4 pcs</td>
+<td><div class="field"><input aria-label="Quantity, row 1" value="24" inputmode="numeric" style="text-align: right"><span style="color: #5B6670; font-size: 13px">pcs</span></div></td>
+<td><div class="field"><input aria-label="Remarks, row 1" value="Bill 1042"></div></td>
+<td><button type="button" aria-label="Remove row 1" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #E2E5E1; background: #FFFFFF; color: #5B6670; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg></button></td>
+</tr>
+<tr>
+<td style="padding-top: 22px; color: #5B6670">2</td>
+<td><div class="field"><select aria-label="Item, row 2"><option>Rice cooker · 1.8 L</option></select></div></td>
+<td class="num" style="padding-top: 22px">12 pcs</td>
+<td><div class="field"><input aria-label="Quantity, row 2" value="10" inputmode="numeric" style="text-align: right"><span style="color: #5B6670; font-size: 13px">pcs</span></div></td>
+<td><div class="field"><input aria-label="Remarks, row 2" placeholder="Remarks"></div></td>
+<td><button type="button" aria-label="Remove row 2" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #E2E5E1; background: #FFFFFF; color: #5B6670; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg></button></td>
+</tr>
+<tr style="background: #FFF8EC">
+<td style="padding-top: 22px; color: #5B6670">3</td>
+<td><div class="field" style="border-color: #B9701F"><select aria-label="Item, row 3" aria-describedby="dup3"><option>SS Black cooker · 3 L</option></select></div><div id="dup3" style="display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; color: #8A4205"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path></svg>Already in row 1. Merge or change the item.</div></td>
+<td class="num" style="padding-top: 22px">4 pcs</td>
+<td><div class="field"><input aria-label="Quantity, row 3" value="6" inputmode="numeric" style="text-align: right"><span style="color: #5B6670; font-size: 13px">pcs</span></div></td>
+<td><div class="field"><input aria-label="Remarks, row 3" placeholder="Remarks"></div></td>
+<td><button type="button" aria-label="Remove row 3" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #E2E5E1; background: #FFFFFF; color: #5B6670; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg></button></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px dashed #8C9A93; background: #FFFFFF; color: #1B2328; font: inherit; font-size: 14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add row</button>
+<button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #0E6B6B; font: inherit; font-size: 14px; font-weight: 500">+ New item</button>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #EEF0EC; padding-top: 16px">
+<span style="font-size: 14px; color: #5B6670">3 rows · 1 needs attention</span>
+<div style="display: flex; gap: 10px">
+<button type="reset" style="min-height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328">Clear</button>
+<button type="submit" style="min-height: 44px; padding: 0 22px; border-radius: 8px; border: none; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600">Save purchase</button>
+</div>
+</div>
+</form>
+<aside aria-labelledby="recent-h" style="flex: 1 1 300px; min-width: 0; background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 18px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px"><h2 id="recent-h" style="margin: 0; font-size: 16px; font-weight: 600">Today's entries</h2><span style="font-size: 12px; color: #5B6670">Kartik 4, 2083</span></div>
+<div role="group" aria-label="Show entries for" style="position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: #EEF0EC; border-radius: 999px; padding: 4px">
+<div aria-hidden="true" style="{{knob}}"></div>
+<button type="button" aria-pressed="{{pOn}}" onClick="{{showP}}" style="{{pBtn}}">Purchase</button>
+<button type="button" aria-pressed="{{cOn}}" onClick="{{showC}}" style="{{cBtn}}">Consumption</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="background: {{tint}}; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #4A555C">Entries</span><span style="font-size: 22px; font-weight: 600">{{count}}</span></div>
+<div style="background: {{tint}}; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #4A555C">Total quantity</span><span style="font-size: 22px; font-weight: 600; color: {{ink}}">{{total}} pcs</span></div>
+</div>
+<div style="display: flex; flex-direction: column; font-size: 14px">
+<sc-for list="{{list}}" as="e" hint-placeholder-count="5">
+<div style="display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid #EEF0EC"><div style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span>{{e.item}}</span><span style="font-size: 12px; color: #5B6670">{{e.meta}}</span></div><span style="{{e.badge}}">{{e.qty}}</span></div>
+</sc-for>
+</div>
+<a href="Movements.dc.html" style="font-size: 14px">Full stock report</a>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var tab = (this.state && this.state.tab) || 'purchase';
+var P = [
+['Glass top gas stove · 2 burner', 6, 'Bill 1042 · Anita · 10:42'],
+['Cooker gasket · 5 L', 20, 'Bill 1042 · Anita · 10:42'],
+['Rice cooker · 1.8 L', 4, 'Bill 1039 · Anita · 09:55'],
+['SS Black cooker · 2.5 L', 8, 'Bill 1038 · Kamala · 09:30'],
+['Electric kettle · 1.8 L', 5, 'Bill 1038 · Kamala · 09:30']
+];
+var C = [
+['Steel kadhai · 26 cm', 3, 'Counter sale · Bikash · 11:20'],
+['SS Black cooker · 3 L', 2, 'Counter sale · Bikash · 11:05'],
+['Non-stick tawa · 28 cm', 1, 'Display damage · Sita · 10:15'],
+['Steel spoon set · 12 pcs', 4, 'Counter sale · Bikash · 09:48']
+];
+var isP = tab === 'purchase';
+var src = isP ? P : C;
+var total = src.reduce(function (a, r) { return a + r[1]; }, 0);
+var base = 'position: relative; z-index: 1; min-height: 40px; border: none; border-radius: 999px; background: transparent; font: inherit; font-size: 14px; cursor: pointer; transition: color .2s; ';
+return {
+pOn: isP ? 'true' : 'false', cOn: isP ? 'false' : 'true',
+showP: function () { self.setState({ tab: 'purchase' }); },
+showC: function () { self.setState({ tab: 'consumption' }); },
+knob: 'position: absolute; top: 4px; bottom: 4px; width: calc(50% - 4px); left: ' + (isP ? '4px' : '50%') + '; border-radius: 999px; background: ' + (isP ? '#0E6B6B' : '#9A4A06') + '; transition: left .25s ease, background .25s ease',
+pBtn: base + (isP ? 'color: #FFFFFF; font-weight: 600' : 'color: #3E4A52'),
+cBtn: base + (isP ? 'color: #3E4A52' : 'color: #FFFFFF; font-weight: 600'),
+tint: isP ? '#EAF5F3' : '#FDF3E3',
+ink: isP ? '#0A5454' : '#8A4205',
+count: src.length, total: total,
+list: src.map(function (r) { return { item: r[0], meta: r[2], qty: (isP ? '+' : '−') + r[1], badge: 'align-self: center; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: ' + (isP ? '#E3F0EE; color: #0A5454' : '#FCEFD9; color: #8A4205') }; })
+};
+}
+}
+</script>
+</body>
+</html>

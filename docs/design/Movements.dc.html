@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stock report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;family=Noto+Sans+Devanagari:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-weight:600;color:#5B6670;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 12px;border-bottom:1px solid #E2E5E1;white-space:nowrap}
+.tbl td{padding:11px 12px;border-bottom:1px solid #EEF0EC;white-space:nowrap}
+.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#C9D2D7;text-decoration:none;font-size:14px;min-height:24px}
+.nav:hover{background:#22323B;color:#FFFFFF}
+.field{display:flex;align-items:center;gap:8px;border:1px solid #CBD2CC;border-radius:8px;padding:0 12px;min-height:44px;background:#FFFFFF;box-sizing:border-box}
+.field input,.field select{border:none;outline:none;font:inherit;color:#1B2328;background:transparent;width:100%;min-width:0}
+.pill{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; background: #17222A; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+<div style="width: 34px; height: 34px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Stock &amp; attendance</span></div>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 12px 6px">Stock</div>
+<a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a class="nav" href="StockEntry.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a class="nav" href="Movements.dc.html" aria-current="page" style="background: #24363F; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a class="nav" href="Items.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Attendance</div>
+<a class="nav" href="AttendanceMark.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a class="nav" href="AttendanceReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">People &amp; payroll</div>
+<a class="nav" href="Employees.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a class="nav" href="SalaryReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 9.5v5M18 9.5v5"></path></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Admin</div>
+<a class="nav" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Stock report</h1>
+<p style="margin: 0; color: #5B6670; font-size: 14px">Stock at start, in, out and balance for any date range, with every opening, purchase and consumption entry below.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328">Excel</button>
+<button type="button" style="min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328">PDF</button>
+<button type="button" style="min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328">Print</button>
+</div>
+</header>
+<form role="search" aria-label="Filter stock report" style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 16px 20px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px">
+<div style="flex: 1 1 160px; display: flex; flex-direction: column; gap: 6px"><label for="from" style="font-size: 13px; font-weight: 600">From (BS)</label><div class="field"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><input id="from" value="2083-07-01"></div></div>
+<div style="flex: 1 1 160px; display: flex; flex-direction: column; gap: 6px"><label for="to" style="font-size: 13px; font-weight: 600">To (BS)</label><div class="field"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><input id="to" value="2083-07-04"></div></div>
+<div style="flex: 1 1 180px; display: flex; flex-direction: column; gap: 6px"><label for="item" style="font-size: 13px; font-weight: 600">Product</label><div class="field"><select id="item"><option>All products</option><option>SS Black cooker</option><option>Rice cooker</option><option>Steel kadhai</option><option>Glass top gas stove</option></select></div></div>
+<div style="flex: 1 1 140px; display: flex; flex-direction: column; gap: 6px"><label for="var" style="font-size: 13px; font-weight: 600">Variation</label><div class="field"><select id="var"><option>All variations</option><option>2.5 L</option><option>3 L</option><option>5 L</option></select></div></div>
+<div style="flex: 1 1 160px; display: flex; flex-direction: column; gap: 6px"><label for="type" style="font-size: 13px; font-weight: 600">Type</label><div class="field"><select id="type"><option>All types</option><option>Purchase</option><option>Consumption</option><option>Opening</option></select></div></div>
+<label style="display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: #0E6B6B">Show AD date</label>
+<button type="submit" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: none; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600">Apply</button>
+</form>
+<section aria-label="Totals for this filter" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px">
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Stock at start</span><span style="font-size: 22px; font-weight: 600; font-family: 'IBM Plex Mono', monospace">386</span></div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Purchased</span><span style="font-size: 22px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; color: #0A5454">+43</span></div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Consumed</span><span style="font-size: 22px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; color: #8A4205">−6</span></div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Stock at end</span><span style="font-size: 22px; font-weight: 600; font-family: 'IBM Plex Mono', monospace">423</span></div>
+</section>
+<section aria-label="Movements" style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 8px 8px 14px; display: flex; flex-direction: column; gap: 10px">
+<div style="overflow-x: auto">
+<table class="tbl">
+<thead><tr><th scope="col">Date (BS)</th><th scope="col">Date (AD)</th><th scope="col">Product</th><th scope="col">Variation</th><th scope="col" class="num">Quantity</th><th scope="col">Type</th><th scope="col">Remarks</th><th scope="col">Entered by</th></tr></thead>
+<tbody>
+<tr><td>2083-07-04</td><td style="color: #5B6670">2026-10-20</td><td>Glass top gas stove</td><td>2 burner</td><td class="num">6 pcs</td><td><span class="pill" style="background: #E3F0EE; color: #0A5454">Purchase</span></td><td>Bill 1042</td><td>Anita</td></tr>
+<tr><td>2083-07-04</td><td style="color: #5B6670">2026-10-20</td><td>Cooker gasket</td><td>5 L</td><td class="num">20 pcs</td><td><span class="pill" style="background: #E3F0EE; color: #0A5454">Purchase</span></td><td>Bill 1042</td><td>Anita</td></tr>
+<tr><td>2083-07-04</td><td style="color: #5B6670">2026-10-20</td><td>Steel kadhai</td><td>26 cm</td><td class="num">3 pcs</td><td><span class="pill" style="background: #FCEFD9; color: #8A4205">Consumption</span></td><td>Counter sale</td><td>Bikash</td></tr>
+<tr><td>2083-07-04</td><td style="color: #5B6670">2026-10-20</td><td>SS Black cooker</td><td>3 L</td><td class="num">2 pcs</td><td><span class="pill" style="background: #FCEFD9; color: #8A4205">Consumption</span></td><td>Counter sale</td><td>Bikash</td></tr>
+<tr><td>2083-07-03</td><td style="color: #5B6670">2026-10-19</td><td>Rice cooker</td><td>1.8 L</td><td class="num">4 pcs</td><td><span class="pill" style="background: #E3F0EE; color: #0A5454">Purchase</span></td><td>Bill 1039</td><td>Anita</td></tr>
+<tr><td>2083-07-03</td><td style="color: #5B6670">2026-10-19</td><td>Non-stick tawa</td><td>28 cm</td><td class="num">1 pcs</td><td><span class="pill" style="background: #FCEFD9; color: #8A4205">Consumption</span></td><td>Display damage</td><td>Sita</td></tr>
+<tr><td>2083-07-02</td><td style="color: #5B6670">2026-10-18</td><td>SS Black cooker</td><td>2.5 L</td><td class="num">8 pcs</td><td><span class="pill" style="background: #E3F0EE; color: #0A5454">Purchase</span></td><td>Bill 1038</td><td>Kamala</td></tr>
+<tr><td>2083-07-01</td><td style="color: #5B6670">2026-10-17</td><td>Electric kettle</td><td>1.8 L</td><td class="num">5 pcs</td><td><span class="pill" style="background: #E3F0EE; color: #0A5454">Purchase</span></td><td>Bill 1037</td><td>Kamala</td></tr>
+<tr><td>2083-07-01</td><td style="color: #5B6670">2026-10-17</td><td>SS Black cooker</td><td>5 L</td><td class="num">0 pcs</td><td><span class="pill" style="background: #E3E8F4; color: #253F73">Opening</span></td><td>Kartik opening count</td><td>Admin</td></tr>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: #5B6670; padding: 0 8px"><span>Showing 1–9 of 9 entries</span><div style="display: flex; gap: 6px"><button type="button" aria-label="Previous page" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">‹</button><button type="button" aria-current="page" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #0E6B6B; background: #0E6B6B; color: #FFFFFF; font: inherit">1</button><button type="button" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">2</button><button type="button" aria-label="Next page" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">›</button></div></div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

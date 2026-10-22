@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#17222A}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.field{display:flex;align-items:center;gap:8px;border:1px solid #CBD2CC;border-radius:8px;padding:0 12px;min-height:48px;background:#FFFFFF;box-sizing:border-box}
+.field input{border:none;outline:none;font:inherit;color:#1B2328;background:transparent;width:100%;min-width:0}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 16px; box-sizing: border-box; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #17222A">
+<div style="width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; align-items: center; gap: 12px; justify-content: center">
+<div style="width: 44px; height: 44px; border-radius: 10px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 19px">TTK Stock</span><span style="color: #A9B6BD; font-size: 13px">Stock &amp; attendance</span></div>
+</div>
+<form style="background: #FFFFFF; border-radius: 14px; padding: 28px; display: flex; flex-direction: column; gap: 18px">
+<h1 style="margin: 0; font-size: 22px; font-weight: 600">Sign in</h1>
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="user" style="font-size: 13px; font-weight: 600">Username or email</label><div class="field"><input id="user" autocomplete="username"></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="pw" style="font-size: 13px; font-weight: 600">Password</label><div class="field"><input id="pw" type="password" autocomplete="current-password"><button type="button" aria-label="Show password" style="width: 36px; height: 36px; border: none; background: transparent; color: #5B6670; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div></div>
+<label style="display: flex; align-items: center; gap: 8px; font-size: 14px; min-height: 32px"><input type="checkbox" style="width: 18px; height: 18px; accent-color: #0E6B6B">Keep me signed in on this device</label>
+<button type="submit" style="min-height: 48px; border-radius: 8px; border: none; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600">Sign in</button>
+<p style="margin: 0; font-size: 13px; color: #5B6670; text-align: center">Forgot your password? Ask an admin to reset it.</p>
+</form>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

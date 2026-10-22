@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mark attendance</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-weight:600;color:#5B6670;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 12px;border-bottom:1px solid #E2E5E1;white-space:nowrap}
+.tbl td{padding:8px 12px;border-bottom:1px solid #EEF0EC;white-space:nowrap}
+.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#C9D2D7;text-decoration:none;font-size:14px;min-height:24px}
+.nav:hover{background:#22323B;color:#FFFFFF}
+.field{display:flex;align-items:center;gap:8px;border:1px solid #CBD2CC;border-radius:8px;padding:0 12px;min-height:44px;background:#FFFFFF;box-sizing:border-box}
+.field input,.field select{border:none;outline:none;font:inherit;color:#1B2328;background:transparent;width:100%;min-width:0}
+.st{min-height:36px;padding:0 10px;border-radius:8px;border:1px solid #D6DBD7;font:inherit;font-size:13px;color:#3E4A52;background:#FFFFFF;cursor:pointer}
+.time{width:76px;border:1px solid #CBD2CC;border-radius:8px;min-height:40px;padding:0 8px;font:inherit;font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B2328;box-sizing:border-box}
+.cnt{background:#FFFFFF;border:1px solid #E2E5E1;border-radius:999px;padding:8px 14px;font-size:14px}
+.pg{min-width:40px;min-height:40px;border-radius:8px;border:1px solid #CBD2CC;background:#FFFFFF;font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; background: #17222A; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+<div style="width: 34px; height: 34px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Stock &amp; attendance</span></div>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 12px 6px">Stock</div>
+<a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a class="nav" href="StockEntry.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a class="nav" href="Movements.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a class="nav" href="Items.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Attendance</div>
+<a class="nav" href="AttendanceMark.dc.html" aria-current="page" style="background: #24363F; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a class="nav" href="AttendanceReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">People &amp; payroll</div>
+<a class="nav" href="Employees.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a class="nav" href="SalaryReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 9.5v5M18 9.5v5"></path></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Admin</div>
+<a class="nav" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Mark attendance</h1>
+<p style="margin: 0; color: #5B6670; font-size: 14px">Pick a branch, narrow down, mark, save. Unsaved changes stay when you switch pages.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="adate" style="font-size: 13px; font-weight: 600">Date (BS)</label><div class="field" style="width: 190px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><input id="adate" value="2083-07-04"></div></div>
+</header>
+<section aria-label="Filters" style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 14px 16px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px">
+<div style="flex: 1 1 170px; display: flex; flex-direction: column; gap: 6px"><label for="br" style="font-size: 13px; font-weight: 600">Branch</label><div class="field"><select id="br" value="{{branch}}" onChange="{{setBranch}}"><sc-for list="{{branchOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.v}}">{{o.t}}</option></sc-for></select></div></div>
+<div style="flex: 1 1 170px; display: flex; flex-direction: column; gap: 6px"><label for="dp" style="font-size: 13px; font-weight: 600">Department</label><div class="field"><select id="dp" value="{{dept}}" onChange="{{setDept}}"><sc-for list="{{deptOpts}}" as="o" hint-placeholder-count="6"><option value="{{o.v}}">{{o.t}}</option></sc-for></select></div></div>
+<div style="flex: 2 1 220px; display: flex; flex-direction: column; gap: 6px"><label for="q" style="font-size: 13px; font-weight: 600">Search</label><div class="field"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input id="q" type="search" placeholder="Name or employee ID" value="{{q}}" onInput="{{setQ}}"></div></div>
+<label style="display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; cursor: pointer"><input type="checkbox" checked="{{onlyOpen}}" onChange="{{toggleOpen}}" style="width: 18px; height: 18px; accent-color: #0E6B6B">Only not marked</label>
+</section>
+<section aria-label="Day summary" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<span class="cnt">Present <strong>{{cP}}</strong></span>
+<span class="cnt">Late <strong>{{cL}}</strong></span>
+<span class="cnt">Half <strong>{{cH}}</strong></span>
+<span class="cnt">Leave <strong>{{cV}}</strong></span>
+<span class="cnt">Absent <strong>{{cA}}</strong></span>
+<span class="cnt" style="background: #FCEFD9; border-color: #EBCB9A; color: #6E3504">Not marked <strong>{{cN}}</strong></span>
+<span style="font-size: 13px; color: #5B6670; margin-left: 4px">for {{scope}}</span>
+<button type="button" onClick="{{markAll}}" style="margin-left: auto; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328; cursor: pointer">Mark {{cN}} not marked as present</button>
+</section>
+<form style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 8px 8px 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="overflow-x: auto">
+<table class="tbl" style="min-width: 940px">
+<thead><tr><th scope="col">Employee</th><th scope="col">Status</th><th scope="col">In</th><th scope="col">Out</th><th scope="col">Note</th></tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+<tr style="{{r.rowStyle}}">
+<td><div style="display: flex; flex-direction: column"><span style="font-weight: 500">{{r.name}}</span><span style="font-size: 12px; color: #5B6670">{{r.meta}}</span></div></td>
+<td><div role="group" aria-label="{{r.groupLabel}}" style="display: flex; gap: 6px"><sc-for list="{{r.opts}}" as="o" hint-placeholder-count="5"><button type="button" class="st" aria-pressed="{{o.on}}" onClick="{{o.pick}}" style="{{o.style}}">{{o.t}}</button></sc-for></div></td>
+<td><input class="time" aria-label="{{r.inLabel}}" value="{{r.tin}}"></td>
+<td><input class="time" aria-label="{{r.outLabel}}" value="{{r.tout}}"></td>
+<td><input aria-label="{{r.noteLabel}}" style="border: 1px solid #CBD2CC; border-radius: 8px; min-height: 40px; padding: 0 10px; font: inherit; font-size: 13px; width: 150px; box-sizing: border-box"></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+<sc-if value="{{empty}}" hint-placeholder-val="{{ false }}"><p style="margin: 16px 12px; font-size: 14px; color: #5B6670">Nobody matches. Clear the search or switch branch.</p></sc-if>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 0 8px">
+<div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #5B6670">
+<button type="button" class="pg" aria-label="Previous page" onClick="{{prev}}">‹</button>
+<span style="padding: 0 6px">{{pageLabel}}</span>
+<button type="button" class="pg" aria-label="Next page" onClick="{{next}}">›</button>
+</div>
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="font-size: 13px; color: #5B6670">Late after 09:30 · set in Settings</span>
+<button type="button" style="min-height: 44px; padding: 0 22px; border-radius: 8px; border: none; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600">Save attendance</button>
+</div>
+</div>
+</form>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var s = this.state || {};
+var branch = s.branch || 'Main branch';
+var dept = s.dept || 'All';
+var q = s.q || '';
+var onlyOpen = !!s.onlyOpen;
+var page = s.page || 1;
+var marks = s.marks || {};
+var set = function (o) { self.setState(o); };
+var PER = 10;
+var branches = ['Main branch', 'Branch 2'];
+var depts = [
+['Store', ['Anita Gurung', 'Ramesh K.C.', 'Dipak Adhikari', 'Kamala Bhandari', 'Nabin Poudel', 'Sarita Basnet', 'Gopal Thakuri']],
+['Kitchen', ['Bikash Shrestha', 'Gita Magar', 'Hari Bista', 'Laxmi Karki', 'Prakash Rana', 'Dil Kumari Rai']],
+['Housekeeping', ['Sita Thapa', 'Maya Tamang', 'Rita Shahi', 'Sunita B.K.', 'Bimala Oli', 'Kalpana Sunar']],
+['Front desk', ['Priya Rai', 'Suman Tamang', 'Aarati Joshi', 'Kiran Lama']],
+['Accounts', ['Rajesh Pandey', 'Sabina Khadka', 'Manoj Dahal', 'Asmita Ghimire', 'Bishal Neupane']]
+];
+var emps = [];
+depts.forEach(function (d) { d[1].forEach(function (n) {
+var i = emps.length;
+emps.push({ i: i, id: 'E-' + String(i + 1).padStart(3, '0'), name: n, dept: d[0], branch: branches[i % 3 === 2 ? 1 : 0] });
+}); });
+var two = function (n) { return String(n).padStart(2, '0'); };
+var hm = function (m) { return two(Math.floor(m / 60)) + ':' + two(m % 60); };
+var seed = function (e) {
+var h = (e.i * 41 + 13) % 100;
+return h < 18 ? 'N' : h < 26 ? 'L' : h < 29 ? 'A' : h < 32 ? 'V' : h < 34 ? 'H' : 'P';
+};
+var status = function (e) { return marks[e.id] || seed(e); };
+var labels = { P: 'Present', L: 'Late', H: 'Half', V: 'Leave', A: 'Absent' };
+var looks = { P: 'background: #E3F0EE; border-color: #0E6B6B; color: #0A4F4F; font-weight: 600', L: 'background: #D3EAE7; border-color: #4E9B95; color: #073F3F; font-weight: 600', H: 'background: #FCEFD9; border-color: #C98A3A; color: #6E3504; font-weight: 600', V: 'background: #E3E8F4; border-color: #2F4E8C; color: #253F73; font-weight: 600', A: 'background: #F3ECE2; border-color: #8C6B45; color: #5A3F1E; font-weight: 600' };
+
+var ql = q.trim().toLowerCase();
+var scopeList = emps.filter(function (e) { return e.branch === branch && (dept === 'All' || e.dept === dept); });
+var list = scopeList.filter(function (e) {
+return (!ql || e.name.toLowerCase().indexOf(ql) > -1 || e.id.toLowerCase().indexOf(ql) > -1) && (!onlyOpen || status(e) === 'N');
+});
+var pages = Math.max(1, Math.ceil(list.length / PER));
+var pg = Math.min(page, pages);
+var shown = list.slice((pg - 1) * PER, pg * PER);
+
+var count = { P: 0, L: 0, H: 0, V: 0, A: 0, N: 0 };
+scopeList.forEach(function (e) { count[status(e)]++; });
+
+var rows = shown.map(function (e) {
+var st = status(e);
+var h = (e.i * 23 + 7) % 30;
+return {
+name: e.name, meta: e.id + ' · ' + e.dept + ' · ' + e.branch,
+groupLabel: 'Status for ' + e.name, inLabel: 'In time, ' + e.name, outLabel: 'Out time, ' + e.name, noteLabel: 'Note, ' + e.name,
+rowStyle: st === 'N' ? 'background: #FFF8EC' : '',
+tin: st === 'P' ? hm(530 + h % 15) : st === 'L' ? hm(575 + h) : st === 'H' ? hm(535 + h % 10) : '',
+tout: st === 'P' || st === 'L' ? hm(1040 + h) : st === 'H' ? hm(790 + h % 10) : '',
+opts: ['P', 'L', 'H', 'V', 'A'].map(function (k) {
+return { t: labels[k], on: st === k ? 'true' : 'false', style: st === k ? looks[k] : '', pick: function () { var m = Object.assign({}, marks); m[e.id] = k; set({ marks: m }); } };
+})
+};
+});
+
+return {
+branch: branch, dept: dept, q: q, onlyOpen: onlyOpen,
+branchOpts: branches.map(function (b) { return { v: b, t: b + ' (' + emps.filter(function (e) { return e.branch === b; }).length + ')' }; }),
+deptOpts: [{ v: 'All', t: 'All departments' }].concat(depts.map(function (d) { return { v: d[0], t: d[0] + ' (' + emps.filter(function (e) { return e.dept === d[0] && e.branch === branch; }).length + ')' }; })),
+setBranch: function (ev) { set({ branch: ev.target.value, page: 1 }); },
+setDept: function (ev) { set({ dept: ev.target.value, page: 1 }); },
+setQ: function (ev) { set({ q: ev.target.value, page: 1 }); },
+toggleOpen: function () { set({ onlyOpen: !onlyOpen, page: 1 }); },
+markAll: function () { var m = Object.assign({}, marks); scopeList.forEach(function (e) { if (status(e) === 'N') m[e.id] = 'P'; }); set({ marks: m }); },
+rows: rows, empty: list.length === 0,
+cP: count.P, cL: count.L, cH: count.H, cV: count.V, cA: count.A, cN: count.N,
+scope: branch + (dept === 'All' ? ', all departments' : ', ' + dept) + ' · ' + scopeList.length + ' staff',
+pageLabel: 'Page ' + pg + ' of ' + pages + ' · ' + list.length + ' shown · 10 per page',
+prev: function () { set({ page: Math.max(1, pg - 1) }); },
+next: function () { set({ page: Math.min(pages, pg + 1) }); }
+};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Salary report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-weight:600;color:#5B6670;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 10px;border-bottom:1px solid #E2E5E1;white-space:nowrap}
+.tbl td{padding:9px 10px;border-bottom:1px solid #EEF0EC;white-space:nowrap}
+.num{text-align:right!important;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#C9D2D7;text-decoration:none;font-size:14px;min-height:24px}
+.nav:hover{background:#22323B;color:#FFFFFF}
+.field{display:flex;align-items:center;gap:8px;border:1px solid #CBD2CC;border-radius:8px;padding:0 12px;min-height:44px;background:#FFFFFF;box-sizing:border-box}
+.field input,.field select{border:none;outline:none;font:inherit;color:#1B2328;background:transparent;width:100%;min-width:0}
+.pill{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.card{background:#FFFFFF;border:1px solid #E2E5E1;border-radius:12px;padding:18px 20px;box-sizing:border-box}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;font:inherit;font-size:13px;cursor:pointer}
+.btn{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid #CBD2CC;background:#FFFFFF;font:inherit;font-size:14px;color:#1B2328;cursor:pointer}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; background: #17222A; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+<div style="width: 34px; height: 34px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Stock &amp; attendance</span></div>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 12px 6px">Stock</div>
+<a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a class="nav" href="StockEntry.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a class="nav" href="Movements.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a class="nav" href="Items.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Attendance</div>
+<a class="nav" href="AttendanceMark.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a class="nav" href="AttendanceReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">People &amp; payroll</div>
+<a class="nav" href="Employees.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a class="nav" href="SalaryReport.dc.html" aria-current="page" style="background: #24363F; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 9.5v5M18 9.5v5"></path></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Admin</div>
+<a class="nav" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Salary report</h1>
+<p style="margin: 0; color: #5B6670; font-size: 14px">Ashoj 2083 payroll · paid days come from the attendance report · {{subtitle}}</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<div class="field" style="width: 150px"><select aria-label="Month (BS)"><option>Ashoj 2083</option><option>Bhadra 2083</option><option>Shrawan 2083</option></select></div>
+<button type="button" class="btn">Excel</button>
+<button type="button" class="btn">PDF</button>
+<button type="button" class="btn">Bank transfer sheet</button>
+</div>
+</header>
+<section aria-label="Departments" style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{chips}}" as="ch" hint-placeholder-count="6">
+<button type="button" class="chip" aria-pressed="{{ch.on}}" onClick="{{ch.pick}}" style="{{ch.style}}"><span style="font-weight: 600">{{ch.name}}</span><span>{{ch.count}}</span></button>
+</sc-for>
+</section>
+<section aria-label="Payroll totals" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px">
+<div class="card" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Gross salary</span><span style="font-size: 22px; font-weight: 600; font-family: 'IBM Plex Mono', monospace">Rs {{tGross}}</span><span style="font-size: 12px; color: #5B6670">{{staff}} staff</span></div>
+<div class="card" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Absence deductions</span><span style="font-size: 22px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; color: #8E2F12">− {{tAbs}}</span><span style="font-size: 12px; color: #5B6670">{{unpaidDays}} unpaid days</span></div>
+<div class="card" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Advances recovered</span><span style="font-size: 22px; font-weight: 600; font-family: 'IBM Plex Mono', monospace">− {{tAdv}}</span><span style="font-size: 12px; color: #5B6670">Rs {{tAdvLeft}} still outstanding</span></div>
+<div class="card" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">SSF (11% + 20%)</span><span style="font-size: 22px; font-weight: 600; font-family: 'IBM Plex Mono', monospace">{{tSsf}}</span><span style="font-size: 12px; color: #5B6670">employer share Rs {{tSsfEr}}</span></div>
+<div class="card" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; border-color: #0E6B6B"><span style="font-size: 13px; color: #5B6670">Net payable</span><span style="font-size: 22px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; color: #0A5454">Rs {{tNet}}</span><span style="font-size: 12px; color: #5B6670">{{paidCount}} paid · {{pendingCount}} pending</span></div>
+</section>
+<div style="display: flex; flex-wrap: wrap; gap: 16px">
+<section aria-labelledby="trend-h" class="card" style="flex: 3 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px"><h2 id="trend-h" style="margin: 0; font-size: 16px; font-weight: 600">Net payroll, last 6 months</h2><span style="font-size: 13px; color: #5B6670">{{trendNote}}</span></div>
+<div role="img" aria-label="{{trendAlt}}" style="display: flex; align-items: flex-end; gap: 14px; height: 190px; padding-top: 8px; border-bottom: 1px solid #CBD2CC">
+<sc-for list="{{trend}}" as="t" hint-placeholder-count="6">
+<div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%">
+<span style="font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: #3E4A52">{{t.label}}</span>
+<div style="{{t.bar}}"></div>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; gap: 14px">
+<sc-for list="{{trend}}" as="t" hint-placeholder-count="6"><span style="flex: 1; text-align: center; font-size: 12px; color: #5B6670">{{t.month}}</span></sc-for>
+</div>
+</section>
+<section aria-labelledby="dept-h" class="card" style="flex: 2 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<h2 id="dept-h" style="margin: 0; font-size: 16px; font-weight: 600">Net pay by department</h2>
+<sc-for list="{{deptBars}}" as="b" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px"><span><span style="font-weight: 600">{{b.name}}</span> <span style="color: #5B6670">· {{b.count}} staff · avg Rs {{b.avg}}</span></span><span style="font-family: 'IBM Plex Mono', monospace">{{b.total}}</span></div>
+<div style="height: 10px; border-radius: 5px; background: #EEF0EC; overflow: hidden"><div style="{{b.bar}}"></div></div>
+</div>
+</sc-for>
+</section>
+</div>
+<section aria-labelledby="pay-h" class="card" style="padding: 16px 10px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 0 10px">
+<h2 id="pay-h" style="margin: 0; font-size: 16px; font-weight: 600">Payroll sheet</h2>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<div class="field" style="width: 210px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" aria-label="Search employee" placeholder="Search name or ID" value="{{q}}" onInput="{{setQ}}"></div>
+<label style="display: flex; align-items: center; gap: 8px; font-size: 14px"><span style="font-weight: 600">Sort</span><span class="field" style="width: 180px"><select value="{{sort}}" onChange="{{setSort}}"><option value="dept">Department, then name</option><option value="net">Highest net pay</option><option value="abs">Most unpaid days</option><option value="name">Name</option></select></span></label>
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: none; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Mark pending as paid</button>
+</div>
+</div>
+<div style="overflow-x: auto">
+<table class="tbl">
+<thead><tr><th scope="col">Employee</th><th scope="col">Department</th><th scope="col" class="num">Paid days</th><th scope="col" class="num">Gross</th><th scope="col" class="num">Absence</th><th scope="col" class="num">Advance</th><th scope="col" class="num">SSF 11%</th><th scope="col" class="num">TDS</th><th scope="col" class="num">Net pay</th><th scope="col">Status</th></tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+<tr>
+<td><a href="Employees.dc.html" style="display: flex; flex-direction: column; text-decoration: none; color: #1B2328"><span style="font-weight: 500">{{r.name}}</span><span style="font-size: 12px; color: #5B6670">{{r.id}} · {{r.role}}</span></a></td>
+<td>{{r.dept}}</td><td class="num">{{r.days}}</td><td class="num">{{r.gross}}</td><td class="num">{{r.abs}}</td><td class="num">{{r.adv}}</td><td class="num">{{r.ssf}}</td><td class="num">{{r.tds}}</td><td class="num" style="font-weight: 600">{{r.net}}</td><td><span class="pill" style="{{r.stStyle}}">{{r.status}}</span></td>
+</tr>
+</sc-for>
+</tbody>
+<tfoot>
+<tr style="font-weight: 700"><th scope="row" colspan="3" style="text-align: left; padding: 12px 10px; border-top: 2px solid #CBD2CC">Total · {{staff}} staff</th><td class="num" style="border-top: 2px solid #CBD2CC">{{tGross}}</td><td class="num" style="border-top: 2px solid #CBD2CC">−{{tAbs}}</td><td class="num" style="border-top: 2px solid #CBD2CC">−{{tAdv}}</td><td class="num" style="border-top: 2px solid #CBD2CC">−{{tSsfEe}}</td><td class="num" style="border-top: 2px solid #CBD2CC">−{{tTds}}</td><td class="num" style="border-top: 2px solid #CBD2CC; color: #0A5454">{{tNet}}</td><td style="border-top: 2px solid #CBD2CC"></td></tr>
+</tfoot>
+</table>
+</div>
+<span style="font-size: 12px; color: #5B6670; padding: 0 10px">Paid days = days in month − absences − ½ per half day. Leave and Saturdays are paid. With 100+ staff the sheet pages at 25 rows; exports include everyone.</span>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var s = this.state || {};
+var dept = s.dept || 'All';
+var sort = s.sort || 'dept';
+var q = s.q || '';
+var set = function (o) { self.setState(o); };
+var fmt = function (n) { return Math.round(n).toLocaleString('en-IN'); };
+var depts = [
+['Store', [['Anita Gurung', 'Store keeper', 22000], ['Ramesh K.C.', 'Store helper', 16000], ['Dipak Adhikari', 'Store helper', 16000], ['Kamala Bhandari', 'Cashier', 20000], ['Nabin Poudel', 'Driver', 18000]]],
+['Kitchen', [['Bikash Shrestha', 'Head cook', 26000], ['Gita Magar', 'Cook', 19000], ['Hari Bista', 'Kitchen helper', 15000], ['Laxmi Karki', 'Kitchen helper', 15000], ['Prakash Rana', 'Cook', 19000]]],
+['Housekeeping', [['Sita Thapa', 'Supervisor', 20000], ['Maya Tamang', 'Housekeeper', 15500], ['Rita Shahi', 'Housekeeper', 15500], ['Sunita B.K.', 'Housekeeper', 15500], ['Bimala Oli', 'Laundry', 15000]]],
+['Front desk', [['Priya Rai', 'Front desk lead', 24000], ['Suman Tamang', 'Receptionist', 18000], ['Aarati Joshi', 'Receptionist', 18000], ['Kiran Lama', 'Night auditor', 19500]]],
+['Accounts', [['Rajesh Pandey', 'Accountant', 32000], ['Sabina Khadka', 'Asst. accountant', 22000], ['Manoj Dahal', 'Purchase officer', 24000], ['Asmita Ghimire', 'HR officer', 25000], ['Bishal Neupane', 'IT support', 23000]]]
+];
+var advances = { 0: [2500, 5000], 6: [2000, 4000], 11: [3000, 0], 15: [1500, 6000] };
+var statusOf = function (ei, day) {
+if ((3 + day) % 7 === 6) return 'W';
+var h = (ei * 37 + day * 17 + ei * day * 7) % 100;
+return h < 3 ? 'A' : h < 12 ? 'L' : h < 14 ? 'H' : h < 17 ? 'V' : 'P';
+};
+var emps = [];
+depts.forEach(function (dp) { dp[1].forEach(function (e) {
+var i = emps.length;
+var unpaid = 0;
+for (var d = 1; d <= 30; d++) { var x = statusOf(i, d); if (x === 'A') unpaid += 1; if (x === 'H') unpaid += 0.5; }
+var basic = e[2];
+var gross = basic + Math.round(basic * 0.14 / 500) * 500 + 1500;
+var abs = gross / 30 * unpaid;
+var adv = advances[i] ? advances[i][0] : 0;
+var ssf = basic * 0.11;
+var taxable = (gross - ssf) * 12;
+var tds = taxable > 500000 ? (taxable - 500000) * 0.1 / 12 : 0;
+var net = gross - abs - adv - ssf - tds;
+emps.push({ i: i, name: e[0], role: e[1], dept: dp[0], id: 'E-' + String(i + 1).padStart(3, '0'), basic: basic, gross: gross, unpaid: unpaid, abs: abs, adv: adv, advLeft: advances[i] ? advances[i][1] : 0, ssf: ssf, ssfEr: basic * 0.2, tds: tds, net: net, paid: i % 5 !== 3 && i !== 0 });
+}); });
+
+var inDept = emps.filter(function (e) { return dept === 'All' || e.dept === dept; });
+var chips = [{ name: 'All departments', key: 'All', count: emps.length }].concat(depts.map(function (d) { return { name: d[0], key: d[0], count: d[1].length }; })).map(function (c) {
+var on = c.key === dept;
+return { name: c.name, count: c.count, on: on ? 'true' : 'false', style: on ? 'background: #0E6B6B; color: #FFFFFF; border: 1px solid #0E6B6B' : 'background: #FFFFFF; color: #1B2328; border: 1px solid #CBD2CC', pick: function () { set({ dept: c.key }); } };
+});
+
+var ql = q.trim().toLowerCase();
+var list = inDept.filter(function (e) { return !ql || e.name.toLowerCase().indexOf(ql) > -1 || e.id.toLowerCase().indexOf(ql) > -1; });
+var order = depts.map(function (d) { return d[0]; });
+var byName = function (a, b) { return a.name.localeCompare(b.name); };
+list.sort({
+dept: function (a, b) { return order.indexOf(a.dept) - order.indexOf(b.dept) || byName(a, b); },
+name: byName,
+net: function (a, b) { return b.net - a.net; },
+abs: function (a, b) { return b.unpaid - a.unpaid || byName(a, b); }
+}[sort]);
+
+var tot = function (l, k) { return l.reduce(function (a, e) { return a + e[k]; }, 0); };
+var rows = list.map(function (e) {
+return { name: e.name, role: e.role, id: e.id, dept: e.dept, days: (30 - e.unpaid) + ' / 30', gross: fmt(e.gross), abs: e.abs ? '−' + fmt(e.abs) : '0', adv: e.adv ? '−' + fmt(e.adv) : '0', ssf: '−' + fmt(e.ssf), tds: e.tds ? '−' + fmt(e.tds) : '0', net: fmt(e.net), status: e.paid ? 'Paid 07-02' : 'Pending', stStyle: e.paid ? 'background: #E3F0EE; color: #0A5454' : 'background: #FCEFD9; color: #8A4205' };
+});
+
+var maxDept = 0;
+var dsum = depts.map(function (d) { var l = emps.filter(function (e) { return e.dept === d[0]; }); var t = tot(l, 'net'); if (t > maxDept) maxDept = t; return { name: d[0], l: l, t: t }; });
+var deptBars = dsum.map(function (d) {
+var on = dept === 'All' || dept === d.name;
+return { name: d.name, count: d.l.length, avg: fmt(d.t / d.l.length), total: fmt(d.t), bar: 'height: 100%; border-radius: 5px; width: ' + Math.round(d.t / maxDept * 100) + '%; background: ' + (on ? '#0E6B6B' : '#B9C9C6') };
+});
+
+var cur = tot(inDept, 'net');
+var mult = [0.9, 0.93, 0.95, 0.96, 0.98, 1];
+var months = ['Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashoj'];
+var trend = months.map(function (m, k) {
+var v = cur * mult[k];
+return { month: m, label: (v / 100000).toFixed(2) + 'L', bar: 'width: 100%; max-width: 56px; border-radius: 6px 6px 0 0; height: ' + Math.round(mult[k] * 150) + 'px; background: ' + (k === 5 ? '#0E6B6B' : '#9FC9C4') };
+});
+var growth = Math.round((1 / mult[0] - 1) * 100);
+
+return {
+chips: chips, rows: rows, deptBars: deptBars, trend: trend,
+trendNote: 'up ' + growth + '% since Baisakh · Ashadh salary revision',
+trendAlt: 'Net payroll rose from Rs ' + fmt(cur * mult[0]) + ' in Baisakh to Rs ' + fmt(cur) + ' in Ashoj',
+subtitle: dept === 'All' ? 'all departments' : dept,
+staff: list.length,
+tGross: fmt(tot(list, 'gross')), tAbs: fmt(tot(list, 'abs')), tAdv: fmt(tot(list, 'adv')), tAdvLeft: fmt(tot(list, 'advLeft')),
+tSsf: fmt(tot(list, 'ssf') + tot(list, 'ssfEr')), tSsfEe: fmt(tot(list, 'ssf')), tSsfEr: fmt(tot(list, 'ssfEr')),
+tTds: fmt(tot(list, 'tds')), tNet: fmt(tot(list, 'net')),
+unpaidDays: tot(list, 'unpaid'),
+paidCount: list.filter(function (e) { return e.paid; }).length,
+pendingCount: list.filter(function (e) { return !e.paid; }).length,
+q: q, setQ: function (ev) { set({ q: ev.target.value }); },
+sort: sort, setSort: function (ev) { set({ sort: ev.target.value }); }
+};
+}
+}
+</script>
+</body>
+</html>

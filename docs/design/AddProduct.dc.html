@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add product dialog</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div role="dialog" aria-modal="true" aria-labelledby="pd-h" style="width: 600px; max-width: 100%; background: #FFFFFF; border-radius: 14px; box-shadow: 0 20px 50px rgba(15,24,29,.3); display: flex; flex-direction: column; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid #E2E5E1">
+<h2 id="pd-h" style="margin: 0; font-size: 18px; font-weight: 600">Add product</h2>
+<button type="button" aria-label="Close" onClick="{{close}}" style="width: 40px; height: 40px; border-radius: 8px; border: none; background: transparent; color: #5B6670; font-size: 22px; cursor: pointer">×</button>
+</div>
+<div style="padding: 18px 22px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="ap-name" style="font-size: 13px; font-weight: 600">Product name</label>
+<div style="{{nameBox}}"><input id="ap-name" value="{{pname}}" onInput="{{setPname}}" placeholder="e.g. Pressure pan" aria-describedby="ap-name-err" style="border: none; outline: none; font: inherit; color: #1B2328; background: transparent; width: 100%"></div>
+<sc-if value="{{nameDup}}" hint-placeholder-val="{{ false }}"><span id="ap-name-err" role="alert" style="font-size: 13px; color: #8E2F12">"{{dupName}}" already exists. Open it from Items to add a variation instead.</span></sc-if>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="ap-attr" style="font-size: 13px; font-weight: 600">Variations by</label>
+<div style="display: flex; align-items: center; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 12px; min-height: 44px; box-sizing: border-box"><select id="ap-attr" style="border: none; outline: none; font: inherit; color: #1B2328; background: transparent; width: 100%"><option>Capacity</option><option>Diameter</option><option>Burners</option><option>Wattage</option><option>Pieces in set</option><option>Colour</option><option>No variations</option></select></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="ap-unit" style="font-size: 13px; font-weight: 600">Stock unit</label>
+<div style="display: flex; align-items: center; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 12px; min-height: 44px; box-sizing: border-box"><select id="ap-unit" style="border: none; outline: none; font: inherit; color: #1B2328; background: transparent; width: 100%"><option>pcs</option><option>set</option><option>box</option></select></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="ap-date" style="font-size: 13px; font-weight: 600">Opening as of (BS)</label>
+<div style="display: flex; align-items: center; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 12px; min-height: 44px; box-sizing: border-box"><input id="ap-date" value="2083-07-04" style="border: none; outline: none; font: inherit; color: #1B2328; background: transparent; width: 100%"></div>
+</div>
+</div>
+<fieldset style="border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+<legend style="font-size: 13px; font-weight: 600; padding-bottom: 6px">Variations <span style="font-weight: 400; color: #5B6670">· {{count}}</span></legend>
+<div style="border: 1px solid #E2E5E1; border-radius: 10px; overflow: hidden">
+<div style="display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 44px; gap: 8px; padding: 8px 12px; background: #F4F5F2; font-size: 12px; font-weight: 600; color: #5B6670; text-transform: uppercase; letter-spacing: .04em">
+<span>Variation</span><span>Opening stock</span><span>Reorder at</span><span><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Remove</span></span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="3">
+<div style="{{r.rowStyle}}">
+<div style="display: flex; align-items: center; gap: 8px; min-width: 0">
+<span style="font-weight: 600; font-size: 14px">{{r.name}}</span>
+<sc-if value="{{r.isNew}}" hint-placeholder-val="{{ false }}"><span style="padding: 2px 8px; border-radius: 999px; background: #0E6B6B; color: #FFFFFF; font-size: 11px; font-weight: 600">New</span></sc-if>
+</div>
+<div style="display: flex; align-items: center; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 10px; min-height: 40px; background: #FFFFFF; box-sizing: border-box"><input aria-label="{{r.openLabel}}" inputmode="numeric" placeholder="0" value="{{r.opening}}" onInput="{{r.setOpening}}" style="border: none; outline: none; font: inherit; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #1B2328; background: transparent; width: 100%; text-align: right"><span style="font-size: 12px; color: #5B6670; padding-left: 6px">pcs</span></div>
+<div style="display: flex; align-items: center; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 10px; min-height: 40px; background: #FFFFFF; box-sizing: border-box"><input aria-label="{{r.reorderLabel}}" inputmode="numeric" value="5" style="border: none; outline: none; font: inherit; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #1B2328; background: transparent; width: 100%; text-align: right"></div>
+<button type="button" aria-label="{{r.removeLabel}}" onClick="{{r.remove}}" style="width: 40px; height: 40px; border-radius: 8px; border: 1px solid #E2E5E1; background: #FFFFFF; color: #5B6670; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg></button>
+</div>
+</sc-for>
+<sc-if value="{{empty}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; padding: 14px 12px; font-size: 13px; color: #5B6670">No variations yet. Add one below, or save as a single item.</p></sc-if>
+</div>
+<div style="display: flex; gap: 8px">
+<div style="flex: 1; display: flex; align-items: center; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 12px; min-height: 44px; box-sizing: border-box"><input aria-label="New variation" value="{{draft}}" onInput="{{setDraft}}" placeholder="e.g. 7.5 L" style="border: none; outline: none; font: inherit; color: #1B2328; background: transparent; width: 100%"></div>
+<button type="button" onClick="{{addSize}}" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #0E6B6B; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; color: #0A5454; cursor: pointer">+ Add variation</button>
+</div>
+<sc-if value="{{varDup}}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size: 13px; color: #8E2F12">"{{draft}}" is already in this product. Duplicates aren't allowed.</span></sc-if>
+<span style="font-size: 12px; color: #5B6670">{{hint}}</span>
+</fieldset>
+<p style="margin: 0; font-size: 13px; color: #3E4A52; background: #F3F8F7; border-radius: 8px; padding: 10px 12px">{{note}}</p>
+</div>
+<div style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid #E2E5E1">
+<button type="button" onClick="{{close}}" style="min-height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328; cursor: pointer">Cancel</button>
+<button type="button" onClick="{{save}}" aria-disabled="{{blocked}}" style="{{saveStyle}}">Save product</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"onClose":{"editor":null},"$preview":{"width":600,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var s = this.state || {};
+var vars = s.vars || [{ n: '2.5 L', o: '6' }, { n: '3 L', o: '10' }, { n: '5 L', o: '' }];
+var lastNew = s.lastNew || null;
+var draft = s.draft || '';
+var pname = s.pname === undefined ? 'Pressure pan' : s.pname;
+var existing = ['SS Black cooker', 'Aluminium cooker', 'Induction base cooker', 'Steel kadhai', 'Non-stick tawa', 'Non-stick fry pan', 'Glass top gas stove', 'Rice cooker', 'Electric kettle', 'Mixer grinder', 'Steel spoon set', 'Cooker gasket'];
+var norm = function (x) { return String(x).toLowerCase().replace(/\s+/g, ''); };
+var dupName = existing.filter(function (e) { return norm(e) === norm(pname); })[0] || '';
+var varDup = !!draft.trim() && vars.some(function (v) { return norm(v.n) === norm(draft); });
+var set = function (o) { self.setState(o); };
+var close = function () { if (self.props.onClose) self.props.onClose(); };
+var num = function (v) { var x = parseFloat(v); return isNaN(x) ? 0 : x; };
+var total = vars.reduce(function (a, v) { return a + num(v.o); }, 0);
+var zeros = vars.filter(function (v) { return num(v.o) === 0; }).length;
+var rows = vars.map(function (v, i) {
+var isNew = v.n === lastNew;
+return {
+name: v.n, opening: v.o, isNew: isNew,
+openLabel: 'Opening stock for ' + v.n, reorderLabel: 'Reorder level for ' + v.n, removeLabel: 'Remove ' + v.n,
+rowStyle: 'display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 44px; gap: 8px; align-items: center; padding: 8px 12px; border-top: 1px solid #EEF0EC; background: ' + (isNew ? '#EAF5F3' : '#FFFFFF'),
+setOpening: function (ev) { var nv = vars.slice(); nv[i] = { n: v.n, o: ev.target.value }; set({ vars: nv }); },
+remove: function () { set({ vars: vars.filter(function (x, j) { return j !== i; }) }); }
+};
+});
+return {
+close: close,
+nameDup: !!dupName, dupName: dupName, varDup: varDup,
+blocked: dupName ? 'true' : 'false',
+nameBox: 'display: flex; align-items: center; border: 1px solid ' + (dupName ? '#B23A1B' : '#CBD2CC') + '; border-radius: 8px; padding: 0 12px; min-height: 44px; box-sizing: border-box' + (dupName ? '; background: #FDF1EE' : ''),
+saveStyle: 'min-height: 44px; padding: 0 22px; border-radius: 8px; border: none; font: inherit; font-size: 14px; font-weight: 600; ' + (dupName ? 'background: #C9D2CF; color: #5B6670; cursor: not-allowed' : 'background: #0E6B6B; color: #FFFFFF; cursor: pointer'),
+save: function () { if (!dupName) close(); },
+pname: pname, setPname: function (ev) { set({ pname: ev.target.value }); },
+draft: draft, setDraft: function (ev) { set({ draft: ev.target.value }); },
+addSize: function () {
+var t = draft.trim();
+if (!t || varDup) return;
+set({ vars: vars.concat([{ n: t, o: '' }]), draft: '', lastNew: t });
+},
+rows: rows, empty: vars.length === 0, count: vars.length,
+hint: 'Opening stock left blank is saved as 0. You can record stock later from Stock entry.',
+note: vars.length
+? 'Saves ' + vars.length + ' stock item' + (vars.length > 1 ? 's' : '') + ' under "' + (pname || 'Product') + '" and records ' + total + ' pcs of opening stock' + (zeros ? ' (' + zeros + ' at 0)' : '') + ' dated 2083-07-04.'
+: 'Saves "' + (pname || 'Product') + '" as a single item with 0 opening stock.'
+};
+}
+}
+</script>
+</body>
+</html>

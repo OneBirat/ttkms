@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Product detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;family=Noto+Sans+Devanagari:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#C9D2D7;text-decoration:none;font-size:14px;min-height:24px}
+.nav:hover{background:#22323B;color:#FFFFFF}
+.card{background:#FFFFFF;border:1px solid #E2E5E1;border-radius:12px;box-sizing:border-box}
+.seg{min-height:38px;padding:0 14px;border-radius:8px;border:none;font:inherit;font-size:13px;cursor:pointer}
+.mono{font-family:'IBM Plex Mono',monospace}
+.dev{font-family:'Noto Sans Devanagari',sans-serif}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; background: #17222A; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+<div style="width: 34px; height: 34px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Stock &amp; attendance</span></div>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 12px 6px">Stock</div>
+<a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a class="nav" href="StockEntry.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a class="nav" href="Movements.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a class="nav" href="Items.dc.html" aria-current="page" style="background: #24363F; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Attendance</div>
+<a class="nav" href="AttendanceMark.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a class="nav" href="AttendanceReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">People &amp; payroll</div>
+<a class="nav" href="Employees.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a class="nav" href="SalaryReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 9.5v5M18 9.5v5"></path></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Admin</div>
+<a class="nav" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px">
+<a href="Items.dc.html" style="display: inline-flex; align-items: center; gap: 6px; font-size: 14px; text-decoration: none; align-self: flex-start; min-height: 32px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>Items</a>
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="prod" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Product</label>
+<h1 style="margin: 0"><span style="position: relative; display: inline-flex; align-items: center; gap: 8px; border: 1px solid #CBD2CC; border-radius: 10px; background: #FFFFFF; padding: 0 12px 0 14px; min-height: 48px"><select id="prod" value="{{prod}}" onChange="{{setProd}}" style="appearance: none; -webkit-appearance: none; border: none; outline: none; background: transparent; font: inherit; font-size: 24px; font-weight: 600; color: #1B2328; cursor: pointer; padding-right: 4px"><sc-for list="{{prodOpts}}" as="o" hint-placeholder-count="12"><option value="{{o}}">{{o}}</option></sc-for></select><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3E4A52" stroke-width="2" aria-hidden="true" style="pointer-events: none; flex: none"><path d="M6 9l6 6 6-6"></path></svg></span></h1>
+<span style="font-size: 14px; color: #5B6670">{{subtitle}}</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328; cursor: pointer">Edit product</button>
+</div>
+</header>
+<div role="group" aria-label="Variation" style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{varTabs}}" as="t" hint-placeholder-count="5">
+<button type="button" aria-pressed="{{t.on}}" onClick="{{t.pick}}" style="{{t.style}}"><span style="font-weight: 600">{{t.name}}</span><span class="mono" style="font-size: 12px; opacity: .85">{{t.stock}} in stock</span></button>
+</sc-for>
+</div>
+<section aria-label="Key numbers" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px">
+<div class="card" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">In stock now</span><span class="mono" style="font-size: 24px; font-weight: 600">{{kStock}} <span style="font-size: 13px; color: #5B6670">pcs</span></span></div>
+<div class="card" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Purchased in Ashoj</span><span class="mono" style="font-size: 24px; font-weight: 600; color: #0A5454">+{{kIn}}</span></div>
+<div class="card" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Sold / used in Ashoj</span><span class="mono" style="font-size: 24px; font-weight: 600; color: #8A4205">−{{kOut}}</span></div>
+<div class="card" style="padding: 10px 14px 14px 18px; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 6px"><span style="font-size: 13px; color: #5B6670">Average sold</span>
+<div role="group" aria-label="Average per" style="display: inline-flex; gap: 1px; background: #EEF0EC; padding: 2px; border-radius: 7px"><sc-for list="{{avgOpts}}" as="a" hint-placeholder-count="3"><button type="button" aria-pressed="{{a.on}}" onClick="{{a.pick}}" style="{{a.style}}">{{a.t}}</button></sc-for></div></div>
+<span class="mono" style="font-size: 24px; font-weight: 600">{{kAvg}}</span>
+<span style="font-size: 12px; color: #5B6670">{{kAvgNote}}</span>
+</div>
+<div class="card" style="padding: 14px 18px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; color: #5B6670">Stock lasts about</span><span class="mono" style="font-size: 24px; font-weight: 600">{{kCover}}</span></div>
+</section>
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+<section aria-labelledby="cal-h" class="card" style="flex: 3 1 560px; min-width: 0; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<div role="group" aria-label="View as" style="display: inline-flex; gap: 2px; background: #EEF0EC; padding: 3px; border-radius: 10px">
+<button type="button" class="seg" aria-pressed="{{calOn}}" onClick="{{showCal}}" style="{{calBtn}}"><span style="display: inline-flex; align-items: center; gap: 6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Calendar</span></button>
+<button type="button" class="seg" aria-pressed="{{tabOn}}" onClick="{{showTab}}" style="{{tabBtn}}"><span style="display: inline-flex; align-items: center; gap: 6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"></path></svg>Table</span></button>
+</div>
+<div role="group" aria-label="Show" style="display: inline-flex; gap: 2px; background: #EEF0EC; padding: 3px; border-radius: 10px">
+<button type="button" class="seg" aria-pressed="{{bOn}}" onClick="{{showBoth}}" style="{{bBtn}}">Both</button>
+<button type="button" class="seg" aria-pressed="{{pOn}}" onClick="{{showIn}}" style="{{pBtn}}">Purchase</button>
+<button type="button" class="seg" aria-pressed="{{sOn}}" onClick="{{showOut}}" style="{{sBtn}}">Sales</button>
+</div>
+</div>
+<sc-if value="{{calOn}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" aria-label="Previous month" style="width: 40px; height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 18px; cursor: pointer">‹</button>
+<h2 id="cal-h" style="margin: 0; font-size: 17px; font-weight: 600; min-width: 170px; text-align: center">Ashoj 2083 <span class="dev" style="font-weight: 500; color: #5B6670">· असोज</span></h2>
+<button type="button" aria-label="Next month" style="width: 40px; height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 18px; cursor: pointer">›</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{wdHeads}}" as="w" hint-placeholder-count="7"><span class="dev" style="{{w.style}}">{{w.t}}</span></sc-for>
+<sc-for list="{{cells}}" as="c" hint-placeholder-count="35">
+<div title="{{c.title}}" style="{{c.style}}">
+<span style="font-size: 12px; font-weight: 600; color: {{c.numColor}}">{{c.n}}</span>
+<sc-if value="{{c.hasIn}}" hint-placeholder-val="{{ false }}"><span class="mono" style="font-size: 12px; font-weight: 600; color: #0A5454">+{{c.in}}</span></sc-if>
+<sc-if value="{{c.hasOut}}" hint-placeholder-val="{{ false }}"><span class="mono" style="font-size: 12px; font-weight: 600; color: #8A4205">−{{c.out}}</span></sc-if>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: #4A555C">
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #CFE8E4"></span>Purchase (+)</span>
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #F9DFB8"></span>Sales / used (−), darker = more</span>
+<span>Saturdays in red · hover a day for details</span>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{tabOn}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 600">Daily history · last {{range}} days</h2>
+<div role="group" aria-label="Period" style="display: inline-flex; gap: 6px">
+<sc-for list="{{ranges}}" as="r" hint-placeholder-count="4"><button type="button" aria-pressed="{{r.on}}" onClick="{{r.pick}}" style="{{r.style}}">{{r.t}}</button></sc-for>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px">
+<div style="background: #EAF5F3; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column"><span style="font-size: 12px; color: #4A555C">Purchased</span><span class="mono" style="font-size: 20px; font-weight: 600; color: #0A5454">+{{rIn}}</span></div>
+<div style="background: #FDF3E3; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column"><span style="font-size: 12px; color: #4A555C">Sold / used</span><span class="mono" style="font-size: 20px; font-weight: 600; color: #8A4205">−{{rOut}}</span></div>
+<div style="background: #F4F5F2; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column"><span style="font-size: 12px; color: #4A555C">Avg sold per open day</span><span class="mono" style="font-size: 20px; font-weight: 600">{{rAvg}}</span></div>
+<div style="background: #F4F5F2; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column"><span style="font-size: 12px; color: #4A555C">Days with sales</span><span class="mono" style="font-size: 20px; font-weight: 600">{{rDays}}</span></div>
+</div>
+<div style="max-height: 560px; overflow: auto; border: 1px solid #E2E5E1; border-radius: 10px">
+<table style="width: 100%; border-collapse: collapse; font-size: 13px">
+<thead><tr>
+<th scope="col" style="position: sticky; top: 0; background: #F4F5F2; text-align: left; padding: 8px 10px; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: #5B6670">Date (BS)</th>
+<th scope="col" style="position: sticky; top: 0; background: #F4F5F2; text-align: left; padding: 8px 10px; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: #5B6670">Day</th>
+<th scope="col" style="position: sticky; top: 0; background: #F4F5F2; text-align: left; padding: 8px 10px; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: #5B6670">Date (AD)</th>
+<sc-if value="{{colIn}}" hint-placeholder-val="{{ true }}"><th scope="col" style="position: sticky; top: 0; background: #F4F5F2; text-align: right; padding: 8px 10px; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: #5B6670">Purchased</th></sc-if>
+<sc-if value="{{colOut}}" hint-placeholder-val="{{ true }}"><th scope="col" style="position: sticky; top: 0; background: #F4F5F2; text-align: right; padding: 8px 10px; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: #5B6670">Sold / used</th></sc-if>
+<th scope="col" style="position: sticky; top: 0; background: #F4F5F2; text-align: right; padding: 8px 10px; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: #5B6670">Closing stock</th>
+</tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+<tr style="{{r.rowStyle}}"><td class="mono" style="padding: 6px 10px; font-size: 12px">{{r.bs}}</td><td class="dev" style="padding: 6px 10px; color: {{r.dayColor}}">{{r.wd}}</td><td style="padding: 6px 10px; color: #5B6670">{{r.ad}}</td><sc-if value="{{colIn}}" hint-placeholder-val="{{ true }}"><td class="mono" style="padding: 6px 10px; text-align: right; color: #0A5454; font-weight: 600">{{r.in}}</td></sc-if><sc-if value="{{colOut}}" hint-placeholder-val="{{ true }}"><td class="mono" style="padding: 6px 10px; text-align: right; color: #8A4205; font-weight: 600">{{r.out}}</td></sc-if><td class="mono" style="padding: 6px 10px; text-align: right">{{r.close}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; font-size: 12px; color: #5B6670"><span>Newest first · Saturdays (closed) greyed · {{rowCount}} days</span><span style="display: flex; gap: 8px"><button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 13px; color: #1B2328; cursor: pointer">Excel</button><button type="button" style="min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 13px; color: #1B2328; cursor: pointer">PDF</button></span></div>
+</div>
+</sc-if>
+</section>
+<div style="flex: 2 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<section aria-labelledby="wk-h" class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px"><h2 id="wk-h" style="margin: 0; font-size: 16px; font-weight: 600">Sales by weekday</h2><span style="font-size: 13px; color: #5B6670">{{wkNote}}</span></div>
+<div role="img" aria-label="{{wkAlt}}" style="display: flex; align-items: flex-end; gap: 10px; height: 130px; border-bottom: 1px solid #CBD2CC">
+<sc-for list="{{wk}}" as="b" hint-placeholder-count="7"><div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%"><span class="mono" style="font-size: 11px; color: #3E4A52">{{b.v}}</span><div style="{{b.bar}}"></div></div></sc-for>
+</div>
+<div style="display: flex; gap: 10px"><sc-for list="{{wk}}" as="b" hint-placeholder-count="7"><span class="dev" style="flex: 1; text-align: center; font-size: 12px; color: #4A555C">{{b.t}}</span></sc-for></div>
+</section>
+<section aria-labelledby="tr-h" class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px"><h2 id="tr-h" style="margin: 0; font-size: 16px; font-weight: 600">Last 6 months</h2><span style="font-size: 13px; color: #5B6670">Purchased vs sold, pcs per month</span></div>
+<div role="img" aria-label="{{trAlt}}" style="display: flex; align-items: flex-end; gap: 12px; height: 130px; border-bottom: 1px solid #CBD2CC">
+<sc-for list="{{trend}}" as="m" hint-placeholder-count="6"><div style="flex: 1; display: flex; align-items: flex-end; justify-content: center; gap: 3px; height: 100%"><div title="{{m.tIn}}" style="{{m.inBar}}"></div><div title="{{m.tOut}}" style="{{m.outBar}}"></div></div></sc-for>
+</div>
+<div style="display: flex; gap: 12px"><sc-for list="{{trend}}" as="m" hint-placeholder-count="6"><span style="flex: 1; text-align: center; font-size: 11px; color: #4A555C">{{m.m}}</span></sc-for></div>
+<div style="display: flex; gap: 14px; font-size: 12px; color: #4A555C"><span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #0E6B6B"></span>Purchased</span><span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #C98A3A"></span>Sold / used</span></div>
+</section>
+<section aria-labelledby="ins-h" style="background: #F3F8F7; border: 1px solid #CDE3E0; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px">
+<h2 id="ins-h" style="margin: 0; font-size: 15px; font-weight: 600">Patterns</h2>
+<sc-for list="{{insights}}" as="i" hint-placeholder-count="3"><p style="margin: 0; font-size: 14px; color: #24343C">• {{i}}</p></sc-for>
+</section>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1450}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var s = this.state || {};
+var vsel = s.v || 'All';
+var mode = s.mode || 'both';
+var avgPer = s.avgPer || 'day';
+var view = s.view || 'cal';
+var range = s.range || 30;
+var set = function (o) { self.setState(o); };
+var catalog = [
+['SS Black cooker', 'capacity', ['2 L', '2.5 L', '3 L', '5 L']],
+['Aluminium cooker', 'capacity', ['3 L', '5 L', '7.5 L']],
+['Induction base cooker', 'capacity', ['3 L', '5 L']],
+['Steel kadhai', 'diameter', ['24 cm', '26 cm', '30 cm']],
+['Non-stick tawa', 'diameter', ['26 cm', '28 cm']],
+['Non-stick fry pan', 'diameter', ['24 cm', '28 cm']],
+['Glass top gas stove', 'burners', ['2 burner', '3 burner']],
+['Rice cooker', 'capacity', ['1 L', '1.8 L', '2.8 L']],
+['Electric kettle', 'capacity', ['1.5 L', '1.8 L']],
+['Mixer grinder', 'wattage', ['500 W', '750 W']],
+['Steel spoon set', 'pieces in set', ['6 pcs', '12 pcs']],
+['Cooker gasket', 'fit', ['2–3 L', '5 L']]
+];
+var prod = s.p || 'SS Black cooker';
+var pi = catalog.findIndex(function (c) { return c[0] === prod; });
+var pdef = catalog[pi < 0 ? 0 : pi];
+var vars = pdef[2].map(function (n, i) { var st = prod === 'SS Black cooker' ? [7, 14, 10, 0][i] : ((pi + 2) * 7 + i * 5) % 17; return { n: n, k: ((pi + i) % 4) + 1, st: st }; });
+var active = vsel === 'All' ? vars : vars.filter(function (v) { return v.n === vsel; });
+var wdShort = ['आ', 'सो', 'मं', 'बु', 'बि', 'शु', 'श'];
+var wdFull = ['आइतबार', 'सोमबार', 'मंगलबार', 'बुधबार', 'बिहीबार', 'शुक्रबार', 'शनिबार'];
+var weight = [1.1, 0.8, 0.9, 0.9, 1, 1.5, 0];
+var days = 30, start = 4;
+var inD = [], outD = [];
+var perVar = {};
+for (var d = 1; d <= days; d++) {
+var w = (start + d - 1) % 7;
+var o = 0, p = 0;
+active.forEach(function (v) {
+var h = (d * 13 + v.k * 29) % 10;
+if (w !== 6) { var q = Math.round((h < 4 ? 0 : h < 7 ? 1 : 2) * weight[w] * (v.k === 3 ? 1.4 : 1)); o += q; perVar[v.n] = (perVar[v.n] || 0) + q; }
+if (w !== 6 && (d + v.k * 3) % 9 === 0) p += 4 + v.k * 2;
+});
+inD.push(p); outD.push(o);
+}
+var maxOut = Math.max.apply(null, outD) || 1;
+var cells = [];
+for (var b = 0; b < start; b++) cells.push({ n: '', style: 'min-height: 66px', numColor: '#5B6670', hasIn: false, hasOut: false, title: '' });
+for (var d2 = 1; d2 <= days; d2++) {
+var w2 = (start + d2 - 1) % 7;
+var pin = inD[d2 - 1], pout = outD[d2 - 1];
+var showIn = mode !== 'out' && pin > 0, showOut = mode !== 'in' && pout > 0;
+var bg = '#FFFFFF';
+if (showOut) { var t = pout / maxOut; bg = t > 0.66 ? '#F2C487' : t > 0.33 ? '#F9DFB8' : '#FDF1DE'; }
+else if (showIn) bg = '#CFE8E4';
+if (mode === 'in' && pin > 0) bg = '#CFE8E4';
+var border = (showIn && showOut) ? 'box-shadow: inset 4px 0 0 #0E6B6B; ' : '';
+var adDay = d2 <= 14 ? 'Sep ' + (16 + d2) : 'Oct ' + (d2 - 14);
+cells.push({
+n: d2, numColor: w2 === 6 ? '#8E2F12' : '#1B2328',
+style: border + 'min-height: 66px; border-radius: 8px; border: 1px solid #E2E5E1; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; background: ' + (w2 === 6 ? '#F7F7F5' : bg),
+hasIn: showIn, hasOut: showOut, in: pin, out: pout,
+title: 'Ashoj ' + d2 + ' (' + adDay + ', ' + wdFull[w2] + '): +' + pin + ' purchased, −' + pout + ' sold'
+});
+}
+var sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+var tIn = sum(inD), tOut = sum(outD);
+var workDays = days - 4;
+var avg = tOut / workDays;
+var stock = sum(active.map(function (v) { return v.st; }));
+var wk = [0, 0, 0, 0, 0, 0, 0];
+outD.forEach(function (v, i) { wk[(start + i) % 7] += v; });
+var wkMax = Math.max.apply(null, wk) || 1;
+var best = wk.indexOf(Math.max.apply(null, wk));
+var low = wk.slice(0, 6).indexOf(Math.min.apply(null, wk.slice(0, 6)));
+var months = ['Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashoj'];
+var mm = [0.7, 0.8, 0.75, 0.9, 1.05, 1];
+var trend = months.map(function (m, i) {
+var o2 = Math.round(tOut * mm[i]), p2 = Math.round(tIn * (i % 2 ? 1.2 : 0.8) * mm[i]);
+var mx = Math.max(tOut, tIn) * 1.3 || 1;
+return { m: m, tIn: m + ': ' + p2 + ' purchased', tOut: m + ': ' + o2 + ' sold', inBar: 'width: 14px; border-radius: 3px 3px 0 0; background: #0E6B6B; height: ' + Math.round(p2 / mx * 110) + 'px', outBar: 'width: 14px; border-radius: 3px 3px 0 0; background: #C98A3A; height: ' + Math.round(o2 / mx * 110) + 'px' };
+});
+var on = 'background: #FFFFFF; color: #0A5454; font-weight: 600; box-shadow: 0 1px 2px rgba(23,34,42,.12)';
+var off = 'background: transparent; color: #3E4A52';
+var tabs = [{ n: 'All', st: sum(vars.map(function (v) { return v.st; })) }].concat(vars.map(function (v) { return { n: v.n, st: v.st }; }));
+var cover = avg > 0 ? Math.round(stock / avg) : 0;
+var insights = [
+'Sells most on ' + wdFull[best] + ' (' + wk[best] + ' pcs this month) and least on ' + wdFull[low] + '.',
+(vsel === 'All' || !vars.some(function (v) { return v.n === vsel; })) ? (function () { var top = Object.keys(perVar).sort(function (a, b) { return perVar[b] - perVar[a]; })[0]; return top + ' is the best seller: ' + perVar[top] + ' of ' + tOut + ' pcs (' + Math.round(perVar[top] / (tOut || 1) * 100) + '%) this month.'; })() : vsel + ' sold ' + tOut + ' pcs this month, ' + (avg).toFixed(1) + ' per working day.',
+stock === 0 ? 'Out of stock now. The last purchase covered about 2 weeks of sales.' : 'Current stock lasts about ' + cover + ' days at this month\'s pace; reorder before it drops under the reorder level.',
+'Monthly sales are ' + Math.round((mm[5] / mm[0] - 1) * 100) + '% higher than in Baisakh.'
+];
+var bsMonths = [['Baisakh', 31], ['Jestha', 31], ['Ashadh', 32], ['Shrawan', 31], ['Bhadra', 31], ['Ashoj', 30], ['Kartik', 30]];
+var today = new Date(2026, 9, 20);
+var hist = [];
+var bm = 6, bd = 4;
+var closing = stock;
+for (var t = 0; t < range; t++) {
+var dt = new Date(today.getTime() - t * 86400000);
+var wd = dt.getDay();
+var hin = 0, hout = 0;
+active.forEach(function (v) {
+var h = (t * 11 + v.k * 31 + 7) % 10;
+if (wd !== 6) hout += Math.round((h < 4 ? 0 : h < 7 ? 1 : 2) * weight[wd]);
+if (wd !== 6 && (t + v.k * 5) % 11 === 0) hin += 3 + v.k * 2;
+});
+var adStr = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+hist.push({ bs: '2083-' + String(bm + 1).padStart(2, '0') + '-' + String(bd).padStart(2, '0'), wd: wdShort[wd], dayColor: wd === 6 ? '#8E2F12' : '#3E4A52', ad: adStr, inN: hin, outN: hout, in: hin ? '+' + hin : '–', out: hout ? '−' + hout : '–', close: closing, rowStyle: 'border-top: 1px solid #EEF0EC' + (wd === 6 ? '; background: #F7F7F5; color: #8A949A' : '') + (bd === 1 ? '; border-bottom: 2px solid #CBD2CC' : '') });
+closing = Math.max(0, closing - hin + hout);
+bd--; if (bd === 0) { bm--; bd = bsMonths[bm][1]; }
+}
+var rIn = hist.reduce(function (a, r) { return a + r.inN; }, 0), rOut = hist.reduce(function (a, r) { return a + r.outN; }, 0);
+var openDays = hist.filter(function (r) { return r.wd !== 'श'; }).length;
+var segA = 'background: #FFFFFF; color: #0A5454; font-weight: 600; box-shadow: 0 1px 2px rgba(23,34,42,.12)';
+var segB = 'background: transparent; color: #3E4A52';
+return {
+calOn: view === 'cal', tabOn: view === 'table',
+calBtn: view === 'cal' ? segA : segB, tabBtn: view === 'table' ? segA : segB,
+showCal: function () { set({ view: 'cal' }); }, showTab: function () { set({ view: 'table' }); },
+range: range,
+ranges: [7, 30, 60, 90].map(function (r) { var o = r === range; return { t: r + ' days', on: o ? 'true' : 'false', pick: function () { set({ range: r }); }, style: 'min-height: 36px; padding: 0 12px; border-radius: 999px; font: inherit; font-size: 13px; cursor: pointer; ' + (o ? 'background: #0E6B6B; color: #FFFFFF; border: 1px solid #0E6B6B; font-weight: 600' : 'background: #FFFFFF; color: #1B2328; border: 1px solid #CBD2CC') }; }),
+rows: hist, rowCount: hist.length,
+rIn: rIn, rOut: rOut, rAvg: (openDays ? rOut / openDays : 0).toFixed(1), rDays: hist.filter(function (r) { return r.outN > 0; }).length + ' / ' + openDays,
+colIn: mode !== 'out', colOut: mode !== 'in',
+prod: prod, prodOpts: catalog.map(function (c) { return c[0]; }),
+setProd: function (ev) { set({ p: ev.target.value, v: 'All' }); },
+subtitle: vars.length + ' variations by ' + pdef[1] + ' · pcs',
+varTabs: tabs.map(function (t) { var o = t.n === vsel; return { name: t.n === 'All' ? 'All variations' : t.n, stock: t.st, on: o ? 'true' : 'false', pick: function () { set({ v: t.n }); }, style: 'display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-height: 52px; padding: 6px 14px; border-radius: 10px; font: inherit; font-size: 14px; cursor: pointer; ' + (o ? 'background: #0E6B6B; color: #FFFFFF; border: 1px solid #0E6B6B' : 'background: #FFFFFF; color: #1B2328; border: 1px solid #CBD2CC') }; }),
+kStock: stock, kIn: tIn, kOut: tOut, kAvg: (avgPer === 'day' ? avg.toFixed(1) : avgPer === 'week' ? (tOut / (days / 7)).toFixed(1) : String(Math.round(tOut * mm.reduce(function (x, y) { return x + y; }, 0) / mm.length))) + ' pcs',
+kAvgNote: avgPer === 'day' ? 'per open day (Saturday closed)' : avgPer === 'week' ? 'per week, Ashoj 2083 (Sun–Sat weeks)' : 'per month, average of last 6 months',
+avgOpts: [['day', 'Day'], ['week', 'Week'], ['month', 'Month']].map(function (o) { var on2 = o[0] === avgPer; return { t: o[1], on: on2 ? 'true' : 'false', pick: function () { set({ avgPer: o[0] }); }, style: 'min-height: 26px; padding: 0 8px; border-radius: 5px; border: none; font: inherit; font-size: 12px; cursor: pointer; ' + (on2 ? 'background: #FFFFFF; color: #0A5454; font-weight: 600; box-shadow: 0 1px 2px rgba(23,34,42,.12)' : 'background: transparent; color: #3E4A52') }; }), kCover: stock === 0 ? 'Out of stock' : cover + ' days',
+bOn: mode === 'both' ? 'true' : 'false', pOn: mode === 'in' ? 'true' : 'false', sOn: mode === 'out' ? 'true' : 'false',
+bBtn: mode === 'both' ? on : off, pBtn: mode === 'in' ? on : off, sBtn: mode === 'out' ? on : off,
+showBoth: function () { set({ mode: 'both' }); }, showIn: function () { set({ mode: 'in' }); }, showOut: function () { set({ mode: 'out' }); },
+wdHeads: wdShort.map(function (t, i) { return { t: t, style: 'text-align: center; font-size: 13px; font-weight: 600; padding: 4px 0; color: ' + (i === 6 ? '#8E2F12' : '#4A555C') }; }),
+cells: cells,
+wk: wk.map(function (v, i) { return { v: v, t: wdShort[i], bar: 'width: 100%; max-width: 30px; border-radius: 4px 4px 0 0; background: ' + (i === best ? '#9A4A06' : '#E5B57A') + '; height: ' + Math.max(2, Math.round(v / wkMax * 100)) + 'px' }; }),
+wkNote: 'Ashoj 2083 · Saturday is closed',
+wkAlt: 'Sales by weekday: ' + wk.map(function (v, i) { return wdFull[i] + ' ' + v; }).join(', '),
+trend: trend,
+trAlt: 'Purchased and sold per month from Baisakh to Ashoj 2083',
+insights: insights
+};
+}
+}
+</script>
+</body>
+</html>

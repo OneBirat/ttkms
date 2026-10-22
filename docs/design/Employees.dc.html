@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Employees</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-weight:600;color:#5B6670;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 10px;border-bottom:1px solid #E2E5E1;white-space:nowrap}
+.tbl td{padding:10px 10px;border-bottom:1px solid #EEF0EC;white-space:nowrap}
+.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#C9D2D7;text-decoration:none;font-size:14px;min-height:24px}
+.nav:hover{background:#22323B;color:#FFFFFF}
+.field{display:flex;align-items:center;gap:8px;border:1px solid #CBD2CC;border-radius:8px;padding:0 12px;min-height:44px;background:#FFFFFF;box-sizing:border-box}
+.field input,.field select{border:none;outline:none;font:inherit;color:#1B2328;background:transparent;width:100%;min-width:0}
+.pill{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.card{background:#FFFFFF;border:1px solid #E2E5E1;border-radius:12px;padding:18px 20px;box-sizing:border-box}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #EEF0EC;font-size:14px}
+.emp{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:8px;text-decoration:none;color:#1B2328}
+.emp:hover{background:#F1F4F2}
+.av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none}
+.tab{min-height:44px;padding:0 4px;border:none;background:transparent;font:inherit;font-size:14px;color:#5B6670;border-bottom:2px solid transparent;cursor:pointer}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; background: #17222A; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+<div style="width: 34px; height: 34px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Stock &amp; attendance</span></div>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 12px 6px">Stock</div>
+<a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a class="nav" href="StockEntry.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a class="nav" href="Movements.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a class="nav" href="Items.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Attendance</div>
+<a class="nav" href="AttendanceMark.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a class="nav" href="AttendanceReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">People &amp; payroll</div>
+<a class="nav" href="Employees.dc.html" aria-current="page" style="background: #24363F; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a class="nav" href="SalaryReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 9.5v5M18 9.5v5"></path></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Admin</div>
+<a class="nav" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Employees</h1>
+<p style="margin: 0; color: #5B6670; font-size: 14px">Each employee has one account: profile, salary structure, monthly pay ledger and advances.</p>
+</div>
+<button type="button" onClick="{{openAdd}}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: none; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add employee</button>
+</header>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<aside aria-label="Employee list" class="card" style="flex: 1 1 280px; max-width: 360px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+<div class="field"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" aria-label="Search employees" placeholder="Search name or ID"></div>
+<div class="field"><select aria-label="Department"><option>All departments (24)</option><option>Store (5)</option><option>Kitchen (5)</option><option>Housekeeping (5)</option><option>Front desk (4)</option><option>Accounts (5)</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #5B6670; padding: 8px 10px 2px">Store</span>
+<a class="emp" href="#" aria-current="true" style="background: #E3F0EE"><span class="av" style="background: #0E6B6B; color: #FFFFFF">AG</span><span style="display: flex; flex-direction: column; min-width: 0"><span style="font-weight: 600; font-size: 14px">Anita Gurung</span><span style="font-size: 12px; color: #4A5A5A">E-001 · Store keeper</span></span></a>
+<a class="emp" href="#"><span class="av" style="background: #E6E9E4; color: #3E4A52">RK</span><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Ramesh K.C.</span><span style="font-size: 12px; color: #5B6670">E-002 · Store helper</span></span></a>
+<a class="emp" href="#"><span class="av" style="background: #E6E9E4; color: #3E4A52">DA</span><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Dipak Adhikari</span><span style="font-size: 12px; color: #5B6670">E-003 · Store helper</span></span></a>
+<a class="emp" href="#"><span class="av" style="background: #E6E9E4; color: #3E4A52">KB</span><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Kamala Bhandari</span><span style="font-size: 12px; color: #5B6670">E-004 · Cashier</span></span></a>
+<a class="emp" href="#"><span class="av" style="background: #E6E9E4; color: #3E4A52">NP</span><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Nabin Poudel</span><span style="font-size: 12px; color: #5B6670">E-005 · Driver</span></span></a>
+<span style="font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #5B6670; padding: 10px 10px 2px">Kitchen</span>
+<a class="emp" href="#"><span class="av" style="background: #E6E9E4; color: #3E4A52">BS</span><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Bikash Shrestha</span><span style="font-size: 12px; color: #5B6670">E-006 · Head cook</span></span></a>
+<a class="emp" href="#"><span class="av" style="background: #E6E9E4; color: #3E4A52">GM</span><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Gita Magar</span><span style="font-size: 12px; color: #5B6670">E-007 · Cook</span></span></a>
+<a class="emp" href="#"><span class="av" style="background: #E6E9E4; color: #3E4A52">HB</span><span style="display: flex; flex-direction: column"><span style="font-size: 14px">Hari Bista</span><span style="font-size: 12px; color: #5B6670">E-008 · Kitchen helper</span></span></a>
+</div>
+<span style="font-size: 13px; color: #5B6670; padding: 4px 10px">Showing 8 of 24 · scroll for more</span>
+</aside>
+<div style="flex: 3 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<section aria-label="Profile" class="card" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+<div style="display: flex; align-items: center; gap: 16px">
+<div style="position: relative; width: 72px; height: 72px; flex: none">
+<span class="av" role="img" aria-label="Photo of Anita Gurung" style="width: 72px; height: 72px; background: #CFE3E0; overflow: hidden; align-items: flex-end"><svg width="72" height="72" viewBox="0 0 72 72" aria-hidden="true"><circle cx="36" cy="28" r="13" fill="#7FA9A4"></circle><path d="M12 72c2-14 12-22 24-22s22 8 24 22z" fill="#7FA9A4"></path></svg></span>
+<a href="PhotoCapture.dc.html" aria-label="Change photo" style="position: absolute; right: -6px; bottom: -6px; width: 34px; height: 34px; border-radius: 50%; background: #0E6B6B; color: #FFFFFF; border: 3px solid #FFFFFF; display: flex; align-items: center; justify-content: center; box-sizing: border-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px"><h2 style="margin: 0; font-size: 22px; font-weight: 600">Anita Gurung</h2><span class="pill" style="background: #E3F0EE; color: #0A5454">Active</span></div>
+<span style="font-size: 14px; color: #5B6670">Store keeper · Store · E-001</span>
+<span style="font-size: 13px; color: #5B6670">Joined 2081-04-01 · 98XXXXXXXX · Login: anita.g (staff)</span>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328">Edit profile</button>
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328">Give advance</button>
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: none; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600">Pay Ashoj salary</button>
+</div>
+</section>
+<section aria-labelledby="photo-h" class="card" style="display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 14px 18px; background: #F7FAF9; border-color: #CDE3E0">
+<div role="img" aria-label="QR code placeholder" style="width: 96px; height: 96px; border-radius: 8px; border: 2px dashed #8FB8B3; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #4A5A5A; text-align: center; flex: none">QR code</div>
+<div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 4px">
+<h3 id="photo-h" style="margin: 0; font-size: 15px; font-weight: 600">Update photo from a phone</h3>
+<span style="font-size: 13px; color: #4A555C">Scan with any phone. It opens the camera page for Anita only; the link expires in 10 minutes. On a phone already, tap the camera button on the photo.</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="PhotoCapture.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; color: #1B2328; text-decoration: none; font-size: 14px">Use this device</a>
+<button type="button" style="min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #8E2F12; font: inherit; font-size: 14px">Remove photo</button>
+</div>
+</section>
+<div role="tablist" aria-label="Employee sections" style="display: flex; gap: 24px; border-bottom: 1px solid #E2E5E1">
+<button type="button" role="tab" class="tab" aria-selected="false">Overview</button>
+<button type="button" role="tab" class="tab" aria-selected="true" style="color: #0A5454; font-weight: 600; border-bottom-color: #0E6B6B">Salary</button>
+<button type="button" role="tab" class="tab" aria-selected="false">Attendance</button>
+<button type="button" role="tab" class="tab" aria-selected="false">Documents</button>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 16px">
+<section aria-labelledby="struct-h" class="card" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 6px"><h3 id="struct-h" style="margin: 0; font-size: 16px; font-weight: 600">Salary structure</h3><button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #0E6B6B; font: inherit; font-size: 14px; font-weight: 500">Revise</button></div>
+<div class="kv"><span>Basic salary</span><span class="num">Rs 22,000</span></div>
+<div class="kv"><span>Dearness allowance</span><span class="num">Rs 3,000</span></div>
+<div class="kv"><span>Transport allowance</span><span class="num">Rs 1,500</span></div>
+<div class="kv" style="font-weight: 600"><span>Gross per month</span><span class="num">Rs 26,500</span></div>
+<div class="kv"><span>SSF, employee 11% of basic</span><span class="num">− Rs 2,420</span></div>
+<div class="kv" style="color: #5B6670"><span>SSF, employer 20% (company cost)</span><span class="num">Rs 4,400</span></div>
+<div class="kv" style="border-bottom: none; color: #5B6670; font-size: 13px"><span>Effective from 2083-04-01 · previous basic Rs 20,000</span><span>Paid to bank</span></div>
+</section>
+<section aria-labelledby="adv-h" class="card" style="flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<h3 id="adv-h" style="margin: 0; font-size: 16px; font-weight: 600">Advances</h3>
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; color: #5B6670">Outstanding</span><span style="font-size: 26px; font-weight: 600">Rs 5,000</span><span style="font-size: 13px; color: #5B6670">Recovering Rs 2,500 per month · clears Mangsir</span></div>
+<div role="img" aria-label="5,000 of 10,000 recovered" style="height: 8px; border-radius: 4px; background: #EEF0EC; overflow: hidden"><div style="width: 50%; height: 100%; background: #0E6B6B"></div></div>
+<div style="display: flex; flex-direction: column; font-size: 14px">
+<div class="kv"><span>2083-04-10 · advance taken</span><span class="num">Rs 10,000</span></div>
+<div class="kv"><span>Bhadra salary · recovered</span><span class="num">− 2,500</span></div>
+<div class="kv" style="border-bottom: none"><span>Ashoj salary · recovered</span><span class="num">− 2,500</span></div>
+</div>
+</section>
+</div>
+<section aria-labelledby="ledger-h" class="card" style="padding: 18px 12px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 0 8px"><h3 id="ledger-h" style="margin: 0; font-size: 16px; font-weight: 600">Salary ledger</h3><div style="display: flex; gap: 8px"><button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 13px; color: #1B2328">Payslip PDF</button><button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 13px; color: #1B2328">Excel</button></div></div>
+<div style="overflow-x: auto">
+<table class="tbl">
+<thead><tr><th scope="col">Month (BS)</th><th scope="col" class="num">Paid days</th><th scope="col" class="num">Gross</th><th scope="col" class="num">Absence</th><th scope="col" class="num">Advance</th><th scope="col" class="num">SSF</th><th scope="col" class="num">TDS</th><th scope="col" class="num">Net pay</th><th scope="col">Status</th></tr></thead>
+<tbody>
+<tr><td>Ashoj 2083</td><td class="num">29 / 30</td><td class="num">26,500</td><td class="num">−883</td><td class="num">−2,500</td><td class="num">−2,420</td><td class="num">0</td><td class="num" style="font-weight: 600">20,697</td><td><span class="pill" style="background: #FCEFD9; color: #8A4205">Pending</span></td></tr>
+<tr><td>Bhadra 2083</td><td class="num">31 / 31</td><td class="num">26,500</td><td class="num">0</td><td class="num">−2,500</td><td class="num">−2,420</td><td class="num">0</td><td class="num" style="font-weight: 600">21,580</td><td><span class="pill" style="background: #E3F0EE; color: #0A5454">Paid 06-02</span></td></tr>
+<tr><td>Shrawan 2083</td><td class="num">30.5 / 31</td><td class="num">26,500</td><td class="num">−427</td><td class="num">0</td><td class="num">−2,420</td><td class="num">0</td><td class="num" style="font-weight: 600">23,653</td><td><span class="pill" style="background: #E3F0EE; color: #0A5454">Paid 05-01</span></td></tr>
+<tr><td>Ashadh 2083</td><td class="num">32 / 32</td><td class="num">24,500</td><td class="num">0</td><td class="num">0</td><td class="num">−2,200</td><td class="num">0</td><td class="num" style="font-weight: 600">22,300</td><td><span class="pill" style="background: #E3F0EE; color: #0A5454">Paid 04-01</span></td></tr>
+</tbody>
+</table>
+</div>
+<span style="font-size: 12px; color: #5B6670; padding: 0 8px">Absence deduction = gross ÷ days in month × unpaid days, taken from the attendance report. Tax and SSF rules are set in Settings.</span>
+</section>
+</div>
+</div>
+</main>
+<sc-if value="{{showAdd}}" hint-placeholder-val="{{ false }}">
+<div style="position: fixed; inset: 0; background: rgba(15,24,29,.55); display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px; box-sizing: border-box; z-index: 20; overflow-y: auto">
+<dc-import name="AddEmployee" on-close="{{closeAdd}}" hint-size="640px,1040px"></dc-import>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1480}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var show = !!(this.state && this.state.add);
+return {
+showAdd: show,
+openAdd: function () { self.setState({ add: true }); },
+closeAdd: function () { self.setState({ add: false }); }
+};
+}
+}
+</script>
+</body>
+</html>
