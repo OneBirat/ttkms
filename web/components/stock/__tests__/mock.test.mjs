@@ -10,6 +10,7 @@ import {
   readLowStock,
   readCurrentStock,
   readTodayEntries,
+  readItems,
   writeProduct,
   writeEntry,
   patchVariation,
@@ -48,9 +49,8 @@ test("running balance never goes negative in the daily history", () => {
 });
 
 test("there are entries today and the report totals add up", () => {
-  const purchases = readTodayEntries("purchase");
-  const sales = readTodayEntries("consumption");
-  assert.ok(purchases.count + sales.count > 0);
+  const today_ = readTodayEntries(null);
+  assert.ok(today_.purchases.count + today_.consumptions.count > 0);
   const today = formatBsIso(adToBs(mockToday()));
   const from = formatBsIso(adToBs(addDays(mockToday(), -6)));
   const report = readReport({
@@ -100,47 +100,85 @@ test("writeProduct rejects duplicates ignoring case and spaces", () => {
   );
 });
 
-test("writeEntry saves all lines or none and updates stock", () => {
+test("writeEntry saves all rows or none, reports today's totals and updates stock", () => {
   const product = readProduct(1);
   const v = product.variations[0];
   const before = v.in_stock;
-  const today = formatBsIso(adToBs(mockToday()));
+  const todayAd = mockToday();
+  const today = formatBsIso(adToBs(todayAd));
+  const purchasesBefore = readTodayEntries("purchase").purchases;
   const result = writeEntry({
     type: "purchase",
     date_bs: today,
-    reference: "1042",
-    supplier: null,
-    lines: [{ variation_id: v.id, quantity: 5, remarks: null }],
+    date_ad: todayAd,
+    rows: [{ variation_id: v.id, qty: 5, remark: " Sharma Traders " }],
   });
-  assert.equal(result.saved, 1);
-  assert.equal(result.movements[0].remarks, "Bill 1042");
+  assert.equal(result.saved.length, 1);
+  assert.equal(result.saved[0].remarks, "Sharma Traders");
+  assert.equal(result.saved[0].type, "purchase");
+  assert.equal(result.today.count, purchasesBefore.count + 1);
+  assert.equal(result.today.total_quantity, purchasesBefore.total_quantity + 5);
   assert.equal(readProduct(1).variations[0].in_stock, before + 5);
+  // The saved row is first in today's list.
+  assert.equal(readTodayEntries("purchase").entries[0].id, result.saved[0].id);
   assert.throws(
     () =>
       writeEntry({
         type: "consumption",
         date_bs: today,
-        reference: null,
-        supplier: null,
-        lines: [
-          { variation_id: v.id, quantity: 1, remarks: null },
-          { variation_id: v.id, quantity: 1, remarks: null },
+        date_ad: todayAd,
+        rows: [
+          { variation_id: v.id, qty: 1, remark: null },
+          { variation_id: v.id, qty: 1, remark: null },
         ],
       }),
-    (e) => e.status === 422,
+    (e) => e.status === 422 && e.field === "rows.1",
   );
   assert.equal(readProduct(1).variations[0].in_stock, before + 5, "nothing saved on error");
   assert.throws(
-    () =>
-      writeEntry({
-        type: "consumption",
-        date_bs: today,
-        reference: null,
-        supplier: null,
-        lines: [{ variation_id: v.id, quantity: before + 50, remarks: null }],
-      }),
-    (e) => /in stock/.test(e.message),
+    () => writeEntry({ type: "consumption", date_bs: today, date_ad: todayAd, rows: [{ variation_id: v.id, qty: 0, remark: null }] }),
+    (e) => e.status === 422 && e.field === "rows.0",
   );
+  assert.throws(
+    () => writeEntry({ type: "purchase", date_bs: today, date_ad: todayAd, rows: [] }),
+    (e) => e.status === 422,
+  );
+  assert.throws(
+    () => writeEntry({ type: "opening", date_bs: today, date_ad: todayAd, rows: [{ variation_id: v.id, qty: 1, remark: null }] }),
+    (e) => e.status === 422,
+  );
+  // Consumption may take stock below zero (the phone layout warns but allows it).
+  const big = writeEntry({ type: "consumption", date_bs: today, date_ad: todayAd, rows: [{ variation_id: v.id, qty: before + 50, remark: null }] });
+  assert.equal(big.saved.length, 1);
+  assert.equal(readProduct(1).variations[0].in_stock, -45);
+});
+
+test("readTodayEntries: all types newest first, or one type; totals cover both", () => {
+  const all = readTodayEntries(null);
+  assert.ok(all.entries.length > 0);
+  assert.ok(all.entries.every((e) => e.type !== "opening"));
+  for (let i = 1; i < all.entries.length; i++) {
+    assert.ok(all.entries[i - 1].id > all.entries[i].id, "newest first");
+  }
+  const purchases = readTodayEntries("purchase");
+  assert.ok(purchases.entries.every((e) => e.type === "purchase"));
+  assert.equal(purchases.entries.length, all.purchases.count);
+  assert.equal(all.purchases.count + all.consumptions.count, all.entries.length);
+  assert.deepEqual(purchases.purchases, all.purchases);
+});
+
+test("readItems: word search in any order, stock included, excluded ids hidden", () => {
+  const everything = readItems("", []);
+  assert.equal(everything.items.length, readProducts().summary.variations);
+  const hits = readItems("3 cooker", []);
+  assert.ok(hits.items.length > 0);
+  assert.ok(hits.items.every((i) => /cooker/i.test(i.product_name) && /3/.test(`${i.product_name} ${i.variation_name}`)));
+  assert.ok(hits.items.every((i) => typeof i.in_stock === "number" && i.code));
+  const first = hits.items[0];
+  const without = readItems("3 cooker", [first.variation_id]);
+  assert.equal(without.items.length, hits.items.length - 1);
+  assert.ok(without.items.every((i) => i.variation_id !== first.variation_id));
+  assert.equal(readItems("zzz nothing", []).items.length, 0);
 });
 
 test("stats, low stock and current stock are consistent with the catalogue", () => {

@@ -27,6 +27,9 @@ export type StockStatus = "ok" | "low" | "out";
 /** Opening = first count, purchase = production / stock in, consumption = sales / used. */
 export type MovementType = "opening" | "purchase" | "consumption";
 
+/** What the Stock entry form can record; opening stock is set when a product is added. */
+export type EntryType = "purchase" | "consumption";
+
 // ------------------------------------------------------------- catalogue
 
 export interface Variation {
@@ -116,37 +119,58 @@ export interface Movement {
   date_ad: string;
   /** "HH:MM" local time the entry was recorded. */
   time: string;
-  /** Bill / reference number (purchases). */
-  reference: string | null;
-  supplier: string | null;
   remarks: string | null;
   entered_by: string;
 }
 
-export interface EntryLine {
+/** One row of the Stock entry combobox: GET /api/stock/items?search=&exclude_ids= */
+export interface StockItem {
   variation_id: number;
-  quantity: number;
-  remarks: string | null;
+  product_id: number;
+  product_name: string;
+  variation_name: string;
+  code: string;
+  in_stock: number;
+  status: StockStatus;
 }
 
-/** One form submission: every line saves together or none does. */
+export interface StockItemsResponse {
+  items: StockItem[];
+}
+
+export interface EntryRow {
+  variation_id: number;
+  qty: number;
+  remark: string | null;
+}
+
+/** One form submission: every row saves together or none does. */
 export interface EntryRequest {
-  type: MovementType;
+  type: EntryType;
   date_bs: string;
-  reference: string | null;
-  supplier: string | null;
-  lines: EntryLine[];
+  date_ad: string;
+  rows: EntryRow[];
+}
+
+/** Count and quantity of one entry type recorded today. */
+export interface TodayTotals {
+  count: number;
+  total_quantity: number;
 }
 
 export interface EntryResponse {
-  saved: number;
-  movements: Movement[];
+  /** The movements just created, in row order. */
+  saved: Movement[];
+  /** Today's running totals for `type`, including the rows just saved. */
+  today: TodayTotals;
 }
 
+/** GET /api/stock/entries/today?type= — today's panel / tab. */
 export interface TodayEntries {
-  type: MovementType;
-  count: number;
-  total_quantity: number;
+  date_bs: string;
+  purchases: TodayTotals;
+  consumptions: TodayTotals;
+  /** Newest first; only the requested type when `type` was given. */
   entries: Movement[];
 }
 

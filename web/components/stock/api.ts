@@ -17,13 +17,14 @@ import type {
   DailyHistory,
   EntryRequest,
   EntryResponse,
+  EntryType,
   LowStockData,
-  MovementType,
   Product,
   ProductListResponse,
   ProductStats,
   ReportFilter,
   ReportResponse,
+  StockItemsResponse,
   StockStatsData,
   StockToday,
   TodayEntries,
@@ -113,13 +114,25 @@ export function getDailyHistory(
   return respond(() => mock.readDailyHistory(productId, variationId, days));
 }
 
-/** POST /api/stock/entries  EntryRequest -> EntryResponse (all lines or none; 422 with field "lines.N"). */
+/**
+ * GET /api/stock/items?search=&exclude_ids=1,2 -> StockItemsResponse.
+ * Server-side word search ("cooker 3") with current stock; `exclude_ids`
+ * hides variations already used in other rows of the form.
+ */
+export function listItems(search: string, excludeIds: number[] = []): Promise<StockItemsResponse> {
+  return respond(() => mock.readItems(search, excludeIds));
+}
+
+/**
+ * POST /api/stock/entries  EntryRequest -> EntryResponse. All rows or none.
+ * 422 (field "rows.N") for a duplicate variation_id in one entry or qty <= 0.
+ */
 export function saveEntry(request: EntryRequest): Promise<EntryResponse> {
   return respond(() => mock.writeEntry(request));
 }
 
-/** GET /api/stock/entries/today?type=purchase|consumption -> TodayEntries. */
-export function getTodayEntries(type: MovementType): Promise<TodayEntries> {
+/** GET /api/stock/entries/today?type=purchase|consumption (optional) -> TodayEntries. */
+export function getTodayEntries(type: EntryType | null = null): Promise<TodayEntries> {
   return respond(() => mock.readTodayEntries(type));
 }
 

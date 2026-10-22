@@ -49,6 +49,7 @@ import {
   type DailyHistoryRow,
   type EntryRequest,
   type EntryResponse,
+  type EntryType,
   type LowStockData,
   type LowStockRow,
   type MonthTotals,
@@ -59,11 +60,14 @@ import {
   type ProductStats,
   type ReportFilter,
   type ReportResponse,
+  type StockItem,
+  type StockItemsResponse,
   type StockStatsData,
   type StockSummary,
   type StockToday,
   type StockUnit,
   type TodayEntries,
+  type TodayTotals,
   type UpdateProductRequest,
   type UpdateVariationRequest,
   type Variation,
@@ -93,8 +97,6 @@ interface MovementRecord {
   quantity: number;
   date_ad: string;
   time: string;
-  reference: string | null;
-  supplier: string | null;
   remarks: string | null;
   entered_by: string;
 }
@@ -319,8 +321,6 @@ function seedState(today: string): State {
         quantity: opening,
         date_ad: addDays(today, -HISTORY_DAYS),
         time: "09:00",
-        reference: null,
-        supplier: null,
         remarks: "Opening count",
         entered_by: "Admin",
       });
@@ -328,16 +328,13 @@ function seedState(today: string): State {
         const date = addDays(today, -f.t);
         const dayIndex = HISTORY_DAYS - f.t;
         if (f.type === "purchase") {
-          const bill = String(1000 + dayIndex);
           push({
             variation_id: variation.id,
             type: "purchase",
             quantity: f.qty,
             date_ad: date,
-            time: timeFor(dayIndex * 3 + 1),
-            reference: bill,
-            supplier: SUPPLIERS[hash(dayIndex, 3) % SUPPLIERS.length],
-            remarks: `Bill ${bill}`,
+            time: timeFor(dayIndex * 3 + 1 + k * 11),
+            remarks: hash(dayIndex, 3) % 3 === 0 ? SUPPLIERS[hash(dayIndex, 3) % SUPPLIERS.length] : null,
             entered_by: PURCHASE_USERS[hash(dayIndex, 4) % PURCHASE_USERS.length],
           });
         } else {
@@ -347,8 +344,6 @@ function seedState(today: string): State {
             quantity: f.qty,
             date_ad: date,
             time: timeFor(dayIndex * 7 + k),
-            reference: null,
-            supplier: null,
             remarks: f.bulk ? "Shop order" : SALE_REMARKS[hash(dayIndex, k, 5) % SALE_REMARKS.length],
             entered_by: SALE_USERS[hash(dayIndex, k, 6) % SALE_USERS.length],
           });
@@ -356,6 +351,13 @@ function seedState(today: string): State {
       }
     }
   }
+  // Ids follow the clock, so "newest first" is simply the highest id and a
+  // row saved now always lands on top of today's list.
+  state.movements.sort((a, b) => a.date_ad.localeCompare(b.date_ad) || a.time.localeCompare(b.time) || a.id - b.id);
+  state.movements.forEach((m, i) => {
+    m.id = i + 1;
+  });
+  state.nextMovementId = state.movements.length + 1;
   return state;
 }
 
@@ -409,9 +411,6 @@ function stockAsOf(variationIds: number[], dateAd: string): number {
   );
 }
 
-function stockNow(variationId: number): number {
-  return sum(movementsOf(variationId).map(signedQty));
-}
 
 function toMovement(m: MovementRecord): Movement {
   const variation = variationOr404(m.variation_id);
@@ -427,8 +426,6 @@ function toMovement(m: MovementRecord): Movement {
     date_bs: formatBsIso(adToBs(m.date_ad)),
     date_ad: m.date_ad,
     time: m.time,
-    reference: m.reference,
-    supplier: m.supplier,
     remarks: m.remarks,
     entered_by: m.entered_by,
   };
@@ -512,17 +509,50 @@ export function readProduct(id: number): Product {
   return toProduct(productOr404(id));
 }
 
-export function readTodayEntries(type: MovementType): TodayEntries {
+function totalsOf(type: EntryType): TodayTotals {
+  const list = state.movements.filter((m) => m.date_ad === today && m.type === type);
+  return { count: list.length, total_quantity: sum(list.map((m) => m.quantity)) };
+}
+
+/** Newest first: ids are assigned in clock order (see the generator), so the highest id is the latest. */
+function newestFirst(a: MovementRecord, b: MovementRecord): number {
+  return b.id - a.id;
+}
+
+export function readTodayEntries(type: EntryType | null): TodayEntries {
   const entries = state.movements
-    .filter((m) => m.date_ad === today && m.type === type)
-    .sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : b.id - a.id))
+    .filter((m) => m.date_ad === today && m.type !== "opening" && (type === null || m.type === type))
+    .sort(newestFirst)
     .map(toMovement);
   return {
-    type,
-    count: entries.length,
-    total_quantity: sum(entries.map((m) => m.quantity)),
+    date_bs: formatBsIso(adToBs(today)),
+    purchases: totalsOf("purchase"),
+    consumptions: totalsOf("consumption"),
     entries,
   };
+}
+
+/** Combobox rows: every word of `search` must match "product variation"; `excludeIds` are hidden. */
+export function readItems(search: string, excludeIds: number[]): StockItemsResponse {
+  const hidden = new Set(excludeIds);
+  const items: StockItem[] = [];
+  for (const product of state.products) {
+    for (const record of state.variations) {
+      if (record.product_id !== product.id || hidden.has(record.id)) continue;
+      if (!matchesSearch(search, product.name, record.name)) continue;
+      const variation = toVariation(record);
+      items.push({
+        variation_id: record.id,
+        product_id: product.id,
+        product_name: product.name,
+        variation_name: record.name,
+        code: variation.code,
+        in_stock: variation.in_stock,
+        status: variation.status,
+      });
+    }
+  }
+  return { items };
 }
 
 export function readReport(filter: ReportFilter): ReportResponse {
@@ -910,8 +940,6 @@ export function writeProduct(request: CreateProductRequest): Product {
       quantity: Math.max(0, Math.floor(item.opening)),
       date_ad: openingAd,
       time: nowTime(),
-      reference: null,
-      supplier: null,
       remarks: "Opening stock",
       entered_by: CURRENT_USER,
     });
@@ -941,8 +969,6 @@ export function writeVariation(request: AddVariationRequest): Product {
     quantity: Math.max(0, Math.floor(request.variation.opening)),
     date_ad: openingAd,
     time: nowTime(),
-    reference: null,
-    supplier: null,
     remarks: "Opening stock",
     entered_by: CURRENT_USER,
   });
@@ -984,38 +1010,35 @@ export function patchProduct(id: number, request: UpdateProductRequest): Product
 
 export function writeEntry(request: EntryRequest): EntryResponse {
   const dateAd = bsOr422(request.date_bs, "date_bs");
-  if (request.lines.length === 0) throw new StockApiError(422, "Add at least one row", "lines");
+  if (request.date_ad && request.date_ad !== dateAd) {
+    throw new StockApiError(422, "date_ad does not match date_bs", "date_ad");
+  }
+  if (request.type !== "purchase" && request.type !== "consumption") {
+    throw new StockApiError(422, "type must be purchase or consumption", "type");
+  }
+  if (request.rows.length === 0) throw new StockApiError(422, "Add at least one row", "rows");
   const seen = new Set<number>();
-  request.lines.forEach((line, index) => {
-    const variation = variationOr404(line.variation_id);
-    if (seen.has(line.variation_id)) {
-      throw new StockApiError(422, `Row ${index + 1}: item is already in another row`, `lines.${index}`);
+  request.rows.forEach((row, index) => {
+    variationOr404(row.variation_id);
+    if (seen.has(row.variation_id)) {
+      throw new StockApiError(422, `Row ${index + 1}: item is already in another row`, `rows.${index}`);
     }
-    seen.add(line.variation_id);
-    if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
-      throw new StockApiError(422, `Row ${index + 1}: quantity must be a whole number above 0`, `lines.${index}`);
-    }
-    if (request.type === "consumption" && line.quantity > stockNow(variation.id)) {
-      throw new StockApiError(422, `Row ${index + 1}: only ${stockNow(variation.id)} in stock`, `lines.${index}`);
+    seen.add(row.variation_id);
+    if (!Number.isInteger(row.qty) || row.qty <= 0) {
+      throw new StockApiError(422, `Row ${index + 1}: quantity must be a whole number above 0`, `rows.${index}`);
     }
   });
   const time = nowTime();
-  const reference = request.reference?.trim() || null;
-  const supplier = request.supplier?.trim() || null;
-  const created: MovementRecord[] = request.lines.map((line) => ({
+  const created: MovementRecord[] = request.rows.map((row) => ({
     id: state.nextMovementId++,
-    variation_id: line.variation_id,
+    variation_id: row.variation_id,
     type: request.type,
-    quantity: line.quantity,
+    quantity: row.qty,
     date_ad: dateAd,
     time,
-    reference,
-    supplier,
-    remarks:
-      line.remarks?.trim() ||
-      (request.type === "purchase" && reference ? `Bill ${reference}` : null),
+    remarks: row.remark?.trim() || null,
     entered_by: CURRENT_USER,
   }));
   state.movements.push(...created);
-  return { saved: created.length, movements: created.map(toMovement) };
+  return { saved: created.map(toMovement), today: totalsOf(request.type) };
 }
