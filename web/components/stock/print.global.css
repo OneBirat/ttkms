@@ -1,0 +1,24 @@
+/* Global print rules for the stock print routes (imported by PrintSheet.tsx).
+   CSS modules cannot target the app shell, so the shell is hidden here. */
+
+@page {
+  size: A4;
+  margin: 14mm 12mm 16mm;
+}
+
+@media print {
+  nav[aria-label="Main"],
+  .skip-link,
+  .stock-print-screenbar {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  main {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+}

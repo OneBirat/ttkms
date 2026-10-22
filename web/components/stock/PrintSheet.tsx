@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/session";
 import type { StockToday } from "./types";
 import styles from "./print.module.css";
+import "./print.global.css";
 
 export interface PrintSheetProps {
   title: string;
@@ -36,7 +37,7 @@ export function PrintSheet({ title, subtitle, today, auto, ready, wide, legend, 
 
   return (
     <>
-      <div className={`${styles.screenBar} ${wide ? styles.wide : ""}`}>
+      <div className={`stock-print-screenbar ${styles.screenBar} ${wide ? styles.wide : ""}`}>
         <button type="button" className="btn" onClick={() => router.back()}>
           ‹ Back
         </button>

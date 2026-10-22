@@ -214,33 +214,17 @@
   content: "Page " counter(page);
 }
 
-@page {
-  size: A4;
-  margin: 14mm 12mm 16mm;
-}
-
 @media print {
-  :global(nav[aria-label="Main"]),
-  :global(.skip-link),
-  .screenBar {
-    display: none !important;
-  }
-
-  :global(body) {
-    background: #fff;
-  }
-
-  :global(main) {
-    padding: 0 !important;
-    gap: 0 !important;
-  }
-
   .sheet {
     max-width: none;
     margin: 0;
     padding: 0;
     border: none;
     border-radius: 0;
+  }
+
+  .screenBar {
+    display: none;
   }
 
   .foot {
