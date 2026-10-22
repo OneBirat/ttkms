@@ -43,6 +43,7 @@ export function GiveAdvanceDialog({ open, employee, onClose, onSaved }: GiveAdva
   const months = monthsToClear(amountNumber, recoveryNumber);
   const clearsBy =
     Number.isFinite(months) && months > 0 ? monthName(addMonths(currentMonth(), months - 1)) : null;
+  // (Starts with the next unpaid payslip; shown as "from <month>" at the latest.)
   const id = (name: string) => `${uid}-${name}`;
 
   const submit = async (event: FormEvent) => {

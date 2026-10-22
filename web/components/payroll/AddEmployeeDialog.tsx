@@ -279,7 +279,11 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
           </p>
 
           <div className={styles.row} style={{ gap: 16 }}>
-            <Avatar name={fullName || "New employee"} photoUrl={photoUrl} size={72} tone="profile" />
+            {photoUrl || fullName.trim() ? (
+              <Avatar name={fullName.trim() || "New employee"} photoUrl={photoUrl} size={72} tone="profile" />
+            ) : (
+              <span className={styles.photoEmpty} role="img" aria-label="No photo yet" />
+            )}
             <div className={styles.row} style={{ gap: 8, flex: "1 1 200px" }}>
               <button type="button" className="btn btn--sm" onClick={takePhoto}>
                 <PayrollIcon name="camera" size={16} />

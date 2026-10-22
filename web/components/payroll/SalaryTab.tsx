@@ -55,8 +55,12 @@ export function SalaryTab({ employee, structure, advances, ledger, onRevise, onG
   const openTotal = open.reduce((sum, a) => sum + a.amount, 0);
   const recovered = openTotal - outstanding;
   const clearsIn = monthsToClear(outstanding, monthly);
+  // Recovery starts with the next unpaid payslip: this month's if it is still
+  // pending, otherwise next month's.
+  const currentPaid = ledger.find((p) => sameMonth(p.month, month))?.status === "paid";
+  const firstRecovery = currentPaid ? addMonths(month, 1) : month;
   const clearsMonth =
-    Number.isFinite(clearsIn) && clearsIn > 0 ? monthName(addMonths(month, clearsIn - 1)) : null;
+    Number.isFinite(clearsIn) && clearsIn > 0 ? monthName(addMonths(firstRecovery, clearsIn - 1)) : null;
   const history = advanceHistory(advances);
   const latest = ledger[0] ?? null;
 
@@ -107,7 +111,7 @@ export function SalaryTab({ employee, structure, advances, ledger, onRevise, onG
                     ? ` · previous ${formatRs(structure.previous_amount)}`
                     : ""}
                 </span>
-                <span>{structure.effective_from.ad}</span>
+                <span style={{ whiteSpace: "nowrap" }}>{structure.effective_from.ad}</span>
               </div>
             </>
           ) : (
@@ -203,7 +207,7 @@ export function SalaryTab({ employee, structure, advances, ledger, onRevise, onG
                 <th scope="col" className={shared.num}>
                   Gross
                 </th>
-                <th scope="col" className={shared.num}>
+                <th scope="col" className={`${shared.num} ${shared.wrapHead}`}>
                   Absence deduction
                 </th>
                 <th scope="col" className={shared.num}>
