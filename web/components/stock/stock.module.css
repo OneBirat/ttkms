@@ -1,0 +1,399 @@
+/* Shared pieces of the stock screens (docs/design/Items, StockEntry, Movements, ProductDetail). */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.panel {
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+}
+
+.search {
+  flex: 1 1 220px;
+  color: var(--color-muted);
+}
+
+.search input {
+  color: var(--color-text);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.summary {
+  flex: 1 1 240px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.chip strong {
+  font-weight: 600;
+}
+
+.chipIn {
+  background: #eaf5f3;
+  color: var(--pill-ok-fg);
+}
+
+.chipOut {
+  background: #fdf3e3;
+  color: var(--pill-low-fg);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.np {
+  font-family: var(--font-np);
+}
+
+/* Compact table (.ct in the design): sticky header, 30px rows. */
+.tableWrap {
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.ct {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ct th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg);
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-muted);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.ct td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--color-border-soft);
+  white-space: nowrap;
+  height: 30px;
+}
+
+.ct tbody tr:hover td {
+  background: #f7faf9;
+}
+
+/* Regular table (.tbl in the design). */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tbl th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.tbl td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--color-border-soft);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.tbl tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.num {
+  text-align: right !important;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.in {
+  color: var(--pill-ok-fg);
+}
+
+.out {
+  color: var(--pill-low-fg);
+}
+
+.dim {
+  color: #9aa4a9;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.smallPill {
+  padding: 1px 8px;
+  font-size: 11px;
+}
+
+/* Key-number cards. */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.kpi {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpiLabel {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.kpiValue {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.kpiValue small {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.kpiNote {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+/* Soft tint boxes (history totals, today's entries). */
+.tint {
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tintLabel {
+  font-size: 12px;
+  color: #4a555c;
+}
+
+.tintValue {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.tintIn {
+  background: #eaf5f3;
+}
+
+.tintOut {
+  background: #fdf3e3;
+}
+
+.tintNeutral {
+  background: var(--color-bg);
+}
+
+.note {
+  font-size: 13px;
+  color: #3e4a52;
+  background: #f3f8f7;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.errorText {
+  font-size: 13px;
+  color: var(--pill-danger-fg);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.fieldError {
+  border-color: #b23a1b !important;
+  background: #fdf1ee !important;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.fieldCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: 16px;
+}
+
+.footerText {
+  font-size: 14px;
+  color: var(--color-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.iconButton {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.status {
+  color: var(--color-muted);
+}
+
+.saved {
+  font-size: 14px;
+  color: var(--pill-ok-fg);
+  background: var(--pill-ok-bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  min-height: 32px;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.sat {
+  background: #f7f7f5;
+  color: #8a949a;
+}
+
+.satDay {
+  color: var(--pill-danger-fg);
+}
+
+.pillButtons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pillButton {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pillButton[aria-pressed="true"] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+}

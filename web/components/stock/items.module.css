@@ -1,0 +1,118 @@
+/* Items list (docs/design/Items.dc.html): compact table and grouped cards. */
+
+.firstRow td {
+  border-top: 2px solid var(--color-border);
+}
+
+.productCell {
+  font-weight: 600;
+}
+
+.productCell a {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.productCell a:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.editButton {
+  min-height: 28px;
+  padding: 0 8px;
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.groupHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 14px;
+  border: none;
+  background: var(--color-card);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.groupHead[aria-expanded="true"] {
+  background: #f3f8f7;
+}
+
+.chevron {
+  flex: none;
+  color: var(--color-muted);
+}
+
+.groupHead[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+
+.groupTitle {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.groupName {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.groupMeta {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.groupCount {
+  font-size: 13px;
+  color: #3e4a52;
+}
+
+.groupTotal {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  min-width: 64px;
+  text-align: right;
+}
+
+.groupBody {
+  border-top: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+
+.indent {
+  padding-left: 44px !important;
+}
+
+.groupFoot {
+  padding-left: 36px !important;
+  border-bottom: none !important;
+}
+
+.groupFoot a {
+  font-size: 13px;
+  font-weight: 500;
+  margin-left: 12px;
+}
+
+.variationName {
+  font-weight: 500;
+}

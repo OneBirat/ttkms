@@ -1,0 +1,253 @@
+/* Printable A4 sheets (Items list, Stock report, product history, shopping list).
+   On screen the sheet sits inside the app shell; in print only the sheet shows. */
+
+.sheet {
+  background: #fff;
+  color: var(--color-text);
+  font-size: 12px;
+  line-height: 1.4;
+  max-width: 210mm;
+  margin: 0 auto;
+  padding: 24px 28px 40px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.wide {
+  max-width: 297mm;
+}
+
+.screenBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 210mm;
+  margin: 0 auto 16px;
+}
+
+.screenBar.wide {
+  max-width: 297mm;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px 24px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--color-text);
+}
+
+.company {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.meta {
+  text-align: right;
+  font-size: 11.5px;
+  color: var(--color-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta .np {
+  font-family: var(--font-np);
+  color: var(--color-text);
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 12px 0;
+  padding: 8px 12px;
+  background: var(--color-bg);
+  border-radius: 8px;
+}
+
+.summary div {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary span:first-child {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted);
+}
+
+.summary span:last-child {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.table th {
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-text);
+}
+
+.table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.table tr {
+  break-inside: avoid;
+}
+
+.table thead {
+  display: table-header-group;
+}
+
+.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.groupRow td {
+  padding-top: 8px;
+  font-weight: 600;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--color-input-border);
+  background: #fafbf9;
+}
+
+.code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-muted);
+}
+
+.status {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid currentColor;
+}
+
+.statusOk {
+  color: var(--pill-ok-fg);
+}
+
+.statusLow {
+  color: var(--pill-low-fg);
+}
+
+.statusOut {
+  color: var(--pill-danger-fg);
+}
+
+.np {
+  font-family: var(--font-np);
+}
+
+.sat td {
+  color: #8a949a;
+  background: #f7f7f5;
+}
+
+.monthLine td {
+  border-bottom: 2px solid var(--color-input-border);
+}
+
+.signatures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 36px;
+  break-inside: avoid;
+}
+
+.signatures div {
+  padding-top: 28px;
+  border-top: 1px solid var(--color-text);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+  font-size: 10.5px;
+  color: var(--color-muted);
+}
+
+.pageNumber::after {
+  content: "Page " counter(page);
+}
+
+@page {
+  size: A4;
+  margin: 14mm 12mm 16mm;
+}
+
+@media print {
+  :global(nav[aria-label="Main"]),
+  :global(.skip-link),
+  .screenBar {
+    display: none !important;
+  }
+
+  :global(body) {
+    background: #fff;
+  }
+
+  :global(main) {
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  .sheet {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+  }
+
+  .foot {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+  }
+}

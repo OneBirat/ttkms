@@ -1,0 +1,163 @@
+/* Add product popup (docs/design/AddProduct.dc.html) and the small edit popups. */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .grid3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legend {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 0 6px;
+}
+
+.legend span {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.rows {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.rowHead,
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 44px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.rowHead {
+  background: var(--color-bg);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.row {
+  border-top: 1px solid var(--color-border-soft);
+  background: var(--color-card);
+}
+
+.rowNew {
+  background: #eaf5f3;
+}
+
+.rowName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.rowName span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.newBadge {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.numField {
+  min-height: 40px;
+  padding: 0 10px;
+}
+
+.numField input {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.numField span {
+  font-size: 12px;
+  color: var(--color-muted);
+  padding-left: 6px;
+}
+
+.empty {
+  padding: 14px 12px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.addRow {
+  display: flex;
+  gap: 8px;
+}
+
+.addRow > :first-child {
+  flex: 1;
+}
+
+.addButton {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--color-primary);
+  background: var(--color-card);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pill-ok-fg);
+  cursor: pointer;
+}
+
+.addButton:hover {
+  background: var(--pill-ok-bg);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 2px -22px -18px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 560px) {
+  .row,
+  .rowHead {
+    grid-template-columns: minmax(0, 1fr) 72px 64px 40px;
+    gap: 6px;
+    padding: 8px;
+  }
+}
