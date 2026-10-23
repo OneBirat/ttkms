@@ -1028,7 +1028,10 @@ export function writeEntry(request: EntryRequest): EntryResponse {
       throw new StockApiError(422, `Row ${index + 1}: quantity must be a whole number above 0`, `rows.${index}`);
     }
   });
-  const time = nowTime();
+  if (request.time != null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(request.time)) {
+    throw new StockApiError(422, "time must be HH:MM", "time");
+  }
+  const time = request.time ?? nowTime();
   const created: MovementRecord[] = request.rows.map((row) => ({
     id: state.nextMovementId++,
     variation_id: row.variation_id,

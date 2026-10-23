@@ -147,9 +147,13 @@ export function isValidBs(bs: string): boolean {
 /** Days in a BS month, or null outside the table. */
 export function daysInBsMonth(year: number, month: number): number | null {
   const first = bsToAd({ year, month, day: 1 });
+  if (!first) return null;
   const nextFirst = month === 12 ? bsToAd({ year: year + 1, month: 1, day: 1 }) : bsToAd({ year, month: month + 1, day: 1 });
-  if (!first || !nextFirst) return null;
-  return Math.round((adUtc(nextFirst) - adUtc(first)) / MS_PER_DAY);
+  if (nextFirst) return Math.round((adUtc(nextFirst) - adUtc(first)) / MS_PER_DAY);
+  // Last month of the table: count the days that convert.
+  let days = 28;
+  while (days < 32 && bsToAd({ year, month, day: days + 1 })) days += 1;
+  return days;
 }
 
 // ---------------------------------------------------------------- AD helpers

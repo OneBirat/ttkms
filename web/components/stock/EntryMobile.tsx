@@ -7,6 +7,7 @@ import { Icon } from "@/components/icons";
 import { isActivePath } from "@/components/Sidebar";
 import { useSession } from "@/lib/session";
 import * as api from "./api";
+import { BsDatePicker } from "./BsDatePicker";
 import { SwitchDialog, useDialog } from "./EntryDialogs";
 import { ArrowRight, Package, Pencil, Tick } from "./EntryIcons";
 import { itemLabel } from "./ItemSelect";
@@ -99,18 +100,18 @@ export function EntryMobile({ form }: { form: EntryForm }) {
               <label htmlFor="m-date" className={styles.dateLabel}>
                 Date (BS)
               </label>
-              <div className={`${styles.dateField} ${form.bs ? "" : styles.dateBad}`}>
-                <Icon name="calendar" size={16} />
-                <input
-                  id="m-date"
-                  inputMode="numeric"
-                  placeholder="YYYY-MM-DD"
-                  value={form.bsText}
-                  onChange={(e) => form.setBsText(e.target.value)}
-                  aria-invalid={!form.bs}
-                  className={styles.dateInput}
-                />
-              </div>
+              <BsDatePicker
+                id="m-date"
+                value={form.bsText}
+                onChange={form.setBsText}
+                time={form.time}
+                onTimeChange={form.setTime}
+                todayBs={form.today?.bs ?? form.bsText}
+                invalid={!form.bs}
+                variant="sheet"
+                tone={form.type}
+                compact
+              />
             </div>
 
             <div className={styles.itemsHead}>

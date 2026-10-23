@@ -4,6 +4,7 @@ import { useRef } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { BsDatePicker } from "./BsDatePicker";
 import { SwitchDialog, useDialog } from "./EntryDialogs";
 import { Lock, Tick } from "./EntryIcons";
 import {
@@ -82,22 +83,22 @@ export function EntryDesktop({ form }: { form: EntryForm }) {
                   · मिति
                 </span>
               </label>
-              <div className={`field ${form.bs ? "" : styles.dateBad}`}>
-                <Icon name="calendar" size={16} />
-                <input
-                  id="entry-bs"
-                  inputMode="numeric"
-                  placeholder="YYYY-MM-DD"
-                  value={form.bsText}
-                  onChange={(e) => form.setBsText(e.target.value)}
-                  aria-invalid={!form.bs}
-                  aria-describedby="entry-bs-note"
-                />
-              </div>
+              <BsDatePicker
+                id="entry-bs"
+                value={form.bsText}
+                onChange={form.setBsText}
+                time={form.time}
+                onTimeChange={form.setTime}
+                todayBs={form.today?.bs ?? form.bsText}
+                invalid={!form.bs}
+                describedBy="entry-bs-note"
+                variant="popover"
+                tone={form.type}
+              />
               <span id="entry-bs-note" className={styles.dateNote}>
                 {form.bs ? (
                   <>
-                    <span lang="ne">{bsNepaliLine(form.bs)}</span> · changing either date updates the other
+                    <span lang="ne">{bsNepaliLine(form.bs)}</span> · {form.time} · changing either date updates the other
                   </>
                 ) : (
                   "Enter the date as YYYY-MM-DD (Bikram Sambat)"

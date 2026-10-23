@@ -7,6 +7,7 @@ import { bsToAd, formatBsIso, type BsDate } from "./calendar";
 import { EntryDesktop } from "./EntryDesktop";
 import { EntryMobile } from "./EntryMobile";
 import { digitsOnly, parseBsText, rowsValid, safeAdToBs, type FormRow } from "./entryLogic";
+import { isValidTime, nowTimeKathmandu } from "./pickerLogic";
 import { messageOf, useAsync } from "./useAsync";
 import { useMediaQuery } from "./useMediaQuery";
 import type { EntryResponse, EntryType, StockItem, StockToday, TodayEntries } from "./types";
@@ -42,6 +43,9 @@ export interface EntryForm {
   bs: BsDate | null;
   setAd: (ad: string) => void;
   setBsText: (text: string) => void;
+  /** "HH:MM" the entries are recorded at (date & time picker); defaults to now. */
+  time: string;
+  setTime: (time: string) => void;
 
   rows: FormRow[];
   /** Desktop: a blank row, returned so its dropdown can be opened. */
@@ -97,6 +101,7 @@ function useEntryForm(): EntryForm {
   const [switchTo, setSwitchTo] = useState<EntryType | null>(null);
   const [dateAd, setDateAd] = useState("");
   const [bsText, setBsTextState] = useState("");
+  const [time, setTime] = useState(() => nowTimeKathmandu());
   const [rows, setRows] = useState<FormRow[]>(() => (presetItem ? [blankRow(presetItem)] : []));
   const [openRowKey, setOpenRowKey] = useState<number | null>(null);
   const [lock, setLock] = useState<LockState | null>(null);
@@ -209,10 +214,10 @@ function useEntryForm(): EntryForm {
     [],
   );
 
-  const canSave = rowsValid(rows) && bs !== null && !saving;
+  const canSave = rowsValid(rows) && bs !== null && isValidTime(time) && !saving;
 
   const save = useCallback(async () => {
-    if (!rowsValid(rows) || !bs) {
+    if (!rowsValid(rows) || !bs || !isValidTime(time)) {
       setSaveTried(true);
       return;
     }
@@ -223,6 +228,7 @@ function useEntryForm(): EntryForm {
         type,
         date_bs: bsText,
         date_ad: dateAd,
+        time,
         rows: rows.map((r) => ({ variation_id: r.variationId as number, qty: parseInt(r.qty, 10), remark: r.remarks.trim() || null })),
       });
       setResult({ type, response, date_bs: bsText, date_ad: dateAd });
@@ -232,13 +238,14 @@ function useEntryForm(): EntryForm {
       setLock(null);
       setSaveTried(false);
       setPanelType(type);
+      setTime(nowTimeKathmandu());
       setVersion((n) => n + 1);
     } catch (err) {
       setError(messageOf(err));
     } finally {
       setSaving(false);
     }
-  }, [rows, bs, type, bsText, dateAd]);
+  }, [rows, bs, type, bsText, dateAd, time]);
 
   const dismissResult = useCallback(() => setResult(null), []);
 
@@ -256,6 +263,8 @@ function useEntryForm(): EntryForm {
     bs,
     setAd,
     setBsText,
+    time,
+    setTime,
     rows,
     addRow,
     addItem,

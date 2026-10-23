@@ -149,6 +149,8 @@ export interface EntryRequest {
   type: EntryType;
   date_bs: string;
   date_ad: string;
+  /** "HH:MM" (24 h, shop local) from the date & time picker; the server clock when omitted. */
+  time?: string | null;
   rows: EntryRow[];
 }
 
