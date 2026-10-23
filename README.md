@@ -9,6 +9,29 @@ Stock, attendance and payroll for a kitchen-appliance business in Nepal.
   tokens in the browser.
 - **Database**: one database (`ttk`) with one Postgres schema per module - `core`, `stock`,
   `attendance`, `payroll`, `admin` - and one Alembic environment per module.
+- **Modules** are switched on with `ENABLED_MODULES` in `.env` (comma-separated; default
+  `attendance,payroll,admin`). A module that is not listed is hidden everywhere - no API routes,
+  no sidebar section, no dashboard widgets, no migrations - while its code and tables stay put.
+
+## Stock module (paused)
+
+Stock module is paused (2026-10-24). Code is on branch `feat/stock`, tag
+`stock-paused-2026-10-24`. To re-enable: merge the branch, add `stock` to `ENABLED_MODULES`,
+run `alembic -n stock upgrade head`.
+
+What the switch does while `stock` is absent from `ENABLED_MODULES`:
+
+- `app.main` never imports `app/modules/stock`, so `/api/stock/*` answers 404 and
+  `GET /api/core/modules` lists neither the module nor its nav items;
+- `make migrate` skips `migrations/stock/` (the schema is never upgraded, downgraded or dropped);
+- the Next.js sidebar is built from `/api/core/modules`, so the Stock section and Admin › Products
+  are gone; `web/middleware.ts` sends `/stock/*` and `/admin/products` to `/module-off`; the
+  dashboard renders no stock widgets; after login users land on Attendance;
+- `web/app/(app)/stock/` and `app/modules/stock/` remain in the tree, unreachable.
+
+Code outside a module that touches it must guard with `is_enabled("stock")`
+(`app/core/modules.py`), and the test-suite builds a stock-enabled app with the `client_for`
+fixture (`tests/conftest.py`), e.g. `async with client_for("stock,attendance,payroll,admin")`.
 
 ## Setup
 
@@ -33,7 +56,7 @@ the volume is initialised; each Alembic environment also creates its own schema 
 ### First run
 
 ```bash
-make migrate                    # core first, then every module that has migrations
+make migrate                    # core first, then every enabled module that has migrations
 make seed                       # branches, departments, 5 employees, settings, admin user
 make dev                        # API on http://localhost:$APP_PORT  (8000)
 make web-dev                    # UI  on http://localhost:$WEB_PORT  (3000) -> sign in there
@@ -46,7 +69,7 @@ when set, otherwise they prompt. Both commands are idempotent.
 |---|---|
 | `make dev` | `uvicorn app.main:app --reload --port $APP_PORT` |
 | `make web-dev` / `make web-build` | Next.js dev server / production build (API_URL points at `$APP_PORT`) |
-| `make migrate` | `alembic -n core upgrade head`, then each module with versions |
+| `make migrate` | `alembic -n core upgrade head`, then each module in `ENABLED_MODULES` with versions |
 | `make test` | pytest (creates and migrates the `ttk_test` database itself) |
 | `make lint` / `make fmt` | ruff check + format check (+ `npm run lint` and `tsc` when `web/node_modules` exists) / auto-format |
 | `make seed` / `make create-admin` | `python -m app.cli seed` / `create-admin` |
@@ -69,14 +92,15 @@ app/
     auth.py        /api/auth/{csrf,login,me,logout}, CurrentUser, require_role(...)
     csrf.py        per-session CSRF token (X-CSRF-Token header, or csrf_token form field)
     sessions.py    session cookie with "Keep me signed in"
-    routes.py      /api/registry, /api/dashboard, /api/today, /api/bsdate/convert, export demo
+    routes.py      /api/core/modules, /api/registry, /api/dashboard, /api/today, /api/bsdate/convert
     bsdate.py      Bikram Sambat calendar API (data table pending - see below)
     export.py      to_xlsx(...), to_pdf(...)
-    modules.py     Module / NavItem registry
+    modules.py     Module / NavItem registry, is_enabled(name), load_modules()
     services.py    settings store, audit log, normalised-name lookups
     templates/     print/ templates for PDFs (the only server-rendered HTML)
   modules/
     stock/ attendance/ payroll/ admin/   each exports `module = Module(...)`, mounted at /api/<name>
+                                         when listed in ENABLED_MODULES (stock is paused)
 web/               Next.js app: app/ (routes), components/ (shell + ui/), lib/ (api, session, bsdate)
 static/            css/print.css and vendor/fonts for PDFs; vendor/ also hosts the date-picker JS
 scripts/           port_bs_calendar.py (generates app/core/bs_calendar_data.py from the vendor JS)
@@ -91,7 +115,8 @@ curl -c jar -b jar localhost:8000/api/auth/csrf                      # {"csrf_to
 curl -c jar -b jar -H "X-CSRF-Token: <token>" -H 'Content-Type: application/json' \
      -d '{"username":"admin","password":"...","remember":true}' localhost:8000/api/auth/login
 curl -b jar localhost:8000/api/auth/me          # {"user": {...}, "csrf_token": ...}
-curl -b jar localhost:8000/api/registry         # modules + nav filtered to the user's role
+curl -b jar localhost:8000/api/core/modules     # {"enabled": [...], "nav": [...]} for the sidebar
+curl -b jar localhost:8000/api/registry         # enabled modules + nav filtered to the user's role
 curl -b jar localhost:8000/api/dashboard        # stats + widgets (kind "coming_soon" for stubs)
 curl       localhost:8000/api/today             # AD + BS date strings for the header
 ```
@@ -126,7 +151,9 @@ make test
 The suite uses a real Postgres database: `TEST_DATABASE_URL` or, by default, the main database's
 name + `_test_` + the checkout directory (`ttk_test_ttkms`, `ttk_test_ttk_stock`, ...) on the same
 server, so worktrees never share a test database. It is created if missing, its schemas are reset,
-every module's migrations are run through Alembic, and each test runs in a rolled-back transaction.
+every enabled module's migrations are run through Alembic, and each test runs in a rolled-back
+transaction. `tests/__init__.py` pins `ENABLED_MODULES` to the default set so `.env` cannot change
+what the suite asserts; `client_for("stock,attendance,payroll,admin")` builds a stock-enabled app.
 The core downgrade/upgrade round-trip test uses a further throwaway database (`..._roundtrip`).
 
 Skipped until their inputs exist: the BS round-trip tests (need the calendar table, below) and the
@@ -155,9 +182,10 @@ In every worktree:
 What a module can rely on from core:
 
 - `Module` / `NavItem` (`app/core/modules.py`): the router is mounted under `/api/<name>`; nav
-  items (frontend paths) show in the sidebar for the listed roles via `/api/registry`;
+  items (frontend paths) show in the sidebar for the listed roles via `/api/core/modules`;
   `dashboard_widgets` return `{"kind", "title", "data"}` and the Next.js dashboard renders them by
-  `kind` (`web/components/widgets/index.tsx`).
+  `kind` (`web/components/widgets/index.tsx`). All of this only while the module is listed in
+  `ENABLED_MODULES`; anything that reaches into another module checks `is_enabled("<name>")`.
 - `require_role("admin", "manager")`, `CurrentUser`, `DbSession` dependencies; pydantic schemas
   in `app/core/schemas.py` as the pattern for new endpoints.
 - Frontend: `apiFetch` (`web/lib/api.ts`, adds the CSRF header and handles 401), `useSession()`,

@@ -29,7 +29,7 @@ def test_password_hashing_roundtrip():
 
 
 async def test_anonymous_requests_get_401_json(client):
-    for path in ("/api/auth/me", "/api/dashboard", "/api/registry", "/api/stock"):
+    for path in ("/api/auth/me", "/api/dashboard", "/api/registry", "/api/attendance"):
         response = await client.get(path)
         assert response.status_code == 401, path
         assert response.json() == {"detail": "login required"}

@@ -44,7 +44,9 @@ function NavLink({
 
 /**
  * Sidebar from docs/design/Main.dc.html: brand block, then one titled section
- * per module (registry order, only modules with visible nav items). The
+ * per module (from /api/core/modules: enabled modules only, in sidebar order,
+ * only those with nav items the user's role may see - so a paused module such
+ * as stock has no section at all). The
  * Dashboard link is the first item of the first section, as in the design;
  * when the user can see no module at all it stands alone.
  */

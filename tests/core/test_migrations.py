@@ -14,13 +14,12 @@ from sqlalchemy.pool import NullPool
 
 from app.db import Base
 from migrations.env_helper import (
-    MODULES,
     import_module_models,
     make_include_name,
     make_include_object,
     version_table_for,
 )
-from tests.conftest import _ensure_database, _reset_schemas, alembic_config
+from tests.conftest import MIGRATED_MODULES, _ensure_database, _reset_schemas, alembic_config
 
 CORE_TABLES = {"branches", "departments", "employees", "users", "settings", "audit_log"}
 
@@ -89,10 +88,10 @@ def test_models_and_migrations_do_not_drift(migrated_database):
     assert _run(_diffs(migrated_database, "core")) == []
 
 
-@pytest.mark.parametrize("module", [m for m in MODULES if m != "core"])
+@pytest.mark.parametrize("module", [m for m in MIGRATED_MODULES if m != "core"])
 def test_module_environments_are_isolated(migrated_database, module):
-    """Each module owns its version table in its own schema, is at its own head (none while it has
-    no migrations), and comparing its metadata never reports core tables."""
+    """Each enabled module owns its version table in its own schema, is at its own head (none
+    while it has no migrations), and comparing its metadata never reports core tables."""
     assert version_table_for(module) in _run(_tables(migrated_database, module))
     assert _run(_version(migrated_database, module)) == _heads(migrated_database, module)
     assert _run(_diffs(migrated_database, module)) == []

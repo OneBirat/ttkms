@@ -10,7 +10,9 @@ import {
   safeNextPath,
   type AuthResponse,
   type LoginRequest,
+  type ModulesResponse,
 } from "@/lib/api";
+import { homePath } from "@/lib/modules";
 import styles from "./login.module.css";
 
 /* Sign-in screen from docs/design/Login.dc.html: dark page, brand block above
@@ -30,10 +32,27 @@ function Brand() {
   );
 }
 
+/**
+ * Where to go after signing in: the `next` query value when the user was sent
+ * here from a page, otherwise the first page of the first module they may see
+ * (Attendance while stock is paused). Falls back to the dashboard.
+ */
+async function landingPath(next: string | null): Promise<string> {
+  if (next) return safeNextPath(next);
+  try {
+    const modules = await apiFetch<ModulesResponse>("/api/core/modules", {
+      redirectOn401: false,
+    });
+    return homePath(modules.nav);
+  } catch {
+    return "/";
+  }
+}
+
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const nextPath = safeNextPath(params.get("next"));
+  const nextParam = params.get("next");
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -60,7 +79,7 @@ function LoginForm() {
         json: payload,
         redirectOn401: false,
       });
-      router.replace(nextPath);
+      router.replace(await landingPath(nextParam));
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 403) {

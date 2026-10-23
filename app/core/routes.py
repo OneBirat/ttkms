@@ -1,4 +1,4 @@
-"""Core JSON endpoints: registry, dashboard, today's date, BS conversion and the export demo."""
+"""Core JSON endpoints: modules, registry, dashboard, today's date, BS conversion, export demo."""
 
 from __future__ import annotations
 
@@ -28,7 +28,10 @@ from app.core.schemas import (
     DashboardOut,
     ErrorOut,
     ModuleOut,
+    ModulesOut,
     NavItemOut,
+    NavLinkOut,
+    NavSectionOut,
     RegistryOut,
     StatOut,
     TodayOut,
@@ -41,9 +44,26 @@ from app.db import DbSession
 router = APIRouter(prefix="/api", tags=["core"])
 
 
+@router.get("/core/modules", response_model=ModulesOut, responses={401: {"model": ErrorOut}})
+async def modules(request: Request, user: CurrentUser) -> ModulesOut:
+    """Enabled module names plus the sidebar sections (nav items filtered to the caller's role,
+    modules with nothing visible left out). The Next.js shell, the post-login landing page and
+    the route guard in ``web/middleware.ts`` all read this instead of hard-coding links."""
+    loaded = request.app.state.modules
+    nav = []
+    for module in loaded:
+        items = [
+            NavLinkOut(label=i.label, path=i.path, icon=i.icon)
+            for i in module.visible_nav(user.role)
+        ]
+        if items:
+            nav.append(NavSectionOut(module=module.name, title=module.title, items=items))
+    return ModulesOut(enabled=[m.name for m in loaded], nav=nav)
+
+
 @router.get("/registry", response_model=RegistryOut, responses={401: {"model": ErrorOut}})
 async def registry(request: Request, user: CurrentUser) -> RegistryOut:
-    """Modules in sidebar order, nav items filtered to the caller's role."""
+    """Enabled modules in sidebar order, nav items filtered to the caller's role."""
     modules = []
     for module in request.app.state.modules:
         nav = [

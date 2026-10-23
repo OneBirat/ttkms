@@ -1,16 +1,21 @@
 """Shared fixtures.
 
 The suite runs against a real Postgres database - ``settings.resolved_test_database_url``, by
-default ``<database>_test`` on the same server. Once per session it is created if missing, its
-five schemas are dropped and recreated, and the project's own Alembic environment is run
-(``alembic -n core upgrade head``). Every test then runs inside a transaction that is rolled back,
-so tests never see each other's rows.
+default ``<database>_test`` on the same server. Once per session it is created if missing, the
+``core`` schema and the schemas of the enabled modules are dropped and recreated, and the
+project's own Alembic environments are run (``alembic -n core upgrade head``, then each enabled
+module). A paused module's schema is left alone. Every test then runs inside a transaction that
+is rolled back, so tests never see each other's rows.
+
+``ENABLED_MODULES`` is pinned to the default set in ``tests/__init__.py``; use ``client_for`` to
+test the app with another module set.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Callable, Coroutine
+from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
@@ -26,10 +31,11 @@ from app.config import BASE_DIR, settings
 from app.core.auth import hash_password
 from app.core.models import Role, User
 from app.db import get_db
-from app.main import app
-from migrations.env_helper import MODULES
+from app.main import app, create_app
 
 TEST_DB_URL = settings.resolved_test_database_url
+#: Alembic environments the suite migrates: core first, then every enabled module.
+MIGRATED_MODULES: tuple[str, ...] = ("core", *settings.enabled_module_names)
 
 assert make_url(TEST_DB_URL).database != make_url(settings.database_url).database, (
     "TEST_DATABASE_URL must not point at the main database"
@@ -64,7 +70,7 @@ async def _ensure_database(url: str) -> None:
 async def _reset_schemas(url: str) -> None:
     engine = create_async_engine(url, isolation_level="AUTOCOMMIT", poolclass=NullPool)
     async with engine.connect() as conn:
-        for schema in MODULES:
+        for schema in MIGRATED_MODULES:
             await conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
             await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
     await engine.dispose()
@@ -74,7 +80,7 @@ async def _reset_schemas(url: str) -> None:
 def migrated_database() -> str:
     asyncio.run(_ensure_database(TEST_DB_URL))
     asyncio.run(_reset_schemas(TEST_DB_URL))
-    for module in MODULES:  # core first, then every module (an empty versions/ is fine)
+    for module in MIGRATED_MODULES:  # core first, then enabled modules (empty versions/ is fine)
         command.upgrade(alembic_config(TEST_DB_URL, module), "head")
     return TEST_DB_URL
 
@@ -95,18 +101,43 @@ async def db(migrated_database: str) -> AsyncIterator[AsyncSession]:
     await engine.dispose()
 
 
-@pytest.fixture
-async def client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
+@asynccontextmanager
+async def _client_for_app(test_app, db: AsyncSession) -> AsyncIterator[AsyncClient]:
     async def override_get_db() -> AsyncIterator[AsyncSession]:
         yield db
 
-    app.dependency_overrides[get_db] = override_get_db
-    transport = ASGITransport(app=app)
-    async with AsyncClient(
-        transport=transport, base_url="http://testserver", follow_redirects=False
-    ) as client:
+    test_app.dependency_overrides[get_db] = override_get_db
+    transport = ASGITransport(app=test_app)
+    try:
+        async with AsyncClient(
+            transport=transport, base_url="http://testserver", follow_redirects=False
+        ) as client:
+            yield client
+    finally:
+        test_app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.fixture
+async def client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
+    """Client for the real ``app.main.app`` (modules from the pinned ENABLED_MODULES)."""
+    async with _client_for_app(app, db) as client:
         yield client
-    app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.fixture
+def client_for(db: AsyncSession):
+    """``async with client_for("stock,attendance,payroll,admin") as client:`` builds a fresh app
+    with that module set (``settings.enabled_modules`` is patched for the duration, so
+    ``is_enabled()`` agrees with the mounted routers)."""
+
+    @asynccontextmanager
+    async def _factory(enabled: str) -> AsyncIterator[AsyncClient]:
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(settings, "enabled_modules", enabled)
+            async with _client_for_app(create_app(), db) as client:
+                yield client
+
+    return _factory
 
 
 MakeUser = Callable[..., Coroutine[Any, Any, User]]
@@ -135,20 +166,25 @@ def make_user(db: AsyncSession) -> MakeUser:
     return _make
 
 
+async def login_as(
+    client: AsyncClient, username: str, password: str = "secret123", remember: bool = False
+) -> Response:
+    """JSON login the way the Next.js app does it: fetch the CSRF token, then POST."""
+    token = (await client.get("/api/auth/csrf")).json()["csrf_token"]
+    response = await client.post(
+        "/api/auth/login",
+        json={"username": username, "password": password, "remember": remember},
+        headers={"X-CSRF-Token": token},
+    )
+    assert response.status_code == 200, response.text
+    return response
+
+
 @pytest.fixture
 def login(client: AsyncClient):
-    """JSON login the way the Next.js app does it: fetch the CSRF token, then POST."""
-
     async def _login(
         username: str, password: str = "secret123", remember: bool = False
     ) -> Response:
-        token = (await client.get("/api/auth/csrf")).json()["csrf_token"]
-        response = await client.post(
-            "/api/auth/login",
-            json={"username": username, "password": password, "remember": remember},
-            headers={"X-CSRF-Token": token},
-        )
-        assert response.status_code == 200, response.text
-        return response
+        return await login_as(client, username, password, remember)
 
     return _login
