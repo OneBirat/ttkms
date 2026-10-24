@@ -6,14 +6,14 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useSession } from "@/lib/session";
 import { setMockActor } from "../api";
-import { adminPageAccess, type Access, type AdminPage } from "../permissions";
+import { adminPageAccess, type AdminPage, type PageAccess } from "../permissions";
 
 export interface AdminGateProps {
   page: AdminPage;
   title: string;
   subtitle: string;
   /** Receives "full" or "view"; "none" never renders children. */
-  children: (access: Exclude<Access, "none">) => ReactNode;
+  children: (access: Exclude<PageAccess, "none">) => ReactNode;
 }
 
 /**

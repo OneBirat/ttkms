@@ -1,10 +1,14 @@
 /**
- * Admin module contract: the shapes the future FastAPI endpoints under
- * /api/admin will return. Pages only ever see these types through api.ts.
+ * Admin module contract.
  *
- * Dates: every timestamp comes twice, as ISO 8601 AD (`*_at`) and as the
- * server-computed Bikram Sambat string "YYYY-MM-DD" (`*_at_bs`). BS is shown
- * first everywhere, AD is secondary.
+ * Users, payment modes and barcodes talk to the real FastAPI endpoints under
+ * /api/admin (shapes mirrored from app/modules/admin/schemas.py). Branches &
+ * departments, Settings and the Audit log still run on the mock in ./api.ts
+ * until their endpoints exist.
+ *
+ * Dates: timestamps come as ISO 8601 AD (`*_at`) plus the server-computed
+ * Bikram Sambat "YYYY-MM-DD" (`*_at_bs`, null while the BS table is not
+ * installed). BS is shown first, AD is secondary.
  */
 
 import type { Role } from "@/lib/api";
@@ -13,58 +17,87 @@ export type { Role };
 
 export const ROLES: readonly Role[] = ["admin", "manager", "staff"];
 
+// ------------------------------------------------------------------ users
+
+export type PermissionKey =
+  | "mark_attendance"
+  | "view_attendance_report"
+  | "see_other_branches"
+  | "manage_employees"
+  | "salary_advances"
+  | "manage_users";
+
+/** Effective permissions: every key present. */
+export type Access = Record<PermissionKey, boolean>;
+
+export interface BranchRef {
+  id: number;
+  name: string;
+  is_active: boolean;
+}
+
 export interface EmployeeRef {
   id: number;
   code: string;
   full_name: string;
+  phone: string | null;
   department: string | null;
   branch_id: number;
   status: "active" | "inactive";
+  /** The user this employee is already linked to, if any. */
+  user_id: number | null;
 }
 
 export interface AdminUser {
   id: number;
-  username: string;
   full_name: string;
+  /** Login phone (10 digits) or null for accounts that sign in by username only. */
+  phone: string | null;
+  username: string;
   role: Role;
   role_label: string;
   is_active: boolean;
+  /** The signed-in admin's own row. */
+  is_you: boolean;
+  must_change_password: boolean;
+  /** null = all branches (always for admins). */
+  branch: BranchRef | null;
   employee: EmployeeRef | null;
-  /** Empty list = access to all branches. */
-  branch_ids: number[];
   last_login_at: string | null;
   last_login_at_bs: string | null;
-  created_at: string;
+  access: Access;
+  /** True when `access` differs from the role preset ("Custom"). */
+  custom: boolean;
 }
 
 export interface UserInput {
   full_name: string;
-  username: string;
+  phone: string;
   role: Role;
+  branch_id: number | null;
   employee_id: number | null;
-  branch_ids: number[];
-  is_active: boolean;
-}
-
-/** Returned once, on create and on reset password. Never stored client-side. */
-export interface OneTimePassword {
-  user_id: number;
-  username: string;
-  password: string;
+  /** null = use the role preset. */
+  access: Access | null;
 }
 
 export interface UserCreated {
   user: AdminUser;
-  one_time_password: OneTimePassword;
+  /** Shown once; the user must replace it at first sign-in. */
+  temporary_password: string;
 }
 
-export type UserStatusFilter = "active" | "inactive" | "all";
-
-export interface UserListParams {
-  q?: string;
-  role?: Role | "";
-  status?: UserStatusFilter;
+export interface TemporaryPassword {
+  user_id: number;
+  full_name: string;
+  temporary_password: string;
 }
+
+export interface UserOptions {
+  branches: BranchRef[];
+  employees: EmployeeRef[];
+}
+
+// ---------------------------------------------------- branches & departments
 
 export interface Branch {
   id: number;
@@ -83,6 +116,8 @@ export interface Department {
 }
 
 export type OrgKind = "branch" | "department";
+
+// --------------------------------------------------------------- settings
 
 export type Weekday = "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
 
@@ -162,6 +197,8 @@ export interface Settings {
 export type SettingsInput = Omit<Settings, "meta" | "company"> & {
   company: Omit<CompanySettings, "logo_url">;
 };
+
+// ------------------------------------------------------------------ audit
 
 export type AuditModule = "stock" | "attendance" | "payroll" | "admin";
 

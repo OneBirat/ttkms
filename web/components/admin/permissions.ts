@@ -1,10 +1,14 @@
 /**
- * Role descriptions and the read-only roles × areas matrix shown on the
- * Users & roles page. Keep in step with the backend `require_role(...)`
- * guards; this file is the owner-facing explanation, not the enforcement.
+ * Per-user access (design/final/AdminUsers.dc.html). A role is only the
+ * starting preset: every permission can be switched per user, and a user
+ * whose switches differ from the preset is tagged "Custom". Admins always
+ * keep "Manage users".
+ *
+ * Keep in step with app/modules/admin/permissions.py, which enforces this on
+ * the API; this file only renders and pre-validates.
  */
 
-import type { Role } from "./types";
+import type { Access, PermissionKey, Role } from "./types";
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: "Admin",
@@ -12,93 +16,130 @@ export const ROLE_LABELS: Record<Role, string> = {
   staff: "Staff",
 };
 
-/** One line per role, shown next to the Role select in the user form. */
+/** One line per role, shown on the role cards. */
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
-  admin: "Everything, including users, settings and the audit log.",
-  manager: "Attendance, employees and all reports; stock read-only.",
-  staff: "Own attendance and payslips only.",
+  admin: "Everything, all branches",
+  manager: "Runs one branch",
+  staff: "Mark attendance only",
 };
 
-export type Access = "full" | "view" | "none";
-
-export interface Area {
-  key: string;
+export interface Permission {
+  key: PermissionKey;
   label: string;
-  module: "shared" | "stock" | "attendance" | "payroll" | "admin";
+  description: string;
 }
 
-export const AREAS: readonly Area[] = [
-  { key: "dashboard", label: "Dashboard", module: "shared" },
-  { key: "stock_entry", label: "Stock entry", module: "stock" },
-  { key: "items", label: "Items", module: "stock" },
-  { key: "stock_report", label: "Stock report", module: "stock" },
-  { key: "mark_attendance", label: "Mark attendance", module: "attendance" },
-  { key: "attendance_report", label: "Attendance report", module: "attendance" },
-  { key: "employees", label: "Employees", module: "payroll" },
-  { key: "salary_report", label: "Salary report", module: "payroll" },
-  { key: "admin", label: "Admin", module: "admin" },
+export interface PermissionGroup {
+  title: string;
+  items: readonly Permission[];
+}
+
+export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
+  {
+    title: "Attendance",
+    items: [
+      { key: "mark_attendance", label: "Mark attendance", description: "Daily marking for their branch" },
+      {
+        key: "view_attendance_report",
+        label: "View attendance report",
+        description: "Month / week report and exports",
+      },
+      {
+        key: "see_other_branches",
+        label: "See other branches",
+        description: "Branch drop-down in reports; off = own branch only",
+      },
+    ],
+  },
+  {
+    title: "People & payroll",
+    items: [
+      { key: "manage_employees", label: "View & edit employees", description: "Profiles, photos, salary setup" },
+      { key: "salary_advances", label: "Salary & advances", description: "Salary report, payments, advances" },
+    ],
+  },
+  {
+    title: "Admin",
+    items: [
+      { key: "manage_users", label: "Manage users", description: "Add users, roles, reset passwords" },
+    ],
+  },
 ];
 
-export const PERMISSION_MATRIX: Record<Role, Record<string, Access>> = {
-  admin: {
-    dashboard: "full",
-    stock_entry: "full",
-    items: "full",
-    stock_report: "full",
-    mark_attendance: "full",
-    attendance_report: "full",
-    employees: "full",
-    salary_report: "full",
-    admin: "full",
-  },
-  manager: {
-    dashboard: "full",
-    stock_entry: "view",
-    items: "view",
-    stock_report: "full",
-    mark_attendance: "full",
-    attendance_report: "full",
-    employees: "full",
-    salary_report: "full",
-    admin: "view",
-  },
-  staff: {
-    dashboard: "full",
-    stock_entry: "none",
-    items: "none",
-    stock_report: "none",
-    mark_attendance: "view",
-    attendance_report: "view",
-    employees: "none",
-    salary_report: "view",
-    admin: "none",
-  },
+export const PERMISSIONS: readonly PermissionKey[] = PERMISSION_GROUPS.flatMap((group) =>
+  group.items.map((item) => item.key),
+);
+
+export const PERMISSION_LABELS: Record<PermissionKey, string> = Object.fromEntries(
+  PERMISSION_GROUPS.flatMap((group) => group.items.map((item) => [item.key, item.label])),
+) as Record<PermissionKey, string>;
+
+export const ROLE_PRESETS: Record<Role, readonly PermissionKey[]> = {
+  admin: PERMISSIONS,
+  manager: ["mark_attendance", "view_attendance_report", "manage_employees"],
+  staff: ["mark_attendance"],
 };
 
-export function accessFor(role: Role, areaKey: string): Access {
-  return PERMISSION_MATRIX[role]?.[areaKey] ?? "none";
+/** Admins can never lose this one. */
+export const LOCKED_FOR_ADMIN: PermissionKey = "manage_users";
+
+export function presetFor(role: Role): Access {
+  const allowed = new Set(ROLE_PRESETS[role]);
+  return Object.fromEntries(PERMISSIONS.map((key) => [key, allowed.has(key)])) as Access;
 }
 
-/** Symbol used in the matrix cells: ✓ / view / —. */
-export function accessSymbol(access: Access): string {
-  if (access === "full") return "✓";
-  if (access === "view") return "view";
-  return "—";
+/** Preset of `role` with `overrides` applied; manage_users stays on for admins. */
+export function effectiveAccess(
+  role: Role,
+  overrides: Partial<Record<PermissionKey, boolean>> | null | undefined,
+): Access {
+  const access = presetFor(role);
+  if (overrides) {
+    for (const key of PERMISSIONS) {
+      if (key in overrides) access[key] = Boolean(overrides[key]);
+    }
+  }
+  if (role === "admin") access[LOCKED_FOR_ADMIN] = true;
+  return access;
 }
 
-export function accessLabel(access: Access): string {
-  if (access === "full") return "Full access";
-  if (access === "view") return "View only";
-  return "No access";
+export function accessEquals(a: Access, b: Access): boolean {
+  return PERMISSIONS.every((key) => a[key] === b[key]);
 }
 
-export type AdminPage = "users" | "org" | "settings" | "audit";
+/** True when `access` differs from the role preset ("Custom"). */
+export function isCustom(role: Role, access: Access | null | undefined): boolean {
+  if (!access) return false;
+  return !accessEquals(effectiveAccess(role, access), presetFor(role));
+}
+
+/** Keys where `access` differs from the preset (the "changed" markers / yellow rings). */
+export function changedKeys(role: Role, access: Access): PermissionKey[] {
+  const preset = presetFor(role);
+  return PERMISSIONS.filter((key) => access[key] !== preset[key]);
+}
+
+/** What to send: null when equal to the preset, otherwise the full map. */
+export function cleanOverrides(role: Role, access: Access | null): Access | null {
+  if (!access) return null;
+  const effective = effectiveAccess(role, access);
+  return accessEquals(effective, presetFor(role)) ? null : effective;
+}
+
+export function allowedCount(access: Access): number {
+  return PERMISSIONS.filter((key) => access[key]).length;
+}
+
+export type PageAccess = "full" | "view" | "none";
+
+export type AdminPage = "users" | "barcodes" | "payment-modes" | "org" | "settings" | "audit";
 
 /**
  * Which admin pages a role may open. Admin: all. Manager: Branches &
- * departments, read-only. Everyone else: nothing.
+ * departments, read-only. Everyone else: nothing. (The API checks the real
+ * per-user permissions; this only decides what to render.)
  */
-export function adminPageAccess(role: Role | null | undefined, page: AdminPage): Access {
+export function adminPageAccess(role: Role | null | undefined, page: AdminPage): PageAccess {
   if (role === "admin") return "full";
   if (role === "manager" && page === "org") return "view";
   return "none";

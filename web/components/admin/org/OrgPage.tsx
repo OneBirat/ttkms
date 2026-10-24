@@ -2,7 +2,7 @@
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { listBranches, listDepartments } from "../api";
-import type { Access } from "../permissions";
+import type { PageAccess } from "../permissions";
 import { AdminGate } from "../components/AdminGate";
 import { Toast, useToast } from "../components/Toast";
 import { useLoader } from "../components/useLoader";
@@ -20,7 +20,7 @@ export function OrgPage() {
   );
 }
 
-function OrgScreen({ access }: { access: Exclude<Access, "none"> }) {
+function OrgScreen({ access }: { access: Exclude<PageAccess, "none"> }) {
   const branches = useLoader(listBranches);
   const departments = useLoader(listDepartments);
   const { toast, show, dismiss } = useToast();

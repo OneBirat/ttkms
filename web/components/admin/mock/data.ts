@@ -5,17 +5,15 @@
  */
 
 import type {
-  AdminUser,
+  AuditActor,
   AuditEntry,
   AuditModule,
   AuditValues,
   Branch,
   Department,
   EmployeeRef,
-  Role,
   Settings,
 } from "../types";
-import { ROLE_LABELS } from "../permissions";
 
 // ---------------------------------------------------------------- dates
 
@@ -146,58 +144,31 @@ export const EMPLOYEES: EmployeeRef[] = EMPLOYEE_SEED.map((e) => ({
   id: e.id,
   code: `E-${pad(e.id).padStart(3, "0")}`,
   full_name: e.full_name,
+  phone: null,
   department: DEPARTMENTS.find((d) => d.id === e.department_id)?.name ?? null,
   branch_id: e.branch_id,
   status: e.status ?? "active",
+  user_id: null,
 }));
 
 export const EMPLOYEE_DEPARTMENT_IDS: Record<number, number> = Object.fromEntries(
   EMPLOYEE_SEED.map((e) => [e.id, e.department_id]),
 );
 
-// ---------------------------------------------------------------- users
+// --------------------------------------------------------------- actors
 
-interface SeedUser {
-  id: number;
-  username: string;
-  full_name: string;
-  role: Role;
-  is_active?: boolean;
-  employee_id?: number;
-  branch_ids?: number[];
-  last_login?: [number, string] | null;
-  created_days_ago: number;
-}
-
-const USER_SEED: SeedUser[] = [
-  { id: 1, username: "admin", full_name: "Prakash Tamang", role: "admin", last_login: [0, "09:14"], created_days_ago: 400 },
-  { id: 2, username: "deepak.l", full_name: "Deepak Lama", role: "admin", last_login: [12, "18:40"], created_days_ago: 380 },
-  { id: 3, username: "sarita.b", full_name: "Sarita Basnet", role: "manager", employee_id: 9, last_login: [0, "08:52"], created_days_ago: 360 },
-  { id: 4, username: "mina.t", full_name: "Mina Thapa", role: "manager", employee_id: 17, branch_ids: [2], last_login: [1, "17:05"], created_days_ago: 200 },
-  { id: 5, username: "anita.g", full_name: "Anita Gurung", role: "staff", employee_id: 1, branch_ids: [1], last_login: [0, "09:31"], created_days_ago: 350 },
-  { id: 6, username: "suman.r", full_name: "Suman Rai", role: "staff", employee_id: 13, branch_ids: [2], last_login: [2, "10:12"], created_days_ago: 190 },
-  { id: 7, username: "kamala.b", full_name: "Kamala Bhandari", role: "staff", employee_id: 4, branch_ids: [1], last_login: [5, "13:20"], created_days_ago: 300 },
-  { id: 8, username: "bikash.s", full_name: "Bikash Shrestha", role: "staff", employee_id: 6, branch_ids: [1], last_login: [3, "07:58"], created_days_ago: 300 },
-  { id: 9, username: "ramesh.k", full_name: "Ramesh K.C.", role: "staff", employee_id: 2, branch_ids: [1], is_active: false, last_login: [95, "08:10"], created_days_ago: 320 },
-  { id: 10, username: "binita.l", full_name: "Binita Limbu", role: "staff", employee_id: 14, branch_ids: [2], last_login: null, created_days_ago: 9 },
+/** Who appears as the actor of mock audit rows (the real log joins core.users). */
+export const MOCK_ACTORS: AuditActor[] = [
+  { id: 1, username: "admin", full_name: "Prakash Tamang" },
+  { id: 2, username: "deepak.l", full_name: "Deepak Lama" },
+  { id: 3, username: "sarita.b", full_name: "Sarita Basnet" },
+  { id: 4, username: "mina.t", full_name: "Mina Thapa" },
+  { id: 5, username: "anita.g", full_name: "Anita Gurung" },
+  { id: 6, username: "suman.r", full_name: "Suman Rai" },
+  { id: 7, username: "kamala.b", full_name: "Kamala Bhandari" },
+  { id: 8, username: "bikash.s", full_name: "Bikash Shrestha" },
+  { id: 9, username: "ramesh.k", full_name: "Ramesh K.C." },
 ];
-
-export const USERS: AdminUser[] = USER_SEED.map((u) => {
-  const lastLogin = u.last_login ? at(u.last_login[0], u.last_login[1]) : null;
-  return {
-    id: u.id,
-    username: u.username,
-    full_name: u.full_name,
-    role: u.role,
-    role_label: ROLE_LABELS[u.role],
-    is_active: u.is_active ?? true,
-    employee: EMPLOYEES.find((e) => e.id === u.employee_id) ?? null,
-    branch_ids: u.branch_ids ?? [],
-    last_login_at: lastLogin,
-    last_login_at_bs: lastLogin ? approxBs(lastLogin) : null,
-    created_at: at(u.created_days_ago, "11:00"),
-  };
-});
 
 // ------------------------------------------------------------- settings
 
@@ -297,12 +268,12 @@ const AUDIT_SEED: SeedAudit[] = [
 export const AUDIT: AuditEntry[] = AUDIT_SEED.map((row, index) => {
   const [daysAgo, time, userId, module, action, entity, entityId, before, after] = row;
   const when = at(daysAgo, time);
-  const user = userId ? USERS.find((u) => u.id === userId) ?? null : null;
+  const user = userId ? (MOCK_ACTORS.find((u) => u.id === userId) ?? null) : null;
   return {
     id: 5000 - index,
     at: when,
     at_bs: approxBs(when),
-    user: user ? { id: user.id, username: user.username, full_name: user.full_name } : null,
+    user: user ? { ...user } : null,
     module,
     action,
     entity,

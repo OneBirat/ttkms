@@ -5,7 +5,7 @@ import { Pill } from "@/components/ui/Pill";
 import { errorMessage } from "@/lib/api";
 import { createOrg, renameOrg, setOrgActive } from "../api";
 import { findDuplicateName, validateName } from "../names";
-import type { Access } from "../permissions";
+import type { PageAccess } from "../permissions";
 import type { Branch, Department, OrgKind } from "../types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import styles from "../components/admin.module.css";
@@ -17,7 +17,7 @@ export interface OrgCardProps {
   items: (Branch | Department)[] | null;
   loading: boolean;
   error: unknown;
-  access: Exclude<Access, "none">;
+  access: Exclude<PageAccess, "none">;
   onChanged: (message: string) => void;
   onRetry: () => void;
 }

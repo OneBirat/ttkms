@@ -158,7 +158,7 @@ async def test_deactivated_user_is_logged_out(client, make_user, login, db):
 async def test_require_role_blocks_other_roles(client, make_user, login):
     await make_user("clerk", role=Role.staff)
     await login("clerk")
-    response = await client.get("/api/admin")
+    response = await client.get("/api/payroll")
     assert response.status_code == 403
     assert response.json()["detail"] == "You do not have access to this page."
     assert (await client.get("/api/attendance")).status_code == 200

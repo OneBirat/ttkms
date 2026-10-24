@@ -1,26 +1,15 @@
 /**
- * Admin API client - MOCK EDITION.
+ * Admin API client - MOCK EDITION for Branches & departments, Settings and
+ * the Audit log (their endpoints do not exist yet). Users, payment modes and
+ * barcodes use the real API (usersApi.ts, paymentModesApi.ts, barcodesApi.ts).
  *
- * Pages call only the functions exported here. For now they resolve against
- * in-memory state seeded from ./mock/data; every mutation applies the same
- * rules the backend will enforce (unique names, last-admin protection) and
- * appends an audit entry. The next session replaces the bodies with
- * `apiFetch("/api/admin/...")` calls without touching the pages.
+ * State lives in memory, seeded from ./mock/data; every mutation applies the
+ * rules the backend will enforce (unique names, no deleting referenced rows)
+ * and appends an audit entry.
  */
 
 import { ApiError } from "@/lib/api";
-import {
-  canDeactivate,
-  canChangeRole,
-} from "./guards";
-import {
-  findDuplicateName,
-  findDuplicateUsername,
-  normalizeUsername,
-  validateName,
-  validateUsername,
-} from "./names";
-import { ROLE_LABELS } from "./permissions";
+import { findDuplicateName, validateName } from "./names";
 import { changedGroups, validateSettings } from "./settingsValidation";
 import {
   approxAd,
@@ -31,26 +20,18 @@ import {
   EMPLOYEE_DEPARTMENT_IDS,
   EMPLOYEES,
   SETTINGS,
-  USERS,
 } from "./mock/data";
 import type {
-  AdminUser,
   AuditActor,
   AuditEntry,
   AuditListParams,
   AuditValues,
   Branch,
   Department,
-  EmployeeRef,
-  OneTimePassword,
   OrgKind,
   Page,
-  Role,
   Settings,
   SettingsInput,
-  UserCreated,
-  UserInput,
-  UserListParams,
 } from "./types";
 
 // ------------------------------------------------------------ mock state
@@ -62,48 +43,20 @@ function clone<T>(value: T): T {
 }
 
 const state = {
-  users: clone(USERS),
   branches: clone(BRANCHES),
   departments: clone(DEPARTMENTS),
   employees: clone(EMPLOYEES),
   settings: clone(SETTINGS),
   audit: clone(AUDIT),
-  nextUserId: Math.max(...USERS.map((u) => u.id)) + 1,
   nextOrgId: 100,
   nextAuditId: Math.max(...AUDIT.map((a) => a.id)) + 1,
 };
 
 let actor: AuditActor = { id: 1, username: "admin", full_name: "Admin" };
 
-/**
- * Mock only: tell the fake API who is signed in (the real one reads the
- * session). The signed-in account is matched to a mock user by username so
- * the self-protection rules can be tried; unknown accounts are added to the
- * mock list as admins.
- */
-export function setMockActor(user: AuditActor & { role?: Role }): void {
-  let row = state.users.find((u) => u.username === user.username);
-  if (!row) {
-    // Keep the session's id (the pages use it for the self-protection rules);
-    // a mock row that happens to carry the same id moves out of the way.
-    const clash = state.users.find((u) => u.id === user.id);
-    if (clash) clash.id = 1000 + clash.id;
-    row = {
-      id: user.id,
-      username: user.username,
-      full_name: user.full_name,
-      role: user.role ?? "admin",
-      role_label: ROLE_LABELS[user.role ?? "admin"],
-      is_active: true,
-      employee: null,
-      branch_ids: [],
-      last_login_at: nowIso(),
-      last_login_at_bs: approxBs(nowIso()),
-      created_at: nowIso(),
-    };
-    state.users.push(row);
-  }
-  actor = { id: row.id, username: row.username, full_name: row.full_name };
+/** Mock only: who the fake audit entries are attributed to (the real API reads the session). */
+export function setMockActor(user: AuditActor): void {
+  actor = { id: user.id, username: user.username, full_name: user.full_name };
 }
 
 function respond<T>(value: T): Promise<T> {
@@ -159,152 +112,6 @@ function recomputeCounts(): void {
   }
 }
 recomputeCounts();
-
-// ------------------------------------------------------------- employees
-
-export async function listEmployees(): Promise<EmployeeRef[]> {
-  return respond(state.employees);
-}
-
-// ----------------------------------------------------------------- users
-
-function userSnapshot(user: AdminUser): AuditValues {
-  return {
-    full_name: user.full_name,
-    username: user.username,
-    role: user.role,
-    employee: user.employee?.code ?? null,
-    branches: user.branch_ids.length
-      ? user.branch_ids.map((id) => state.branches.find((b) => b.id === id)?.name ?? id)
-      : "all",
-    is_active: user.is_active,
-  };
-}
-
-const OTP_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-
-function generateOneTimePassword(): string {
-  const bytes = new Uint8Array(12);
-  if (typeof crypto !== "undefined" && "getRandomValues" in crypto) {
-    crypto.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
-  }
-  const chars = Array.from(bytes, (b) => OTP_ALPHABET[b % OTP_ALPHABET.length]);
-  return `${chars.slice(0, 4).join("")}-${chars.slice(4, 8).join("")}-${chars.slice(8).join("")}`;
-}
-
-function validateUserInput(input: UserInput, ignoreId: number | null): UserInput {
-  const full_name = input.full_name.replace(/\s+/g, " ").trim();
-  const nameError = validateName(full_name, "Full name");
-  if (nameError) fail(422, nameError);
-  const usernameError = validateUsername(input.username);
-  if (usernameError) fail(422, usernameError);
-  const username = normalizeUsername(input.username);
-  if (findDuplicateUsername(state.users, username, ignoreId)) {
-    fail(409, `Username "${username}" is already taken.`);
-  }
-  if (input.employee_id !== null) {
-    const employee = state.employees.find((e) => e.id === input.employee_id);
-    if (!employee) fail(422, "Linked employee not found.");
-    const owner = state.users.find(
-      (u) => u.employee?.id === input.employee_id && u.id !== ignoreId,
-    );
-    if (owner) fail(409, `${employee.full_name} is already linked to ${owner.username}.`);
-  }
-  for (const id of input.branch_ids) {
-    const branch = state.branches.find((b) => b.id === id);
-    if (!branch) fail(422, "Unknown branch.");
-    if (!branch.is_active) fail(422, `${branch.name} is deactivated.`);
-  }
-  return { ...input, full_name, username, branch_ids: [...new Set(input.branch_ids)].sort() };
-}
-
-export async function listUsers(params: UserListParams = {}): Promise<AdminUser[]> {
-  const q = (params.q ?? "").trim().toLowerCase();
-  const status = params.status ?? "all";
-  const rows = state.users.filter((user) => {
-    if (params.role && user.role !== params.role) return false;
-    if (status === "active" && !user.is_active) return false;
-    if (status === "inactive" && user.is_active) return false;
-    if (q) {
-      const hay = `${user.full_name} ${user.username} ${user.employee?.code ?? ""}`.toLowerCase();
-      if (!q.split(/\s+/).every((word) => hay.includes(word))) return false;
-    }
-    return true;
-  });
-  return respond(rows);
-}
-
-export async function createUser(input: UserInput): Promise<UserCreated> {
-  const clean = validateUserInput(input, null);
-  const user: AdminUser = {
-    id: state.nextUserId++,
-    username: clean.username,
-    full_name: clean.full_name,
-    role: clean.role,
-    role_label: ROLE_LABELS[clean.role],
-    is_active: clean.is_active,
-    employee: state.employees.find((e) => e.id === clean.employee_id) ?? null,
-    branch_ids: clean.branch_ids,
-    last_login_at: null,
-    last_login_at_bs: null,
-    created_at: nowIso(),
-  };
-  state.users.push(user);
-  recordAudit("create", "user", user.id, null, userSnapshot(user));
-  const one_time_password: OneTimePassword = {
-    user_id: user.id,
-    username: user.username,
-    password: generateOneTimePassword(),
-  };
-  return respond({ user, one_time_password });
-}
-
-export async function updateUser(id: number, input: UserInput): Promise<AdminUser> {
-  const user = state.users.find((u) => u.id === id);
-  if (!user) fail(404, "User not found.");
-  const clean = validateUserInput(input, id);
-  const roleBlock = canChangeRole(state.users, user, clean.role, actor.id);
-  if (roleBlock) fail(409, roleBlock);
-  if (user.is_active && !clean.is_active) {
-    const block = canDeactivate(state.users, { ...user, role: clean.role }, actor.id);
-    if (block) fail(409, block);
-  }
-  const before = userSnapshot(user);
-  user.full_name = clean.full_name;
-  user.username = clean.username;
-  user.role = clean.role;
-  user.role_label = ROLE_LABELS[clean.role];
-  user.employee = state.employees.find((e) => e.id === clean.employee_id) ?? null;
-  user.branch_ids = clean.branch_ids;
-  user.is_active = clean.is_active;
-  recordAudit("update", "user", user.id, before, userSnapshot(user));
-  return respond(user);
-}
-
-export async function setUserActive(id: number, active: boolean): Promise<AdminUser> {
-  const user = state.users.find((u) => u.id === id);
-  if (!user) fail(404, "User not found.");
-  if (user.is_active === active) return respond(user);
-  if (!active) {
-    const block = canDeactivate(state.users, user, actor.id);
-    if (block) fail(409, block);
-  }
-  const before = { is_active: user.is_active };
-  user.is_active = active;
-  recordAudit(active ? "activate" : "deactivate", "user", user.id, before, {
-    is_active: active,
-  });
-  return respond(user);
-}
-
-export async function resetPassword(id: number): Promise<OneTimePassword> {
-  const user = state.users.find((u) => u.id === id);
-  if (!user) fail(404, "User not found.");
-  recordAudit("reset_password", "user", user.id, null, { username: user.username });
-  return respond({ user_id: user.id, username: user.username, password: generateOneTimePassword() });
-}
 
 // -------------------------------------------------- branches & departments
 
