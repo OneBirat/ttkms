@@ -69,8 +69,8 @@ export function Sidebar({ user, modules, onLogout }: SidebarProps) {
           TT
         </span>
         <span className={styles.brandText}>
-          <span className={styles.brandName}>TTK Stock</span>
-          <span className={styles.brandSub}>Stock &amp; attendance</span>
+          <span className={styles.brandName}>TTK Attendance</span>
+          <span className={styles.brandSub}>Attendance &amp; payroll</span>
         </span>
       </Link>
 

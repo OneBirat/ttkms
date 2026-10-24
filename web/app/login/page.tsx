@@ -17,7 +17,7 @@ import { homePath } from "@/lib/modules";
 import styles from "./login.module.css";
 
 /* Sign-in screen from docs/design/Login.dc.html: dark page, brand block above
-   a white card with username, password (show/hide), "Keep me signed in". */
+   a white card with phone/username, password (show/hide), "Keep me signed in". */
 
 function Brand() {
   return (
@@ -26,8 +26,8 @@ function Brand() {
         TT
       </span>
       <span className={styles.brandText}>
-        <span className={styles.brandName}>TTK Stock</span>
-        <span className={styles.brandSub}>Stock &amp; attendance</span>
+        <span className={styles.brandName}>TTK Attendance</span>
+        <span className={styles.brandSub}>Attendance &amp; payroll</span>
       </span>
     </div>
   );

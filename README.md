@@ -1,6 +1,6 @@
 # TTK
 
-Stock, attendance and payroll for a kitchen-appliance business in Nepal.
+Attendance and payroll for a kitchen-appliance business in Nepal (the stock module is paused).
 
 - **Backend** (`app/`): Python 3.12, FastAPI as a JSON API under `/api`, SQLAlchemy 2 (async,
   asyncpg), Alembic, PostgreSQL 16, argon2 session-cookie auth, openpyxl (Excel), WeasyPrint (PDF).
