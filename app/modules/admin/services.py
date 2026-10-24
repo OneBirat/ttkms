@@ -18,19 +18,21 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import bsdate
 from app.core.auth import hash_password
 from app.core.models import Branch, Employee, Role, User
-from app.core.services import record_audit
-from app.modules.admin.models import UserAccess
+from app.core.services import norm_sql, record_audit
+from app.modules.admin.models import PaymentMode, UserAccess
 from app.modules.admin.permissions import clean_overrides, effective_access, is_custom
 from app.modules.admin.schemas import (
     AdminUserOut,
     BranchRefOut,
     EmployeeRefOut,
+    PaymentModeIn,
+    PaymentModeOut,
     UserIn,
     UserOptionsOut,
 )
@@ -378,3 +380,152 @@ async def reset_password(db: AsyncSession, actor: User, user: User) -> str:
     )
     await db.commit()
     return temporary
+
+
+# ----------------------------------------------------------------------------- payment modes
+
+MODE_NAME_TAKEN = "A payment mode with this name already exists."
+CASH_LOCKED = "Cash is built in and cannot be changed."
+CASH_ALWAYS_ON = "Cash is always on."
+
+
+async def payment_counts(db: AsyncSession) -> dict[int, int]:
+    """Payments per mode from ``payroll.payments.payment_mode_id`` - empty until the payroll
+    module has created that table (the admin module must not depend on payroll's models)."""
+    exists = await db.scalar(text("SELECT to_regclass('payroll.payments')"))
+    if exists is None:
+        return {}
+    rows = await db.execute(
+        text("SELECT payment_mode_id, count(*) FROM payroll.payments GROUP BY payment_mode_id")
+    )
+    return {int(mode_id): int(n) for mode_id, n in rows.all() if mode_id is not None}
+
+
+def mode_out(mode: PaymentMode, counts: dict[int, int]) -> PaymentModeOut:
+    return PaymentModeOut(
+        id=mode.id,
+        type=mode.type,  # type: ignore[arg-type]
+        name=mode.name,
+        details=mode.details,
+        use_salary=mode.use_salary,
+        use_advance=mode.use_advance,
+        active=mode.active,
+        is_builtin=mode.is_builtin,
+        payment_count=counts.get(mode.id, 0),
+        created_at=mode.created_at,
+    )
+
+
+async def list_payment_modes(db: AsyncSession, active_only: bool) -> list[PaymentModeOut]:
+    """Cash first, then the others in creation order."""
+    query = select(PaymentMode).order_by(PaymentMode.is_builtin.desc(), PaymentMode.id)
+    if active_only:
+        query = query.where(PaymentMode.active)
+    modes = (await db.execute(query)).scalars().all()
+    counts = await payment_counts(db)
+    return [mode_out(mode, counts) for mode in modes]
+
+
+async def get_mode_or_404(db: AsyncSession, mode_id: int) -> PaymentMode:
+    mode = await db.get(PaymentMode, mode_id)
+    if mode is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Payment mode not found.")
+    return mode
+
+
+async def check_mode_name_free(db: AsyncSession, name: str, ignore_id: int | None) -> None:
+    clash = await db.scalar(
+        select(PaymentMode.id).where(
+            PaymentMode.name_norm == norm_sql(name), PaymentMode.id != (ignore_id or 0)
+        )
+    )
+    if clash is not None:
+        raise conflict(MODE_NAME_TAKEN)
+
+
+def mode_snapshot(mode: PaymentMode) -> dict[str, Any]:
+    return {
+        "type": mode.type,
+        "name": mode.name,
+        "details": mode.details,
+        "use_salary": mode.use_salary,
+        "use_advance": mode.use_advance,
+        "active": mode.active,
+    }
+
+
+async def _audit_mode(
+    db: AsyncSession,
+    actor: User,
+    action: str,
+    mode: PaymentMode,
+    before: dict[str, Any] | None,
+    after: dict[str, Any] | None,
+) -> None:
+    await record_audit(
+        db,
+        module="admin",
+        action=action,
+        entity="payment_mode",
+        entity_id=mode.id,
+        user_id=actor.id,
+        data={"before": before, "after": after},
+    )
+
+
+async def create_payment_mode(db: AsyncSession, actor: User, data: PaymentModeIn) -> PaymentMode:
+    await check_mode_name_free(db, data.name, None)
+    mode = PaymentMode(
+        type=data.type,
+        name=data.name,
+        details=data.details,
+        use_salary=data.use_salary,
+        use_advance=data.use_advance,
+        active=True,
+        is_builtin=False,
+    )
+    db.add(mode)
+    await db.flush()
+    await _audit_mode(db, actor, "create", mode, None, mode_snapshot(mode))
+    await db.commit()
+    await db.refresh(mode)
+    return mode
+
+
+async def update_payment_mode(
+    db: AsyncSession, actor: User, mode: PaymentMode, data: PaymentModeIn
+) -> PaymentMode:
+    if mode.is_builtin:
+        raise conflict(CASH_LOCKED)
+    await check_mode_name_free(db, data.name, mode.id)
+    before = mode_snapshot(mode)
+    mode.type = data.type
+    mode.name = data.name
+    mode.details = data.details
+    mode.use_salary = data.use_salary
+    mode.use_advance = data.use_advance
+    await db.flush()
+    after = mode_snapshot(mode)
+    if after != before:
+        await _audit_mode(db, actor, "update", mode, before, after)
+    await db.commit()
+    await db.refresh(mode)
+    return mode
+
+
+async def set_payment_mode_active(
+    db: AsyncSession, actor: User, mode: PaymentMode, active: bool
+) -> PaymentMode:
+    if mode.is_builtin and not active:
+        raise conflict(CASH_ALWAYS_ON)
+    if mode.active == active:
+        return mode
+    before = mode_snapshot(mode)
+    mode.active = active
+    await db.flush()
+    await _audit_mode(
+        db, actor, "activate" if active else "deactivate", mode, before, mode_snapshot(mode)
+    )
+    await db.commit()
+    await db.refresh(mode)
+    return mode

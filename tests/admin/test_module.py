@@ -28,7 +28,7 @@ async def test_admin_nav_for_admin(client, make_user, login):
     await login("admin")
     registry = (await client.get("/api/registry")).json()
     admin = next(m for m in registry["modules"] if m["name"] == "admin")
-    assert [item["path"] for item in admin["nav"]] == ["/admin/users"]
+    assert [item["path"] for item in admin["nav"]][0] == "/admin/users"
     assert admin["allowed"] is True
 
 

@@ -248,3 +248,33 @@ export interface Page<T> {
   page_size: number;
   pages: number;
 }
+
+// ---------------------------------------------------------- payment modes
+
+export type PaymentModeType = "cash" | "bank" | "wallet" | "qr" | "cheque";
+export type EditableModeType = Exclude<PaymentModeType, "cash">;
+
+/** One row of GET /api/admin/payment-modes (Cash first, then creation order). */
+export interface PaymentMode {
+  id: number;
+  type: PaymentModeType;
+  name: string;
+  /** "A/c ··4410", wallet number, QR label; null for Cash. */
+  details: string | null;
+  use_salary: boolean;
+  use_advance: boolean;
+  active: boolean;
+  /** Cash: cannot be edited or turned off. */
+  is_builtin: boolean;
+  /** Payments recorded with this mode (0 until payroll records payments). */
+  payment_count: number;
+  created_at: string;
+}
+
+export interface PaymentModeInput {
+  type: EditableModeType;
+  name: string;
+  details: string | null;
+  use_salary: boolean;
+  use_advance: boolean;
+}

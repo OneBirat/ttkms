@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.core.models import PHONE_RE, Role, normalize_phone
 
@@ -123,3 +124,58 @@ class PermissionGroupOut(BaseModel):
 class PermissionsOut(BaseModel):
     groups: list[PermissionGroupOut]
     presets: dict[str, list[str]]
+
+
+# --------------------------------------------------------------------- payment modes
+
+PaymentModeType = Literal["cash", "bank", "wallet", "qr", "cheque"]
+EditableModeType = Literal["bank", "wallet", "qr", "cheque"]
+
+
+class PaymentModeOut(BaseModel):
+    id: int
+    type: PaymentModeType
+    name: str
+    details: str | None
+    use_salary: bool
+    use_advance: bool
+    active: bool
+    #: Cash: cannot be edited or turned off.
+    is_builtin: bool
+    #: Payments recorded with this mode (from payroll.payments once that table exists).
+    payment_count: int
+    created_at: datetime
+
+
+class PaymentModeIn(BaseModel):
+    type: EditableModeType
+    name: str = Field(min_length=1, max_length=80)
+    details: str | None = Field(default=None, max_length=120)
+    use_salary: bool = True
+    use_advance: bool = True
+
+    @field_validator("name")
+    @classmethod
+    def _clean_mode_name(cls, value: str) -> str:
+        value = clean_text(value)
+        if not value:
+            raise ValueError("Name is required.")
+        return value
+
+    @field_validator("details")
+    @classmethod
+    def _clean_details(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = clean_text(value)
+        return value or None
+
+    @model_validator(mode="after")
+    def _at_least_one_use(self) -> PaymentModeIn:
+        if not (self.use_salary or self.use_advance):
+            raise ValueError("Pick at least one use: salary payments or advances.")
+        return self
+
+
+class PaymentModeActiveIn(BaseModel):
+    active: bool

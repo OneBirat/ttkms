@@ -7,9 +7,12 @@ does here); the sidebar entries are role-based because the registry only knows r
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, status
 
 from app.core.auth import CurrentUser, require_role
+from app.core.models import User
 from app.core.modules import Module, NavItem, coming_soon_widget
 from app.core.schemas import ModuleStatusOut
 from app.db import DbSession
@@ -23,6 +26,9 @@ from app.modules.admin.permissions import (
 from app.modules.admin.schemas import (
     ActiveIn,
     AdminUserOut,
+    PaymentModeActiveIn,
+    PaymentModeIn,
+    PaymentModeOut,
     PermissionGroupOut,
     PermissionOut,
     PermissionsOut,
@@ -33,6 +39,8 @@ from app.modules.admin.schemas import (
 )
 
 ROLES = {"admin"}
+#: Payment modes and barcodes are admin-only screens (no per-user switch for them).
+AdminOnly = Annotated[User, Depends(require_role(*ROLES))]
 
 router = APIRouter()
 
@@ -124,8 +132,59 @@ async def reset_password(user_id: int, me: ManageUsers, db: DbSession) -> Tempor
     )
 
 
+# ----------------------------------------------------------------------------- payment modes
+
+
+@router.get("/payment-modes", response_model=list[PaymentModeOut], name="admin:payment_modes")
+async def list_payment_modes(
+    user: CurrentUser, db: DbSession, active: bool = False
+) -> list[PaymentModeOut]:
+    """Cash first, then the admin-managed modes. ``?active=1`` is what payroll reads when
+    someone records a payment (any signed-in user)."""
+    return await services.list_payment_modes(db, active_only=active)
+
+
+@router.post(
+    "/payment-modes",
+    response_model=PaymentModeOut,
+    status_code=status.HTTP_201_CREATED,
+    name="admin:create_payment_mode",
+)
+async def create_payment_mode(
+    me: AdminOnly, db: DbSession, payload: PaymentModeIn
+) -> PaymentModeOut:
+    mode = await services.create_payment_mode(db, me, payload)
+    return services.mode_out(mode, await services.payment_counts(db))
+
+
+@router.put(
+    "/payment-modes/{mode_id}", response_model=PaymentModeOut, name="admin:update_payment_mode"
+)
+async def update_payment_mode(
+    mode_id: int, me: AdminOnly, db: DbSession, payload: PaymentModeIn
+) -> PaymentModeOut:
+    mode = await services.get_mode_or_404(db, mode_id)
+    mode = await services.update_payment_mode(db, me, mode, payload)
+    return services.mode_out(mode, await services.payment_counts(db))
+
+
+@router.post(
+    "/payment-modes/{mode_id}/active",
+    response_model=PaymentModeOut,
+    name="admin:payment_mode_active",
+)
+async def set_payment_mode_active(
+    mode_id: int, me: AdminOnly, db: DbSession, payload: PaymentModeActiveIn
+) -> PaymentModeOut:
+    """Turning a mode off hides it from new payments; old payments keep it."""
+    mode = await services.get_mode_or_404(db, mode_id)
+    mode = await services.set_payment_mode_active(db, me, mode, payload.active)
+    return services.mode_out(mode, await services.payment_counts(db))
+
+
 NAV = [
     NavItem(label="Users", path="/admin/users", icon="user", roles=set(ROLES)),
+    NavItem(label="Payment modes", path="/admin/payment-modes", icon="card", roles=set(ROLES)),
 ]
 
 module = Module(

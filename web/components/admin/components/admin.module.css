@@ -1826,3 +1826,356 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ==================================================================== */
+/* Payment modes (design/final/AdminPaymentModes.dc.html + phone sheet)  */
+/* ==================================================================== */
+
+.modesCard {
+  padding: 8px 12px 14px;
+  min-width: 0;
+}
+
+.modesHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 10px;
+}
+
+.modesTitle {
+  font-size: 17px;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.modeIco {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.modeIcoSm {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.modeIcoOff {
+  opacity: 0.45;
+}
+
+.modeName {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.modeDetails {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #3e4a52;
+}
+
+.lockPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #eceeea;
+  color: #3e4a52;
+  white-space: nowrap;
+}
+
+.statusCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusText {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.modesNote {
+  margin: 10px 8px 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.kinds {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.kind {
+  min-height: 40px;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  background: var(--color-card);
+  color: #3e4a52;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.kind[aria-pressed="true"] {
+  border: 2px solid var(--color-primary);
+  background: #e6f5f3;
+  color: var(--pill-ok-fg);
+  font-weight: 700;
+}
+
+.useList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.useLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.preview {
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.previewTitle {
+  font-size: 12px;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.previewChoice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.previewBtn {
+  min-height: 40px;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.previewBtnOn {
+  border: 2px solid var(--color-primary);
+  background: #e6f5f3;
+  color: var(--pill-ok-fg);
+  font-weight: 700;
+}
+
+.previewList {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  overflow: hidden;
+}
+
+.previewRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-top: 1px solid var(--color-border-soft);
+  font-size: 13px;
+}
+
+.previewRow:first-child {
+  border-top: 0;
+}
+
+.previewRowName {
+  flex: 1;
+  min-width: 0;
+}
+
+.previewRowDetails {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.formGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 8px;
+}
+
+/* Phone */
+
+.mIntro {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mIntroTitle {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mIntroText {
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+.mModes {
+  overflow: hidden;
+}
+
+.mModeRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.mModeRow:first-child {
+  border-top: 0;
+}
+
+.mModeText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mModeName {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mModeOff {
+  color: #8a949a;
+}
+
+.mModeSub {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.mAddMode {
+  width: 100%;
+  min-height: 50px;
+  border: 1.5px dashed var(--color-primary);
+  border-radius: 12px;
+  background: #f2f8f7;
+  color: var(--pill-ok-fg);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mAdded {
+  background: #e6f5f3;
+  color: var(--pill-ok-fg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bottomSheetBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 24, 29, 0.55);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.bottomSheet {
+  background: var(--color-card);
+  border-radius: 20px 20px 0 0;
+  padding: 10px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 92%;
+  overflow-y: auto;
+  outline: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bottomSheet {
+    animation: sheetUp 200ms ease;
+  }
+}
+
+.grabber {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-input-border);
+}
+
+.bottomSheetHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bottomSheetTitle {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.kindChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kindChips .kind {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+}
+
+.sheetActions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.sheetActions .btn {
+  min-height: 48px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
