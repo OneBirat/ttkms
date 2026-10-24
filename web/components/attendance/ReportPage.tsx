@@ -5,53 +5,69 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Segmented } from "@/components/ui/Segmented";
 import { useSession } from "@/lib/session";
 import { exportReport, getReport, getToday, listMonths } from "./api";
-import { formatAdRange, monthName as bsMonthName, weekdayKeyText } from "./bsdate";
+import { WEEKDAY_NAMES_EN, formatAdRange, formatAdShort, monthName as bsMonthName } from "./bsdate";
 import { downloadFile, openPrintWindow, writePrintDocument } from "./download";
 import { filterReportRows } from "./exportModel";
 import { SearchIcon } from "./icons";
 import { Pager } from "./Pager";
-import { ReportGrid, type GridGroup } from "./ReportGrid";
+import { AdvanceGlyph, ReportGrid, SalaryGlyph, type GridGroup, type GridMode } from "./ReportGrid";
 import {
   attendanceRate,
+  computeTotals,
   formatRate,
   groupByDepartment,
   openDays,
   paginate,
   presenceSummary,
-  sliceRows,
   sliceWeeks,
   sortRows,
   staffPresentPerDay,
   sumTotals,
   weekIndexOfDay,
 } from "./helpers";
-import type { CellStatus, MonthOption, MonthReport, ReportFilters, ReportSort, TodayRef } from "./types";
+import type { CellStatus, DayHeader, MonthOption, MonthReport, ReportFilters, ReportRow, ReportSort, TodayRef } from "./types";
 import shared from "./shared.module.css";
 import styles from "./report.module.css";
 
 const PER_PAGE = 25;
 const COMPANY = "TTK"; // TODO backend: company name from core.settings
 
-type View = "month" | "week";
+type View = GridMode;
+type DayFilter = "" | "P" | "O" | "A";
 
-const LEGEND: { status: CellStatus; code: string; label: string }[] = [
-  { status: "P", code: "P", label: "Present" },
-  { status: "O", code: "O", label: "Overtime (hours)" },
-  { status: "A", code: "A", label: "Absent" },
-  { status: "W", code: "–", label: "Weekly off (Sat)" },
+const DAY_CHIPS: { key: DayFilter; label: string }[] = [
+  { key: "", label: "All" },
+  { key: "P", label: "Present" },
+  { key: "O", label: "Overtime" },
+  { key: "A", label: "Absent" },
 ];
+
+/** Keep the chosen columns of every row; month totals stay whole unless `retotal`. */
+function project(rows: readonly ReportRow[], indices: readonly number[], retotal: boolean): ReportRow[] {
+  return rows.map((row) => {
+    const cells = indices.map((i) => row.cells[i]);
+    return { employee: row.employee, cells, totals: retotal ? computeTotals(cells) : row.totals };
+  });
+}
 
 export function ReportPage() {
   const { user } = useSession();
+  const isAdmin = user?.role === "admin";
   const [months, setMonths] = useState<MonthOption[]>([]);
   const [today, setToday] = useState<TodayRef | null>(null);
   const [monthKey, setMonthKey] = useState("");
+  const [branchId, setBranchId] = useState<number | null>(null);
   const [view, setView] = useState<View>("month");
   const [weekIndex, setWeekIndex] = useState(1);
+  const [dayIndex, setDayIndex] = useState(0);
+  const [dayFilter, setDayFilter] = useState<DayFilter>("");
   const [departmentId, setDepartmentId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<ReportSort>("dept");
   const [group, setGroup] = useState(true);
+  const [photos, setPhotos] = useState(false);
+  const [payIcons, setPayIcons] = useState(true);
+  const [hideOff, setHideOff] = useState(false);
   const [page, setPage] = useState(1);
 
   const [report, setReport] = useState<MonthReport | null>(null);
@@ -59,7 +75,7 @@ export function ReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState<"xlsx" | "pdf" | null>(null);
 
-  // Months available + today → default month and week.
+  // Months available + today → default month.
   useEffect(() => {
     let cancelled = false;
     Promise.all([listMonths(), getToday()]).then(([options, now]) => {
@@ -78,10 +94,12 @@ export function ReportPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getReport(monthKey)
+    getReport(monthKey, branchId)
       .then((body) => {
         if (cancelled) return;
         setReport(body);
+        // Everyone reports on one branch; the first one until the user picks another.
+        if (branchId === null && body.branches.length) setBranchId(body.branches[0].id);
         setLoading(false);
       })
       .catch((err: unknown) => {
@@ -93,41 +111,59 @@ export function ReportPage() {
     return () => {
       cancelled = true;
     };
-  }, [monthKey]);
+  }, [monthKey, branchId]);
 
   const monthName = report ? bsMonthName(report.month.bs_month) : "";
-  const weeks = useMemo(
-    () => (report ? sliceWeeks(report.month.days, monthName) : []),
-    [report, monthName],
-  );
+  const allDays = useMemo(() => report?.month.days ?? [], [report]);
+  const weeks = useMemo(() => sliceWeeks(allDays, monthName), [allDays, monthName]);
+  const sameMonth = !!report && !!today && today.bs_date.slice(0, 7) === report.month.key;
+  const todayIndex = sameMonth ? Math.min(allDays.length - 1, Number(today!.bs_date.slice(8)) - 1) : allDays.length - 1;
 
-  // When the month loads, jump to the week containing today (same month) or week 1.
+  // When the month loads, jump to the week / day containing today (same month) or the last day.
   useEffect(() => {
-    if (!report || !today) return;
-    const sameMonth = today.bs_date.slice(0, 7) === report.month.key;
-    const day = sameMonth ? Number(today.bs_date.slice(8)) : 1;
-    setWeekIndex(weekIndexOfDay(weeks, day));
-  }, [report, today, weeks]);
+    if (!report) return;
+    setWeekIndex(weekIndexOfDay(weeks, todayIndex + 1));
+    setDayIndex(todayIndex);
+  }, [report, weeks, todayIndex]);
 
   const week = weeks[Math.min(Math.max(1, weekIndex), Math.max(1, weeks.length)) - 1] ?? null;
-  const days = useMemo(
-    () => (view === "week" && week ? week.days : (report?.month.days ?? [])),
-    [view, week, report],
-  );
+
+  // Which columns of the month are in view, as indices into month.days.
+  const indices = useMemo<number[]>(() => {
+    if (!report) return [];
+    if (view === "day") return allDays.length ? [Math.min(dayIndex, allDays.length - 1)] : [];
+    let idx = allDays.map((_, i) => i);
+    if (view === "week" && week) idx = idx.slice(week.offset, week.offset + week.days.length);
+    if (hideOff) idx = idx.filter((i) => !allDays[i].is_weekly_off);
+    return idx;
+  }, [report, view, allDays, dayIndex, week, hideOff]);
+  const days = useMemo<DayHeader[]>(() => indices.map((i) => allDays[i]), [indices, allDays]);
 
   const filters = useMemo<ReportFilters>(
-    () => ({ month: monthKey, department_id: departmentId, query, sort, group }),
-    [monthKey, departmentId, query, sort, group],
+    () => ({ month: monthKey, branch_id: branchId, department_id: departmentId, query, sort, group, hide_weekly_off: hideOff }),
+    [monthKey, branchId, departmentId, query, sort, group, hideOff],
   );
   const order = useMemo(() => report?.departments.map((d) => d.id) ?? [], [report]);
 
   // Rows in the filter, for the days in view, sorted.
   const viewRows = useMemo(() => {
     if (!report) return [];
-    let rows = filterReportRows(report, filters);
-    if (view === "week" && week) rows = sliceRows(rows, week);
+    let rows = project(filterReportRows(report, filters), indices, view !== "month");
+    if (view === "day" && dayFilter) rows = rows.filter((r) => r.cells[0]?.status === dayFilter);
     return sortRows(rows, filters.sort, filters.group, order);
-  }, [report, filters, view, week, order]);
+  }, [report, filters, indices, view, dayFilter, order]);
+
+  // Day view chips count the whole filter before the status chip is applied.
+  const dayCounts = useMemo(() => {
+    const counts: Record<DayFilter, number> = { "": 0, P: 0, O: 0, A: 0 };
+    if (!report || view !== "day") return counts;
+    for (const r of filterReportRows(report, filters)) {
+      const st = r.cells[indices[0]]?.status as CellStatus | undefined;
+      counts[""] += 1;
+      if (st === "P" || st === "O" || st === "A") counts[st] += 1;
+    }
+    return counts;
+  }, [report, filters, indices, view]);
 
   const allRowsByDept = useMemo(() => {
     const map = new Map<number, { count: number; rate: number | null }>();
@@ -155,18 +191,38 @@ export function ReportPage() {
     });
   }, [group, viewRows, paged.items]);
 
+  const dayWord = (i: number) => {
+    if (sameMonth && i === todayIndex) return "Today";
+    if (sameMonth && i === todayIndex - 1) return "Yesterday";
+    return allDays[i] ? WEEKDAY_NAMES_EN[allDays[i].weekday] : "Day";
+  };
+  const day = days[0];
+
   const subtitle = (() => {
     if (!report) return "Monthly attendance per employee, with overtime hours and paid days.";
     const m = report.month;
+    if (view === "day" && day) {
+      return `${dayWord(dayIndex)} · ${monthName} ${day.bs_day}, ${m.bs_year} · ${formatAdShort(day.ad_date, true)} · ${WEEKDAY_NAMES_EN[day.weekday]}`;
+    }
     if (view === "week" && week) {
       const first = week.days[0];
       const last = week.days[week.days.length - 1];
       return `Week ${week.index} of ${m.label} · ${monthName} ${first.bs_day}–${last.bs_day} · ${formatAdRange(first.ad_date, last.ad_date)}`;
     }
-    return `${m.label} · ${formatAdRange(m.ad_start, m.ad_end)} · ${m.working_days} working days`;
+    return `${m.label} · ${formatAdRange(m.ad_start, m.ad_end)} · ${m.working_days} working days${hideOff ? " · Saturdays hidden" : ""}`;
   })();
 
   const resetPage = () => setPage(1);
+  const monthIndex = months.findIndex((m) => m.key === monthKey);
+  const monthOption = months[monthIndex];
+  const shiftMonthBy = (delta: number) => {
+    const next = months[monthIndex + delta];
+    if (!next) return;
+    setMonthKey(next.key);
+    resetPage();
+  };
+  const nextMonthOff = monthIndex < 0 || monthIndex >= months.length - 1;
+  const nextDayOff = dayIndex >= todayIndex;
 
   const runExport = async (format: "xlsx" | "pdf") => {
     if (!report) return;
@@ -211,6 +267,7 @@ export function ReportPage() {
         })),
       ]
     : [];
+  const branch = report?.branches.find((b) => b.id === branchId) ?? report?.branches[0];
 
   return (
     <>
@@ -224,13 +281,40 @@ export function ReportPage() {
               value={view}
               onChange={(v) => {
                 setView(v);
+                setDayFilter("");
                 resetPage();
               }}
               options={[
                 { value: "month", label: "Month" },
+                { value: "day", label: "Today" },
                 { value: "week", label: "Week" },
               ]}
             />
+            {view === "day" ? (
+              <div className={styles.weekNav}>
+                <button
+                  type="button"
+                  className={shared.pagerBtn}
+                  aria-label="Previous day"
+                  onClick={() => setDayIndex((i) => Math.max(0, i - 1))}
+                  disabled={dayIndex <= 0}
+                >
+                  ‹
+                </button>
+                <span className={styles.weekLabel} aria-live="polite">
+                  {day ? `${dayWord(dayIndex)} · ${monthName} ${day.bs_day}` : "…"}
+                </span>
+                <button
+                  type="button"
+                  className={shared.pagerBtn}
+                  aria-label="Next day"
+                  onClick={() => setDayIndex((i) => Math.min(todayIndex, i + 1))}
+                  disabled={nextDayOff}
+                >
+                  ›
+                </button>
+              </div>
+            ) : null}
             {view === "week" ? (
               <div className={styles.weekNav}>
                 <button
@@ -256,22 +340,31 @@ export function ReportPage() {
                 </button>
               </div>
             ) : null}
-            <div className={`${shared.field} ${styles.monthField}`}>
-              <select
-                aria-label="Month (BS)"
-                value={monthKey}
-                onChange={(e) => {
-                  setMonthKey(e.target.value);
-                  resetPage();
-                }}
+            <div role="group" aria-label="Month (BS)" className={styles.monthNav}>
+              <button
+                type="button"
+                className={styles.monthNavBtn}
+                aria-label="Previous month"
+                onClick={() => shiftMonthBy(-1)}
+                disabled={monthIndex <= 0}
               >
-                {months.length === 0 && monthKey ? <option value={monthKey}>{monthKey}</option> : null}
-                {months.map((m) => (
-                  <option key={m.key} value={m.key}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+                ‹
+              </button>
+              <span className={styles.monthLabel}>
+                <span lang="ne" className={styles.monthNp}>
+                  {monthOption?.label_np ?? report?.month.label_np ?? "…"}
+                </span>
+                <span className={styles.monthEn}>{monthOption?.label ?? report?.month.label ?? monthKey}</span>
+              </span>
+              <button
+                type="button"
+                className={styles.monthNavBtn}
+                aria-label="Next month"
+                onClick={() => shiftMonthBy(1)}
+                disabled={nextMonthOff}
+              >
+                ›
+              </button>
             </div>
             <button
               type="button"
@@ -292,6 +385,33 @@ export function ReportPage() {
           </div>
         }
       />
+
+      <div className={styles.branchRow}>
+        <span className={styles.branchLabel}>Branch</span>
+        {isAdmin ? (
+          <div className={`${shared.field} ${styles.branchField}`}>
+            <select
+              aria-label="Branch"
+              value={branchId ?? ""}
+              onChange={(e) => {
+                setBranchId(Number(e.target.value));
+                setDepartmentId(null);
+                resetPage();
+              }}
+            >
+              {(report?.branches ?? []).map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <span className={styles.branchPill} title="Ask an admin for 'See other branches' access">
+            {branch?.name ?? "…"} <span className={styles.branchPillSub}>· your branch</span>
+          </span>
+        )}
+      </div>
 
       <section aria-label="Departments" className={styles.chips}>
         {chips.map((chip) => (
@@ -339,7 +459,7 @@ export function ReportPage() {
               <option value="dept">Department, then name</option>
               <option value="name">Name</option>
               <option value="absent">Most absences</option>
-              <option value="overtime">Most overtime hours</option>
+              <option value="overtime">Most overtime</option>
             </select>
           </span>
         </label>
@@ -353,6 +473,18 @@ export function ReportPage() {
             }}
           />
           Group by department
+        </label>
+        <label className={shared.check}>
+          <input type="checkbox" checked={photos} onChange={(e) => setPhotos(e.target.checked)} />
+          Show employee photos
+        </label>
+        <label className={shared.check}>
+          <input type="checkbox" checked={payIcons} onChange={(e) => setPayIcons(e.target.checked)} />
+          Show payment icons
+        </label>
+        <label className={shared.check}>
+          <input type="checkbox" checked={hideOff} onChange={(e) => setHideOff(e.target.checked)} />
+          Hide holidays (Saturdays)
         </label>
       </section>
 
@@ -369,35 +501,87 @@ export function ReportPage() {
           </span>
         </div>
         <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Present days</span>
+          <span className={styles.sumLabel}>Total present days</span>
           <span className={styles.sumValue}>{presence.present_days}</span>
         </div>
         <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Overtime hours</span>
-          <span className={styles.sumValue}>
-            {totals.overtime_hours}{" "}
-            <span className={styles.sumSub}>· {totals.overtime_days} days</span>
-          </span>
+          <span className={styles.sumLabel}>Overtime</span>
+          <span className={`${styles.sumValue} ${styles.sumOt}`}>{totals.overtime_hours} h</span>
         </div>
         <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Absent days</span>
+          <span className={styles.sumLabel}>Absences</span>
           <span className={styles.sumValue}>{totals.absent}</span>
         </div>
       </section>
 
       <div className={styles.legend} aria-label="Legend">
-        {LEGEND.map((item) => (
-          <span key={item.status} className={styles.key}>
-            <span className={styles.cell} data-status={item.status} aria-hidden="true">
-              {item.code}
-            </span>
-            {item.label}
+        <span className={styles.key}>
+          <span className={styles.cell} data-status="P" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12.5l4.5 4.5L19 7.5" />
+            </svg>
           </span>
-        ))}
-        <span className={`${styles.key} ${styles.keyNp}`} lang="ne">
-          {weekdayKeyText()}
+          Present
         </span>
+        <span className={styles.key}>
+          <span className={styles.cell} data-status="O" aria-hidden="true">
+            2h
+          </span>
+          Overtime (hours)
+        </span>
+        <span className={styles.key}>
+          <span className={styles.cell} data-status="A" aria-hidden="true">
+            A
+          </span>
+          Absent
+        </span>
+        {!hideOff ? (
+          <span className={styles.key}>
+            <span className={styles.cell} data-status="W" aria-hidden="true">
+              –
+            </span>
+            Weekly off (Sat)
+          </span>
+        ) : null}
+        {payIcons ? (
+          <>
+            <span className={styles.key}>
+              <span className={`${styles.payBadge} ${styles.payBadgeAdv} ${styles.payBadgeKey}`} aria-hidden="true">
+                <AdvanceGlyph />
+              </span>
+              Advance taken
+            </span>
+            <span className={styles.key}>
+              <span className={`${styles.payBadge} ${styles.payBadgeSal} ${styles.payBadgeKey}`} aria-hidden="true">
+                <SalaryGlyph />
+              </span>
+              Salary taken
+            </span>
+          </>
+        ) : null}
       </div>
+
+      {view === "day" ? (
+        <section role="group" aria-label="Show" className={styles.dayChips}>
+          <span className={styles.dayChipsLabel}>Show</span>
+          {DAY_CHIPS.map((c) => (
+            <button
+              key={c.key || "all"}
+              type="button"
+              className={styles.dayChip}
+              data-filter={c.key || "all"}
+              aria-pressed={dayFilter === c.key}
+              onClick={() => {
+                setDayFilter(c.key);
+                resetPage();
+              }}
+            >
+              <span>{c.label}</span>
+              <b>{dayCounts[c.key]}</b>
+            </button>
+          ))}
+        </section>
+      ) : null}
 
       {error ? (
         <div className={styles.messages}>
@@ -407,7 +591,7 @@ export function ReportPage() {
         </div>
       ) : null}
 
-      {loading ? (
+      {loading && !report ? (
         <p className="muted" role="status">
           Loading…
         </p>
@@ -421,8 +605,9 @@ export function ReportPage() {
             staffPresent={staffPresent}
             openDays={open}
             staffCount={viewRows.length}
-            avgPresent={presence.avg_present}
-            wide={view === "week"}
+            mode={view}
+            photos={photos}
+            payIcons={payIcons}
           />
           <Pager
             page={paged.page}
@@ -436,8 +621,8 @@ export function ReportPage() {
             }
           />
           <p className={styles.rule}>
-            Paid days = present + overtime days + weekly off. Absent is unpaid. Overtime hours are paid
-            at the rate set per employee.
+            Paid days = P + O + W (Saturdays). Absent is unpaid. Overtime hours are paid on top at the rate set
+            per employee.
           </p>
         </>
       ) : null}

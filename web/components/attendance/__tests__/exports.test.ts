@@ -19,7 +19,7 @@ import { buildPrintDocument, paginateLines } from "../print";
 import { buildReportWorkbook, columnName, crc32, workbookToBytes } from "../xlsx";
 
 // Ashwin 2083 (17 Sep – 17 Oct 2026) is in the past, so the mock seed is fixed.
-const filters = { month: "2083-06", department_id: null, query: "", sort: "dept" as const, group: true };
+const filters = { month: "2083-06", branch_id: null, department_id: null, query: "", sort: "dept" as const, group: true };
 const context = { company: "TTK", printedBy: "Admin", today: null, now: new Date(2026, 9, 20, 16, 20) };
 
 describe("export model", () => {

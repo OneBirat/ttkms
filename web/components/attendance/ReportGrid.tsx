@@ -2,15 +2,8 @@
 
 import { Fragment } from "react";
 import { WEEKDAY_NAMES_EN, formatAdShort, weekdayInitial } from "./bsdate";
-import {
-  bsDayLabel,
-  cellCode,
-  cellText,
-  formatRate,
-  isLowPresence,
-  statusLabel,
-  type DepartmentGroup,
-} from "./helpers";
+import { bsDayLabel, cellText, formatRate, initials, isLowPresence, type DepartmentGroup } from "./helpers";
+import { photoTint } from "./MarkRow";
 import type { DayCell, DayHeader, ReportRow } from "./types";
 import styles from "./report.module.css";
 
@@ -19,10 +12,13 @@ export interface GridGroup extends DepartmentGroup {
   count: number;
 }
 
+export type GridMode = "month" | "week" | "day";
+
 export interface ReportGridProps {
   monthName: string;
+  /** The day columns in view (a month, a week, or one day; Saturdays may be hidden). */
   days: DayHeader[];
-  /** Rows of the current page, in display order. */
+  /** Rows of the current page, in display order; cells already match `days`. */
   rows: ReportRow[];
   /** When grouping: the page's rows grouped, with whole-filter headcount/rate. */
   groups: GridGroup[] | null;
@@ -31,25 +27,101 @@ export interface ReportGridProps {
   /** Days nobody has marked yet: shown blank in the footer. */
   openDays: boolean[];
   staffCount: number;
-  avgPresent: number;
-  wide: boolean;
+  mode: GridMode;
+  photos: boolean;
+  payIcons: boolean;
   emptyText?: string;
 }
 
-function Cell({ monthName, day, cell, wide }: { monthName: string; day: DayHeader; cell: DayCell; wide: boolean }) {
-  const title = `${bsDayLabel(monthName, day)}: ${cellText(cell)}`;
+function Tick({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
+  );
+}
+
+/** Bank-note: salary taken that day. */
+export function SalaryGlyph({ size = 10 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="9" width="16" height="10" rx="1.5" />
+      <circle cx="10" cy="14" r="2" />
+      <path d="M5 6.5h15.5a1 1 0 0 1 1 1V15" />
+    </svg>
+  );
+}
+
+/** Wallet card: advance taken that day. */
+export function AdvanceGlyph({ size = 10 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="6.5" width="19" height="11" rx="1.5" />
+      <circle cx="12" cy="12" r="2.4" />
+    </svg>
+  );
+}
+
+function PayBadges({ cell }: { cell: DayCell }) {
+  return (
+    <span className={styles.payBadges} aria-hidden="true">
+      {cell.salary ? (
+        <span className={`${styles.payBadge} ${styles.payBadgeSal}`}>
+          <SalaryGlyph />
+        </span>
+      ) : null}
+      {cell.advance ? (
+        <span className={`${styles.payBadge} ${styles.payBadgeAdv}`}>
+          <AdvanceGlyph />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function cellTitle(monthName: string, day: DayHeader, cell: DayCell, payIcons: boolean): string {
+  let title = `${bsDayLabel(monthName, day)}: ${cellText(cell)}`;
+  if (payIcons && cell.salary) title += ` · salary Rs ${cell.salary.toLocaleString("en-IN")}`;
+  if (payIcons && cell.advance) title += ` · advance Rs ${cell.advance.toLocaleString("en-IN")}`;
+  return title;
+}
+
+function Cell({
+  monthName,
+  day,
+  cell,
+  wide,
+  payIcons,
+}: {
+  monthName: string;
+  day: DayHeader;
+  cell: DayCell;
+  wide: boolean;
+  payIcons: boolean;
+}) {
+  const title = cellTitle(monthName, day, cell, payIcons);
+  const pay = payIcons && cell.status !== "W" && cell.status !== "N" && (!!cell.advance || !!cell.salary);
   if (wide) {
     return (
       <span className={styles.wcell} data-status={cell.status} title={title}>
-        <span>{cell.status === "W" ? "Off" : cell.status === "N" ? "·" : statusLabel(cell.status)}</span>
-        {cell.status === "O" ? <span className={styles.wcellHours}>{cell.ot_hours} h</span> : null}
+        <span className={styles.wcellMain}>
+          {cell.status === "P" ? <Tick size={14} /> : null}
+          <span>
+            {cell.status === "P" ? "Present" : cell.status === "O" ? "Overtime" : cell.status === "A" ? "Absent" : cell.status === "W" ? "Off" : "·"}
+          </span>
+        </span>
+        {cell.status === "O" ? <span className={styles.wcellHours}>+{cell.ot_hours} h</span> : null}
+        {pay ? <PayBadges cell={cell} /> : null}
         <span className="sr-only">{title}</span>
       </span>
     );
   }
   return (
     <span className={styles.cell} data-status={cell.status} title={title}>
-      <span aria-hidden="true">{cell.status === "N" ? "·" : cellCode(cell)}</span>
+      <span aria-hidden="true" className={styles.cellCode}>
+        {cell.status === "P" ? (pay ? null : <Tick />) : cell.status === "O" ? `${cell.ot_hours}h` : cell.status === "A" ? "A" : cell.status === "W" ? "–" : "·"}
+      </span>
+      {pay ? <PayBadges cell={cell} /> : null}
       <span className="sr-only">{title}</span>
     </span>
   );
@@ -63,30 +135,46 @@ export function ReportGrid({
   staffPresent,
   openDays,
   staffCount,
-  avgPresent,
-  wide,
+  mode,
+  photos,
+  payIcons,
   emptyText = "No employees match this filter.",
 }: ReportGridProps) {
-  const span = days.length + 5;
+  const wide = mode !== "month";
+  const dayView = mode === "day";
+  const totalCols = dayView ? 2 : 5;
+  const span = days.length + 1 + totalCols;
   const renderRow = (row: ReportRow) => (
     <tr key={row.employee.id}>
       <th scope="row" className={styles.empCol}>
-        <span className={styles.empName}>
-          <span>{row.employee.name}</span>
-          <span>
-            {row.employee.code} · {row.employee.department_name}
+        <span className={styles.empCell}>
+          {photos ? (
+            <span role="img" aria-label={`Photo of ${row.employee.name}`} className={styles.empPhoto} style={{ background: photoTint(row.employee.id) }}>
+              {initials(row.employee.name)}
+            </span>
+          ) : null}
+          <span className={styles.empName}>
+            <span>{row.employee.name}</span>
+            <span>
+              {row.employee.code} · {row.employee.department_name}
+            </span>
           </span>
         </span>
       </th>
       {row.cells.map((cell, i) => (
         <td key={days[i].bs_date}>
-          <Cell monthName={monthName} day={days[i]} cell={cell} wide={wide} />
+          <Cell monthName={monthName} day={days[i]} cell={cell} wide={wide} payIcons={payIcons} />
         </td>
       ))}
       <td className={styles.tot}>{row.totals.present + row.totals.overtime_days}</td>
-      <td className={styles.tot}>{row.totals.overtime_hours}</td>
-      <td className={styles.tot}>{row.totals.absent}</td>
-      <td className={`${styles.tot} ${styles.totPaid}`}>{row.totals.paid_days}</td>
+      <td className={`${styles.tot} ${styles.totOt}`}>{row.totals.overtime_hours}h</td>
+      {!dayView ? (
+        <>
+          <td className={styles.tot}>{row.totals.absent}</td>
+          <td className={styles.tot}>{row.totals.weekly_off}</td>
+          <td className={`${styles.tot} ${styles.totPaid}`}>{row.totals.paid_days}</td>
+        </>
+      ) : null}
     </tr>
   );
 
@@ -121,14 +209,21 @@ export function ReportGrid({
               P
             </th>
             <th scope="col" className={styles.tot} title="Overtime hours">
-              O h
+              O
             </th>
-            <th scope="col" className={styles.tot} title="Absent days">
-              A
-            </th>
-            <th scope="col" className={styles.tot}>
-              Paid days
-            </th>
+            {!dayView ? (
+              <>
+                <th scope="col" className={styles.tot} title="Absent days">
+                  A
+                </th>
+                <th scope="col" className={styles.tot} title="Weekly off days">
+                  W
+                </th>
+                <th scope="col" className={styles.tot}>
+                  Paid days
+                </th>
+              </>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -159,9 +254,10 @@ export function ReportGrid({
               const n = staffPresent[i];
               const off = n === null;
               const open = !off && openDays[i];
+              const full = !off && !open && staffCount > 0 && n === staffCount;
               const cls = [
                 styles.footCell,
-                off || open ? styles.footOff : isLowPresence(n, staffCount) ? styles.footLow : "",
+                off || open ? styles.footOff : full ? styles.footFull : isLowPresence(n, staffCount) ? styles.footLow : "",
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -169,15 +265,15 @@ export function ReportGrid({
                 ? "Weekly off"
                 : open
                   ? `${bsDayLabel(monthName, day)}: not marked yet`
-                  : `${n} of ${staffCount} present on ${bsDayLabel(monthName, day)}`;
+                  : `${n} of ${staffCount} present on ${bsDayLabel(monthName, day)}${full ? " · everyone" : ""}`;
               return (
                 <td key={day.bs_date} className={cls} title={title}>
                   {off ? "–" : open ? "·" : wide ? `${n} / ${staffCount}` : n}
                 </td>
               );
             })}
-            <td colSpan={4} className={styles.footNote}>
-              avg {avgPresent.toFixed(1)} of {staffCount} per day
+            <td colSpan={totalCols} className={styles.footNote}>
+              {staffCount} {staffCount === 1 ? "employee" : "employees"}
             </td>
           </tr>
         </tfoot>

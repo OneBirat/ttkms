@@ -212,19 +212,27 @@ function monthCells(employeeId: number, month: MonthReport["month"]): DayCell[] 
   });
 }
 
-/** GET /api/attendance/report?bs_year=&bs_month= -> MonthReport (all departments; week/dept are sliced client-side). */
-export async function getReport(monthKey: string): Promise<MonthReport> {
+/**
+ * GET /api/attendance/report?bs_year=&bs_month=&branch= -> MonthReport.
+ * `branch` is required unless the user has see_other_branches; without it an
+ * admin gets every branch. Week / day / department views are sliced client-side.
+ */
+export async function getReport(monthKey: string, branchId: number | null = null): Promise<MonthReport> {
   await wait();
   const month = findMonth(monthKey, MOCK_SETTINGS.weekly_off);
   if (!month) throw new AttendanceApiError(404, `No report for ${monthKey}.`);
-  const rows: ReportRow[] = EMPLOYEES.map((employee) => {
+  if (branchId !== null && !branchRefs().some((b) => b.id === branchId)) {
+    throw new AttendanceApiError(404, "Unknown branch.");
+  }
+  const rows: ReportRow[] = EMPLOYEES.filter((e) => branchId === null || e.branch_id === branchId).map((employee) => {
     const cells = monthCells(employee.id, month);
     return { employee, cells, totals: computeTotals(cells) };
   });
   return {
     month,
     settings: MOCK_SETTINGS,
-    departments: departmentRefs(),
+    branches: branchRefs(),
+    departments: departmentRefs(branchId),
     rows,
     generated_at: new Date().toISOString(),
   };
@@ -248,8 +256,8 @@ export async function getEmployeeMonth(employeeId: number, monthKey: string): Pr
 }
 
 /**
- * GET /api/attendance/report/export.xlsx?bs_year=&bs_month=&dept=&q=&sort=  -> file (openpyxl)
- * GET /api/attendance/report/export.pdf?bs_year=&bs_month=&dept=&q=&sort=   -> file (WeasyPrint)
+ * GET /api/attendance/report/export.xlsx?bs_year=&bs_month=&branch=&dept=&q=&sort=                -> file (openpyxl)
+ * GET /api/attendance/report/export.pdf?bs_year=&bs_month=&branch=&dept=&q=&sort=&hide_saturdays= -> file (WeasyPrint)
  *
  * UI-first pass: the file is produced in the browser from the same report
  * data. The PDF variant returns a print-ready HTML document that the caller
@@ -260,7 +268,7 @@ export async function exportReport(
   filters: ReportFilters,
   context: ExportContext,
 ): Promise<ExportFile> {
-  const report = await getReport(filters.month);
+  const report = await getReport(filters.month, filters.branch_id);
   const model = buildExportModel(report, filters, context);
   const slug = report.month.label.replace(/\s+/g, "_");
   if (format === "xlsx") {

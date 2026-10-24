@@ -267,10 +267,13 @@ export interface ReportRow {
   totals: AttendanceTotals;
 }
 
-/** GET /api/attendance/report?bs_year=&bs_month=  (week & dept are sliced client-side) */
+/** GET /api/attendance/report?bs_year=&bs_month=&branch=  (week / day / dept are sliced client-side) */
 export interface MonthReport {
   month: BsMonthRef;
   settings: AttendanceSettings;
+  /** Branches the user may report on (one entry for a single-branch user). */
+  branches: BranchRef[];
+  /** Departments present in the branch asked for (company-wide without a branch). */
   departments: DepartmentRef[];
   rows: ReportRow[];
   /** ISO timestamp of when the data was produced. */
@@ -293,11 +296,15 @@ export type ReportSort = "dept" | "name" | "absent" | "overtime";
 export interface ReportFilters {
   /** Month key "YYYY-MM" (BS). */
   month: string;
+  /** Branch to report on; null = every branch the user may see (admins only). */
+  branch_id: number | null;
   /** null = all departments. */
   department_id: number | null;
   query: string;
   sort: ReportSort;
   group: boolean;
+  /** Leave the Saturday columns out (PDF "Saturdays hidden" variant); totals still count them. */
+  hide_weekly_off?: boolean;
 }
 
 /** Export response: a file to hand to the browser. */
