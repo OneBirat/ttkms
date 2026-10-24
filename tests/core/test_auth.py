@@ -51,7 +51,7 @@ async def test_login_wrong_password(client, make_user):
         headers={"X-CSRF-Token": token},
     )
     assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid username or password."}
+    assert response.json() == {"detail": "Invalid phone, username or password."}
 
 
 async def test_unknown_and_inactive_users_get_the_same_error(client, make_user):
@@ -64,7 +64,7 @@ async def test_unknown_and_inactive_users_get_the_same_error(client, make_user):
             headers={"X-CSRF-Token": token},
         )
         assert response.status_code == 401
-        assert response.json() == {"detail": "Invalid username or password."}
+        assert response.json() == {"detail": "Invalid phone, username or password."}
 
 
 async def test_login_validates_payload(client):
@@ -82,11 +82,13 @@ async def test_login_success_then_me(client, make_user, login, db):
     assert body["user"] == {
         "id": user.id,
         "username": "admin",
+        "phone": None,
         "full_name": "Site Admin",
         "role": "admin",
         "role_label": "Admin",
         "employee_id": None,
         "last_login_at": body["user"]["last_login_at"],
+        "must_change_password": False,
     }
     assert body["user"]["last_login_at"] is not None
     assert body["csrf_token"]
@@ -156,7 +158,7 @@ async def test_deactivated_user_is_logged_out(client, make_user, login, db):
 async def test_require_role_blocks_other_roles(client, make_user, login):
     await make_user("clerk", role=Role.staff)
     await login("clerk")
-    response = await client.get("/api/admin")
+    response = await client.get("/api/payroll")
     assert response.status_code == 403
     assert response.json()["detail"] == "You do not have access to this page."
     assert (await client.get("/api/attendance")).status_code == 200
@@ -167,3 +169,90 @@ def test_require_role_rejects_unknown_roles():
         auth.require_role("superuser")
     with pytest.raises(ValueError):
         auth.require_role()
+
+
+async def test_login_with_phone_number(client, make_user, db):
+    user = await make_user("sita")
+    user.phone = "9841000002"
+    await db.flush()
+    token = await _csrf(client)
+    for identifier in ("9841000002", "+977 9841 000 002", "0984-1000002"):
+        response = await client.post(
+            "/api/auth/login",
+            json={"username": identifier, "password": "secret123"},
+            headers={"X-CSRF-Token": token},
+        )
+        assert response.status_code == 200, identifier
+        assert response.json()["user"]["phone"] == "9841000002"
+        token = response.json()["csrf_token"]
+    # A phone-shaped identifier never falls back to a username lookup.
+    await make_user("9841000003")
+    response = await client.post(
+        "/api/auth/login",
+        json={"username": "9841000003", "password": "secret123"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert response.status_code == 401
+
+
+def test_phone_normalisation():
+    from app.core.models import is_phone, normalize_phone
+
+    assert normalize_phone("+977 98-4100 0001") == "9841000001"
+    assert normalize_phone("09841000001") == "9841000001"
+    assert normalize_phone("9779841000001") == "9841000001"
+    assert is_phone("9841000001") and is_phone("+977 9851 234 567")
+    assert not is_phone("admin") and not is_phone("1234567890") and not is_phone("98410")
+
+
+async def test_temporary_password_forces_a_change(client, make_user, login, db):
+    user = await make_user("newbie", password="Temp-1234x")
+    user.must_change_password = True
+    await db.flush()
+    token = (await login("newbie", password="Temp-1234x")).json()["csrf_token"]
+
+    # Only /api/auth/* works until the password is changed.
+    me = await client.get("/api/auth/me")
+    assert me.status_code == 200 and me.json()["user"]["must_change_password"] is True
+    blocked = await client.get("/api/dashboard")
+    assert blocked.status_code == 403
+    assert blocked.json() == {
+        "detail": auth.PASSWORD_CHANGE_REQUIRED_DETAIL,
+        "code": "password_change_required",
+    }
+
+    # Wrong current password, too short, or unchanged: refused.
+    headers = {"X-CSRF-Token": token}
+    bad = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": "nope", "new_password": "longenough1"},
+        headers=headers,
+    )
+    assert bad.status_code == 401
+    short = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": "Temp-1234x", "new_password": "short"},
+        headers=headers,
+    )
+    assert short.status_code == 422
+    same = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": "Temp-1234x", "new_password": "Temp-1234x"},
+        headers=headers,
+    )
+    assert same.status_code == 400
+
+    ok = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": "Temp-1234x", "new_password": "my-own-password"},
+        headers=headers,
+    )
+    assert ok.status_code == 200
+    assert ok.json()["user"]["must_change_password"] is False
+    assert (await client.get("/api/dashboard")).status_code == 200
+    actions = (await db.execute(select(AuditLog.action))).scalars().all()
+    assert "change_password" in actions
+
+    # The new password works, the temporary one does not.
+    await client.post("/api/auth/logout", headers={"X-CSRF-Token": ok.json()["csrf_token"]})
+    assert (await login("newbie", password="my-own-password")).status_code == 200

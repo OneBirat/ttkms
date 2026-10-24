@@ -1,0 +1,38 @@
+{% extends "print/base.html" %}
+{% block head %}
+<style>
+  .stickers {
+    display: grid;
+    grid-template-columns: repeat({{ size.columns }}, 1fr);
+    gap: 3mm;
+    align-content: start;
+  }
+  .sticker {
+    border: 0.3pt dashed #CBD2CC;
+    border-radius: 2pt;
+    padding: 2.5mm 2mm;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1mm;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .sticker svg { width: 100%; height: {{ size.bar_height_mm }}mm; }
+  .sticker__code { font-family: "IBM Plex Mono", monospace; font-size: 7.5pt; letter-spacing: .12em; }
+  .sticker__name { font-size: 8.5pt; font-weight: 700; text-align: center; line-height: 1.2; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stickers">
+  {% for s in stickers %}
+  <div class="sticker">
+    <svg viewBox="0 0 {{ s.barcode.width }} 50" preserveAspectRatio="none" shape-rendering="crispEdges" role="img" aria-label="Barcode {{ s.barcode.text }}">
+      {% for bar in s.barcode.bars %}<rect x="{{ bar.x }}" y="0" width="{{ bar.width }}" height="50" fill="#17222A"/>{% endfor %}
+    </svg>
+    <span class="sticker__code">{{ s.barcode.text }}</span>
+    <span class="sticker__name">{{ s.name }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

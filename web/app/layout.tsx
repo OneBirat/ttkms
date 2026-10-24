@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "TTK Stock", template: "%s · TTK Stock" },
-  description: "Stock, attendance and payroll for TTK.",
-  applicationName: "TTK Stock",
+  title: { default: "TTK Attendance", template: "%s · TTK Attendance" },
+  description: "Attendance and payroll for TTK.",
+  applicationName: "TTK Attendance",
 };
 
 export const viewport: Viewport = {

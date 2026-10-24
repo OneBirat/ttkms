@@ -181,7 +181,7 @@ DEMO_ROWS: list[dict[str, Any]] = [
      "qty": 5, "unit": "pcs", "status": "low", "updated": "2083-07-03"},
 ]  # fmt: skip
 DEMO_LEGEND = [("OK", "ok"), ("Low", "low"), ("Out", "danger")]
-DEMO_TITLE = "Export demo - stock items"
+DEMO_TITLE = "Export demo - sample rows"
 
 
 @router.get("/core/export-demo.xlsx", name="export_demo_xlsx", include_in_schema=False)

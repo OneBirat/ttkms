@@ -8,6 +8,7 @@ import {
   apiFetch,
   ensureCsrf,
   safeNextPath,
+  SET_PASSWORD_PATH,
   type AuthResponse,
   type LoginRequest,
   type ModulesResponse,
@@ -16,7 +17,7 @@ import { homePath } from "@/lib/modules";
 import styles from "./login.module.css";
 
 /* Sign-in screen from docs/design/Login.dc.html: dark page, brand block above
-   a white card with username, password (show/hide), "Keep me signed in". */
+   a white card with phone/username, password (show/hide), "Keep me signed in". */
 
 function Brand() {
   return (
@@ -25,8 +26,8 @@ function Brand() {
         TT
       </span>
       <span className={styles.brandText}>
-        <span className={styles.brandName}>TTK Stock</span>
-        <span className={styles.brandSub}>Stock &amp; attendance</span>
+        <span className={styles.brandName}>TTK Attendance</span>
+        <span className={styles.brandSub}>Attendance &amp; payroll</span>
       </span>
     </div>
   );
@@ -74,11 +75,19 @@ function LoginForm() {
     setError(null);
     const payload: LoginRequest = { username, password, remember };
     try {
-      await apiFetch<AuthResponse>("/api/auth/login", {
+      const session = await apiFetch<AuthResponse>("/api/auth/login", {
         method: "POST",
         json: payload,
         redirectOn401: false,
       });
+      if (session.user.must_change_password) {
+        // Temporary password from an admin: pick a real one before anything else.
+        const next = nextParam ? safeNextPath(nextParam) : "";
+        router.replace(
+          next ? `${SET_PASSWORD_PATH}?next=${encodeURIComponent(next)}` : SET_PASSWORD_PATH,
+        );
+        return;
+      }
       router.replace(await landingPath(nextParam));
     } catch (err) {
       if (err instanceof ApiError) {
@@ -104,7 +113,7 @@ function LoginForm() {
       ) : null}
       <div className={styles.group}>
         <label htmlFor="login-username" className={styles.label}>
-          Username
+          Phone or username
         </label>
         <div className={styles.field}>
           <input

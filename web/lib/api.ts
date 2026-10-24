@@ -9,16 +9,25 @@
 
 // ---------------------------------------------------------------- contract
 
-export type Role = "admin" | "manager" | "store_keeper" | "staff";
+export type Role = "admin" | "manager" | "staff";
 
 export interface User {
   id: number;
   username: string;
+  /** Login phone number (10 digits) when set; staff usually sign in with it. */
+  phone: string | null;
   full_name: string;
   role: Role;
   role_label: string;
   employee_id: number | null;
   last_login_at: string | null;
+  /** True until the user replaces the temporary password an admin gave them. */
+  must_change_password: boolean;
+}
+
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
 }
 
 export interface AuthResponse {
@@ -31,6 +40,7 @@ export interface CsrfResponse {
 }
 
 export interface LoginRequest {
+  /** Phone number or username. */
   username: string;
   password: string;
   remember: boolean;
@@ -128,19 +138,27 @@ export interface ModulePlaceholderResponse {
 
 export interface ApiErrorBody {
   detail: string;
+  /** Machine-readable reason, e.g. "password_change_required". */
+  code?: string;
 }
+
+/** 403 body code sent while the user still has a temporary password. */
+export const PASSWORD_CHANGE_REQUIRED = "password_change_required";
+export const SET_PASSWORD_PATH = "/set-password";
 
 // ------------------------------------------------------------------ errors
 
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: string;
+  readonly code: string | null;
 
-  constructor(status: number, detail: string) {
+  constructor(status: number, detail: string, code: string | null = null) {
     super(detail);
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
+    this.code = code;
   }
 }
 
@@ -239,6 +257,22 @@ function redirectToLogin(): void {
   window.location.assign(loginPath());
 }
 
+function codeFrom(body: unknown): string | null {
+  if (body && typeof body === "object" && "code" in body) {
+    const code = (body as { code: unknown }).code;
+    if (typeof code === "string") return code;
+  }
+  return null;
+}
+
+/** Send the user to the "set your password" page (once; not from that page itself). */
+function redirectToSetPassword(): void {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname.startsWith(SET_PASSWORD_PATH)) return;
+  const next = `${window.location.pathname}${window.location.search}`;
+  window.location.assign(`${SET_PASSWORD_PATH}?next=${encodeURIComponent(next)}`);
+}
+
 function detailFrom(body: unknown, fallback: string): string {
   if (body && typeof body === "object" && "detail" in body) {
     const detail = (body as { detail: unknown }).detail;
@@ -306,12 +340,16 @@ export async function apiFetch<T>(
   }
 
   if (!response.ok) {
+    const code = codeFrom(parsed);
     if (response.status === 401 && redirectOn401) {
       redirectToLogin();
+    } else if (response.status === 403 && code === PASSWORD_CHANGE_REQUIRED) {
+      redirectToSetPassword();
     }
     throw new ApiError(
       response.status,
       detailFrom(parsed, response.statusText || `Request failed (${response.status})`),
+      code,
     );
   }
 

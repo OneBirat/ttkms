@@ -24,6 +24,18 @@ async def login_required_handler(request: Request, exc: auth.LoginRequired) -> J
     return JSONResponse({"detail": "login required"}, status_code=401)
 
 
+async def password_change_required_handler(
+    request: Request, exc: auth.PasswordChangeRequired
+) -> JSONResponse:
+    return JSONResponse(
+        {
+            "detail": auth.PASSWORD_CHANGE_REQUIRED_DETAIL,
+            "code": auth.PASSWORD_CHANGE_REQUIRED_CODE,
+        },
+        status_code=403,
+    )
+
+
 def create_app(modules: list[Module] | None = None) -> FastAPI:
     """Build the app. ``modules`` defaults to the enabled set read from settings when called,
     so a test can monkeypatch ``settings.enabled_modules`` and build an app with stock on."""
@@ -46,6 +58,7 @@ def create_app(modules: list[Module] | None = None) -> FastAPI:
     )
     app.state.modules = modules
     app.add_exception_handler(auth.LoginRequired, login_required_handler)
+    app.add_exception_handler(auth.PasswordChangeRequired, password_change_required_handler)
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:
