@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   enabledOnly,
   homePath,
+  isPublicPath,
   moduleForPath,
   modulesFromNav,
 } from "./modules.ts";
@@ -43,7 +44,14 @@ test("moduleForPath maps every module prefix and nothing else", () => {
   assert.equal(moduleForPath("/attendance"), "attendance");
   assert.equal(moduleForPath("/attendance/mark"), "attendance");
   assert.equal(moduleForPath("/attendance/report?x=1".split("?")[0]), "attendance");
-  assert.equal(moduleForPath("/payroll"), "payroll");
+  assert.equal(moduleForPath("/people"), "payroll");
+  assert.equal(moduleForPath("/people/employees"), "payroll");
+  assert.equal(moduleForPath("/people/employees/12"), "payroll");
+  assert.equal(moduleForPath("/people/salary"), "payroll");
+  assert.equal(moduleForPath("/people/payments"), "payroll");
+  assert.equal(moduleForPath("/people/photo/abc"), "payroll");
+  assert.equal(moduleForPath("/payroll"), null, "payroll pages live under /people");
+  assert.equal(moduleForPath("/peoples"), null);
   assert.equal(moduleForPath("/admin"), "admin");
   assert.equal(moduleForPath("/admin/users"), "admin");
   assert.equal(moduleForPath("/admin/barcodes"), "admin");
@@ -52,6 +60,15 @@ test("moduleForPath maps every module prefix and nothing else", () => {
   assert.equal(moduleForPath("/attendancexyz"), null);
   assert.equal(moduleForPath("/"), null);
   assert.equal(moduleForPath("/module-off"), null);
+});
+
+test("only the token photo page is public", () => {
+  assert.ok(isPublicPath("/people/photo/abc123"));
+  assert.ok(isPublicPath("/people/photo"));
+  assert.ok(!isPublicPath("/people/photos"));
+  assert.ok(!isPublicPath("/people/employees"));
+  assert.ok(!isPublicPath("/"));
+  assert.ok(!isPublicPath("/attendance/mark"));
 });
 
 test("sidebar sections come from the nav, in order", () => {

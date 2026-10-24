@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { ModulesResponse } from "@/lib/api";
-import { moduleForPath } from "@/lib/modules";
+import { isPublicPath, moduleForPath } from "@/lib/modules";
 
 /** Name of the backend session cookie (HttpOnly, SameSite=Lax). */
 export const SESSION_COOKIE = "ttk_session";
@@ -38,15 +38,19 @@ async function moduleEnabled(
 /**
  * First-line guard for app pages.
  *
+ * 0. Public pages (the token-protected phone photo page under /people/photo)
+ *    pass straight through: no session, no module check.
  * 1. No session cookie: never render the shell, go straight to the login page.
  *    The real check is done by the API, every 401 it returns also sends the
  *    user to /login (see lib/api.ts).
- * 2. A page owned by a module that is not in the backend's ENABLED_MODULES:
- *    send the user to the "module turned off" page. The page files stay in
- *    the repo; this is what makes them unreachable.
+ * 2. A page owned by a module that is not in the backend's ENABLED_MODULES
+ *    (/attendance/**, /people/**, /admin/**): send the user to the "module
+ *    turned off" page. The page files stay in the repo; this is what makes
+ *    them unreachable.
  */
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  if (isPublicPath(pathname)) return NextResponse.next();
   if (!request.cookies.has(SESSION_COOKIE)) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
