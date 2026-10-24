@@ -68,7 +68,7 @@ export function MarkMobile({ state }: { state: MarkState }) {
           <div className={styles.titleBlock}>
             <span className={styles.title}>Mark attendance</span>
           </div>
-          {state.isAdmin ? (
+          {state.canPickBranch ? (
             <label className={styles.branchChip}>
               {branchShort}
               <ChevronDownIcon className={styles.branchCaret} />

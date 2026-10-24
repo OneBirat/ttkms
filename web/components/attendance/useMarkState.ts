@@ -99,7 +99,8 @@ export interface BulkMessage {
 
 export interface MarkState {
   // who
-  isAdmin: boolean;
+  /** True when the user holds `see_other_branches` and may switch branch. */
+  canPickBranch: boolean;
   // calendar / scope
   today: TodayRef | null;
   date: string;
@@ -187,12 +188,13 @@ export interface MarkState {
 
 export function useMarkState(options: { phone: boolean }): MarkState {
   const { phone } = options;
-  const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  const { branchId: homeBranch, can } = useSession();
+  const canPickBranch = can("see_other_branches");
 
   const [today, setToday] = useState<TodayRef | null>(null);
   const [date, setDateRaw] = useState("");
-  const [branchId, setBranchId] = useState(DEFAULT_BRANCH);
+  // Everyone starts on their own branch (session.branchId from admin.user_access).
+  const [branchId, setBranchId] = useState(homeBranch ?? DEFAULT_BRANCH);
   const [departmentId, setDepartmentIdRaw] = useState<number | null>(null);
   const [query, setQueryRaw] = useState("");
   const [statusFilter, setStatusFilterRaw] = useState<StatusFilter>("");
@@ -588,7 +590,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   };
 
   return {
-    isAdmin,
+    canPickBranch,
     today,
     date,
     setDate,

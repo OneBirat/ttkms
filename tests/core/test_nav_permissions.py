@@ -7,6 +7,7 @@ Employees; a switch turned on for one user shows up for that user alone.
 
 import pytest
 
+from app.core.models import Branch
 from app.core.modules import Module, NavItem
 from app.main import MODULES
 from app.modules.admin import permissions as perm
@@ -97,6 +98,39 @@ async def test_admin_keeps_everything(client, make_user, login, db):
     registry = (await client.get("/api/registry")).json()["modules"]
     assert all(m["allowed"] for m in registry)
     assert [len(m["nav"]) for m in registry] == [len(m.nav) for m in MODULES]
+
+
+async def test_session_carries_branch_and_effective_access(client, make_user, login, db):
+    """``/api/auth/me`` gives every screen the user's own branch and permissions, so payroll
+    and attendance need neither a "first branch" fallback nor role checks."""
+    branch = Branch(name="Branch 2")
+    db.add(branch)
+    await db.flush()
+    clerk = await make_user("clerk", role="staff")
+    db.add(
+        UserAccess(
+            user_id=clerk.id,
+            branch_id=branch.id,
+            access=perm.effective_access("staff", {"view_attendance_report": True}),
+        )
+    )
+    await db.flush()
+    await login("clerk")
+    me = (await client.get("/api/auth/me")).json()
+    assert me["branch_id"] == branch.id
+    assert me["access"] == {
+        "mark_attendance": True,
+        "view_attendance_report": True,
+        "see_other_branches": False,
+        "manage_employees": False,
+        "salary_advances": False,
+        "manage_users": False,
+    }
+
+    await make_user("plain", role="staff")  # no user_access row: preset, no branch
+    login_body = (await login("plain")).json()
+    assert login_body["branch_id"] is None
+    assert login_body["access"] == perm.preset_for("staff")
 
 
 def test_nav_item_visibility_combines_role_and_permission():

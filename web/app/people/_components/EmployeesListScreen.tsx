@@ -6,7 +6,6 @@ import { useId, useMemo, useState, type MouseEvent } from "react";
 import { Icon } from "@/components/icons";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { useSession } from "@/lib/session";
 import { AddEmployeeDialog } from "./AddEmployeeDialog";
 import { Avatar } from "./Avatar";
 import { TodayPill } from "./TodayPill";
@@ -14,6 +13,7 @@ import { listBranches, listDepartments, listEmployeeRows } from "../api";
 import { formatAmount, formatRs, matchesEmployee } from "../_lib/helpers";
 import type { EmployeeListRow } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
+import { useBranchScope } from "../_lib/useBranchScope";
 import styles from "./employees.module.css";
 import shared from "./payroll.module.css";
 
@@ -22,21 +22,17 @@ const DEPT_TONES = ["ok", "ot", "advance", "purple", "neutral"] as const;
 /** /people/employees: every employee of one branch with today's mark and the balance due. */
 export function EmployeesListScreen() {
   const router = useRouter();
-  const { user } = useSession();
-  const isAdmin = user?.role === "admin";
   const searchId = useId();
   const branchId = useId();
   const branches = usePayroll(listBranches, []);
   const departments = usePayroll(listDepartments, []);
-  const [branch, setBranch] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState<number | "all">("all");
   const [addOpen, setAddOpen] = useState(false);
 
-  // Admins switch branches; everyone else sees their own (the first one until
-  // the session carries a branch — NEEDS FROM MAIN: user.branch_id).
+  // Everyone sees their own branch (session.branchId); `see_other_branches` adds the drop-down.
   const branchList = branches.data ?? [];
-  const activeBranch = branch ?? branchList[0]?.id ?? null;
+  const { active: activeBranch, picker } = useBranchScope(branchList);
   const rows = usePayroll(() => listEmployeeRows(activeBranch), [activeBranch]);
   const all = useMemo(() => rows.data ?? [], [rows.data]);
   const filtered = useMemo(
@@ -61,12 +57,12 @@ export function EmployeesListScreen() {
         subtitle="All employees with their department. Click a row to open their account."
         actions={
           <div className={shared.row}>
-            {isAdmin ? (
+            {picker ? (
               <label htmlFor={branchId} className={styles.branchLabel}>
                 Branch
                 <span className={`field ${shared.selectWrap} ${styles.branchField}`}>
                   <Icon name="home" size={16} style={{ color: "var(--color-primary)" }} />
-                  <select id={branchId} value={activeBranch ?? ""} onChange={(e) => setBranch(Number(e.target.value))}>
+                  <select id={branchId} value={activeBranch ?? ""} onChange={(e) => picker.onChange(Number(e.target.value))}>
                     {branchList.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.name}

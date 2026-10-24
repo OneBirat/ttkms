@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useSession } from "@/lib/session";
 import { PhoneFrame } from "./PhoneFrame";
+import { useBranchScope } from "../../_lib/useBranchScope";
 import { currentMonth, getSalaryReport, listBranches, listMonths } from "../../api";
 import { formatAdRange } from "@/lib/bs";
 import { addMonths, compareMonths, monthEnd, monthLabel, monthStart, sameMonth } from "../../_lib/months";
@@ -17,15 +17,13 @@ type Filter = "all" | "due" | "paid";
 /** Phone: salary report for one BS month (design PayrollMobile, report screen). */
 export function PhoneSalaryReport() {
   const router = useRouter();
-  const { user } = useSession();
   const branches = usePayroll(listBranches, []);
   const months = usePayroll(listMonths, []);
-  const [branch, setBranch] = useState<number | null>(null);
   const [month, setMonth] = useState(currentMonth());
   const [filter, setFilter] = useState<Filter>("all");
   const report = usePayroll(() => getSalaryReport(month), [month.bs_year, month.bs_month]);
   const branchList = branches.data ?? [];
-  const activeBranch = branch ?? branchList[0]?.id ?? null;
+  const { active: activeBranch, picker } = useBranchScope(branchList);
   const rows = (report.data?.rows ?? []).filter((r) => activeBranch === null || r.employee.branch.id === activeBranch);
   const shown = rows.filter((r) => (filter === "all" ? true : filter === "due" ? r.ledger.due > 0 : r.ledger.due === 0));
   const oldest = months.data?.[months.data.length - 1] ?? null;
@@ -36,7 +34,7 @@ export function PhoneSalaryReport() {
     <PhoneFrame
       title="Salary report"
       subtitle={`${branchList.find((b) => b.id === activeBranch)?.name ?? ""} · ${rows.length} staff`}
-      branch={user?.role === "admin" ? { value: activeBranch, options: branchList, onChange: setBranch } : null}
+      branch={picker}
       headerExtra={
         <div className={styles.monthNav}>
           <button type="button" aria-label="Previous month" className={styles.monthNavButton} disabled={Boolean(oldest && compareMonths(month, oldest) <= 0)} onClick={() => setMonth(addMonths(month, -1))}>

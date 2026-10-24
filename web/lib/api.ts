@@ -30,9 +30,28 @@ export interface ChangePasswordRequest {
   new_password: string;
 }
 
+/** The six per-user switches of app/modules/admin/permissions.py. */
+export type Permission =
+  | "mark_attendance"
+  | "view_attendance_report"
+  | "see_other_branches"
+  | "manage_employees"
+  | "salary_advances"
+  | "manage_users";
+
+/** Effective access: role preset + per-user overrides, every key present. */
+export type Access = Partial<Record<Permission, boolean>>;
+
+/**
+ * POST /api/auth/login, GET /api/auth/me, POST /api/auth/change-password
+ * (app/core/schemas.py SessionOut).
+ */
 export interface AuthResponse {
   user: User;
   csrf_token: string;
+  /** The user's own branch (admin.user_access.branch_id); null for admins and unassigned users. */
+  branch_id: number | null;
+  access: Access;
 }
 
 export interface CsrfResponse {

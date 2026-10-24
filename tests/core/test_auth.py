@@ -7,6 +7,7 @@ from app.config import settings
 from app.core import auth
 from app.core.auth import hash_password, verify_password
 from app.core.models import AuditLog, Role
+from app.modules.admin.permissions import PERMISSIONS
 
 pytestmark = pytest.mark.anyio
 
@@ -101,6 +102,10 @@ async def test_login_success_then_me(client, make_user, login, db):
     assert me.status_code == 200
     assert me.json()["user"]["username"] == "admin"
     assert me.json()["csrf_token"] == body["csrf_token"]
+    # The session carries the user's own branch and their effective permissions.
+    assert body["branch_id"] is None and me.json()["branch_id"] is None
+    assert me.json()["access"] == body["access"]
+    assert set(body["access"]) == set(PERMISSIONS) and all(body["access"].values())
 
     audit = (await db.execute(select(AuditLog).where(AuditLog.action == "login"))).scalars().all()
     assert len(audit) == 1 and audit[0].user_id == user.id

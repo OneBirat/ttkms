@@ -15,9 +15,11 @@ import {
   errorMessage,
   isAbortError,
   setCsrfToken,
+  type Access,
   type AuthResponse,
   type Module,
   type ModulesResponse,
+  type Permission,
   type Today,
   type User,
 } from "@/lib/api";
@@ -25,6 +27,15 @@ import { modulesFromNav } from "@/lib/modules";
 
 export interface Session {
   user: User | null;
+  /**
+   * The user's own branch (admin.user_access.branch_id). Attendance and
+   * payroll scope their screens to it; null for admins and unassigned users.
+   */
+  branchId: number | null;
+  /** Effective permissions from /api/auth/me (role preset + per-user switches). */
+  access: Access;
+  /** `can("see_other_branches")`: false until the session has loaded. */
+  can: (permission: Permission) => boolean;
   /** Sidebar sections from /api/core/modules (enabled modules only, role-filtered). */
   modules: Module[];
   /** ENABLED_MODULES as loaded by the backend; a paused module is absent. */
@@ -55,6 +66,8 @@ async function loadSession(signal: AbortSignal) {
   ]);
   return {
     user: meBody.user,
+    branchId: meBody.branch_id ?? null,
+    access: meBody.access ?? {},
     modules: modulesFromNav(modulesBody?.nav ?? []),
     enabled: modulesBody?.enabled ?? [],
     today: todayBody,
@@ -68,6 +81,8 @@ async function loadSession(signal: AbortSignal) {
 export function SessionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [branchId, setBranchId] = useState<number | null>(null);
+  const [access, setAccess] = useState<Access>({});
   const [modules, setModules] = useState<Module[]>([]);
   const [enabled, setEnabled] = useState<string[]>([]);
   const [today, setToday] = useState<Today | null>(null);
@@ -83,6 +98,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .then((result) => {
         if (controller.signal.aborted) return;
         setUser(result.user);
+        setBranchId(result.branchId);
+        setAccess(result.access);
         setModules(result.modules);
         setEnabled(result.enabled);
         setToday(result.today);
@@ -112,6 +129,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } finally {
       setCsrfToken(null);
       setUser(null);
+      setBranchId(null);
+      setAccess({});
       setModules([]);
       setEnabled([]);
       router.push("/login");
@@ -122,10 +141,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     (name: string) => enabled.includes(name),
     [enabled],
   );
+  const can = useCallback(
+    (permission: Permission) => Boolean(access[permission]),
+    [access],
+  );
 
   const value = useMemo<Session>(
     () => ({
       user,
+      branchId,
+      access,
+      can,
       modules,
       enabled,
       isEnabled,
@@ -135,7 +161,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       refresh,
       logout,
     }),
-    [user, modules, enabled, isEnabled, today, loading, error, refresh, logout],
+    [
+      user,
+      branchId,
+      access,
+      can,
+      modules,
+      enabled,
+      isEnabled,
+      today,
+      loading,
+      error,
+      refresh,
+      logout,
+    ],
   );
 
   return (

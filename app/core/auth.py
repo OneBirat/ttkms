@@ -1,6 +1,8 @@
 """Authentication: JSON login/logout, the current-user dependency and the role guard.
 
 * ``GET /api/auth/csrf``, ``POST /api/auth/login``, ``GET /api/auth/me``, ``POST /api/auth/logout``
+  (login / me / change-password answer :class:`SessionOut`: the user, the CSRF token, the user's
+  own ``branch_id`` and their effective permissions from ``app.modules.admin.permissions``)
 * :func:`get_current_user` (``CurrentUser``) raises :class:`LoginRequired`, which the app turns
   into a ``401 {"detail": "login required"}`` response
 * :func:`require_role` - ``Depends(require_role("admin", "manager"))`` -> 403 for other roles
@@ -110,6 +112,19 @@ async def get_current_user(request: Request, db: DbSession) -> User:
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+async def session_out(db, user: User, csrf_token: str) -> SessionOut:
+    """The session body: user, token, own branch and effective access. The admin module owns the
+    permission catalogue and imports this module, so it is imported here lazily."""
+    from app.modules.admin.permissions import access_for_user, branch_for_user
+
+    return SessionOut(
+        user=UserOut.from_user(user),
+        csrf_token=csrf_token,
+        branch_id=await branch_for_user(db, user),
+        access=await access_for_user(db, user),
+    )
+
+
 def require_role(*roles: str | Role):
     """Dependency factory: the signed-in user must have one of ``roles`` (403 otherwise)."""
     allowed = {Role(role).value for role in roles}
@@ -169,12 +184,12 @@ async def login(request: Request, db: DbSession, payload: LoginIn) -> SessionOut
     request.session[SESSION_ISSUED_KEY] = int(time.time())
     token = rotate_csrf_token(request)
     request.state.user = user
-    return SessionOut(user=UserOut.from_user(user), csrf_token=token)
+    return await session_out(db, user, token)
 
 
 @router.get("/me", response_model=SessionOut, responses={401: {"model": ErrorOut}})
-async def me(request: Request, user: CurrentUser) -> SessionOut:
-    return SessionOut(user=UserOut.from_user(user), csrf_token=get_csrf_token(request))
+async def me(request: Request, db: DbSession, user: CurrentUser) -> SessionOut:
+    return await session_out(db, user, get_csrf_token(request))
 
 
 @router.post(
@@ -207,7 +222,7 @@ async def change_password(
         data={"forced": was_forced},
     )
     await db.commit()
-    return SessionOut(user=UserOut.from_user(user), csrf_token=rotate_csrf_token(request))
+    return await session_out(db, user, rotate_csrf_token(request))
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)

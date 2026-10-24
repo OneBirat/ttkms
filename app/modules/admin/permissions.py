@@ -8,7 +8,8 @@ Admins always keep ``manage_users`` so the system cannot be locked out.
   view & edit employees; Staff = mark attendance only
 * :func:`effective_access` - preset + overrides -> ``{permission: bool}``
 * :func:`access_for_user` - the signed-in user's effective access (what the sidebar and the
-  module registry in ``app.core.routes`` filter by)
+  module registry in ``app.core.routes`` filter by, and what ``/api/auth/me`` returns)
+* :func:`branch_for_user` - the user's own branch (``user_access.branch_id``), also in the session
 * :func:`require_access` - FastAPI dependency: ``Depends(require_access("manage_users"))``
   (every listed permission); :func:`require_any_access` - at least one of them
 
@@ -109,11 +110,25 @@ def clean_overrides(role: Role | str, requested: Mapping[str, object] | None) ->
     return None if access == preset_for(role) else access
 
 
+async def access_row_for_user(db, user: User) -> UserAccess | None:
+    """The user's ``admin.user_access`` row (branch + overrides), or ``None`` when there is none
+    or the admin module is paused (its table is then not managed)."""
+    return await db.get(UserAccess, user.id) if is_enabled("admin") else None
+
+
 async def access_for_user(db, user: User) -> Access:
     """The user's effective access. With the admin module paused there is no ``user_access``
     table to read overrides from, so everyone gets their role preset."""
-    row = await db.get(UserAccess, user.id) if is_enabled("admin") else None
+    row = await access_row_for_user(db, user)
     return effective_access(user.role, row.access if row else None)
+
+
+async def branch_for_user(db, user: User) -> int | None:
+    """The branch the user works in (``admin.user_access.branch_id``); ``None`` for admins and
+    for users without a row. Attendance and payroll scope their screens to it unless the user
+    holds ``see_other_branches``."""
+    row = await access_row_for_user(db, user)
+    return row.branch_id if row else None
 
 
 def _check_permissions(name: str, permissions: tuple[str, ...]) -> None:

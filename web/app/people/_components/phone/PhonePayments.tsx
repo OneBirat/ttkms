@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "@/lib/session";
 import { PhoneFrame } from "./PhoneFrame";
+import { useBranchScope } from "../../_lib/useBranchScope";
 import { listBranches, listPayments } from "../../api";
 import { formatBsDay } from "@/lib/bs";
 import { rangeFor, today } from "../../_lib/months";
@@ -19,14 +19,12 @@ const CHIPS: { value: RegisterTypeFilter; label: string }[] = [
 
 /** Phone: payment records grouped by day (design PayrollMobile, payments screen). No tiles, no record form. */
 export function PhonePayments() {
-  const { user } = useSession();
   const branches = usePayroll(listBranches, []);
-  const [branch, setBranch] = useState<number | null>(null);
   const [type, setType] = useState<RegisterTypeFilter>("all");
   const range = rangeFor("last_3");
   const register = usePayroll(() => listPayments({ ...range, type }), [type]);
   const branchList = branches.data ?? [];
-  const activeBranch = branch ?? branchList[0]?.id ?? null;
+  const { active: activeBranch, picker } = useBranchScope(branchList);
   const rows = (register.data?.rows ?? []).filter((r) => activeBranch === null || r.employee.branch.id === activeBranch);
   const t = today().bs;
   const days = groupBy(rows, (r) => r.payment.date.bs);
@@ -40,7 +38,7 @@ export function PhonePayments() {
     <PhoneFrame
       title="Payment records"
       subtitle="Advances & salary paid"
-      branch={user?.role === "admin" ? { value: activeBranch, options: branchList, onChange: setBranch } : null}
+      branch={picker}
     >
       <div className={styles.chips} role="group" aria-label="Type">
         {CHIPS.map((c) => (

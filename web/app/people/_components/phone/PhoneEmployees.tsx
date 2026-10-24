@@ -3,11 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
-import { useSession } from "@/lib/session";
 import { PhoneFrame } from "./PhoneFrame";
 import { TodayPill } from "../TodayPill";
 import { listBranches, listDepartments, listEmployeeRows } from "../../api";
 import { formatAmount, initials, matchesEmployee } from "../../_lib/helpers";
+import { useBranchScope } from "../../_lib/useBranchScope";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import styles from "./phone.module.css";
 
@@ -20,15 +20,13 @@ export function avatarTone(id: number): string {
 /** Phone: staff list grouped by department (design PayrollMobile, list screen). No Add employee here. */
 export function PhoneEmployees() {
   const router = useRouter();
-  const { user } = useSession();
   const searchId = useId();
   const branches = usePayroll(listBranches, []);
   const departments = usePayroll(listDepartments, []);
-  const [branch, setBranch] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [dept, setDept] = useState<number | "all">("all");
   const branchList = branches.data ?? [];
-  const activeBranch = branch ?? branchList[0]?.id ?? null;
+  const { active: activeBranch, picker } = useBranchScope(branchList);
   const rows = usePayroll(() => listEmployeeRows(activeBranch), [activeBranch]);
   const all = useMemo(() => rows.data ?? [], [rows.data]);
   const shown = useMemo(
@@ -46,7 +44,7 @@ export function PhoneEmployees() {
     <PhoneFrame
       title="Employees"
       subtitle={`${branchName} · ${all.length} staff`}
-      branch={user?.role === "admin" ? { value: activeBranch, options: branchList, onChange: setBranch } : null}
+      branch={picker}
       headerExtra={
         <div className={styles.headerTiles}>
           <div className={styles.headerTile}>

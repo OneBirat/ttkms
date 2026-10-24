@@ -51,12 +51,12 @@ function project(rows: readonly ReportRow[], indices: readonly number[], retotal
 }
 
 export function ReportPage() {
-  const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  const { user, branchId: homeBranch, can } = useSession();
+  const canPickBranch = can("see_other_branches");
   const [months, setMonths] = useState<MonthOption[]>([]);
   const [today, setToday] = useState<TodayRef | null>(null);
   const [monthKey, setMonthKey] = useState("");
-  const [branchId, setBranchId] = useState<number | null>(null);
+  const [branchId, setBranchId] = useState<number | null>(homeBranch);
   const [view, setView] = useState<View>("month");
   const [weekIndex, setWeekIndex] = useState(1);
   const [dayIndex, setDayIndex] = useState(0);
@@ -98,8 +98,9 @@ export function ReportPage() {
       .then((body) => {
         if (cancelled) return;
         setReport(body);
-        // Everyone reports on one branch; the first one until the user picks another.
-        if (branchId === null && body.branches.length) setBranchId(body.branches[0].id);
+        // Everyone reports on one branch: their own (session.branchId); an admin without
+        // one starts on the first branch until they pick another.
+        if (branchId === null && body.branches.length) setBranchId(homeBranch ?? body.branches[0].id);
         setLoading(false);
       })
       .catch((err: unknown) => {
@@ -111,7 +112,7 @@ export function ReportPage() {
     return () => {
       cancelled = true;
     };
-  }, [monthKey, branchId]);
+  }, [monthKey, branchId, homeBranch]);
 
   const monthName = report ? bsMonthName(report.month.bs_month) : "";
   const allDays = useMemo(() => report?.month.days ?? [], [report]);
@@ -388,7 +389,7 @@ export function ReportPage() {
 
       <div className={styles.branchRow}>
         <span className={styles.branchLabel}>Branch</span>
-        {isAdmin ? (
+        {canPickBranch ? (
           <div className={`${shared.field} ${styles.branchField}`}>
             <select
               aria-label="Branch"

@@ -61,8 +61,16 @@ class LoginIn(BaseModel):
 
 
 class SessionOut(BaseModel):
+    """``POST /api/auth/login``, ``GET /api/auth/me``, ``POST /api/auth/change-password``: the
+    signed-in user plus what every screen needs to scope itself - the user's own branch and
+    their effective permissions (``app.modules.admin.permissions``, every key present)."""
+
     user: UserOut
     csrf_token: str
+    #: ``admin.user_access.branch_id``; ``None`` for admins (all branches) and unassigned users.
+    branch_id: int | None = None
+    #: Effective access, ``{permission: on}`` - role preset + per-user switches.
+    access: dict[str, bool] = Field(default_factory=dict)
 
 
 class CsrfOut(BaseModel):

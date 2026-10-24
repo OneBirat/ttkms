@@ -88,7 +88,13 @@ export function MarkDesktop({ state }: { state: MarkState }) {
             Branch
           </label>
           <div className={shared.field}>
-            <select id="mark-branch" value={state.branchId} onChange={(e) => state.setBranch(Number(e.target.value))}>
+            <select
+              id="mark-branch"
+              value={state.branchId}
+              disabled={!state.canPickBranch}
+              title={state.canPickBranch ? undefined : "Your branch. Ask an admin for 'See other branches' access."}
+              onChange={(e) => state.setBranch(Number(e.target.value))}
+            >
               {(data?.branches ?? [{ id: state.branchId, name: "Loading…", headcount: 0 }]).map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name} ({b.headcount})
