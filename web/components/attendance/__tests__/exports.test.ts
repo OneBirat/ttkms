@@ -15,7 +15,7 @@ import {
   scanMark,
 } from "../api";
 import { buildExportModel } from "../exportModel";
-import { buildPrintDocument, paginateLines } from "../print";
+import { buildPrintDocument, paginateLines, saturdaySpans } from "../print";
 import { buildReportWorkbook, columnName, crc32, workbookToBytes } from "../xlsx";
 
 // Ashwin 2083 (17 Sep – 17 Oct 2026) is in the past, so the mock seed is fixed.
@@ -47,25 +47,27 @@ describe("export model", () => {
 });
 
 describe("Excel workbook", () => {
-  it("has the four sheets with P/O/A codes, an overtime-hours column and the staff-present row", async () => {
+  it("has Summary / Daily grid / By department with ✓ / hours / A / – cells and P O A W Paid totals", async () => {
     const model = buildExportModel(await getReport("2083-06"), filters, context);
     const wb = buildReportWorkbook(model);
-    assert.deepEqual(wb.sheets.map((s) => s.name), ["Summary", "Daily grid", "Overtime hours", "By department"]);
+    assert.deepEqual(wb.sheets.map((s) => s.name), ["Summary", "Daily grid", "By department"]);
+    assert.match(String(wb.sheets[0].rows[1][0]), /\d+h overtime · \d+ absences$/);
     const grid = wb.sheets[1];
     assert.equal(grid.freezeRows, 4);
     assert.match(String(grid.rows[0][0]), /^TTK · Attendance report · Ashwin 2083/);
     assert.deepEqual(grid.rows[3].slice(0, 3), ["Emp ID", "Name", "Department"]);
     assert.equal(grid.rows[3][3], "1 बि");
-    assert.deepEqual(grid.rows[3].slice(-4), ["P", "O h", "A", "Paid"]);
-    assert.equal(grid.rows[3].length, 3 + 31 + 4);
+    assert.deepEqual(grid.rows[3].slice(-5), ["P", "O", "A", "W", "Paid"]);
+    assert.equal(grid.rows[3].length, 3 + 31 + 5);
     const codes = new Set(grid.rows.slice(4, -1).flatMap((r) => r.slice(3, 3 + 31).map(String)));
-    for (const c of codes) assert.match(c, /^(P|O\d{1,2}|A|–|)$/); // blank = never marked
+    for (const c of codes) assert.match(c, /^(✓|\d{1,2}|A|–|)$/); // number = overtime hours, blank = never marked
+    assert.ok(codes.has("✓"));
     const last = grid.rows[grid.rows.length - 1];
     assert.equal(last[0], "Staff present");
     assert.equal(last[3 + 2], "–"); // Ashwin 3 is a Saturday
     assert.equal(grid.rows.length, 4 + model.rows.length + 1);
-    assert.equal(wb.sheets[2].rows[3].length, 3 + 31 + 1);
-    assert.equal(wb.sheets[3].rows.length, 4 + 5 + 1);
+    assert.deepEqual(wb.sheets[2].rows[3], ["Department", "Staff", "P", "O", "A", "W", "Paid days", "Attendance"]);
+    assert.equal(wb.sheets[2].rows.length, 4 + 5 + 1);
   });
   it("writes a zip whose first bytes are a local file header", async () => {
     const model = buildExportModel(await getReport("2083-06"), filters, context);
@@ -85,15 +87,34 @@ describe("PDF print document", () => {
     assert.match(html, /Attendance report · Ashwin 2083/);
     assert.match(html, /17 Sep – 17 Oct 2026 · All departments · 28 staff · 26 working days/);
     assert.match(html, /Generated 20 Oct 2026, 16:20 by Admin/);
-    assert.match(html, /Overtime hours/);
-    assert.match(html, /<th>P<\/th><th>O h<\/th><th>A<\/th><th>Paid<\/th>/);
+    assert.match(html, /<span>Overtime<\/span><span class="ot">\d+h<\/span>/);
+    assert.match(html, /<th>P<\/th><th>O<\/th><th>A<\/th><th>W<\/th><th>Paid<\/th>/);
+    assert.match(html, /<col><col style="width:24px">/);
+    assert.match(html, /<col style="width:26px"><col style="width:30px"><col style="width:24px"><col style="width:24px"><col style="width:34px">/);
+    assert.match(html, /<td rowspan="7" class="satband">SATURDAY<\/td>/); // Store has 7 staff on page 1
+    assert.match(html, /style="color:#1E9E4A;font-weight:700">✓</);
     assert.match(html, /Store <span>· 7 staff/);
     assert.match(html, /Staff present \(all 28\)/);
-    assert.match(html, /P present · O overtime \(hours\) · A absent · – weekly off/);
+    assert.match(html, /✓ present · number = overtime hours/);
     assert.match(html, /Page 1 of 2/);
     assert.match(html, /Page 2 of 2/);
     assert.match(html, /<span class="wd">श<\/span>/);
     assert.doesNotMatch(html, /Late|Leave|Half/);
+  });
+  it("can leave the Saturday columns out", async () => {
+    const model = buildExportModel(await getReport("2083-06"), { ...filters, hide_weekly_off: true }, context);
+    const html = buildPrintDocument(model);
+    assert.match(html, /26 working days · Saturdays hidden/);
+    assert.doesNotMatch(html, /SATURDAY/);
+    assert.doesNotMatch(html, /<span class="wd">श<\/span>/);
+    assert.match(html, /Saturdays \(weekly off\) are hidden/);
+    assert.equal((html.match(/<th>\d+<br>/g) ?? []).length, 26 * 2); // 26 working days on each of 2 pages
+  });
+  it("merges Saturdays per department run on a page", () => {
+    const head = { kind: "head" as const, group: { department_id: 1, department_name: "x", rows: [], rate: null } };
+    const row = { kind: "row" as const, row: { employee: { id: 1 } as never, cells: [], totals: {} as never } };
+    assert.deepEqual(saturdaySpans([head, row, row, row, head, row]), [0, 3, 0, 0, 0, 1]);
+    assert.deepEqual(saturdaySpans([row, row]), [2, 0]); // a run continued from the previous page
   });
   it("paginates lines into first/rest capacities", () => {
     const lines = Array.from({ length: 50 }, () => ({ kind: "head" as const, group: { department_id: 1, department_name: "x", rows: [], rate: null } }));

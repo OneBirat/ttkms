@@ -55,6 +55,8 @@ export interface ExportModel {
   /** True for days nobody has marked yet (shown blank). */
   open_days: boolean[];
   rate_all: number | null;
+  /** PDF variant without the Saturday columns (totals still count them). */
+  hide_weekly_off: boolean;
 }
 
 function printedAd(now: Date): string {
@@ -120,5 +122,6 @@ export function buildExportModel(
     staff_present: staffPresentPerDay(rows, report.month.days),
     open_days: openDays(rows, report.month.days),
     rate_all: attendanceRate(rows),
+    hide_weekly_off: filters.hide_weekly_off === true,
   };
 }
