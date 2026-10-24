@@ -421,11 +421,11 @@ function tone(ctx: AudioContext, frequency: number, start: number, duration: num
   osc.stop(start + duration + 0.02);
 }
 
-/** ok = one short high tone; error = two low tones. Silent when the setting is off. Never throws. */
-export function beep(kind: "ok" | "error"): void {
+/** ok = one short high tone; skip = one short low tone; error = two low tones. Silent when off. Never throws. */
+export function beep(kind: "ok" | "error" | "skip"): void {
   try {
     if (!getVoiceSettings().enabled) return;
-    vibrate(kind === "ok" ? 40 : [60, 60, 60]);
+    vibrate(kind === "ok" ? 40 : kind === "skip" ? 30 : [60, 60, 60]);
     const ctx = getAudio();
     if (!ctx) return;
     const play = () => {
@@ -433,6 +433,8 @@ export function beep(kind: "ok" | "error"): void {
         const t = ctx.currentTime;
         if (kind === "ok") {
           tone(ctx, 1046, t, 0.12);
+        } else if (kind === "skip") {
+          tone(ctx, 330, t, 0.1);
         } else {
           tone(ctx, 220, t, 0.15);
           tone(ctx, 220, t + 0.2, 0.15);

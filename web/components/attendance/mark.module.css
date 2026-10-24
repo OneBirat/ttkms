@@ -49,6 +49,12 @@
   color: var(--color-muted);
 }
 
+.scanStatus {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
 .dateCol {
   display: flex;
   flex-direction: column;

@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mark attendance (mobile)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500;600&amp;family=Noto+Sans+Devanagari:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.mono{font-family:'IBM Plex Mono',monospace}
+.np{font-family:'Noto Sans Devanagari',sans-serif}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:0 14px}
+.chips::-webkit-scrollbar{display:none}
+@keyframes scBack{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@keyframes scLine{from{top:16px}to{top:132px}}
+@keyframes amIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes amDrawer{from{transform:translateX(-100%)}to{transform:none}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2; display: flex; flex-direction: column">
+
+<header style="background: #17222A; color: #FFFFFF; padding: 12px 10px 12px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 6px">
+<button type="button" aria-label="Open menu" onClick="{{openMenu}}" style="width: 44px; height: 44px; border-radius: 10px; border: none; background: transparent; color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+<div style="display: flex; flex-direction: column; flex: 1; min-width: 0"><span style="font-size: 17px; font-weight: 600">Mark attendance</span><span style="font-size: 12px; color: #A9B6BD"><span class="np">मंगलबार, कार्तिक ४</span> · Kartik 4, 2083</span></div>
+<button type="button" aria-label="Scan staff card" onClick="{{openScan}}" style="width: 44px; height: 44px; flex: none; border: none; border-radius: 10px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2M7 8v8M10 8v8M13 8v8M16 8v8"></path></svg></button>
+<label style="position: relative; display: flex; align-items: center; min-height: 36px; padding: 0 28px 0 10px; border-radius: 999px; background: #24363F; font-size: 13px; color: #FFFFFF">{{branchShort}}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="position: absolute; right: 9px; pointer-events: none"><path d="M6 9l6 6 6-6"></path></svg><select aria-label="Branch" onChange="{{setBranch}}" style="position: absolute; inset: 0; opacity: 0; cursor: pointer"><sc-for list="{{branchOpts}}" as="b" hint-placeholder-count="2"><option value="{{b.v}}" selected="{{b.sel}}">{{b.t}}</option></sc-for></select></label>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 0 4px">
+<div style="background: #24363F; border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column"><span style="font-size: 11px; color: #A9B6BD">Present</span><span class="mono" style="font-size: 18px; font-weight: 600">{{cIn}}</span></div>
+<div style="background: #24363F; border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column"><span style="font-size: 11px; color: #A9B6BD">Absent</span><span class="mono" style="font-size: 18px; font-weight: 600">{{cOff}}</span></div>
+<button type="button" aria-pressed="{{onlyOpenS}}" onClick="{{toggleOpen}}" style="{{openCard}}"><span style="font-size: 11px">Not marked</span><span class="mono" style="font-size: 18px; font-weight: 600">{{cN}}</span></button>
+</div>
+</header>
+
+<div style="flex: 1; overflow-y: auto; padding: 12px 0 120px; display: flex; flex-direction: column; gap: 10px">
+<div style="padding: 0 14px"><div style="display: flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid #CBD2CC; border-radius: 10px; padding: 0 12px; min-height: 44px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B6670" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" aria-label="Search staff" placeholder="Search name or ID" value="{{q}}" onInput="{{setQ}}" style="border: none; outline: none; font: inherit; font-size: 15px; width: 100%; background: transparent; color: #1B2328"></div></div>
+<div style="padding: 0 14px"><button type="button" onClick="{{openScan}}" style="width: 100%; min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 10px; border: none; border-radius: 12px; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 16px rgba(14,107,107,.25)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2M7 8v8M10 8v8M13 8v8M16 8v8"></path></svg>Scan staff card<span style="font-family: 'Noto Sans Devanagari', sans-serif; font-weight: 600; opacity: .85">· कार्ड स्क्यान</span></button></div>
+<div class="chips" role="group" aria-label="Department">
+<sc-for list="{{deptChips}}" as="d" hint-placeholder-count="5">
+<button type="button" aria-pressed="{{d.on}}" onClick="{{d.pick}}" style="{{d.style}}">{{d.t}}</button>
+</sc-for>
+</div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; padding: 2px 16px 0"><span style="font-size: 13px; color: #5B6670">{{scope}}</span><sc-if value="{{onlyOpen}}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{toggleOpen}}" style="border: none; background: transparent; font: inherit; font-size: 13px; font-weight: 600; color: #0E6B6B; cursor: pointer; padding: 0">Show all</button></sc-if></div>
+
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="5">
+<article style="{{r.card}}">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="{{r.avatar}}">{{r.ini}}</span>
+<div style="display: flex; flex-direction: column; min-width: 0; flex: 1"><span style="font-size: 15px; font-weight: 600">{{r.name}}</span><span style="font-size: 12px; color: #5B6670">{{r.meta}}</span></div>
+<span style="{{r.badge}}">{{r.stText}}</span>
+</div>
+<div role="radiogroup" aria-label="{{r.groupLabel}}" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{r.opts}}" as="o" hint-placeholder-count="5">
+<button type="button" role="radio" aria-checked="{{o.on}}" aria-label="{{o.t}}" onClick="{{o.pick}}" style="{{o.style}}"><span style="font-size: 15px; font-weight: 700">{{o.k}} {{o.t}}</span></button>
+</sc-for>
+</div>
+
+</article>
+</sc-for>
+<sc-if value="{{empty}}" hint-placeholder-val="{{ false }}"><p style="margin: 20px 16px; text-align: center; font-size: 14px; color: #5B6670">No staff match. Try another department or clear the search.</p></sc-if>
+<sc-if value="{{more}}" hint-placeholder-val="{{ false }}"><div style="padding: 0 14px"><button type="button" onClick="{{showMore}}" style="width: 100%; min-height: 46px; border: 1px solid #CBD2CC; border-radius: 10px; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; color: #1B2328; cursor: pointer">Show more ({{remaining}} left)</button></div></sc-if>
+</div>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1px solid #E2E5E1; padding: 10px 14px 20px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 -6px 16px rgba(23,34,42,.06)">
+<sc-if value="{{hasOpen}}" hint-placeholder-val="{{ true }}"><button type="button" onClick="{{markAll}}" style="min-height: 40px; border: 1px dashed #0E6B6B; border-radius: 10px; background: #F2F8F7; font: inherit; font-size: 14px; font-weight: 600; color: #0A5454; cursor: pointer">Mark remaining {{cN}} as Present</button></sc-if>
+<div style="display: flex; align-items: center; gap: 12px"><div style="display: flex; flex-direction: column; flex: 1"><span style="font-size: 12px; color: #5B6670">{{saveCap}}</span><span style="font-size: 15px; font-weight: 600">{{marked}} of {{total}} marked</span></div><button type="button" onClick="{{save}}" style="min-height: 48px; padding: 0 22px; border: none; border-radius: 12px; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer">Save attendance</button></div>
+</div>
+
+<sc-if value="{{savedShow}}" hint-placeholder-val="{{ false }}">
+<section role="dialog" aria-modal="true" aria-labelledby="as-h" style="position: absolute; inset: 0; z-index: 6; background: #E3F0EE; display: flex; flex-direction: column; animation: amIn .25s ease">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 20px 18px; text-align: center">
+<span style="width: 64px; height: 64px; border-radius: 999px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L19 7"></path></svg></span>
+<h2 id="as-h" style="margin: 0; font-size: 22px; font-weight: 700">Attendance saved</h2>
+<span class="np" style="font-size: 15px; font-weight: 600; color: #3E4A52">हाजिरी सेभ भयो</span>
+<span style="font-size: 13px; color: #3E4A52">{{branch}} · Kartik 4, 2083 (20 Oct 2026)</span>
+</div>
+<div style="padding: 0 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{sumTiles}}" as="t" hint-placeholder-count="6">
+<div style="background: #FFFFFF; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #5B6670">{{t.t}}</span><span class="mono" style="font-size: 20px; font-weight: 700; color: {{t.c}}">{{t.n}}</span></div>
+</sc-for>
+</div>
+<div style="flex: 1"></div>
+<div style="padding: 14px 16px 22px; display: flex; flex-direction: column; gap: 8px">
+<button type="button" onClick="{{savedClose}}" style="min-height: 52px; border: none; border-radius: 12px; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer">Back to list</button>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{menuOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 7; display: flex">
+<nav aria-label="Main" style="width: 300px; max-width: 82%; height: 100%; background: #17222A; padding: 16px 10px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; animation: amDrawer .22s ease">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px"><div style="width: 36px; height: 36px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div><div style="display: flex; flex-direction: column; flex: 1"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Anita · Butwal</span></div><button type="button" aria-label="Close menu" onClick="{{closeMenu}}" style="width: 44px; height: 44px; flex: none; border: none; border-radius: 10px; background: #24363F; color: #FFFFFF; font-size: 24px; line-height: 1; cursor: pointer">×</button></div>
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="10">
+<sc-if value="{{n.isHead}}" hint-placeholder-val="{{ false }}"><div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 14px 14px 6px">{{n.t}}</div></sc-if>
+<sc-if value="{{n.isLink}}" hint-placeholder-val="{{ true }}"><a href="{{n.href}}" style="{{n.style}}">{{n.t}}</a></sc-if>
+</sc-for>
+</nav>
+<div aria-hidden="true" onClick="{{closeMenu}}" style="flex: 1; background: rgba(15,24,29,.5)"></div>
+</div>
+</sc-if>
+<sc-if value="{{otOpen}}" hint-placeholder-val="{{ false }}">
+<div onClick="{{otCancel}}" style="position: absolute; inset: 0; z-index: 30; background: rgba(15,24,29,.55); display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box">
+<div onClick="{{stop}}" role="dialog" aria-modal="true" aria-labelledby="ot-h" style="width: 100%; max-width: 380px; background: #FFFFFF; border-radius: 16px; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 24px 48px rgba(15,24,29,.3)">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px"><div style="display: flex; flex-direction: column; gap: 2px"><h2 id="ot-h" style="margin: 0; font-size: 18px; font-weight: 700">Overtime hours</h2><span style="font-size: 13px; color: #5B6670">{{otName}} · marked present + overtime</span></div><button type="button" aria-label="Cancel" onClick="{{otCancel}}" style="width: 40px; height: 40px; flex: none; border: none; background: transparent; font-size: 22px; color: #5B6670; cursor: pointer">×</button></div>
+<div style="display: flex; align-items: baseline; justify-content: center; gap: 6px; padding: 10px; border-radius: 12px; background: #E3E8F4; color: #253F73"><span style="font-family: 'IBM Plex Mono', monospace; font-size: 36px; font-weight: 700">{{otVal}}</span><span style="font-size: 16px; font-weight: 600">hours</span></div>
+<div role="radiogroup" aria-label="Hours" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{otChips}}" as="c" hint-placeholder-count="12"><button type="button" role="radio" aria-checked="{{c.on}}" onClick="{{c.pick}}" style="{{c.style}}">{{c.t}}</button></sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="font-size: 13px; color: #3E4A52">Fine-tune</span><button type="button" aria-label="One hour less" onClick="{{otMinus}}" style="width: 44px; height: 44px; border: 1px solid #CBD2CC; border-radius: 10px; background: #FFFFFF; font: inherit; font-size: 20px; cursor: pointer">−</button><button type="button" aria-label="One hour more" onClick="{{otPlus}}" style="width: 44px; height: 44px; border: 1px solid #CBD2CC; border-radius: 10px; background: #FFFFFF; font: inherit; font-size: 20px; cursor: pointer">+</button><span style="font-size: 12px; color: #5B6670">1-hour steps, max 12 h</span></div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px"><button type="button" onClick="{{otCancel}}" style="min-height: 46px; border: 1px solid #CBD2CC; border-radius: 10px; background: #FFFFFF; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Cancel</button><button type="button" onClick="{{otSave}}" style="min-height: 46px; border: none; border-radius: 10px; background: #2F4E8C; color: #FFFFFF; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer">Save {{otVal}} h</button></div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{scanOpen}}" hint-placeholder-val="{{ false }}">
+<section aria-label="Barcode scanner" style="position: absolute; inset: 0; z-index: 35; background: #0B1216; color: #FFFFFF; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; gap: 6px; padding: 12px 10px"><button type="button" aria-label="Close scanner" onClick="{{closeScan}}" style="width: 44px; height: 44px; border: none; border-radius: 10px; background: rgba(255,255,255,.08); color: #FFFFFF; font-size: 24px; cursor: pointer">×</button><div style="display: flex; flex-direction: column; flex: 1"><span style="font-size: 17px; font-weight: 600">Scan staff card</span><span style="font-size: 12px; color: #A9B6BD">Kartik 4, 2083 · {{branch}}</span></div><button type="button" aria-label="Torch" style="width: 44px; height: 44px; border: none; border-radius: 10px; background: rgba(255,255,255,.08); color: #FFFFFF; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 2h6l-1 7h-4zM10 9h4v13h-4z"></path></svg></button></div>
+<div style="padding: 0 14px 8px; display: flex; align-items: center; gap: 8px; min-height: 36px"><sc-if value="{{hasLast}}" hint-placeholder-val="{{ false }}"><span role="status" style="flex: 1; min-width: 0; padding: 8px 12px; border-radius: 999px; background: rgba(79,209,197,.16); color: #9FEBE2; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{scanLast}}</span></sc-if><span style="margin-left: auto; font-size: 12px; color: #93A3AC; white-space: nowrap">Scanned: {{scanN}}</span></div>
+<div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(circle at 50% 45%, #22323B 0%, #0B1216 70%)">
+<div style="position: relative; width: 290px; height: 150px; border-radius: 14px; background: rgba(255,255,255,.04)">
+<span style="position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-left: 4px solid #4FD1C5; border-top: 4px solid #4FD1C5; border-radius: 14px 0 0 0"></span><span style="position: absolute; right: 0; top: 0; width: 34px; height: 34px; border-right: 4px solid #4FD1C5; border-top: 4px solid #4FD1C5; border-radius: 0 14px 0 0"></span><span style="position: absolute; left: 0; bottom: 0; width: 34px; height: 34px; border-left: 4px solid #4FD1C5; border-bottom: 4px solid #4FD1C5; border-radius: 0 0 0 14px"></span><span style="position: absolute; right: 0; bottom: 0; width: 34px; height: 34px; border-right: 4px solid #4FD1C5; border-bottom: 4px solid #4FD1C5; border-radius: 0 0 14px 0"></span>
+<span style="position: absolute; left: 14px; right: 14px; height: 2px; background: #FF5A4E; box-shadow: 0 0 10px #FF5A4E; animation: scLine 1.8s ease-in-out infinite alternate"></span>
+<div style="position: absolute; inset: 40px 50px; display: flex; gap: 3px; opacity: .25" aria-hidden="true"><span style="flex: 2; background: #FFFFFF"></span><span style="flex: 1; background: #FFFFFF"></span><span style="flex: 3; background: #FFFFFF"></span><span style="flex: 1; background: #FFFFFF"></span><span style="flex: 2; background: #FFFFFF"></span><span style="flex: 1; background: #FFFFFF"></span><span style="flex: 4; background: #FFFFFF"></span><span style="flex: 1; background: #FFFFFF"></span><span style="flex: 2; background: #FFFFFF"></span></div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="font-size: 15px; color: #DDE5E8; text-align: center; padding: 0 30px">Hold the staff card's barcode inside the frame</span><span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 13px; color: #93A3AC">कार्डको बारकोड फ्रेमभित्र राख्नुहोस्</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 36px"><button type="button" onClick="{{closeScan}}" aria-label="Cancel scanning" title="Cancel scanning" style="display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; padding: 0; border: 3px solid rgba(255,255,255,.9); border-radius: 50%; background: #C0392B; color: #FFFFFF; box-shadow: 0 8px 22px rgba(0,0,0,.5); cursor: pointer"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button><span aria-hidden="true" style="display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 14px; font-weight: 600; color: #FFFFFF">Cancel<span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 13px; font-weight: 500; color: #C9D3D8">रद्द गर्नुहोस्</span></span></div>
+</div>
+<div style="padding: 14px 14px 22px; display: flex; flex-direction: column; gap: 10px; background: #111A1F">
+<div style="display: flex; gap: 8px"><div style="flex: 1; display: flex; align-items: center; border: 1px solid #33454F; border-radius: 10px; padding: 0 12px; min-height: 46px; background: #17222A"><input aria-label="Type employee ID" placeholder="Or type ID, e.g. E-004" value="{{typed}}" onInput="{{setTyped}}" onKeyDown="{{scanKey}}" style="border: none; outline: none; font: inherit; font-size: 15px; width: 100%; background: transparent; color: #FFFFFF"></div><button type="button" onClick="{{findTyped}}" style="min-height: 46px; padding: 0 16px; border: none; border-radius: 10px; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer">Find</button></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: #93A3AC; align-items: center">Demo:<button type="button" onClick="{{simA}}" style="min-height: 32px; padding: 0 10px; border: 1px solid #33454F; border-radius: 999px; background: transparent; color: #DDE5E8; font: inherit; font-size: 12px; cursor: pointer">Scan Kamala (E-004)</button><button type="button" onClick="{{simB}}" style="min-height: 32px; padding: 0 10px; border: 1px solid #33454F; border-radius: 999px; background: transparent; color: #DDE5E8; font: inherit; font-size: 12px; cursor: pointer">Scan Laxmi (E-011)</button><button type="button" onClick="{{simBad}}" style="min-height: 32px; padding: 0 10px; border: 1px solid #33454F; border-radius: 999px; background: transparent; color: #DDE5E8; font: inherit; font-size: 12px; cursor: pointer">Unknown card</button></div>
+</div>
+</section>
+</sc-if>
+<sc-if value="{{scanSheet}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 40; background: rgba(15,24,29,.6); display: flex; align-items: flex-end; justify-content: center; padding: 0; box-sizing: border-box">
+<div role="dialog" aria-modal="true" aria-labelledby="sc-h" style="width: 100%; max-width: 100%; background: #FFFFFF; border-radius: 20px 20px 0 0; padding: 18px 18px 22px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 -10px 30px rgba(15,24,29,.25)">
+<sc-if value="{{scanAlready}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #253F73"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M5 12l5 5L19 7"></path></svg>Already marked today · <span style="font-family: 'IBM Plex Mono', monospace">{{scCode}}</span><button type="button" aria-label="Close" onClick="{{closeScan}}" style="margin-left: auto; width: 36px; height: 36px; border: none; background: transparent; font-size: 22px; color: #5B6670; cursor: pointer">×</button></div>
+<div style="display: flex; align-items: center; gap: 14px"><span style="width: 60px; height: 60px; flex: none; border-radius: 999px; background: #CFE3E0; color: #0A5454; display: flex; align-items: center; justify-content: center; font-size: 21px; font-weight: 700">{{scIni}}</span><div style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><h2 id="sc-h2" style="margin: 0; font-size: 19px; font-weight: 700">{{scName}}</h2><span style="font-size: 13px; color: #5B6670">{{scMeta}}</span><span style="font-size: 13px; font-weight: 600; color: #0A5454">Today: {{scTodayShort}}</span></div></div>
+<span style="font-size: 15px; font-weight: 700">What do you want to record?</span>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+<button type="button" onClick="{{paySalary}}" style="min-height: 88px; border: none; border-radius: 14px; background: #0E6B6B; color: #FFFFFF; font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px"><span style="font-size: 17px; font-weight: 700">Salary payment</span><span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 13px; opacity: .9">तलब भुक्तानी</span></button>
+<button type="button" onClick="{{payAdvance}}" style="min-height: 88px; border: none; border-radius: 14px; background: #2F4E8C; color: #FFFFFF; font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px"><span style="font-size: 17px; font-weight: 700">Advance payment</span><span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 13px; opacity: .9">पेश्की भुक्तानी</span></button>
+</div>
+<button type="button" onClick="{{changeAtt}}" style="align-self: center; border: none; background: transparent; font: inherit; font-size: 13px; font-weight: 600; color: #5B6670; text-decoration: underline; cursor: pointer">Change today's attendance instead</button>
+<button type="button" onClick="{{skipScan}}" style="min-height: 46px; border: 1px solid #CBD2CC; border-radius: 12px; background: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; color: #3E4A52; cursor: pointer">Cancel · skip this person</button>
+</sc-if>
+<sc-if value="{{scanPay}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 8px"><button type="button" onClick="{{payBack}}" style="border: none; background: transparent; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: #0E6B6B; cursor: pointer">‹ Back</button><span style="margin-left: auto; {{payPill}}">{{payType}}</span><button type="button" aria-label="Close" onClick="{{closeScan}}" style="width: 36px; height: 36px; border: none; background: transparent; font-size: 22px; color: #5B6670; cursor: pointer">×</button></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><h2 style="margin: 0; font-size: 19px; font-weight: 700">{{scName}}</h2><span style="font-size: 13px; color: #5B6670">{{payType}} for {{payMonth}} · due Rs {{payDue}}</span></div>
+<sc-if value="{{payIsSal}}" hint-placeholder-val="{{ false }}"><div style="background: #F4F5F2; border-radius: 10px; padding: 8px 12px">
+<div style="display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px"><span>Ashoj net salary</span><span style="font-family: 'IBM Plex Mono', monospace">{{payNet}}</span></div>
+<div style="display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; color: #253F73"><span>Already paid (advances / part)</span><span style="font-family: 'IBM Plex Mono', monospace">− {{payPaid}}</span></div>
+<div style="display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-top: 1px solid #E2E5E1; font-weight: 700; color: #8A4205"><span>Balance due</span><span style="font-family: 'IBM Plex Mono', monospace">Rs {{payDue}}</span></div>
+</div></sc-if>
+<span style="font-size: 13px; font-weight: 600">Amount</span>
+<div role="radiogroup" aria-label="Amount" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px"><sc-for list="{{payQuick}}" as="q" hint-placeholder-count="5"><button type="button" role="radio" aria-checked="{{q.on}}" onClick="{{q.pick}}" style="{{q.style}}">{{q.t}}</button></sc-for></div>
+<sc-if value="{{payCustom}}" hint-placeholder-val="{{ false }}"><div style="{{payAmtBox}}"><span style="font-size: 15px; color: #5B6670">Rs</span><input autofocus inputmode="numeric" aria-label="Custom amount" value="{{payAmt}}" onInput="{{setPayAmt}}" placeholder="Type amount" style="border: none; outline: none; font: inherit; font-family: 'IBM Plex Mono', monospace; font-size: 24px; font-weight: 700; width: 100%; background: transparent; color: #1B2328"></div></sc-if>
+<sc-if value="{{payErr}}" hint-placeholder-val="{{ false }}"><span style="font-size: 12px; color: #8E2F12">{{payErrText}}</span></sc-if>
+<button type="button" onClick="{{payHist}}" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 10px 14px; border: 1px solid #D6DCD7; border-radius: 12px; background: #F7F8F5; font: inherit; text-align: left; cursor: pointer"><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0"><span style="font-size: 12px; color: #5B6670">Paid in {{payMonth}} · {{histCount}}</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 17px; font-weight: 700; color: #0A5454">{{payPaid}}</span></span><span style="font-size: 14px; font-weight: 600; color: #0E6B6B; white-space: nowrap">History ›</span></button>
+<button type="button" onClick="{{paySave}}" style="{{paySaveStyle}}">{{paySaveLabel}}</button>
+<button type="button" onClick="{{skipScan}}" style="min-height: 46px; border: 1px solid #CBD2CC; border-radius: 12px; background: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; color: #3E4A52; cursor: pointer">Cancel · skip this person</button>
+</sc-if>
+<sc-if value="{{scanHistory}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 8px"><button type="button" onClick="{{histBack}}" style="display: inline-flex; align-items: center; gap: 4px; border: none; background: transparent; padding: 0; font: inherit; font-size: 14px; font-weight: 600; color: #0E6B6B; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</button><span style="margin-left: auto; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #EEF0EC; color: #3E4A52">{{payMonth}}</span></div>
+<div style="display: flex; flex-direction: column; gap: 2px"><h2 style="margin: 0; font-size: 19px; font-weight: 700">{{scName}}</h2><span style="font-size: 13px; color: #5B6670">Payments this month</span></div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<div style="background: #E3F0EE; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #0A5454">Total paid</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 700; color: #0A5454">{{payPaid}}</span></div>
+<div style="background: #F4F5F2; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #5B6670">Net salary</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 700; color: #1B2328">{{payNet}}</span></div>
+<div style="background: #FBEFE2; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #8A4205">Due</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 700; color: #8A4205">Rs {{payDue}}</span></div>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 13px; font-weight: 700">Day by day</span><span style="font-size: 12px; color: #5B6670">{{histCount}}</span></div>
+<sc-if value="{{histEmpty}}" hint-placeholder-val="{{ false }}"><div style="padding: 18px; border: 1px dashed #CBD2CC; border-radius: 12px; text-align: center; font-size: 14px; color: #5B6670">No salary or advance paid yet in {{payMonth}}.</div></sc-if>
+<ul style="list-style: none; margin: 0; padding: 0; border: 1px solid #E2E5E1; border-radius: 12px; overflow: hidden; max-height: 300px; overflow-y: auto">
+<sc-for list="{{histRows}}" as="h" hint-placeholder-count="3"><li style="display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-top: 1px solid #EEF0EC; background: #FFFFFF"><span style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 10px; background: #F4F5F2; flex: 0 0 auto"><span style="font-size: 10px; color: #5B6670; line-height: 1">{{h.mon}}</span><span style="font-size: 17px; font-weight: 700; line-height: 1.15">{{h.day}}</span></span><span style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0"><span style="{{h.pill}}">{{h.type}}</span><span style="font-size: 12px; color: #5B6670">{{h.note}}</span></span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 700; color: #1B2328; white-space: nowrap">Rs {{h.amt}}</span></li></sc-for>
+</ul>
+<button type="button" onClick="{{histBack}}" style="min-height: 50px; border: none; border-radius: 12px; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer">Back to payment</button>
+</sc-if>
+<sc-if value="{{scanPaid}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 6px 0"><span style="width: 60px; height: 60px; border-radius: 999px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L19 7"></path></svg></span><h2 style="margin: 0; font-size: 19px; font-weight: 700">{{scName}}</h2><span style="font-size: 15px; font-weight: 600; color: #0A5454">{{paidText}}</span><span style="font-size: 13px; color: #5B6670">{{paidSub}}</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #E3F0EE; overflow: hidden"><div style="height: 100%; background: #0E6B6B; transform-origin: left; animation: scBack 3s linear forwards"></div></div><span style="font-size: 12px; color: #5B6670; text-align: center">Back to the scanner in 3 seconds…</span></div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px"><button type="button" onClick="{{closeScan}}" style="min-height: 48px; border: 1px solid #CBD2CC; border-radius: 12px; background: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer">Stop scanning</button><button type="button" onClick="{{scanAgain}}" style="min-height: 48px; border: none; border-radius: 12px; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer">Scan next now</button></div>
+</sc-if>
+<sc-if value="{{scanFound}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #0A5454"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M5 12l5 5L19 7"></path></svg>Card read · <span style="font-family: 'IBM Plex Mono', monospace">{{scCode}}</span><button type="button" aria-label="Close" onClick="{{closeScan}}" style="margin-left: auto; width: 36px; height: 36px; border: none; background: transparent; font-size: 22px; color: #5B6670; cursor: pointer">×</button></div>
+<div style="display: flex; align-items: center; gap: 14px"><span style="width: 64px; height: 64px; flex: none; border-radius: 999px; background: #CFE3E0; color: #0A5454; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700">{{scIni}}</span><div style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><h2 id="sc-h" style="margin: 0; font-size: 20px; font-weight: 700">{{scName}}</h2><span style="font-size: 13px; color: #5B6670">{{scMeta}}</span></div></div>
+<span style="{{scNowStyle}}">{{scNow}}</span>
+<sc-if value="{{scBtnsShow}}" hint-placeholder-val="{{ true }}">
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+<button type="button" onClick="{{scPresent}}" style="min-height: 92px; border: none; border-radius: 14px; background: #0E6B6B; color: #FFFFFF; font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px"><span style="font-size: 26px; line-height: 1">✓</span><span style="font-size: 17px; font-weight: 700">Present</span><span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 13px; opacity: .9">हाजिर</span></button>
+<button type="button" onClick="{{scOt}}" style="min-height: 92px; border: none; border-radius: 14px; background: #2F4E8C; color: #FFFFFF; font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px"><span style="font-size: 26px; line-height: 1">+</span><span style="font-size: 17px; font-weight: 700">Overtime</span><span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 13px; opacity: .9">ओभरटाइम</span></button>
+</div>
+</sc-if>
+<sc-if value="{{scOtMode}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 10px; border: 1px solid #C3CDE3; border-radius: 14px; padding: 12px; background: #F5F7FC">
+<div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 15px; font-weight: 700; color: #253F73">How many overtime hours?</span></div>
+<div role="radiogroup" aria-label="Overtime hours" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px"><sc-for list="{{scHrChips}}" as="c" hint-placeholder-count="9"><button type="button" role="radio" onClick="{{c.pick}}" style="{{c.style}}">{{c.t}}</button></sc-for></div>
+<button type="button" onClick="{{scSaveOt}}" style="min-height: 52px; border: none; border-radius: 12px; background: #2F4E8C; color: #FFFFFF; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer">Save present + {{scHrs}} h</button>
+</div>
+</sc-if>
+<sc-if value="{{scBtnsShow}}" hint-placeholder-val="{{ true }}"><button type="button" onClick="{{skipScan}}" style="min-height: 46px; border: 1px solid #CBD2CC; border-radius: 12px; background: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; color: #3E4A52; cursor: pointer">Cancel · skip this person</button></sc-if><sc-if value="{{scOtMode}}" hint-placeholder-val="{{ false }}"><button type="button" onClick="{{scBack}}" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border: 1px solid #CBD2CC; border-radius: 12px; background: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; color: #3E4A52; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Back</button></sc-if>
+</sc-if>
+<sc-if value="{{scanMissing}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 6px 0"><span style="width: 56px; height: 56px; border-radius: 999px; background: #F6DCD3; color: #8E2F12; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700">?</span><h2 style="margin: 0; font-size: 18px; font-weight: 700">No employee found</h2><span style="font-size: 14px; color: #3E4A52">Code <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600">{{scCode}}</span> doesn't match any active employee. Check the card, or type the ID.</span></div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px"><button type="button" onClick="{{skipScan}}" style="min-height: 48px; border: 1px solid #CBD2CC; border-radius: 12px; background: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer">Cancel</button><button type="button" onClick="{{scanAgain}}" style="min-height: 48px; border: none; border-radius: 12px; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer">Scan again</button></div>
+</sc-if>
+<sc-if value="{{scanDone}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding: 6px 0"><span style="width: 60px; height: 60px; border-radius: 999px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M5 12l5 5L19 7"></path></svg></span><h2 style="margin: 0; font-size: 19px; font-weight: 700">{{scName}}</h2><span style="font-size: 15px; font-weight: 600; color: #0A5454">{{scDoneText}}</span><span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 14px; color: #3E4A52">{{scDoneNp}}</span></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><div aria-hidden="true" style="height: 6px; border-radius: 3px; background: #E3F0EE; overflow: hidden"><div style="height: 100%; background: #0E6B6B; transform-origin: left; animation: scBack 3s linear forwards"></div></div><span style="font-size: 12px; color: #5B6670; text-align: center">Back to the scanner in 3 seconds…</span></div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px"><button type="button" onClick="{{closeScan}}" style="min-height: 48px; border: 1px solid #CBD2CC; border-radius: 12px; background: #FFFFFF; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer">Stop scanning</button><button type="button" onClick="{{scanAgain}}" style="min-height: 48px; border: none; border-radius: 12px; background: #0E6B6B; color: #FFFFFF; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer">Scan next now</button></div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"startScan":{"editor":"enum","options":["","camera","found","ot","done","missing","already","pay","paysal"],"default":""},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+var self = this;
+var s = this.state || {};
+var set = function (o) { self.setState(o); };
+var branch = s.branch || 'Main branch';
+var dept = s.dept || 'All';
+var q = s.q || '';
+var onlyOpen = !!s.onlyOpen;
+var limit = s.limit || 8;
+var marks = s.marks || {};
+var branches = ['Main branch', 'Branch 2'];
+var depts = [
+['Store', ['Anita Gurung', 'Ramesh K.C.', 'Dipak Adhikari', 'Kamala Bhandari', 'Nabin Poudel', 'Sarita Basnet', 'Gopal Thakuri']],
+['Kitchen', ['Bikash Shrestha', 'Gita Magar', 'Hari Bista', 'Laxmi Karki', 'Prakash Rana', 'Dil Kumari Rai']],
+['Housekeeping', ['Sita Thapa', 'Maya Tamang', 'Rita Shahi', 'Sunita B.K.', 'Bimala Oli', 'Kalpana Sunar']],
+['Front desk', ['Priya Rai', 'Suman Tamang', 'Aarati Joshi', 'Kiran Lama']],
+['Accounts', ['Rajesh Pandey', 'Sabina Khadka', 'Manoj Dahal', 'Asmita Ghimire', 'Bishal Neupane']]
+];
+var emps = [];
+depts.forEach(function (d) { d[1].forEach(function (n) { var i = emps.length; emps.push({ i: i, id: 'E-' + String(i + 1).padStart(3, '0'), name: n, dept: d[0], branch: branches[i % 3 === 2 ? 1 : 0] }); }); });
+var two = function (n) { return String(n).padStart(2, '0'); };
+var hm = function (m) { return two(Math.floor(m / 60)) + ':' + two(m % 60); };
+var seed = function (e) { var h = (e.i * 41 + 13) % 100; return h < 18 ? 'N' : h < 29 && h >= 26 ? 'A' : h >= 29 && h < 32 ? 'A' : 'P'; };
+var defOt = function (e) { return ((e.i * 17) % 9 === 0) ? '2' : ((e.i * 17) % 9 === 4 ? '1' : '0'); };
+var status = function (e) { if (marks[e.id]) return marks[e.id]; var b = seed(e); return b === 'P' && defOt(e) !== '0' ? 'O' : b; };
+var labels = { O: 'Overtime', P: 'Present', L: 'Late', H: 'Half', V: 'Leave', A: 'Absent', N: 'Not marked' };
+var keys = { P: '✓', O: '+', A: '✕' };
+var looks = { O: ['#E3E8F4', '#2F4E8C', '#253F73'], P: ['#E3F0EE', '#0E6B6B', '#0A4F4F'], L: ['#D3EAE7', '#4E9B95', '#073F3F'], H: ['#FCEFD9', '#C98A3A', '#6E3504'], V: ['#E3E8F4', '#2F4E8C', '#253F73'], A: ['#F6DCD3', '#8E2F12', '#8E2F12'], N: ['#FFF3E0', '#E6B877', '#8A4205'] };
+var ql = q.trim().toLowerCase();
+var scopeList = emps.filter(function (e) { return e.branch === branch && (dept === 'All' || e.dept === dept); });
+var list = scopeList.filter(function (e) { return (!ql || e.name.toLowerCase().indexOf(ql) > -1 || e.id.toLowerCase().indexOf(ql) > -1) && (!onlyOpen || status(e) === 'N'); });
+var shown = list.slice(0, limit);
+var OT = ['1', '2', '3', '4', '5', '6', '7', '8'];
+var ots = s.ot || {};
+var otOf = function (e) { var v = ots[e.id] !== undefined ? ots[e.id] : defOt(e); return v === '0' ? '1' : v; };
+var canOt = function (st) { return st === 'O'; };
+var otp = s.otPick || null;
+var otEmp = otp ? emps.filter(function (x) { return x.id === otp.id; })[0] : null;
+var otStep = function (d) { var v = Math.max(1, Math.min(12, parseFloat(otp.val) + d)); set({ otPick: { id: otp.id, val: String(v) } }); };
+var initScan = { camera: { step: 'camera' }, found: { step: 'found', id: 'E-004', code: 'TTK-E004', mode: null, hrs: '1' }, ot: { step: 'found', id: 'E-004', code: 'TTK-E004', mode: 'ot', hrs: '2' }, done: { step: 'done', id: 'E-004', k: 'O', hrs: '2' }, missing: { step: 'missing', code: 'TTK-X917' }, already: { step: 'already', id: 'E-004', code: 'TTK-E004' }, paysal: { step: 'pay', id: 'E-002', code: 'TTK-E002', ptype: 'Salary', amt: '', pmode: 'Bank', qpick: 'full' }, history: { step: 'history', id: 'E-003', code: 'TTK-E003', ptype: 'Advance', amt: '1500', pmode: 'Cash', qpick: '1500' }, pay: { step: 'pay', id: 'E-004', code: 'TTK-E004', ptype: 'Advance', amt: '1500', pmode: 'Cash', qpick: '1500' } }[this.props.startScan] || null;
+var sc = s.scan === undefined ? initScan : s.scan;
+var findCode = function (code) { var c = String(code || '').trim().toUpperCase().replace(/^TTK-/, '').replace(/^E-?/, ''); c = /^\d+$/.test(c) ? 'E-' + c.padStart(3, '0') : c; return emps.filter(function (x) { return x.id === c; })[0] || null; };
+var scEmp = sc && sc.id ? emps.filter(function (x) { return x.id === sc.id; })[0] : null;
+var scSt = scEmp ? status(scEmp) : null;
+var OTH = ['1', '2', '3', '4', '5', '6'];
+var doScan = function (code) { var e = findCode(code); set({ scan: e ? { step: status(e) !== 'N' ? 'already' : 'found', id: e.id, code: code, mode: null, hrs: '1' } : { step: 'missing', code: code } }); };
+var payFor = function (e) { var net = 18000 + (e.i * 731) % 9000; var paid = [0, 5000, 8000][e.i % 3]; return { net: net, paid: Math.min(paid, net) }; };
+var HISTB = { 5000: [[4, 'Advance', 2000, 'Cash'], [11, 'Advance', 3000, 'Cash']], 8000: [[3, 'Advance', 2000, 'Cash'], [9, 'Advance', 1500, 'Cash'], [15, 'Salary', 4500, 'Part salary']] };
+var histFor = function (e) { if (!e) return []; var base = (HISTB[payFor(e).paid] || []).map(function (r) { return { day: r[0], type: r[1], amt: r[2], note: r[3] }; }); var extra = ((s.histX || {})[e.id] || []); return base.concat(extra); };
+var scPay = scEmp ? payFor(scEmp) : { net: 0, paid: 0 };
+var extraPaid = scEmp && s.paidX && s.paidX[scEmp.id] ? s.paidX[scEmp.id] : 0;
+var pDue = Math.max(0, scPay.net - scPay.paid - extraPaid);
+var pAmt = sc && sc.amt ? parseInt(sc.amt, 10) || 0 : (sc && sc.qpick === 'full' ? pDue : 0);
+var pOk = pAmt > 0 && pAmt <= pDue;
+var backToCamera = function (tok, lastText) { setTimeout(function () { var cur = self.state && self.state.scan; if (cur && cur.tok === tok && (cur.step === 'done' || cur.step === 'paid')) self.setState({ scan: { step: 'camera', last: lastText }, scanN: ((self.state && self.state.scanN) || 0) + 1 }); }, 3000); };
+var commit = function (k, hrs) { var m = Object.assign({}, marks); m[sc.id] = k; var o = Object.assign({}, ots); if (k === 'O') o[sc.id] = hrs; var tok = Date.now(); var nm = scEmp ? scEmp.name : ''; set({ marks: m, ot: o, scan: { step: 'done', id: sc.id, k: k, hrs: hrs, tok: tok } }); backToCamera(tok, '✓ ' + nm + ' · ' + (k === 'O' ? 'हाजिर + ' + hrs + ' h' : 'हाजिर')); };
+var count = { O: 0, P: 0, L: 0, H: 0, V: 0, A: 0, N: 0 };
+scopeList.forEach(function (e) { count[status(e)]++; });
+var branchList = emps.filter(function (e) { return e.branch === branch; });
+var rows = shown.map(function (e) {
+var st = status(e); var h = (e.i * 23 + 7) % 30; var lk = looks[st];
+var ini = e.name.split(' ').map(function (w) { return w[0]; }).join('').slice(0, 2);
+return {
+name: e.name, meta: e.id + ' · ' + e.dept, ini: ini, groupLabel: 'Status for ' + e.name,
+stText: labels[st], badge: 'padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: ' + lk[0] + '; color: ' + lk[2],
+avatar: 'width: 40px; height: 40px; flex: none; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; background: ' + (st === 'N' ? '#E6E9E4; color: #5B6670' : lk[0] + '; color: ' + lk[2]),
+card: 'margin: 0 14px; background: #FFFFFF; border: 1px solid ' + (st === 'N' ? '#E6B877' : '#E2E5E1') + '; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px',
+otLabel: 'Overtime hours, ' + e.name, otOff: !canOt(st), hasOt: canOt(st), otText: otOf(e) + ' h', editOt: function () { set({ otPick: { id: e.id, val: otOf(e) } }); },
+otOpts: OT.map(function (v) { return { v: v, t: canOt(st) ? v + (v === '1' ? ' hour' : ' hours') : 'Tap Overtime to add hours', sel: canOt(st) ? otOf(e) === v : v === '0.5' }; }),
+setOt: function (ev) { var o = Object.assign({}, ots); o[e.id] = ev.target.value; set({ ot: o }); },
+otSel: 'appearance: none; -webkit-appearance: none; width: 100%; min-height: 44px; padding: 0 36px 0 12px; border-radius: 10px; font: inherit; font-size: 15px; box-sizing: border-box; ' + (!canOt(st) ? 'border: 1px solid #E2E5E1; background: #F4F5F2; color: #9AA4A9' : true ? 'border: 1px solid #2F4E8C; background: #E3E8F4; color: #253F73; font-weight: 600' : 'border: 1px solid #CBD2CC; background: #FFFFFF; color: #1B2328'),
+opts: ['P', 'O', 'A'].map(function (k) {
+var on = st === k, c = looks[k];
+return { k: keys[k], t: k === 'O' && st === 'O' ? otOf(e) + ' h OT' : labels[k], on: on ? 'true' : 'false',
+style: 'min-height: 52px; border-radius: 10px; font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; line-height: 1.2; border: ' + (on ? '2px solid ' + c[1] + '; background: ' + c[0] + '; color: ' + c[2] : '1px solid #CBD2CC; background: #FFFFFF; color: #3E4A52'),
+pick: function () { if (k === 'O') { set({ otPick: { id: e.id, val: st === 'O' ? otOf(e) : (ots[e.id] && ots[e.id] !== '0' ? ots[e.id] : '1') } }); return; } var m = Object.assign({}, marks); m[e.id] = k; set({ marks: m }); } };
+})
+};
+});
+var navItems = [['h', 'Stock'], ['Dashboard', 'Main.dc.html'], ['Stock entry', 'StockEntryMobile.dc.html'], ['Stock report', 'Movements.dc.html'], ['Items', 'Items.dc.html'], ['h', 'Attendance'], ['Mark attendance', 'AttendanceMarkMobile.dc.html', 1], ['Attendance report', 'AttendanceReport.dc.html'], ['h', 'People & payroll'], ['Employees', 'Employees.dc.html'], ['Salary report', 'SalaryReport.dc.html'], ['h', 'Admin'], ['Users', '#']];
+return {
+branch: branch, branchShort: branch === 'Main branch' ? 'Main' : 'Branch 2', q: q, onlyOpen: onlyOpen, onlyOpenS: onlyOpen ? 'true' : 'false',
+branchOpts: branches.map(function (b) { return { v: b, t: b, sel: b === branch }; }),
+setBranch: function (ev) { set({ branch: ev.target.value, limit: 8 }); },
+setQ: function (ev) { set({ q: ev.target.value, limit: 8 }); },
+toggleOpen: function () { set({ onlyOpen: !onlyOpen, limit: 8 }); },
+deptChips: [['All', 'All · ' + branchList.length]].concat(depts.map(function (d) { return [d[0], d[0] + ' · ' + branchList.filter(function (e) { return e.dept === d[0]; }).length]; })).map(function (d) {
+var on = dept === d[0];
+return { t: d[1], on: on ? 'true' : 'false', pick: function () { set({ dept: d[0], limit: 8 }); },
+style: 'flex: none; min-height: 38px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; ' + (on ? 'border: 1px solid #0E6B6B; background: #0E6B6B; color: #FFFFFF; font-weight: 600' : 'border: 1px solid #CBD2CC; background: #FFFFFF; color: #3E4A52') }; }),
+scope: (dept === 'All' ? 'All departments' : dept) + ' · ' + list.length + (onlyOpen ? ' not marked' : ' staff'),
+otOpen: !!otEmp, otName: otEmp ? otEmp.name : '', otVal: otp ? otp.val : '1',
+otChips: ['1', '2', '3', '4', '5', '6', '7', '8'].map(function (v) { var on = otp && otp.val === v; return { t: v + ' h', on: on ? 'true' : 'false', pick: function () { set({ otPick: { id: otp.id, val: v } }); }, style: 'min-height: 44px; border-radius: 10px; font: inherit; font-family: IBM Plex Mono, monospace; font-size: 14px; cursor: pointer; ' + (on ? 'border: 2px solid #2F4E8C; background: #2F4E8C; color: #FFFFFF; font-weight: 700' : 'border: 1px solid #CBD2CC; background: #FFFFFF; color: #1B2328') }; }),
+otMinus: function () { otStep(-1); }, otPlus: function () { otStep(1); },
+otCancel: function () { set({ otPick: null }); }, stop: function (e) { if (e && e.stopPropagation) e.stopPropagation(); },
+otSave: function () { var m = Object.assign({}, marks); m[otp.id] = 'O'; var o = Object.assign({}, ots); o[otp.id] = otp.val; set({ marks: m, ot: o, otPick: null }); },
+scanAlready: !!sc && sc.step === 'already', scanPay: !!sc && sc.step === 'pay', scanPaid: !!sc && sc.step === 'paid', scanHistory: !!sc && sc.step === 'history',
+payHist: function () { set({ scan: Object.assign({}, sc, { step: 'history' }) }); }, histBack: function () { set({ scan: Object.assign({}, sc, { step: 'pay' }) }); },
+histCount: (function () { var n = histFor(scEmp).length; return n === 0 ? 'no payments' : n + (n === 1 ? ' payment' : ' payments'); })(), histEmpty: histFor(scEmp).length === 0,
+histRows: histFor(scEmp).slice().reverse().map(function (h) { return { mon: 'Ashoj', day: String(h.day), type: h.type, note: h.note, amt: h.amt.toLocaleString('en-IN'), pill: 'align-self: flex-start; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; ' + (h.type === 'Advance' ? 'background: #E3E8F4; color: #253F73' : 'background: #E3F0EE; color: #0A5454') }; }),
+scTodayShort: scSt === 'O' ? 'Present + ' + otOf(scEmp) + ' h overtime' : scSt ? (labels[scSt] || '') : '',
+payMonth: 'Ashoj 2083', payNet: 'Rs ' + scPay.net.toLocaleString('en-IN'), payPaid: 'Rs ' + (scPay.paid + extraPaid).toLocaleString('en-IN'), payDue: pDue.toLocaleString('en-IN'),
+paySalary: function () { set({ scan: Object.assign({}, sc, { step: 'pay', ptype: 'Salary', amt: '', pmode: 'Cash', qpick: null }) }); },
+payAdvance: function () { set({ scan: Object.assign({}, sc, { step: 'pay', ptype: 'Advance', amt: '', pmode: 'Cash', qpick: null }) }); },
+changeAtt: function () { set({ scan: Object.assign({}, sc, { step: 'found', mode: null }) }); },
+payBack: function () { set({ scan: Object.assign({}, sc, { step: 'already' }) }); },
+payType: sc && sc.ptype ? sc.ptype + ' payment' : '', payPill: 'padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; ' + (sc && sc.ptype === 'Advance' ? 'background: #E3E8F4; color: #253F73' : 'background: #E3F0EE; color: #0A5454'),
+payAmt: sc && sc.amt ? sc.amt : '', setPayAmt: function (ev) { set({ scan: Object.assign({}, sc, { amt: ev.target.value.replace(/[^0-9]/g, '') }) }); },
+payAmtBox: 'display: flex; align-items: center; gap: 8px; border-radius: 12px; padding: 0 14px; min-height: 56px; box-sizing: border-box; border: 2px solid ' + (sc && sc.amt && !pOk ? '#B9701F' : '#CBD2CC'),
+payCustom: !!sc && sc.qpick === 'custom', payIsSal: !!sc && sc.ptype === 'Salary',
+payQuick: (sc && sc.ptype === 'Salary' ? [['full', 'Full due · Rs ' + pDue.toLocaleString('en-IN'), pDue], ['custom', 'Custom amount', null]] : [['500', 'Rs 500', 500], ['1000', 'Rs 1,000', 1000], ['1500', 'Rs 1,500', 1500], ['2000', 'Rs 2,000', 2000], ['custom', 'Custom', null]]).map(function (q) { var on = !!sc && sc.qpick === q[0]; return { t: q[1], on: on ? 'true' : 'false', style: 'min-height: 48px; border-radius: 10px; font: inherit; font-size: 15px; cursor: pointer; ' + (q[0] === 'full' || (q[0] === 'custom' && sc && sc.ptype === 'Salary') ? 'grid-column: span 3; ' : '') + (on ? 'border: 2px solid ' + (sc.ptype === 'Advance' ? '#2F4E8C; background: #2F4E8C' : '#0E6B6B; background: #0E6B6B') + '; color: #FFFFFF; font-weight: 700' : 'border: 1px solid #CBD2CC; background: #FFFFFF; color: #1B2328'), pick: function () { set({ scan: Object.assign({}, sc, { qpick: q[0], amt: q[2] === null ? '' : String(q[2]) }) }); } }; }),
+payErr: !!(sc && sc.amt) && !pOk, payErrText: pAmt <= 0 ? 'Enter an amount above 0.' : 'More than the balance due for Ashoj (Rs ' + pDue.toLocaleString('en-IN') + ').',
+payCash: function () { set({ scan: Object.assign({}, sc, { pmode: 'Cash' }) }); }, payBank: function () { set({ scan: Object.assign({}, sc, { pmode: 'Bank' }) }); },
+payCashStyle: 'min-height: 46px; border-radius: 10px; font: inherit; font-size: 14px; cursor: pointer; ' + (sc && sc.pmode === 'Bank' ? 'border: 1px solid #CBD2CC; background: #FFFFFF; color: #1B2328' : 'border: 2px solid #0E6B6B; background: #F2F8F7; color: #0A5454; font-weight: 600'),
+payBankStyle: 'min-height: 46px; border-radius: 10px; font: inherit; font-size: 14px; cursor: pointer; ' + (sc && sc.pmode === 'Bank' ? 'border: 2px solid #0E6B6B; background: #F2F8F7; color: #0A5454; font-weight: 600' : 'border: 1px solid #CBD2CC; background: #FFFFFF; color: #1B2328'),
+paySaveLabel: 'Save ' + (sc && sc.ptype ? sc.ptype.toLowerCase() : '') + (pOk ? ' · Rs ' + pAmt.toLocaleString('en-IN') : ''),
+paySaveStyle: 'min-height: 52px; border: none; border-radius: 12px; font: inherit; font-size: 16px; font-weight: 700; color: #FFFFFF; background: ' + (sc && sc.ptype === 'Advance' ? '#2F4E8C' : '#0E6B6B') + '; ' + (pOk ? 'cursor: pointer' : 'opacity: .45; cursor: not-allowed'),
+paySave: function () { if (!pOk) return; var px = Object.assign({}, s.paidX || {}); px[sc.id] = (px[sc.id] || 0) + pAmt; var hx = Object.assign({}, s.histX || {}); hx[sc.id] = ((hx[sc.id]) || []).concat([{ day: 18, type: sc.ptype, amt: pAmt, note: 'Today · just now' }]); var tok = Date.now(); set({ paidX: px, histX: hx, scan: Object.assign({}, sc, { step: 'paid', paidAmt: pAmt, tok: tok }) }); backToCamera(tok, '✓ ' + (scEmp ? scEmp.name : '') + ' · ' + sc.ptype + ' Rs ' + pAmt.toLocaleString('en-IN')); },
+paidText: sc && sc.step === 'paid' ? sc.ptype + ' of Rs ' + (sc.paidAmt || 0).toLocaleString('en-IN') + ' recorded' : '',
+paidSub: sc && sc.step === 'paid' ? (sc.pmode || 'Cash') + ' · Ashoj 2083 · due now Rs ' + pDue.toLocaleString('en-IN') + ' · shows in Payments' : '',
+scanOpen: !!sc, scanCamera: !!sc && sc.step === 'camera', scanFound: !!sc && sc.step === 'found', scanMissing: !!sc && sc.step === 'missing', scanDone: !!sc && sc.step === 'done', scanSheet: !!sc && sc.step !== 'camera',
+openScan: function () { set({ scan: { step: 'camera' } }); }, closeScan: function () { set({ scan: null, scanN: 0 }); }, skipScan: function () { set({ scan: { step: 'camera', last: (sc && sc.step === 'missing') ? '' : 'Skipped ' + (scEmp ? scEmp.name : '') } }); }, scanLast: sc && sc.last ? sc.last : '', hasLast: !!(sc && sc.last), scanN: s.scanN || 0, scanAgain: function () { set({ scan: { step: 'camera' } }); },
+simA: function () { doScan('TTK-E004'); }, simB: function () { doScan('TTK-E011'); }, simBad: function () { doScan('TTK-X917'); },
+typed: (sc && sc.typed) || '', setTyped: function (ev) { set({ scan: Object.assign({}, sc, { typed: ev.target.value }) }); }, findTyped: function () { doScan((sc && sc.typed) || ''); },
+scanKey: function (ev) { if (ev && ev.key === 'Enter') { ev.preventDefault && ev.preventDefault(); doScan(ev.target.value); } },
+scCode: sc ? (sc.code || '') : '',
+scName: scEmp ? scEmp.name : '', scIni: scEmp ? scEmp.name.split(' ').map(function (w) { return w[0]; }).join('').slice(0, 2) : '',
+scMeta: scEmp ? scEmp.id + ' · ' + scEmp.dept + ' · ' + scEmp.branch : '',
+scNow: scSt === 'N' || !scSt ? 'Not marked yet today' : 'Already marked today: ' + (scSt === 'O' ? 'Overtime ' + otOf(scEmp) + ' h' : labels[scSt]) + ' — choosing again will update it',
+scNowStyle: 'font-size: 13px; padding: 6px 10px; border-radius: 8px; ' + (scSt === 'N' || !scSt ? 'background: #FFF3E0; color: #8A4205' : 'background: #E3E8F4; color: #253F73'),
+scOtMode: !!sc && sc.mode === 'ot', scBtnsShow: !(sc && sc.mode === 'ot'),
+scPresent: function () { commit('P'); }, scOt: function () { set({ scan: Object.assign({}, sc, { mode: 'ot' }) }); }, scBack: function () { set({ scan: Object.assign({}, sc, { mode: null }) }); },
+scHrs: sc && sc.hrs ? sc.hrs : '1',
+scHrChips: OTH.map(function (v) { var on = sc && sc.hrs === v; return { t: v + ' h', pick: function () { set({ scan: Object.assign({}, sc, { hrs: v }) }); }, style: 'min-height: 46px; border-radius: 10px; font: inherit; font-family: IBM Plex Mono, monospace; font-size: 15px; cursor: pointer; ' + (on ? 'border: 2px solid #2F4E8C; background: #2F4E8C; color: #FFFFFF; font-weight: 700' : 'border: 1px solid #CBD2CC; background: #FFFFFF; color: #1B2328') }; }),
+scSaveOt: function () { commit('O', sc.hrs || '1'); },
+scDoneText: sc && sc.step === 'done' ? (sc.k === 'O' ? 'Present + ' + sc.hrs + ' h overtime' : 'Marked present') : '',
+scDoneNp: sc && sc.step === 'done' ? (sc.k === 'O' ? 'हाजिर + ओभरटाइम ' + sc.hrs + ' घण्टा' : 'हाजिर भयो') : '',
+rows: rows, empty: list.length === 0, more: list.length > limit, remaining: list.length - limit,
+showMore: function () { set({ limit: limit + 8 }); },
+cIn: count.P + count.O, cOff: count.A, cN: count.N, hasOpen: count.N > 0,
+openCard: 'border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; align-items: flex-start; font: inherit; cursor: pointer; text-align: left; ' + (onlyOpen ? 'border: 2px solid #E6B877; background: #FFF3E0; color: #8A4205' : count.N ? 'border: 1px solid #E6B877; background: #3A3326; color: #F5C98A' : 'border: 1px solid #24363F; background: #24363F; color: #A9B6BD'),
+markAll: function () { var m = Object.assign({}, marks); scopeList.forEach(function (e) { if (status(e) === 'N') m[e.id] = 'P'; }); set({ marks: m, onlyOpen: false }); },
+marked: scopeList.length - count.N, total: scopeList.length,
+saveCap: count.N ? count.N + ' still not marked' : 'Everyone marked',
+save: function () { set({ saved: true }); }, savedShow: !!s.saved, savedClose: function () { set({ saved: false }); },
+otTotal: scopeList.filter(function (e) { return canOt(status(e)); }).reduce(function (a, e) { return a + parseFloat(otOf(e)); }, 0),
+sumTiles: [['Overtime (h)', scopeList.filter(function (e) { return canOt(status(e)); }).reduce(function (a, e) { return a + parseFloat(otOf(e)); }, 0), '#253F73'], ['Present', count.P + count.O, '#0A4F4F'], ['Absent', count.A, '#8E2F12'], ['Not marked', count.N, '#8A4205']].map(function (t) { return { t: t[0], n: t[1], c: t[2] }; }),
+menuOpen: !!s.menu, openMenu: function () { set({ menu: true }); }, closeMenu: function () { set({ menu: false }); },
+nav: navItems.map(function (n) { var head = n[0] === 'h'; return { isHead: head, isLink: !head, t: head ? n[1] : n[0], href: n[1], style: 'display: flex; align-items: center; min-height: 46px; padding: 0 14px; border-radius: 10px; text-decoration: none; font-size: 15px; ' + (n[2] ? 'background: #24363F; color: #FFFFFF; font-weight: 600' : 'color: #C9D2D7') }; })
+};
+}
+}
+</script>
+</body>
+</html>

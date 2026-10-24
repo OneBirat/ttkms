@@ -2,40 +2,54 @@
 
 import { useState, type FormEvent } from "react";
 import { TorchIcon } from "../icons";
-import { VoiceControls } from "../VoiceControls";
 import { useDialog } from "../useDialog";
 import type { MarkState } from "../useMarkState";
+import { VoiceControls } from "../VoiceControls";
+import { isSheetStep } from "./scanFlow";
 import { SCANNER_HINT, useBarcodeScanner } from "./useBarcodeScanner";
 import styles from "./scan.module.css";
 
 /**
- * Full-screen camera scanner (design/attendance/AttendanceScanCamera.dc.html):
- * viewfinder with frame and scan line, EN + Nepali hint, torch, "Or type ID" + Find.
+ * Full-screen camera scanner (design/scanner/AttendanceScanCamera.dc.html).
+ * Mounted for the whole scanning session on a phone so the camera stream
+ * survives the sheets; decoding pauses while a sheet is open.
  */
 export function ScanCamera({ state }: { state: MarkState }) {
   const [typed, setTyped] = useState("");
-  const dialog = useDialog(state.closeScan, { autoFocus: false });
-  const scanner = useBarcodeScanner(true, (code) => state.submitCode(code));
+  const scan = state.scan;
+  const step = scan?.step;
+  const sheetOpen = isSheetStep(step);
+  const busy = step === "camera" && scan?.busy === true;
+  const last = step === "camera" ? scan?.last : undefined;
+  const dialog = useDialog(() => state.flow.stop(), { autoFocus: false });
+  const scanner = useBarcodeScanner({
+    active: scan !== null,
+    decoding: step === "camera" && !busy,
+    onCode: (code) => state.flow.scan(code),
+  });
   const branch = state.data?.branches.find((b) => b.id === state.branchId)?.name ?? "";
-  const busy = state.scan?.busy ?? false;
 
   const find = (event: FormEvent) => {
     event.preventDefault();
-    if (typed.trim()) state.submitCode(typed);
+    if (typed.trim()) {
+      state.flow.scan(typed);
+      setTyped("");
+    }
   };
 
   return (
     <section
       ref={dialog.ref}
       role="dialog"
-      aria-modal="true"
+      aria-modal={!sheetOpen}
       aria-label="Barcode scanner"
+      aria-hidden={sheetOpen || undefined}
       tabIndex={-1}
       className={styles.camera}
       onKeyDown={dialog.onKeyDown}
     >
       <div className={styles.cameraTop}>
-        <button type="button" aria-label="Close scanner" className={styles.cameraBtn} onClick={state.closeScan}>
+        <button type="button" aria-label="Close scanner" className={styles.cameraBtn} onClick={() => state.flow.stop()}>
           ×
         </button>
         <div className={styles.cameraTitle}>
@@ -58,6 +72,15 @@ export function ScanCamera({ state }: { state: MarkState }) {
         </button>
       </div>
 
+      <div className={styles.lastRow}>
+        {last ? (
+          <span role="status" className={styles.lastPill}>
+            {last}
+          </span>
+        ) : null}
+        <span className={styles.scanCount}>Scanned: {state.scanCount}</span>
+      </div>
+
       <div className={styles.viewport}>
         <video ref={scanner.videoRef} className={styles.video} playsInline muted autoPlay />
         <div className={styles.frame} aria-hidden="true">
@@ -74,12 +97,31 @@ export function ScanCamera({ state }: { state: MarkState }) {
             </div>
           ) : null}
         </div>
-        <span className={styles.hint} role="status">
-          {busy ? "Looking up the card…" : SCANNER_HINT[scanner.status] || SCANNER_HINT.scanning}
-        </span>
-        <span className={styles.hintNp} lang="ne">
-          कार्डको बारकोड फ्रेमभित्र राख्नुहोस्
-        </span>
+        <div className={styles.hints}>
+          <span className={styles.hint} role="status">
+            {busy ? "Looking up the card…" : SCANNER_HINT[scanner.status] || SCANNER_HINT.scanning}
+          </span>
+          <span className={styles.hintNp} lang="ne">
+            कार्डको बारकोड फ्रेमभित्र राख्नुहोस्
+          </span>
+        </div>
+        <div className={styles.cancelWrap}>
+          <button
+            type="button"
+            aria-label="Cancel scanning"
+            title="Cancel scanning"
+            className={styles.cancelRound}
+            onClick={() => state.flow.stop()}
+          >
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+          <span aria-hidden="true" className={styles.cancelLabel}>
+            Cancel
+            <span className={styles.cancelNp}>रद्द गर्नुहोस्</span>
+          </span>
+        </div>
       </div>
 
       <form className={styles.cameraBottom} onSubmit={find}>
@@ -92,18 +134,12 @@ export function ScanCamera({ state }: { state: MarkState }) {
               autoComplete="off"
               inputMode="text"
               onChange={(e) => setTyped(e.target.value)}
-              data-autofocus=""
             />
           </div>
           <button type="submit" className={styles.findBtn} disabled={busy || !typed.trim()}>
             Find
           </button>
         </div>
-        {state.scan?.error ? (
-          <span className={styles.cameraError} role="alert">
-            {state.scan.error}
-          </span>
-        ) : null}
       </form>
     </section>
   );

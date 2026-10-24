@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AttendanceApiError,
   getDay,
   getMonthBalance,
+  getPaymentHistoryFor,
   getToday,
   lookupCode,
   recordPayment,
@@ -21,7 +21,9 @@ import {
   type Draft,
   type MarkCounts,
 } from "./helpers";
-import { SPEECH, beep as rawBeep, speak as rawSpeak } from "./speak";
+import type { Scan, ScanFlow } from "./scan/scanFlow";
+import { useScanFlow } from "./scan/useScanFlow";
+import { SPEECH, beep as rawBeep, speak as rawSpeak, unlockAudio } from "./speak";
 
 // Sound is a courtesy: nothing in the scan/save chain may depend on it.
 const say = (phrase: Parameters<typeof rawSpeak>[0]) => {
@@ -31,7 +33,7 @@ const say = (phrase: Parameters<typeof rawSpeak>[0]) => {
     // speak() never throws, but the save path must not rely on that.
   }
 };
-const beep = (kind: "ok" | "error") => {
+const beep = (kind: "ok" | "error" | "skip") => {
   try {
     rawBeep(kind);
   } catch {
@@ -42,14 +44,8 @@ import { useUnsavedWarning } from "./useUnsavedWarning";
 import type {
   AttendanceRecord,
   DayAttendance,
-  EmployeeRef,
   MarkInput,
   MarkRow,
-  MarkStatus,
-  MonthBalance,
-  PaymentMethod,
-  PaymentResult,
-  PaymentType,
   TodayRef,
 } from "./types";
 
@@ -64,68 +60,6 @@ type Drafts = Map<number, Draft>;
 export function draftFromRecord(record: AttendanceRecord | null): Draft {
   if (!record) return EMPTY_DRAFT;
   return { status: record.status, ot_hours: record.ot_hours, note: record.note };
-}
-
-// ------------------------------------------------------------ scan flow
-
-/** "lookup" = a code typed on the desktop is being looked up (no overlay yet). */
-export type ScanStep = "camera" | "lookup" | "found" | "already" | "pay" | "paid" | "missing" | "done";
-
-export interface ScanState {
-  step: ScanStep;
-  /** The code as scanned or typed. */
-  code: string;
-  employee: EmployeeRef | null;
-  /** What the server has for today (before this scan). */
-  today: AttendanceRecord | null;
-  /** The status the sheet treats as current (server record or an unsaved mark). */
-  current: Draft;
-  busy: boolean;
-  error: string | null;
-  // found
-  otMode: boolean;
-  hours: number;
-  // already / pay
-  balance: MonthBalance | null;
-  ptype: PaymentType | null;
-  /** Which quick amount is selected: "500", "full", "custom", … */
-  quick: string | null;
-  /** Custom amount as typed (digits only). */
-  amount: string;
-  method: PaymentMethod;
-  paid: PaymentResult | null;
-  // done
-  doneStatus: MarkStatus | null;
-  doneHours: number;
-}
-
-function freshScan(step: ScanStep, code = ""): ScanState {
-  return {
-    step,
-    code,
-    employee: null,
-    today: null,
-    current: EMPTY_DRAFT,
-    busy: false,
-    error: null,
-    otMode: false,
-    hours: 1,
-    balance: null,
-    ptype: null,
-    quick: null,
-    amount: "",
-    method: "cash",
-    paid: null,
-    doneStatus: null,
-    doneHours: 0,
-  };
-}
-
-/** Rupees the pay sheet is about to save: the quick pick or the custom amount. */
-export function scanAmount(scan: ScanState): number {
-  if (scan.quick === "custom" || scan.quick === null) return Number.parseInt(scan.amount || "0", 10) || 0;
-  if (scan.quick === "full") return scan.balance?.due ?? 0;
-  return Number.parseInt(scan.quick, 10) || 0;
 }
 
 // ------------------------------------------------------------ the hook
@@ -177,23 +111,15 @@ export interface MarkState {
   save: () => Promise<boolean>;
   saved: { counts: MarkCounts; branch: string } | null;
   closeSaved: () => void;
-  // scan flow
-  scan: ScanState | null;
+  // scan flow (scan/scanFlow.ts)
+  scan: Scan | null;
+  /** People handled since the scanner was opened. */
+  scanCount: number;
+  flow: ScanFlow;
+  /** Open the camera (phone); unlocks audio on that first tap. */
   openScanner: () => void;
-  closeScan: () => void;
+  /** A code from the USB scanner / type-ID box. */
   submitCode: (code: string) => void;
-  scanPresent: () => void;
-  scanOtMode: (on: boolean) => void;
-  scanHours: (hours: number) => void;
-  scanSaveOvertime: () => void;
-  scanChangeAttendance: () => void;
-  scanChoosePayment: (type: PaymentType) => void;
-  scanPayBack: () => void;
-  scanQuick: (key: string) => void;
-  scanAmountText: (text: string) => void;
-  scanMethod: (method: PaymentMethod) => void;
-  scanSavePayment: () => void;
-  scanAgain: () => void;
 }
 
 export function useMarkState(options: { phone: boolean }): MarkState {
@@ -215,7 +141,6 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<MarkState["saved"]>(null);
   const [otModal, setOtModal] = useState<MarkState["otModal"]>(null);
-  const [scan, setScan] = useState<ScanState | null>(null);
 
   // Default date = today (BS).
   useEffect(() => {
@@ -461,157 +386,49 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     }
   };
 
-  // ---- scan flow
+  // ---- scan flow (scan/scanFlow.ts)
 
   const currentMonthKey = today?.bs_date.slice(0, 7) ?? "";
-
-  const loadBalance = useCallback(
-    (employeeId: number) => {
-      if (!currentMonthKey) return;
-      getMonthBalance(employeeId, currentMonthKey)
-        .then((balance) =>
-          setScan((s) => (s && s.employee?.id === employeeId ? { ...s, balance } : s)),
-        )
-        .catch((err: unknown) =>
-          setScan((s) =>
-            s && s.employee?.id === employeeId
-              ? { ...s, error: err instanceof Error ? err.message : "Could not load the balance." }
-              : s,
-          ),
-        );
-    },
-    [currentMonthKey],
-  );
-
-  const openScanner = () => setScan(freshScan("camera"));
-  const closeScan = () => setScan(null);
-
-  const submitCode = (raw: string) => {
-    const code = raw.trim();
-    if (!code) return;
-    beep("ok"); // the instant a code is read; the words follow once the sheet is open
-    setScan((s) => ({ ...(s ?? freshScan("lookup")), code, busy: true, error: null }));
-    lookupCode(code)
-      .then((found) => {
-        const row = rowsRef.current.get(found.employee.id);
-        const draft =
-          draftsRef.current.get(found.employee.id) ?? draftFromRecord(found.today ?? row?.record ?? null);
-        const already = draft.status !== null;
-        setScan({
-          ...freshScan(already ? "already" : "found", code),
-          employee: found.employee,
-          today: found.today,
-          current: draft,
-          hours: draft.status === "O" ? draft.ot_hours : 1,
-        });
-        if (already) {
-          loadBalance(found.employee.id);
-          say(SPEECH.already(found.employee));
-        } else {
-          say(SPEECH.name(found.employee)); // say who it is as soon as the card is read
-        }
-      })
-      .catch((err: unknown) => {
-        if (err instanceof AttendanceApiError && err.status === 404) {
-          setScan(freshScan("missing", code));
-          beep("error");
-          say(SPEECH.unknown());
-        } else {
-          setScan((s) =>
-            s ? { ...s, busy: false, error: err instanceof Error ? err.message : "Lookup failed." } : s,
-          );
-        }
-      });
-  };
-
-  const commitScan = (action: "present" | "overtime", hours: number) => {
-    setScan((s) => (s ? { ...s, busy: true, error: null } : s));
-    const code = scan?.code ?? "";
-    scanMark({ code, action, ot_hours: action === "overtime" ? hours : 0 })
-      .then((result) => {
+  const { state: scanState, flow } = useScanFlow(
+    {
+      api: {
+        lookup: lookupCode,
+        mark: scanMark,
+        balance: (id) => getMonthBalance(id, currentMonthKey),
+        history: (id) => getPaymentHistoryFor(id, currentMonthKey),
+        pay: recordPayment,
+      },
+      currentDraft: (emp, todayRecord) =>
+        draftsRef.current.get(emp.id) ??
+        draftFromRecord(todayRecord ?? rowsRef.current.get(emp.id)?.record ?? null),
+      onMarked: (result) => {
         // Only rows of the loaded branch are on screen; a scan of someone else still saves.
         if (rowsRef.current.has(result.employee.id) && data?.day.bs_date === result.record.date_bs) {
           applyRecords([result.record]);
         }
-        setScan((s) =>
-          s
-            ? {
-                ...s,
-                step: "done",
-                busy: false,
-                doneStatus: result.record.status,
-                doneHours: result.record.ot_hours,
-                today: result.record,
-              }
-            : s,
-        );
-        say(
-          result.record.status === "O"
-            ? SPEECH.overtime(result.record.ot_hours)
-            : SPEECH.present(),
-        );
-      })
-      .catch((err: unknown) =>
-        setScan((s) =>
-          s ? { ...s, busy: false, error: err instanceof Error ? err.message : "Could not save the scan." } : s,
-        ),
-      );
-  };
-
-  const scanPresent = () => commitScan("present", 0);
-  const scanOtMode = (on: boolean) => setScan((s) => (s ? { ...s, otMode: on } : s));
-  const scanHours = (hours: number) => setScan((s) => (s ? { ...s, hours: clampHours(hours) } : s));
-  const scanSaveOvertime = () => commitScan("overtime", clampHours(scan?.hours ?? 1));
-  const scanChangeAttendance = () => setScan((s) => (s ? { ...s, step: "found", otMode: false } : s));
-
-  const scanChoosePayment = (type: PaymentType) =>
-    setScan((s) =>
-      s
-        ? {
-            ...s,
-            step: "pay",
-            ptype: type,
-            quick: type === "salary" ? "full" : null,
-            amount: "",
-            method: "cash",
-            error: null,
-          }
-        : s,
-    );
-  const scanPayBack = () => setScan((s) => (s ? { ...s, step: "already", error: null } : s));
-  const scanQuick = (key: string) =>
-    setScan((s) => (s ? { ...s, quick: key, amount: key === "custom" ? "" : s.amount, error: null } : s));
-  const scanAmountText = (text: string) =>
-    setScan((s) => (s ? { ...s, amount: text.replace(/[^0-9]/g, "").slice(0, 9), error: null } : s));
-  const scanMethod = (method: PaymentMethod) => setScan((s) => (s ? { ...s, method } : s));
-
-  const scanSavePayment = () => {
-    if (!scan || !scan.employee || !scan.ptype || !scan.balance) return;
-    const amount = scanAmount(scan);
-    const employee = scan.employee;
-    setScan((s) => (s ? { ...s, busy: true, error: null } : s));
-    recordPayment({
-      employee_id: employee.id,
-      month_key: scan.balance.month_key,
-      type: scan.ptype,
-      amount,
-      method: scan.method,
-      source: "scan",
-    })
-      .then((paid) => {
-        setScan((s) => (s ? { ...s, step: "paid", busy: false, paid } : s));
-        loadBalance(employee.id);
-        say(SPEECH.payment(employee, scan.ptype!, paid.amount));
-      })
-      .catch((err: unknown) =>
-        setScan((s) =>
-          s ? { ...s, busy: false, error: err instanceof Error ? err.message : "Could not record the payment." } : s,
-        ),
-      );
-  };
-
-  /** "Scan next" / "Scan again": the camera on a phone, the USB input on a desktop. */
-  const scanAgain = () => (phone ? setScan(freshScan("camera")) : setScan(null));
+      },
+      monthKey: () => currentMonthKey,
+      sounds: {
+        read: () => beep("ok"),
+        name: (e) => say(SPEECH.name(e)),
+        already: (e) => say(SPEECH.already(e)),
+        marked: (status, hours) => {
+          beep("ok");
+          say(status === "O" ? SPEECH.overtime(hours) : SPEECH.present());
+        },
+        paid: (e, type, amount) => {
+          beep("ok");
+          say(SPEECH.payment(e, type, amount));
+        },
+        unknown: () => {
+          beep("error");
+          say(SPEECH.unknown());
+        },
+        skip: () => beep("skip"),
+      },
+    },
+    { trapBack: phone },
+  );
 
   return {
     today,
@@ -654,21 +471,13 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     save,
     saved,
     closeSaved: () => setSaved(null),
-    scan,
-    openScanner,
-    closeScan,
-    submitCode,
-    scanPresent,
-    scanOtMode,
-    scanHours,
-    scanSaveOvertime,
-    scanChangeAttendance,
-    scanChoosePayment,
-    scanPayBack,
-    scanQuick,
-    scanAmountText,
-    scanMethod,
-    scanSavePayment,
-    scanAgain,
+    scan: scanState.scan,
+    scanCount: scanState.count,
+    flow,
+    openScanner: () => {
+      unlockAudio();
+      flow.open();
+    },
+    submitCode: (code) => flow.scan(code),
   };
 }

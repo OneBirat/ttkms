@@ -310,6 +310,29 @@ export interface PaymentResult {
   recorded_at: string;
 }
 
+/** One payment of the month, as the scan flow's history sheet lists it. */
+export interface PaymentEntry {
+  id: number;
+  /** BS date "YYYY-MM-DD". */
+  bs_date: string;
+  type: PaymentType;
+  amount: number;
+  method: PaymentMethod;
+  /** "Cash", "Part salary", … */
+  note: string;
+  /** ISO timestamp. */
+  created_at: string;
+}
+
+/** GET /api/payroll/payments?employee_id=&bs_year=&bs_month= (newest first). */
+export interface PaymentHistory {
+  employee_id: number;
+  month_key: string;
+  month_label: string;
+  payments: PaymentEntry[];
+  totals: { paid: number; net: number; due: number };
+}
+
 // ------------------------------------------------------------ dashboard
 
 export interface NotInEntry {

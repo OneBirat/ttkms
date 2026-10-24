@@ -8,6 +8,11 @@ import { useEffect, useRef, useState } from "react";
  * "type ID" box only; NEEDS FROM MAIN: add @zxing/browser as the fallback
  * decoder for those (Firefox, older Safari). Staff cards carry "TTK-E001" as
  * Code 128 or as a QR code; both are read.
+ *
+ * The MediaStream stays alive between people: `active` owns the stream,
+ * `decoding` only pauses the detect loop while a sheet is open. Tracks are
+ * released when the scanner closes, the component unmounts or the page is
+ * hidden, and re-acquired when it is visible again.
  */
 
 interface DetectedBarcode {
@@ -59,17 +64,42 @@ export interface BarcodeScanner {
   toggleTorch: () => void;
 }
 
-export function useBarcodeScanner(active: boolean, onCode: (code: string) => void): BarcodeScanner {
+export interface BarcodeScannerOptions {
+  /** Keep the camera stream open. */
+  active: boolean;
+  /** Run the detect loop (false while a sheet is open). */
+  decoding: boolean;
+  onCode: (code: string) => void;
+}
+
+function usePageVisible(): boolean {
+  const [visible, setVisible] = useState(() =>
+    typeof document === "undefined" ? true : document.visibilityState !== "hidden",
+  );
+  useEffect(() => {
+    const onChange = () => setVisible(document.visibilityState !== "hidden");
+    document.addEventListener("visibilitychange", onChange);
+    return () => document.removeEventListener("visibilitychange", onChange);
+  }, []);
+  return visible;
+}
+
+export function useBarcodeScanner({ active, decoding, onCode }: BarcodeScannerOptions): BarcodeScanner {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
+  const detectorRef = useRef<BarcodeDetectorLike | null>(null);
   const onCodeRef = useRef(onCode);
   onCodeRef.current = onCode;
+  const decodingRef = useRef(decoding);
+  decodingRef.current = decoding;
   const [status, setStatus] = useState<ScannerStatus>("idle");
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const visible = usePageVisible();
+  const streaming = active && visible;
 
   useEffect(() => {
-    if (!active) return;
+    if (!streaming) return;
     let cancelled = false;
     let stream: MediaStream | null = null;
     let timer: number | undefined;
@@ -79,6 +109,7 @@ export function useBarcodeScanner(active: boolean, onCode: (code: string) => voi
       stream?.getTracks().forEach((t) => t.stop());
       stream = null;
       trackRef.current = null;
+      detectorRef.current = null;
     };
 
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -128,11 +159,10 @@ export function useBarcodeScanner(active: boolean, onCode: (code: string) => voi
         setStatus("no-detector");
         return;
       }
-      let detector: BarcodeDetectorLike;
       try {
         const supported = Detector.getSupportedFormats ? await Detector.getSupportedFormats() : [];
         const wanted = CARD_FORMATS.filter((f) => supported.includes(f));
-        detector = new Detector(wanted.length ? { formats: wanted } : undefined);
+        detectorRef.current = new Detector(wanted.length ? { formats: wanted } : undefined);
       } catch {
         setStatus("no-detector");
         return;
@@ -143,15 +173,13 @@ export function useBarcodeScanner(active: boolean, onCode: (code: string) => voi
       let busy = false;
       timer = window.setInterval(async () => {
         const v = videoRef.current;
-        if (busy || cancelled || !v || v.readyState < 2) return;
+        const detector = detectorRef.current;
+        if (busy || cancelled || !decodingRef.current || !detector || !v || v.readyState < 2) return;
         busy = true;
         try {
           const codes = await detector.detect(v);
           const hit = codes.find((c) => c.rawValue && c.rawValue.trim());
-          if (hit && !cancelled) {
-            window.clearInterval(timer);
-            onCodeRef.current(hit.rawValue.trim());
-          }
+          if (hit && !cancelled && decodingRef.current) onCodeRef.current(hit.rawValue.trim());
         } catch {
           // A frame that could not be decoded; keep trying.
         } finally {
@@ -167,7 +195,7 @@ export function useBarcodeScanner(active: boolean, onCode: (code: string) => voi
       setTorchSupported(false);
       setStatus("idle");
     };
-  }, [active]);
+  }, [streaming]);
 
   const toggleTorch = () => {
     const track = trackRef.current;

@@ -4,6 +4,7 @@ import { MarkDesktop } from "./MarkDesktop";
 import { MarkMobile } from "./MarkMobile";
 import { OvertimeModal } from "./OvertimeModal";
 import { ScanCamera } from "./scan/ScanCamera";
+import { isSheetStep } from "./scan/scanFlow";
 import { ScanSheet } from "./scan/ScanSheet";
 import { useMarkState } from "./useMarkState";
 import { PHONE_QUERY, useMediaQuery } from "./useMediaQuery";
@@ -33,10 +34,8 @@ export function MarkPage() {
           onSave={state.saveOvertime}
         />
       ) : null}
-      {state.scan?.step === "camera" ? <ScanCamera state={state} /> : null}
-      {state.scan && state.scan.step !== "camera" && state.scan.step !== "lookup" ? (
-        <ScanSheet state={state} phone={phone} />
-      ) : null}
+      {phone && state.scan ? <ScanCamera state={state} /> : null}
+      {isSheetStep(state.scan?.step) ? <ScanSheet state={state} phone={phone} /> : null}
     </>
   );
 }

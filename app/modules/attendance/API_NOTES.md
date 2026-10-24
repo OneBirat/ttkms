@@ -63,6 +63,11 @@ Attendance only calls these from `api.ts`; nothing in attendance reads payroll t
 |---|---|---|---|
 | GET | `/api/payroll/balance?employee_id=&bs_year=&bs_month=` | | `MonthBalance {employee_id, month_key, month_label, net, paid, due}` |
 | POST | `/api/payroll/payments` | `PaymentInput {employee_id, month_key, type: salary\|advance, amount, method: cash\|bank, source: "scan"}` | `PaymentResult {payment_id, amount, due_after, recorded_at}`; 422 when amount ≤ 0 or above `due` |
+| GET | `/api/payroll/payments?employee_id=&bs_year=&bs_month=` | | `PaymentHistory {employee_id, month_key, month_label, payments: [{id, bs_date, type, amount, method, note, created_at}] (newest first), totals: {paid, net, due}}` – the scan flow's "Paid in {month}" card and the History sheet |
+
+The scan flow sends `method: "cash"` (the Cash / Bank toggle was removed from the sheet; the column
+stays). Payroll's own shapes use `mode` for the method and `bs_year`/`bs_month` instead of
+`month_key`; attendance's client adapts in `api.ts` once the real endpoints exist.
 
 ## AttendanceSummary (app/contracts.py) – shape change needed on main
 

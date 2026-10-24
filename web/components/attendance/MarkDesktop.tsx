@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { MarkRow } from "./MarkRow";
 import { Pager } from "./Pager";
 import { ScanIcon, SearchIcon } from "./icons";
+import { isSheetStep } from "./scan/scanFlow";
 import { unlockAudio } from "./speak";
 import { DESKTOP_PAGE, type MarkState } from "./useMarkState";
 import { VoiceControls } from "./VoiceControls";
@@ -29,12 +30,31 @@ export function MarkDesktop({ state }: { state: MarkState }) {
   } = state;
   const scanInput = useRef<HTMLInputElement>(null);
   const ready = data !== null;
-  const scanOpen = state.scan !== null;
+  const step = state.scan?.step;
+  // Done / paid keep the box focused so the next card is read at once (the sheet shows only a countdown).
+  const sheetHoldsFocus = isSheetStep(step) && step !== "done" && step !== "paid";
 
   // The scan box is the focused field: USB scanners type into it and press Enter.
+  // Refocus after every sheet closes and when the window regains focus, but never
+  // steal it from a custom-amount box.
   useEffect(() => {
-    if (ready && !scanOpen) scanInput.current?.focus();
-  }, [ready, scanOpen]);
+    if (!ready || sheetHoldsFocus) return;
+    const focusBox = () => {
+      const active = document.activeElement;
+      if (active instanceof HTMLInputElement && active.getAttribute("aria-label") === "Custom amount") return;
+      scanInput.current?.focus();
+    };
+    focusBox();
+    window.addEventListener("focus", focusBox);
+    return () => window.removeEventListener("focus", focusBox);
+  }, [ready, sheetHoldsFocus]);
+
+  const lastLine =
+    step === "camera" && state.scan && "last" in state.scan && state.scan.last
+      ? `${state.scan.last} — ready for next card · scanned ${state.scanCount}`
+      : state.scan && state.scanCount > 0
+        ? `Ready for next card · scanned ${state.scanCount}`
+        : null;
 
   const onScanKey = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== "Enter") return;
@@ -130,9 +150,15 @@ export function MarkDesktop({ state }: { state: MarkState }) {
             </div>
             <VoiceControls variant="light" />
           </div>
-          <span id="mark-scan-hint" className={styles.scanHint}>
-            TTK-E004, E-004, E004 and 4 all open the same card
-          </span>
+          {lastLine ? (
+            <span id="mark-scan-hint" role="status" className={styles.scanStatus}>
+              {lastLine}
+            </span>
+          ) : (
+            <span id="mark-scan-hint" className={styles.scanHint}>
+              TTK-E004, E-004, E004 and 4 all open the same card
+            </span>
+          )}
         </div>
         <label className={shared.check}>
           <input

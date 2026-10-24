@@ -16,7 +16,7 @@ import { dayFromBs, findMonth, listMonths as calendarMonths, todayRef } from "./
 import { buildExportModel, type ExportContext } from "./exportModel";
 import { computeTotals, findByCode } from "./helpers";
 import { EMPLOYEES, branchRefs, departmentRefs } from "./mock/employees";
-import { MOCK_SETTINGS, addPayment, getBalance, getRecord, putMarks } from "./mock/store";
+import { MOCK_SETTINGS, addPayment, getBalance, getPaymentHistory, getRecord, putMarks } from "./mock/store";
 import { buildPrintDocument } from "./print";
 import type {
   DayAttendance,
@@ -27,6 +27,7 @@ import type {
   MarkRow,
   MonthBalance,
   MonthOption,
+  PaymentHistory,
   MonthReport,
   PaymentInput,
   PaymentResult,
@@ -203,6 +204,15 @@ export async function getMonthBalance(employeeId: number, monthKey: string): Pro
     throw new AttendanceApiError(404, "Unknown employee.");
   }
   return getBalance(employeeId, monthKey, labelOf(monthKey));
+}
+
+/** PAYROLL: GET /api/payroll/payments?employee_id=&bs_year=&bs_month= -> PaymentHistory (newest first, with month totals). */
+export async function getPaymentHistoryFor(employeeId: number, monthKey: string): Promise<PaymentHistory> {
+  await wait();
+  if (!EMPLOYEES.some((e) => e.id === employeeId)) {
+    throw new AttendanceApiError(404, "Unknown employee.");
+  }
+  return getPaymentHistory(employeeId, monthKey, labelOf(monthKey));
 }
 
 /** PAYROLL: POST /api/payroll/payments  body PaymentInput -> PaymentResult (422 when amount is 0 or above the balance due). */
