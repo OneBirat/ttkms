@@ -88,6 +88,7 @@ async def test_login_success_then_me(client, make_user, login, db):
         "role_label": "Admin",
         "employee_id": None,
         "last_login_at": body["user"]["last_login_at"],
+        "must_change_password": False,
     }
     assert body["user"]["last_login_at"] is not None
     assert body["csrf_token"]
@@ -202,3 +203,56 @@ def test_phone_normalisation():
     assert normalize_phone("9779841000001") == "9841000001"
     assert is_phone("9841000001") and is_phone("+977 9851 234 567")
     assert not is_phone("admin") and not is_phone("1234567890") and not is_phone("98410")
+
+
+async def test_temporary_password_forces_a_change(client, make_user, login, db):
+    user = await make_user("newbie", password="Temp-1234x")
+    user.must_change_password = True
+    await db.flush()
+    token = (await login("newbie", password="Temp-1234x")).json()["csrf_token"]
+
+    # Only /api/auth/* works until the password is changed.
+    me = await client.get("/api/auth/me")
+    assert me.status_code == 200 and me.json()["user"]["must_change_password"] is True
+    blocked = await client.get("/api/dashboard")
+    assert blocked.status_code == 403
+    assert blocked.json() == {
+        "detail": auth.PASSWORD_CHANGE_REQUIRED_DETAIL,
+        "code": "password_change_required",
+    }
+
+    # Wrong current password, too short, or unchanged: refused.
+    headers = {"X-CSRF-Token": token}
+    bad = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": "nope", "new_password": "longenough1"},
+        headers=headers,
+    )
+    assert bad.status_code == 401
+    short = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": "Temp-1234x", "new_password": "short"},
+        headers=headers,
+    )
+    assert short.status_code == 422
+    same = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": "Temp-1234x", "new_password": "Temp-1234x"},
+        headers=headers,
+    )
+    assert same.status_code == 400
+
+    ok = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": "Temp-1234x", "new_password": "my-own-password"},
+        headers=headers,
+    )
+    assert ok.status_code == 200
+    assert ok.json()["user"]["must_change_password"] is False
+    assert (await client.get("/api/dashboard")).status_code == 200
+    actions = (await db.execute(select(AuditLog.action))).scalars().all()
+    assert "change_password" in actions
+
+    # The new password works, the temporary one does not.
+    await client.post("/api/auth/logout", headers={"X-CSRF-Token": ok.json()["csrf_token"]})
+    assert (await login("newbie", password="my-own-password")).status_code == 200

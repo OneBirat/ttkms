@@ -27,7 +27,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.core.csrf import get_csrf_token, rotate_csrf_token
 from app.core.models import Role, User, is_phone, normalize_phone, normalize_username
-from app.core.schemas import CsrfOut, ErrorOut, LoginIn, SessionOut, UserOut
+from app.core.schemas import ChangePasswordIn, CsrfOut, ErrorOut, LoginIn, SessionOut, UserOut
 from app.core.services import record_audit
 from app.core.sessions import PERSIST_KEY
 from app.db import DbSession
@@ -67,6 +67,18 @@ class LoginRequired(Exception):
     pass
 
 
+class PasswordChangeRequired(Exception):
+    """The signed-in user still has the temporary password an admin gave them. Everything but
+    ``/api/auth/*`` answers 403 with ``code: password_change_required`` until they change it."""
+
+
+PASSWORD_CHANGE_REQUIRED_CODE = "password_change_required"
+PASSWORD_CHANGE_REQUIRED_DETAIL = "Set a new password before continuing."
+MIN_PASSWORD_LENGTH = 8
+#: Routes a user with a temporary password may still call.
+_PASSWORD_CHANGE_EXEMPT_PREFIX = "/api/auth/"
+
+
 def _session_expired(request: Request) -> bool:
     if request.session.get(PERSIST_KEY):
         return False
@@ -87,6 +99,10 @@ async def get_current_user(request: Request, db: DbSession) -> User:
     if user is None or not user.is_active:
         request.session.clear()
         raise LoginRequired()
+    if user.must_change_password and not request.url.path.startswith(
+        _PASSWORD_CHANGE_EXEMPT_PREFIX
+    ):
+        raise PasswordChangeRequired()
     request.state.user = user
     return user
 
@@ -159,6 +175,39 @@ async def login(request: Request, db: DbSession, payload: LoginIn) -> SessionOut
 @router.get("/me", response_model=SessionOut, responses={401: {"model": ErrorOut}})
 async def me(request: Request, user: CurrentUser) -> SessionOut:
     return SessionOut(user=UserOut.from_user(user), csrf_token=get_csrf_token(request))
+
+
+@router.post(
+    "/change-password",
+    response_model=SessionOut,
+    responses={400: {"model": ErrorOut}, 401: {"model": ErrorOut}},
+)
+async def change_password(
+    request: Request, db: DbSession, user: CurrentUser, payload: ChangePasswordIn
+) -> SessionOut:
+    """Replace the signed-in user's password (also the forced step after a temporary password).
+    The current password must match; the new one must be different and at least 8 characters
+    (the schema enforces the length)."""
+    if not verify_password(user.password_hash, payload.current_password):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Current password is wrong.")
+    if payload.new_password == payload.current_password:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail="Choose a password you have not used just now."
+        )
+    was_forced = user.must_change_password
+    user.password_hash = hash_password(payload.new_password)
+    user.must_change_password = False
+    await record_audit(
+        db,
+        module="core",
+        action="change_password",
+        entity="user",
+        entity_id=user.id,
+        user_id=user.id,
+        data={"forced": was_forced},
+    )
+    await db.commit()
+    return SessionOut(user=UserOut.from_user(user), csrf_token=rotate_csrf_token(request))
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)

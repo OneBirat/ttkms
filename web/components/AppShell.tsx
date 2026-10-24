@@ -1,7 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
+import { SET_PASSWORD_PATH } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import styles from "./AppShell.module.css";
 
@@ -13,6 +15,16 @@ import styles from "./AppShell.module.css";
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, modules, loading, error, refresh, logout } = useSession();
+  const router = useRouter();
+  const pathname = usePathname();
+  // A temporary password must be replaced before any page opens (the API
+  // refuses everything but /api/auth/* until then).
+  const mustSetPassword = Boolean(user?.must_change_password);
+  useEffect(() => {
+    if (mustSetPassword) {
+      router.replace(`${SET_PASSWORD_PATH}?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [mustSetPassword, pathname, router]);
 
   if (error && !user) {
     return (
@@ -30,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  if (loading || !user) {
+  if (loading || !user || mustSetPassword) {
     return (
       <div className={styles.status} role="status" aria-live="polite">
         <span className={styles.spinner} aria-hidden="true" />

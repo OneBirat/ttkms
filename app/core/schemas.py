@@ -28,6 +28,8 @@ class UserOut(BaseModel):
     role_label: str
     employee_id: int | None = None
     last_login_at: datetime | None = None
+    #: True until the user replaces the temporary password an admin gave them.
+    must_change_password: bool = False
 
     @classmethod
     def from_user(cls, user: User) -> UserOut:
@@ -40,7 +42,13 @@ class UserOut(BaseModel):
             role_label=user.role_label,
             employee_id=user.employee_id,
             last_login_at=user.last_login_at,
+            must_change_password=user.must_change_password,
         )
+
+
+class ChangePasswordIn(BaseModel):
+    current_password: str = Field(min_length=1, max_length=1024)
+    new_password: str = Field(min_length=8, max_length=1024)
 
 
 class LoginIn(BaseModel):

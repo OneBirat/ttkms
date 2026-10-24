@@ -8,6 +8,7 @@ import {
   apiFetch,
   ensureCsrf,
   safeNextPath,
+  SET_PASSWORD_PATH,
   type AuthResponse,
   type LoginRequest,
   type ModulesResponse,
@@ -74,11 +75,19 @@ function LoginForm() {
     setError(null);
     const payload: LoginRequest = { username, password, remember };
     try {
-      await apiFetch<AuthResponse>("/api/auth/login", {
+      const session = await apiFetch<AuthResponse>("/api/auth/login", {
         method: "POST",
         json: payload,
         redirectOn401: false,
       });
+      if (session.user.must_change_password) {
+        // Temporary password from an admin: pick a real one before anything else.
+        const next = nextParam ? safeNextPath(nextParam) : "";
+        router.replace(
+          next ? `${SET_PASSWORD_PATH}?next=${encodeURIComponent(next)}` : SET_PASSWORD_PATH,
+        );
+        return;
+      }
       router.replace(await landingPath(nextParam));
     } catch (err) {
       if (err instanceof ApiError) {
