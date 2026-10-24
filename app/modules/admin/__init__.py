@@ -9,14 +9,19 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
+from starlette.concurrency import run_in_threadpool
 
 from app.core.auth import CurrentUser, require_role
+from app.core.export import PDF_MEDIA_TYPE, PDFUnavailable
 from app.core.models import User
 from app.core.modules import Module, NavItem, coming_soon_widget
 from app.core.schemas import ModuleStatusOut
+from app.core.services import company_name
 from app.db import DbSession
 from app.modules.admin import services
+from app.modules.admin.barcodes import DEFAULT_SIZE, STICKER_SIZES, sticker_pdf
 from app.modules.admin.permissions import (
     PERMISSION_GROUPS,
     ROLE_PRESETS,
@@ -26,12 +31,14 @@ from app.modules.admin.permissions import (
 from app.modules.admin.schemas import (
     ActiveIn,
     AdminUserOut,
+    BarcodesOut,
     PaymentModeActiveIn,
     PaymentModeIn,
     PaymentModeOut,
     PermissionGroupOut,
     PermissionOut,
     PermissionsOut,
+    StickerSizeOut,
     TemporaryPasswordOut,
     UserCreatedOut,
     UserIn,
@@ -182,8 +189,72 @@ async def set_payment_mode_active(
     return services.mode_out(mode, await services.payment_counts(db))
 
 
+# ----------------------------------------------------------------------------- barcodes
+
+
+def _pdf_available() -> bool:
+    try:
+        import weasyprint  # noqa: F401
+    except (ImportError, OSError):
+        return False
+    return True
+
+
+@router.get("/barcodes", response_model=BarcodesOut, name="admin:barcodes")
+async def barcodes_index(me: AdminOnly, db: DbSession) -> BarcodesOut:
+    """Active employees to print stickers for, the sticker sizes, and whether the server can
+    render the PDF (WeasyPrint needs pango; the page prints from the browser either way)."""
+    return BarcodesOut(
+        employees=await services.barcode_employees(db),
+        sizes=[
+            StickerSizeOut(
+                key=s.key, label=s.label, columns=s.columns, rows=s.rows, per_page=s.per_page
+            )
+            for s in STICKER_SIZES.values()
+        ],
+        pdf_available=_pdf_available(),
+    )
+
+
+@router.get("/barcodes.pdf", name="admin:barcodes_pdf", include_in_schema=False)
+async def barcodes_pdf(
+    me: AdminOnly,
+    db: DbSession,
+    ids: str = Query(..., description="comma-separated employee ids"),
+    size: str = DEFAULT_SIZE,
+) -> Response:
+    """A4 sticker sheet(s) for the given employees (503 while WeasyPrint is unavailable)."""
+    sticker_size = STICKER_SIZES.get(size)
+    if sticker_size is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Unknown sticker size.")
+    try:
+        wanted = [int(part) for part in ids.split(",") if part.strip()]
+    except ValueError as exc:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="ids must be numbers."
+        ) from exc
+    employees = await services.employees_by_ids(db, wanted)
+    if not employees:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Select at least one employee."
+        )
+    company = await company_name(db)
+    try:
+        pdf = await run_in_threadpool(
+            sticker_pdf, employees, sticker_size, company=company, printed_by=me.full_name
+        )
+    except PDFUnavailable as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    return Response(
+        pdf,
+        media_type=PDF_MEDIA_TYPE,
+        headers={"Content-Disposition": 'attachment; filename="ttk-barcodes.pdf"'},
+    )
+
+
 NAV = [
     NavItem(label="Users", path="/admin/users", icon="user", roles=set(ROLES)),
+    NavItem(label="Barcodes", path="/admin/barcodes", icon="barcode", roles=set(ROLES)),
     NavItem(label="Payment modes", path="/admin/payment-modes", icon="card", roles=set(ROLES)),
 ]
 

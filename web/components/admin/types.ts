@@ -278,3 +278,32 @@ export interface PaymentModeInput {
   use_salary: boolean;
   use_advance: boolean;
 }
+
+// --------------------------------------------------------------- barcodes
+
+export interface BarcodeEmployee {
+  id: number;
+  code: string;
+  full_name: string;
+  department: string | null;
+  designation: string | null;
+  branch_id: number;
+  branch: string;
+  /** What the sticker encodes: "TTK-E-001". */
+  barcode: string;
+}
+
+export interface StickerSize {
+  key: string;
+  label: string;
+  columns: number;
+  rows: number;
+  per_page: number;
+}
+
+export interface BarcodesResponse {
+  employees: BarcodeEmployee[];
+  sizes: StickerSize[];
+  /** False while the server cannot render PDFs (print from the browser instead). */
+  pdf_available: boolean;
+}

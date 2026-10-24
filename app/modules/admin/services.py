@@ -13,7 +13,7 @@ Rules the API enforces (the UI mirrors them):
 from __future__ import annotations
 
 import secrets
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -23,12 +23,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import bsdate
 from app.core.auth import hash_password
-from app.core.models import Branch, Employee, Role, User
+from app.core.models import Branch, Employee, EmployeeStatus, Role, User
 from app.core.services import norm_sql, record_audit
+from app.modules.admin.barcodes import sticker_text
 from app.modules.admin.models import PaymentMode, UserAccess
 from app.modules.admin.permissions import clean_overrides, effective_access, is_custom
 from app.modules.admin.schemas import (
     AdminUserOut,
+    BarcodeEmployeeOut,
     BranchRefOut,
     EmployeeRefOut,
     PaymentModeIn,
@@ -529,3 +531,43 @@ async def set_payment_mode_active(
     await db.commit()
     await db.refresh(mode)
     return mode
+
+
+# ----------------------------------------------------------------------------- barcodes
+
+
+async def barcode_employees(db: AsyncSession) -> list[BarcodeEmployeeOut]:
+    """Active employees, by name, with what their sticker encodes."""
+    rows = (
+        (
+            await db.execute(
+                select(Employee)
+                .where(Employee.status == EmployeeStatus.active)
+                .order_by(Employee.full_name, Employee.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        BarcodeEmployeeOut(
+            id=e.id,
+            code=e.code,
+            full_name=e.full_name,
+            department=e.department.name if e.department else None,
+            designation=e.designation,
+            branch_id=e.branch_id,
+            branch=e.branch.name,
+            barcode=sticker_text(e.code),
+        )
+        for e in rows
+    ]
+
+
+async def employees_by_ids(db: AsyncSession, ids: Sequence[int]) -> list[Employee]:
+    """The employees in the order of ``ids``; unknown ids are skipped."""
+    if not ids:
+        return []
+    rows = (await db.execute(select(Employee).where(Employee.id.in_(list(ids))))).scalars().all()
+    by_id = {e.id: e for e in rows}
+    return [by_id[i] for i in ids if i in by_id]

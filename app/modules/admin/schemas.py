@@ -179,3 +179,32 @@ class PaymentModeIn(BaseModel):
 
 class PaymentModeActiveIn(BaseModel):
     active: bool
+
+
+# -------------------------------------------------------------------------- barcodes
+
+
+class BarcodeEmployeeOut(BaseModel):
+    id: int
+    code: str
+    full_name: str
+    department: str | None
+    designation: str | None
+    branch_id: int
+    branch: str
+    #: What the sticker encodes: "TTK-E-001".
+    barcode: str
+
+
+class StickerSizeOut(BaseModel):
+    key: str
+    label: str
+    columns: int
+    rows: int
+    per_page: int
+
+
+class BarcodesOut(BaseModel):
+    employees: list[BarcodeEmployeeOut]
+    sizes: list[StickerSizeOut]
+    pdf_available: bool
