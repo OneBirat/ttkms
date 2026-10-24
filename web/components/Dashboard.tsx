@@ -1,23 +1,33 @@
 "use client";
 
+import { DateLine } from "@/components/DateLine";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { WidgetRenderer } from "@/components/widgets";
 import { errorMessage, type DashboardResponse } from "@/lib/api";
+import { enabledOnly } from "@/lib/modules";
+import { useSession } from "@/lib/session";
 import { useApi } from "@/lib/useApi";
 import styles from "./Dashboard.module.css";
 
+/**
+ * Dashboard shell (docs/design/Main.dc.html): page header with today's date,
+ * the summary stat-card row, then each module's widgets stacked full-width in
+ * registry order. Page actions (e.g. "Record purchase") belong to the modules
+ * and are added through their widgets. Widgets of a module that is not in
+ * ENABLED_MODULES are never rendered (the API does not send them either), so
+ * with stock paused the attendance widget takes the full row.
+ */
 export function Dashboard() {
+  const { today, enabled } = useSession();
   const { data, error, loading, reload } =
     useApi<DashboardResponse>("/api/dashboard");
+  const widgets = data ? enabledOnly(data.widgets, enabled) : [];
 
   return (
     <>
-      <PageHeader
-        title="Dashboard"
-        subtitle="Today across stock, attendance and payroll"
-      />
+      <PageHeader title="Dashboard" meta={<DateLine today={today} />} />
 
       {loading ? (
         <p className="muted" role="status">
@@ -36,7 +46,7 @@ export function Dashboard() {
       ) : data ? (
         <>
           {data.stats.length > 0 ? (
-            <section className={styles.stats} aria-label="Key figures">
+            <section className={styles.stats} aria-label="Summary">
               {data.stats.map((stat) => (
                 <StatCard
                   key={stat.label}
@@ -49,15 +59,15 @@ export function Dashboard() {
               ))}
             </section>
           ) : null}
-          {data.widgets.length > 0 ? (
-            <section className={styles.widgets} aria-label="Modules">
-              {data.widgets.map((widget, index) => (
+          {widgets.length > 0 ? (
+            <div className={styles.widgets}>
+              {widgets.map((widget, index) => (
                 <WidgetRenderer
                   key={`${widget.module}:${widget.kind}:${index}`}
                   widget={widget}
                 />
               ))}
-            </section>
+            </div>
           ) : (
             <EmptyState title="Nothing to show yet" />
           )}

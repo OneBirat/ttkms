@@ -1,23 +1,37 @@
 .header {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px 24px;
-  margin-bottom: 20px;
+  gap: 16px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 420px;
+  min-width: 0;
 }
 
 .title {
-  font-size: 24px;
+  font-size: 26px;
+  font-weight: 600;
 }
 
 .subtitle {
-  margin-top: 4px;
   color: var(--color-muted);
+  font-size: 14px;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
+}
+
+@media (max-width: 800px) {
+  .title {
+    font-size: 22px;
+  }
 }

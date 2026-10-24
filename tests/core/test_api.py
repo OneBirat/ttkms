@@ -16,8 +16,8 @@ async def test_registry_for_admin(client, make_user, login):
     await login("admin")
     data = (await client.get("/api/registry")).json()
     modules = data["modules"]
-    assert [m["name"] for m in modules] == ["stock", "attendance", "payroll", "admin"]
-    assert [m["title"] for m in modules] == ["Stock", "Attendance", "People & payroll", "Admin"]
+    assert [m["name"] for m in modules] == [m.name for m in MODULES]
+    assert [m["title"] for m in modules] == [m.title for m in MODULES]
     assert all(m["allowed"] for m in modules)
     for m in modules:
         assert m["nav"] and m["nav"][0]["path"] == f"/{m['name']}"
@@ -29,7 +29,7 @@ async def test_registry_filters_nav_by_role(client, make_user, login):
     await login("clerk")
     modules = {m["name"]: m for m in (await client.get("/api/registry")).json()["modules"]}
     assert modules["attendance"]["allowed"] and modules["attendance"]["nav"]
-    for name in ("stock", "payroll", "admin"):
+    for name in ("payroll", "admin"):
         assert not modules[name]["allowed"] and modules[name]["nav"] == []
 
 
@@ -51,7 +51,7 @@ async def test_dashboard_stats_and_widgets(client, make_user, login):
     widgets = data["widgets"]
     assert [w["module"] for w in widgets] == [m.name for m in MODULES]
     assert all(w["kind"] == "coming_soon" for w in widgets)
-    assert widgets[2]["title"] == "People & payroll"
+    assert [w["title"] for w in widgets if w["module"] == "payroll"] == ["People & payroll"]
     assert isinstance(widgets[0]["data"], dict)
 
 
@@ -94,6 +94,7 @@ async def test_openapi_is_served_in_dev(client):
         "/api/auth/login",
         "/api/auth/me",
         "/api/registry",
+        "/api/core/modules",
         "/api/dashboard",
         "/api/today",
     ):

@@ -27,7 +27,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 MODULES: tuple[str, ...] = ("core", "stock", "attendance", "payroll", "admin")
 
 
-def _import_models(module: str, extra: Iterable[str]) -> None:
+def import_module_models(module: str, extra: Iterable[str] = ()) -> None:
+    """Import app.core.models plus app.modules.<module>.models (when it exists) and ``extra``."""
     importlib.import_module("app.core.models")
     candidate = f"app.modules.{module}.models"
     if module != "core" and importlib.util.find_spec(candidate) is not None:
@@ -73,7 +74,7 @@ def run_module_migrations(module: str, *, model_modules: Iterable[str] = ()) -> 
     from app.db import Base
 
     config = context.config
-    _import_models(module, model_modules)
+    import_module_models(module, model_modules)
 
     url: str = (
         config.attributes.get("sqlalchemy_url")
@@ -94,7 +95,13 @@ def run_module_migrations(module: str, *, model_modules: Iterable[str] = ()) -> 
     def do_run_migrations(connection: Connection) -> None:
         # Fresh databases: make sure the module's schema exists before Alembic creates its
         # version table in it. Committed separately so Alembic owns the migration transaction.
-        connection.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{module}"'))
+        exists = connection.scalar(
+            text("SELECT 1 FROM pg_namespace WHERE nspname = :name"), {"name": module}
+        )
+        if exists is None:  # only then is CREATE privilege on the database needed
+            connection.execute(text(f'CREATE SCHEMA "{module}"'))
+        # End the auto-begun transaction either way, otherwise Alembic's begin_transaction()
+        # becomes a no-op inside it and the whole upgrade is rolled back on close.
         connection.commit()
         context.configure(connection=connection, **options)
         with context.begin_transaction():
@@ -113,6 +120,7 @@ def run_module_migrations(module: str, *, model_modules: Iterable[str] = ()) -> 
             url=url, literal_binds=True, dialect_opts={"paramstyle": "named"}, **options
         )
         with context.begin_transaction():
+            context.execute(f'CREATE SCHEMA IF NOT EXISTS "{module}"')
             context.run_migrations()
     else:
         asyncio.run(run_async_migrations())

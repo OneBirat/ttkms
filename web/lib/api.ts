@@ -40,7 +40,8 @@ export interface NavItem {
   label: string;
   path: string;
   icon: string;
-  roles: string[];
+  /** Only sent by /api/registry; /api/core/modules items are already role-filtered. */
+  roles?: string[];
 }
 
 export interface Module {
@@ -53,6 +54,23 @@ export interface Module {
 
 export interface RegistryResponse {
   modules: Module[];
+}
+
+/** One sidebar section from GET /api/core/modules: an enabled module the user may see. */
+export interface NavSection {
+  module: string;
+  title: string;
+  items: NavItem[];
+}
+
+/**
+ * GET /api/core/modules. `enabled` is the ENABLED_MODULES setting as loaded by
+ * the backend (a paused module such as "stock" is absent); `nav` is what the
+ * sidebar renders, in sidebar order, filtered to the user's role.
+ */
+export interface ModulesResponse {
+  enabled: string[];
+  nav: NavSection[];
 }
 
 export type Tone = "ok" | "low" | "danger" | "leave" | "neutral";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/icons";
@@ -10,6 +10,7 @@ import styles from "./Sidebar.module.css";
 export interface SidebarProps {
   user: User;
   modules: Module[];
+  onLogout: () => void;
 }
 
 export function isActivePath(pathname: string, path: string): boolean {
@@ -21,98 +22,92 @@ function NavLink({
   icon,
   label,
   active,
-  onNavigate,
 }: {
   href: string;
   icon: string;
   label: string;
   active: boolean;
-  onNavigate: () => void;
 }) {
   return (
-    <Link
-      href={href}
-      className={styles.link}
-      aria-current={active ? "page" : undefined}
-      onClick={onNavigate}
-    >
-      <Icon name={icon} />
-      <span>{label}</span>
-    </Link>
+    <li>
+      <Link
+        href={href}
+        className={styles.link}
+        aria-current={active ? "page" : undefined}
+      >
+        <Icon name={icon} />
+        {label}
+      </Link>
+    </li>
   );
 }
 
-export function Sidebar({ user, modules }: SidebarProps) {
+/**
+ * Sidebar from docs/design/Main.dc.html: brand block, then one titled section
+ * per module (from /api/core/modules: enabled modules only, in sidebar order,
+ * only those with nav items the user's role may see - so a paused module such
+ * as stock has no section at all). The
+ * Dashboard link is the first item of the first section, as in the design;
+ * when the user can see no module at all it stands alone.
+ */
+export function Sidebar({ user, modules, onLogout }: SidebarProps) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
   const sections = modules.filter((module) => module.nav.length > 0);
+  const dashboard = (
+    <NavLink
+      href="/"
+      icon="dashboard"
+      label="Dashboard"
+      active={pathname === "/"}
+    />
+  );
 
   return (
-    <aside className={styles.sidebar}>
-      <div className={styles.top}>
-        <Link href="/" className={styles.brand} onClick={close}>
-          <span className={styles.tile} aria-hidden="true">
-            TT
-          </span>
-          <span className={styles.brandText}>
-            <span className={styles.brandName}>TTK Stock</span>
-            <span className={styles.brandSub}>Stock &amp; attendance</span>
-          </span>
-        </Link>
-        <button
-          type="button"
-          className={styles.menuButton}
-          aria-expanded={open}
-          aria-controls="sidebar-menu"
-          onClick={() => setOpen((value) => !value)}
-        >
-          <Icon name={open ? "close" : "menu"} />
-          Menu
-        </button>
-      </div>
+    <nav className={styles.sidebar} aria-label="Main">
+      <Link href="/" className={styles.brand}>
+        <span className={styles.tile} aria-hidden="true">
+          TT
+        </span>
+        <span className={styles.brandText}>
+          <span className={styles.brandName}>TTK Stock</span>
+          <span className={styles.brandSub}>Stock &amp; attendance</span>
+        </span>
+      </Link>
 
-      <div
-        id="sidebar-menu"
-        className={open ? `${styles.menu} ${styles.menuOpen}` : styles.menu}
-      >
-        <nav className={styles.nav} aria-label="Main">
-          <ul className={styles.list}>
-            <li>
-              <NavLink
-                href="/"
-                icon="home"
-                label="Dashboard"
-                active={pathname === "/"}
-                onNavigate={close}
-              />
-            </li>
-          </ul>
-          {sections.map((module) => (
-            <section key={module.name} className={styles.section}>
-              <h2 className={styles.sectionTitle}>{module.title}</h2>
-              <ul className={styles.list}>
-                {module.nav.map((item) => (
-                  <li key={item.path}>
-                    <NavLink
-                      href={item.path}
-                      icon={item.icon}
-                      label={item.label}
-                      active={isActivePath(pathname, item.path)}
-                      onNavigate={close}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </nav>
+      {sections.length === 0 ? (
+        <ul className={styles.list}>{dashboard}</ul>
+      ) : (
+        sections.map((module, index) => (
+          <Fragment key={module.name}>
+            <div className={styles.sectionTitle} data-module={module.name}>
+              {module.title}
+            </div>
+            <ul className={styles.list}>
+              {index === 0 ? dashboard : null}
+              {module.nav.map((item) => (
+                <NavLink
+                  key={item.path}
+                  href={item.path}
+                  icon={item.icon}
+                  label={item.label}
+                  active={isActivePath(pathname, item.path)}
+                />
+              ))}
+            </ul>
+          </Fragment>
+        ))
+      )}
 
-        <div className={styles.footer}>
+      <div className={styles.footer}>
+        <div className={styles.user}>
           <span className={styles.userName}>{user.full_name}</span>
           <span className={styles.userRole}>{user.role_label}</span>
         </div>
+        <button type="button" className={styles.signOut} onClick={onLogout}>
+          <Icon name="logout" size={16} />
+          Sign out
+        </button>
       </div>
-    </aside>
+    </nav>
   );
 }

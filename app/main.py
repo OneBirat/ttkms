@@ -12,19 +12,22 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.core import auth, routes
 from app.core.csrf import csrf_protect
-from app.core.modules import Module
+from app.core.modules import Module, load_modules
 from app.core.sessions import SessionMiddleware
-from app.modules import admin, attendance, payroll, stock
 
-# The four modules, imported exactly once, in sidebar order. Each is mounted under /api/<name>.
-MODULES: list[Module] = [stock.module, attendance.module, payroll.module, admin.module]
+# The enabled modules (ENABLED_MODULES in .env), imported exactly once, in sidebar order. Each is
+# mounted under /api/<name>; a disabled module is not imported at all.
+MODULES: list[Module] = load_modules()
 
 
 async def login_required_handler(request: Request, exc: auth.LoginRequired) -> JSONResponse:
     return JSONResponse({"detail": "login required"}, status_code=401)
 
 
-def create_app() -> FastAPI:
+def create_app(modules: list[Module] | None = None) -> FastAPI:
+    """Build the app. ``modules`` defaults to the enabled set read from settings when called,
+    so a test can monkeypatch ``settings.enabled_modules`` and build an app with stock on."""
+    modules = load_modules() if modules is None else modules
     # Swagger UI loads from a CDN: dev only (a LAN deployment may have no internet).
     app = FastAPI(
         title="TTK API",
@@ -41,7 +44,7 @@ def create_app() -> FastAPI:
         same_site="lax",
         https_only=settings.session_https_only,
     )
-    app.state.modules = MODULES
+    app.state.modules = modules
     app.add_exception_handler(auth.LoginRequired, login_required_handler)
 
     @app.get("/health", include_in_schema=False)
@@ -50,12 +53,12 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router)
     app.include_router(routes.router)
-    for module in MODULES:
+    for module in modules:
         app.include_router(module.router, prefix=f"/api/{module.name}", tags=[module.name])
     return app
 
 
-app = create_app()
+app = create_app(MODULES)
 
 
 if __name__ == "__main__":

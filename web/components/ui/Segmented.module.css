@@ -1,20 +1,19 @@
 .group {
   display: inline-flex;
+  gap: 2px;
   padding: 3px;
-  border: 1px solid var(--color-input-border);
-  border-radius: var(--radius-input);
-  background: var(--color-card);
+  border-radius: 9px;
+  background: var(--color-border-soft);
 }
 
 .option {
-  min-height: calc(var(--touch) - 8px);
-  min-width: var(--touch);
-  padding: 0 14px;
-  border: 0;
-  border-radius: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 7px;
   background: transparent;
-  color: var(--color-muted);
-  font-weight: 500;
+  color: #3e4a52;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -23,6 +22,8 @@
 }
 
 .option[aria-pressed="true"] {
-  background: var(--color-primary);
-  color: #fff;
+  background: #fff;
+  color: var(--pill-ok-fg);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(23, 34, 42, 0.12);
 }

@@ -1,11 +1,11 @@
 {% extends "print/base.html" %}
 {% block content %}
 <p class="print-intro">Sample export proving Devanagari text, BS dates, status pills and page numbers render correctly in PDF.</p>
-<table class="print-table">
+<table class="pg">
   <thead>
     <tr>
       {% for col in columns %}
-      <th{% if col.number_format %} class="num"{% endif %}>{{ col.label }}</th>
+      <th{% if col.number_format %} class="num"{% elif col.key in ("name", "name_np") %} class="nm"{% endif %}>{{ col.label }}</th>
       {% endfor %}
     </tr>
   </thead>
@@ -14,7 +14,7 @@
     <tr>
       {% for col in columns %}
       {% set value = row[col.key] %}
-      <td{% if col.number_format %} class="num"{% endif %}>
+      <td{% if col.number_format %} class="num"{% elif col.key in ("name", "name_np") %} class="nm"{% endif %}>
         {%- if col.key == "status" %}<span class="pill pill--{{ {'ok': 'ok', 'low': 'low', 'out': 'danger'}.get(value, 'neutral') }}">{{ value|capitalize }}</span>
         {%- elif col.key == "updated" %}{{ value }} <span class="muted" lang="ne">({{ value|np_digits }})</span>
         {%- else %}{{ value }}{% endif -%}

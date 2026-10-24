@@ -1,13 +1,16 @@
-"""Excel and PDF exports shared by every module.
+"""Excel and PDF exports shared by every module (layouts after docs/design/Export*.dc.html).
 
-* :func:`to_xlsx` ``(title, meta_lines, columns, rows) -> bytes`` - openpyxl; bold frozen header
-  row, column widths from content, numbers stay numbers, text never becomes a formula.
+* :func:`to_xlsx` ``(title, meta_lines, columns, rows) -> bytes`` - openpyxl; bold title row,
+  muted meta lines, a blank row, then a bold tinted frozen header row; column widths from
+  content, numbers stay numbers, text never becomes a formula.
 * :func:`to_pdf` ``(template_name, context, landscape=False) -> bytes`` - WeasyPrint, A4, shared
-  print stylesheet ``static/css/print.css`` with a running header (company, title, BS+AD date,
-  printed by), footer (legend + "Page X of Y") and the embedded Noto Sans Devanagari font.
+  print stylesheet ``static/css/print.css`` with a running header (TT tile, title, company /
+  subtitle, BS date, "Generated <date> by <user>"), running footer (legend + "Page X of Y") and
+  the embedded Noto Sans Devanagari font.
 
 Print templates extend ``print/base.html``. ``context`` should carry ``title`` and
-``printed_by``; ``company`` (default "TTK") and ``legend`` (list of ``(label, tone)``) are optional.
+``printed_by``; ``company`` (default "TTK"), ``subtitle``, ``legend`` (list of ``(label, tone)``)
+or ``legend_text`` are optional.
 """
 
 from __future__ import annotations
@@ -31,6 +34,8 @@ PDF_MEDIA_TYPE = "application/pdf"
 PRINT_CSS = STATIC_DIR / "css" / "print.css"
 
 _NUMBER_TYPES = (int, float, Decimal)
+_HEADER_FILL = "E7F1EF"  # header row tint from the Excel sample
+_MUTED = "5B6670"
 
 
 class PDFUnavailable(RuntimeError):
@@ -93,16 +98,16 @@ def to_xlsx(
     ws.title = _sheet_title(title)
 
     r = 1
-    ws.cell(row=r, column=1, value=title).font = Font(bold=True, size=14)
+    ws.cell(row=r, column=1, value=title).font = Font(bold=True, size=13)
     r += 1
     for line in meta_lines:
-        ws.cell(row=r, column=1, value=line).font = Font(color="5B6670")
+        ws.cell(row=r, column=1, value=line).font = Font(color=_MUTED)
         r += 1
     r += 1  # blank line before the table
 
     header_row = r
     header_font = Font(bold=True)
-    header_fill = PatternFill("solid", fgColor="E3F0EE")
+    header_fill = PatternFill("solid", fgColor=_HEADER_FILL)
     header_border = Border(bottom=Side(style="thin", color="0A5454"))
     for i, col in enumerate(cols, start=1):
         cell = ws.cell(row=r, column=i, value=col.label)
@@ -140,14 +145,23 @@ def to_xlsx(
     return buffer.getvalue()
 
 
+def generated_at_text(now: datetime | None = None) -> str:
+    """``"20 Oct 2026, 16:20"`` in Kathmandu time, for the print header."""
+    now = (now or datetime.now(bsdate.KATHMANDU)).astimezone(bsdate.KATHMANDU)
+    return f"{now.day} {now:%b %Y, %H:%M}"
+
+
 def to_pdf(template_name: str, context: Mapping[str, Any], landscape: bool = False) -> bytes:
     from app.core.templating import env  # late import: keeps export importable on its own
 
     full_context: dict[str, Any] = {
         "company": "TTK",
+        "subtitle": "",
         "printed_by": "",
         "legend": [],
+        "legend_text": "",
         "printed_at": bsdate.header_date(),
+        "generated_at": generated_at_text(),
         "landscape": landscape,
         **context,
     }

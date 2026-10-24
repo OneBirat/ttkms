@@ -94,15 +94,19 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* Design tokens                                                       */
+/* Design tokens (docs/design/README.md)                               */
 /* ------------------------------------------------------------------ */
 
 :root {
   --color-sidebar: #17222a;
   --color-sidebar-active: #24363f;
+  --color-sidebar-hover: #22323b;
+  --color-sidebar-text: #c9d2d7;
+  --color-sidebar-muted: #93a3ac;
   --color-bg: #f4f5f2;
   --color-card: #ffffff;
   --color-border: #e2e5e1;
+  --color-border-soft: #eef0ec;
   --color-input-border: #cbd2cc;
   --color-text: #1b2328;
   --color-muted: #5b6670;
@@ -123,7 +127,6 @@
   --radius-input: 8px;
   --radius-card: 12px;
   --touch: 44px;
-  --sidebar-width: 248px;
 
   --font-ui: "IBM Plex Sans", "Noto Sans Devanagari", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -206,18 +209,19 @@ textarea {
   border-radius: var(--radius-card);
 }
 
+/* Buttons: outline (default), primary, ghost; 44px tall, 40px with .btn--sm. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   min-height: var(--touch);
-  min-width: var(--touch);
   padding: 0 16px;
   border: 1px solid var(--color-input-border);
   border-radius: var(--radius-input);
   background: var(--color-card);
   color: var(--color-text);
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.2;
   text-decoration: none;
@@ -242,14 +246,57 @@ textarea {
 }
 
 .btn--ghost {
-  background: transparent;
+  min-height: 36px;
+  padding: 0 10px;
   border-color: transparent;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 13px;
+}
+
+.btn--ghost:hover {
+  background: var(--pill-ok-bg);
+  color: var(--color-primary-hover);
+}
+
+.btn--sm {
+  min-height: 40px;
+  padding: 0 14px;
 }
 
 .btn:disabled,
 .btn[aria-disabled="true"] {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* Form fields: a .field wrapper (border, 44px) around a bare input/select,
+   so icons and buttons can sit inside the box, as in the design. */
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch);
+  padding: 0 12px;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  background: var(--color-card);
+}
+
+.field:focus-within {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 0;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
 }
 
 .input {
@@ -271,7 +318,8 @@ textarea {
 .label {
   display: block;
   margin-bottom: 6px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .mono {
