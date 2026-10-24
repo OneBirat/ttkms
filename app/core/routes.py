@@ -37,6 +37,7 @@ from app.core.schemas import (
     TodayOut,
     TodayText,
     WidgetOut,
+    resolve_date,
 )
 from app.core.services import company_name
 from app.db import DbSession
@@ -131,43 +132,33 @@ async def dashboard(request: Request, user: CurrentUser, db: DbSession) -> Dashb
 
 @router.get("/today", response_model=TodayOut)
 async def today() -> TodayOut:
+    """Today in Asia/Kathmandu, both calendars, with the header texts."""
     header = bsdate.header_date()
     return TodayOut(
-        ad=header.ad_date,
-        bs=header.bs_date.isoformat() if header.bs_date else None,
-        available=header.available,
+        date=header.ad_date,
+        date_bs=header.bs_date,
+        weekday=header.bs_date.weekday,
+        fiscal_year=bsdate.fiscal_year(header.bs_date).label,
         text=TodayText(np=header.np, bs_en=header.bs_en, ad=header.ad, full=header.full),
     )
 
 
-@router.get(
-    "/bsdate/convert",
-    response_model=BsConvertOut,
-    responses={422: {"model": ErrorOut}, 503: {"model": ErrorOut}},
-)
-async def convert_date(ad: date | None = None, bs: str | None = None) -> BsConvertOut:
-    """Convert one date either way: ``?ad=2026-10-20`` or ``?bs=2083-07-04``."""
-    if not bsdate.is_available():
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="BS calendar table not installed (app/core/bs_calendar_data.py).",
-        )
+@router.get("/bsdate/convert", response_model=BsConvertOut, responses={422: {"model": ErrorOut}})
+async def convert_date(date: date | None = None, date_bs: str | None = None) -> BsConvertOut:
+    """Convert one date either way: ``?date=2026-10-24`` (AD) or ``?date_bs=2083-07-07``."""
     try:
-        if ad is not None:
-            bs_date = bsdate.ad_to_bs(ad)
-        elif bs is not None:
-            bs_date = bsdate.parse_bs(bs)
-            ad = bsdate.bs_to_ad(bs_date)
-        else:
-            raise ValueError("pass either ?ad=YYYY-MM-DD or ?bs=YYYY-MM-DD")
+        ad = resolve_date(date, bsdate.parse_bs(date_bs) if date_bs else None)
+        bs = bsdate.ad_to_bs(ad)
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)) from exc
     return BsConvertOut(
-        ad=ad,
-        bs=bs_date.isoformat(),
-        bs_text=bs_date.format(),
-        bs_text_np=bs_date.format(nepali=True),
-        weekday_np=bsdate.weekday_name(ad, nepali=True),
+        date=ad,
+        date_bs=bs,
+        weekday=bs.weekday,
+        fiscal_year=bsdate.fiscal_year(bs).label,
+        bs_text=bsdate.format_bs(bs),
+        bs_text_np=bsdate.format_bs(bs, lang="ne"),
+        weekday_np=bsdate.weekday_name(ad, "ne"),
     )
 
 

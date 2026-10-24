@@ -10,6 +10,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.core import bsdate
+from app.core.bsdate import BSDate
 from app.core.models import Role, User
 
 Tone = Literal["ok", "low", "danger", "leave", "neutral"]
@@ -129,6 +131,40 @@ class DashboardOut(BaseModel):
     widgets: list[WidgetOut]
 
 
+# ------------------------------------------------------------------------------- dates
+
+
+class DateBoth(BaseModel):
+    """A calendar day in both calendars. Every API response carries both; requests may send
+    either ``date`` (AD) or ``date_bs`` (see :func:`resolve_date`)."""
+
+    date: date
+    date_bs: BSDate
+
+    @classmethod
+    def from_ad(cls, ad: date) -> DateBoth:
+        return cls(date=ad, date_bs=bsdate.ad_to_bs(ad))
+
+    @classmethod
+    def from_bs(cls, bs: BSDate) -> DateBoth:
+        return cls(date=bsdate.bs_to_ad(bs), date_bs=bs)
+
+
+def resolve_date(ad: date | None, bs: BSDate | None, *, default: date | None = None) -> date:
+    """The AD day a request means: ``date`` (AD) or ``date_bs``, which must agree when both are
+    given. ``default`` (e.g. today in Kathmandu) applies when neither is; otherwise ValueError."""
+    if bs is not None:
+        from_bs = bsdate.bs_to_ad(bs)
+        if ad is not None and ad != from_bs:
+            raise ValueError(f"date {ad.isoformat()} and date_bs {bs} are different days")
+        return from_bs
+    if ad is not None:
+        return ad
+    if default is not None:
+        return default
+    raise ValueError("pass either date=YYYY-MM-DD (AD) or date_bs=YYYY-MM-DD (BS)")
+
+
 class TodayText(BaseModel):
     np: str
     bs_en: str
@@ -136,16 +172,17 @@ class TodayText(BaseModel):
     full: str
 
 
-class TodayOut(BaseModel):
-    ad: date
-    bs: str | None
-    available: bool
+class TodayOut(DateBoth):
+    """GET /api/today: today in Asia/Kathmandu."""
+
+    weekday: int = Field(description="0 = Sunday ... 6 = Saturday")
+    fiscal_year: str = Field(description='e.g. "2083/84"')
     text: TodayText
 
 
-class BsConvertOut(BaseModel):
-    ad: date
-    bs: str
+class BsConvertOut(DateBoth):
+    weekday: int
+    fiscal_year: str
     bs_text: str
     bs_text_np: str
     weekday_np: str

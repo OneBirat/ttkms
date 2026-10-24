@@ -33,10 +33,7 @@ class AttendanceSummary(Protocol):
 def _days_in_month(bs_year: int, bs_month: int) -> int:
     from app.core import bsdate
 
-    try:
-        return bsdate.days_in_month(bs_year, bs_month)
-    except (bsdate.BSCalendarUnavailable, ValueError):
-        return 30
+    return bsdate.days_in_month(bs_year, bs_month)
 
 
 class FakeAttendanceSummary:

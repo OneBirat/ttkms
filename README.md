@@ -102,8 +102,8 @@ app/
     stock/ attendance/ payroll/ admin/   each exports `module = Module(...)`, mounted at /api/<name>
                                          when listed in ENABLED_MODULES (stock is paused)
 web/               Next.js app: app/ (routes), components/ (shell + ui/), lib/ (api, session, bsdate)
-static/            css/print.css and vendor/fonts for PDFs; vendor/ also hosts the date-picker JS
-scripts/           port_bs_calendar.py (generates app/core/bs_calendar_data.py from the vendor JS)
+static/            css/print.css and vendor/fonts for PDFs
+scripts/           gen_bs_calendar.py (exports the BS calendar table to web/lib/bs/calendar-data.json)
 migrations/        env_helper.py + <module>/env.py + <module>/versions/
 tests/             conftest.py, core/, stock/, attendance/, payroll/, admin/
 ```
@@ -199,20 +199,13 @@ What a module can rely on from core:
 
 ## Bikram Sambat dates
 
-`app/core/bsdate.py` implements the API (`ad_to_bs`, `bs_to_ad`, `today_bs`, `days_in_month`,
-`month_name`, `weekday_initial`, `to_devanagari_digits`, parse/format) over a month-length table
-that must be ported from `static/vendor/nepali.datepicker.v4.min.js`:
-
-```bash
-python scripts/port_bs_calendar.py      # writes app/core/bs_calendar_data.py
-make test                               # BS round-trip and known-pair tests now run
-```
-
-The same vendor file goes into `web/public/vendor/` for the browser date-picker, so server and
-browser agree exactly. Until the table exists `/api/today` returns AD only and
-`/api/bsdate/convert` answers 503. AD `date` columns are stored in the database; BS is for display.
-
-TODO: BS 2082+ month lengths must be checked against the official government calendar.
+`app/core/bsdate.py` (backend) and `web/lib/bs` (frontend) implement the same calendar
+(`ad_to_bs`, `bs_to_ad`, `today_bs`, `bs_month_range`, `fiscal_year`, `format_bs`, ...) over one
+month-length table, `web/lib/bs/calendar-data.json`, generated from the `nepali-datetime` package
+by `scripts/gen_bs_calendar.py`; official corrections go into `web/lib/bs/calendar-overrides.json`.
+See `docs/bs-calendar.md`. Timestamps are stored in UTC, calendar days as AD `date` columns; today
+and day boundaries are always taken in Asia/Kathmandu. APIs accept `date` (AD) or `date_bs` and
+return both. The date pickers live in `web/components/date` (demo at `/dev/date-picker`).
 
 ## Admin module (feat/admin)
 

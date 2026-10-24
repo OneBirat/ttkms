@@ -1,7 +1,5 @@
 """Core JSON endpoints: registry, dashboard, today, BS conversion."""
 
-from datetime import date
-
 import pytest
 
 from app.core import bsdate
@@ -65,32 +63,37 @@ async def test_dashboard_stats_and_widgets(client, make_user, login):
 async def test_today_endpoint_is_public(client):
     data = (await client.get("/api/today")).json()
     header = bsdate.header_date()
-    assert data["ad"] == header.ad_date.isoformat()
-    assert data["available"] == header.available
+    assert data["date"] == header.ad_date.isoformat()
+    assert data["date_bs"] == header.bs_date.isoformat()
+    assert data["weekday"] == header.bs_date.weekday
+    assert data["fiscal_year"] == bsdate.fiscal_year(header.bs_date).label
     assert data["text"]["ad"] == header.ad
     assert data["text"]["full"] == header.full
-    if header.available:
-        assert data["bs"] == header.bs_date.isoformat()
-        assert data["text"]["np"].endswith(bsdate.to_devanagari_digits(header.bs_date.year))
-    else:
-        assert data["bs"] is None and data["text"]["np"] == ""
+    assert data["text"]["np"].endswith(bsdate.to_nepali_digits(header.bs_date.year))
 
 
 async def test_bs_convert(client):
-    response = await client.get("/api/bsdate/convert", params={"ad": "2026-10-20"})
-    if not bsdate.is_available():
-        assert response.status_code == 503
-        assert "not installed" in response.json()["detail"]
-        return
+    response = await client.get("/api/bsdate/convert", params={"date": "2026-10-20"})
     assert response.status_code == 200
     data = response.json()
-    assert data["ad"] == "2026-10-20"
-    assert data["bs"] == bsdate.ad_to_bs(date(2026, 10, 20)).isoformat()
-    assert data["weekday_np"] == "मंगलबार"
-    back = (await client.get("/api/bsdate/convert", params={"bs": data["bs"]})).json()
-    assert back["ad"] == "2026-10-20"
-    assert (await client.get("/api/bsdate/convert", params={"bs": "2083-13-01"})).status_code == 422
-    assert (await client.get("/api/bsdate/convert")).status_code == 422
+    assert data["date"] == "2026-10-20" and data["date_bs"] == "2083-07-03"
+    assert data["bs_text"] == "Kartik 3, 2083" and data["bs_text_np"] == "कार्तिक ३, २०८३"
+    assert data["weekday"] == 2 and data["weekday_np"] == "मंगलबार"
+    assert data["fiscal_year"] == "2083/84"
+    back = (await client.get("/api/bsdate/convert", params={"date_bs": "2083-7-3"})).json()
+    assert back["date"] == "2026-10-20" and back["date_bs"] == "2083-07-03"
+    both = await client.get(
+        "/api/bsdate/convert", params={"date": "2026-10-20", "date_bs": "2083-07-03"}
+    )
+    assert both.status_code == 200
+    for params in (
+        {"date_bs": "2083-13-01"},
+        {"date_bs": "2083-07-31"},
+        {"date": "1900-01-01"},
+        {},
+        {"date": "2026-10-20", "date_bs": "2083-07-04"},
+    ):
+        assert (await client.get("/api/bsdate/convert", params=params)).status_code == 422, params
 
 
 async def test_openapi_is_served_in_dev(client):

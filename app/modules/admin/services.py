@@ -72,11 +72,12 @@ def invalid(detail: str) -> HTTPException:
 
 
 def to_bs(value: datetime | None) -> str | None:
+    """The Kathmandu BS day of a timestamp, "YYYY-MM-DD" (None outside the table)."""
     if value is None:
         return None
     try:
         return bsdate.ad_to_bs(value).isoformat()
-    except (bsdate.BSCalendarUnavailable, ValueError):
+    except ValueError:
         return None
 
 

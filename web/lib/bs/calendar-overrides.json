@@ -1,0 +1,4 @@
+{
+  "note": "Official corrections to calendar-data.json. A year listed here replaces the package table for that year (both fields required). Keep consecutive years consistent: new_year_ad of the next year must equal this year's new_year_ad plus the sum of its months. See docs/bs-calendar.md.",
+  "years": {}
+}

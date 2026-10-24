@@ -39,16 +39,12 @@ def test_export_demo_template_renders_with_nepali_text():
     assert "२०८३-०७-०२" in html  # |np_digits on the BS date column
     assert 'class="print-header"' in html and 'class="print-footer"' in html
     assert 'class="print-footer__page"' in html  # page numbers come from print.css counters
-    if bsdate.is_available():
-        assert "मंगलबार" in html  # Nepali weekday in the header once the table is ported
+    assert "मंगलबार" in html  # Nepali weekday in the header
 
 
 def test_bs_filters():
     assert bs_filter(None) == "" and bs_np_filter("") == ""
-    out = bs_filter(date(2026, 10, 20))
-    if bsdate.is_available():
-        assert out == "2083-07-04"
-        assert bs_np_filter(date(2026, 10, 20)) == "२०८३-०७-०४"
-    else:
-        assert out == "2026-10-20 AD"
+    assert bs_filter(date(2026, 10, 20)) == "2083-07-03"
+    assert bs_np_filter(date(2026, 10, 20)) == "२०८३-०७-०३"
+    assert bs_filter(date(1900, 1, 1)) == "1900-01-01 AD"  # outside the table
     assert env.from_string("{{ 2083|np_digits }}").render() == "२०८३"

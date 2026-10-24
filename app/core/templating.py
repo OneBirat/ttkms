@@ -34,15 +34,15 @@ def _as_date(value: Any) -> date | None:
 
 
 def _to_bs(ad: date) -> bsdate.BSDate | None:
-    """BS date, or None when the table is absent or the date lies outside it (never raises)."""
+    """BS date, or None when the date lies outside the table (never raises)."""
     try:
         return bsdate.ad_to_bs(ad)
-    except (bsdate.BSCalendarUnavailable, ValueError):
+    except ValueError:
         return None
 
 
 def bs_filter(value: Any) -> str:
-    """AD date -> "2083-07-04" (BS). Falls back to the AD date + " AD" when no BS date exists."""
+    """AD date -> "2083-07-07" (BS). Falls back to the AD date + " AD" outside the table."""
     ad = _as_date(value)
     if ad is None:
         return ""
@@ -51,20 +51,20 @@ def bs_filter(value: Any) -> str:
 
 
 def bs_np_filter(value: Any) -> str:
-    """AD date -> "२०८३-०७-०४"."""
-    return bsdate.to_devanagari_digits(bs_filter(value))
+    """AD date -> "२०८३-०७-०७"."""
+    return bsdate.to_nepali_digits(bs_filter(value))
 
 
 def bs_long_filter(value: Any, nepali: bool = False) -> str:
-    """AD date -> "Kartik 4, 2083" / "कार्तिक ४, २०८३"."""
+    """AD date -> "Kartik 7, 2083" / "कार्तिक ७, २०८३"."""
     ad = _as_date(value)
     if ad is None:
         return ""
     bs = _to_bs(ad)
     if bs is None:
         text = f"{ad.day} {ad:%b} {ad.year}"
-        return bsdate.to_devanagari_digits(text) if nepali else text
-    return bs.format(nepali=nepali)
+        return bsdate.to_nepali_digits(text) if nepali else text
+    return bs.format(lang="ne" if nepali else "en")
 
 
 env = Environment(
@@ -77,6 +77,6 @@ env.filters.update(
     bs=bs_filter,
     bs_np=bs_np_filter,
     bs_long=bs_long_filter,
-    np_digits=bsdate.to_devanagari_digits,
+    np_digits=bsdate.to_nepali_digits,
 )
 env.globals.update(app_name="TTK")

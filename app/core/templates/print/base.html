@@ -18,7 +18,7 @@
       </div>
     </div>
     <div class="print-header__right">
-      {% if printed_at.available %}<span class="print-header__np" lang="ne">{{ printed_at.np }}</span>{% endif %}
+      <span class="print-header__np" lang="ne">{{ printed_at.np }}</span>
       <span>Generated {{ generated_at }}{% if printed_by %} by {{ printed_by }}{% endif %}</span>
     </div>
   </header>
