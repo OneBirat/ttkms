@@ -163,39 +163,116 @@ export async function currentVoice(): Promise<PickedVoice<SpeechSynthesisVoice>>
 
 // ------------------------------------------------------------ speaking
 
+/** A sentence in Nepali plus an English fallback for devices without a Devanagari voice. */
+export interface Phrase {
+  np: string;
+  en: string;
+}
+
+export interface SpeechStatus {
+  /** What happened to the last utterance, for the settings sheet. */
+  outcome: "idle" | "queued" | "speaking" | "spoke" | "error" | "unsupported" | "no-voice";
+  text: string;
+  voice: string;
+  detail: string;
+  at: number;
+}
+
+let status: SpeechStatus = { outcome: "idle", text: "", voice: "", detail: "", at: 0 };
+const statusListeners = new Set<() => void>();
+
+function setStatus(patch: Partial<SpeechStatus>): void {
+  status = { ...status, ...patch, at: Date.now() };
+  statusListeners.forEach((fn) => fn());
+}
+
+export function getSpeechStatus(): SpeechStatus {
+  return status;
+}
+
+export function subscribeSpeechStatus(listener: () => void): () => void {
+  statusListeners.add(listener);
+  return () => statusListeners.delete(listener);
+}
+
 let sequence = 0;
+// Chrome garbage-collects an utterance that nothing references and then stops it mid-word.
+let lastUtterance: SpeechSynthesisUtterance | null = null;
 
 export function stopSpeaking(): void {
   if (hasSpeech()) window.speechSynthesis.cancel();
 }
 
+/** The utterance most recently handed to the engine (kept referenced; useful in devtools). */
+export function lastSpokenUtterance(): SpeechSynthesisUtterance | null {
+  return lastUtterance;
+}
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 /**
- * Cancels whatever is still being said (fast back-to-back scans must not
- * queue) and says `text` with the picked voice. Nothing happens when the
- * setting is off (unless `force`, used by "Test voice") or speech is missing.
+ * Says `phrase` with the picked voice: Nepali text with a Nepali or Hindi
+ * voice, the English line when the device has neither (an English voice skips
+ * Devanagari letters and says nothing). Whatever is still being said is
+ * cancelled first (fast back-to-back scans must not queue). Nothing happens
+ * when the setting is off (unless `force`, used by "Test voice") or speech is
+ * missing.
+ *
+ * Mobile quirks handled: speak() right after cancel() is dropped on Android
+ * Chrome and iOS, so there is a short pause between them; iOS pauses the
+ * engine after backgrounding, so resume() follows speak().
  */
-export async function speak(text: string, options: { force?: boolean } = {}): Promise<void> {
-  if (!hasSpeech()) return;
+export async function speak(phrase: Phrase | string, options: { force?: boolean } = {}): Promise<void> {
+  const p: Phrase = typeof phrase === "string" ? { np: phrase, en: phrase } : phrase;
+  if (!hasSpeech()) {
+    setStatus({ outcome: "unsupported", text: p.np, voice: "", detail: "No speechSynthesis in this browser" });
+    return;
+  }
   const settings = getVoiceSettings();
   if (!settings.enabled && !options.force) return;
   const mine = ++sequence;
-  window.speechSynthesis.cancel();
-  const { voice } = pickVoice(await loadVoices());
+  const synth = window.speechSynthesis;
+  if (synth.speaking || synth.pending) {
+    synth.cancel();
+    await delay(80);
+  }
+  const { voice, kind } = pickVoice(await loadVoices());
   if (mine !== sequence) return; // a newer scan spoke meanwhile
+  const devanagari = kind === "nepali" || kind === "hindi";
+  const text = devanagari ? p.np : p.en;
   const utterance = new SpeechSynthesisUtterance(text);
   if (voice) {
     utterance.voice = voice;
     utterance.lang = voice.lang;
   } else {
-    utterance.lang = "ne-NP";
+    // No voice list (iOS before the first speak): let the engine pick one for Hindi,
+    // which reads Devanagari; English text goes to the default voice.
+    utterance.lang = devanagari ? "hi-IN" : "en-US";
   }
   utterance.rate = clampRate(settings.rate);
   utterance.pitch = 1;
   utterance.volume = 1;
+  const voiceName = voice ? `${voice.name} (${voice.lang})` : `engine default (${utterance.lang})`;
+  utterance.onstart = () => setStatus({ outcome: "speaking", text, voice: voiceName, detail: "" });
+  utterance.onend = () => setStatus({ outcome: "spoke", text, voice: voiceName, detail: "" });
+  utterance.onerror = (event) =>
+    setStatus({ outcome: "error", text, voice: voiceName, detail: event.error || "unknown error" });
+  lastUtterance = utterance;
+  setStatus({ outcome: "queued", text, voice: voiceName, detail: kind === "none" ? "no voice listed" : "" });
   try {
-    window.speechSynthesis.speak(utterance);
+    synth.speak(utterance);
+    synth.resume();
+  } catch (err) {
+    setStatus({ outcome: "error", text, voice: voiceName, detail: err instanceof Error ? err.message : "speak() threw" });
+  }
+}
+
+/** Android haptic tap alongside the beep (no-op elsewhere). */
+function vibrate(pattern: number | number[]): void {
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(pattern);
   } catch {
-    // Some browsers throw when speech is blocked; stay silent.
+    // Not available.
   }
 }
 
@@ -239,20 +316,25 @@ function tone(ctx: AudioContext, frequency: number, start: number, duration: num
 /** ok = one short high tone; error = two low tones. Silent when the setting is off. */
 export function beep(kind: "ok" | "error"): void {
   if (!getVoiceSettings().enabled) return;
+  vibrate(kind === "ok" ? 40 : [60, 60, 60]);
   const ctx = getAudio();
   if (!ctx) return;
-  if (ctx.state === "suspended") void ctx.resume().catch(() => undefined);
-  const t = ctx.currentTime;
-  try {
-    if (kind === "ok") {
-      tone(ctx, 1046, t, 0.12);
-    } else {
-      tone(ctx, 220, t, 0.15);
-      tone(ctx, 220, t + 0.2, 0.15);
+  const play = () => {
+    const t = ctx.currentTime;
+    try {
+      if (kind === "ok") {
+        tone(ctx, 1046, t, 0.12);
+      } else {
+        tone(ctx, 220, t, 0.15);
+        tone(ctx, 220, t + 0.2, 0.15);
+      }
+    } catch {
+      // No sound rather than a broken scan.
     }
-  } catch {
-    // No sound rather than a broken scan.
-  }
+  };
+  // A context created before any tap is suspended on phones: play once it is running.
+  if (ctx.state === "suspended") ctx.resume().then(play, () => undefined);
+  else play();
 }
 
 /**
@@ -264,9 +346,16 @@ export function unlockAudio(): void {
   if (ctx && ctx.state === "suspended") void ctx.resume().catch(() => undefined);
   if (!hasSpeech()) return;
   try {
-    const silent = new SpeechSynthesisUtterance("");
+    const synth = window.speechSynthesis;
+    if (synth.speaking || synth.pending) return; // already unlocked and busy
+    // iOS skips an empty utterance; a single space at volume 0 counts as the first speak().
+    const silent = new SpeechSynthesisUtterance(" ");
     silent.volume = 0;
-    window.speechSynthesis.speak(silent);
+    silent.rate = 2;
+    lastUtterance = silent;
+    synth.speak(silent);
+    synth.resume();
+    void loadVoices(); // iOS fills the voice list after the first speak()
   } catch {
     // Nothing to unlock.
   }
@@ -279,15 +368,24 @@ export function spokenName(employee: { name: string; name_ne?: string | null }):
   return employee.name_ne?.trim() || employee.name;
 }
 
+type Named = { name: string; name_ne?: string | null };
+
 export const SPEECH = {
-  present: (name: string) => `${name}, हाजिर`,
-  overtime: (name: string, hours: number) =>
-    `${name}, हाजिर, ओभरटाइम ${toDevanagariDigits(hours)} घण्टा`,
-  already: (name: string) => `${name}, आज हाजिर भइसक्यो`,
-  payment: (name: string, type: PaymentType, amount: number) =>
-    `${name}, ${type === "advance" ? "पेश्की" : "तलब"} रु ${toDevanagariDigits(formatAmount(amount))} भुक्तानी भयो`,
-  unknown: () => "कार्ड भेटिएन",
-  test: () => "कमला भण्डारी, हाजिर",
+  present: (e: Named): Phrase => ({ np: `${spokenName(e)}, हाजिर`, en: `${e.name}, present` }),
+  overtime: (e: Named, hours: number): Phrase => ({
+    np: `${spokenName(e)}, हाजिर, ओभरटाइम ${toDevanagariDigits(hours)} घण्टा`,
+    en: `${e.name}, present, overtime ${hours} ${hours === 1 ? "hour" : "hours"}`,
+  }),
+  already: (e: Named): Phrase => ({
+    np: `${spokenName(e)}, आज हाजिर भइसक्यो`,
+    en: `${e.name}, already marked today`,
+  }),
+  payment: (e: Named, type: PaymentType, amount: number): Phrase => ({
+    np: `${spokenName(e)}, ${type === "advance" ? "पेश्की" : "तलब"} रु ${toDevanagariDigits(formatAmount(amount))} भुक्तानी भयो`,
+    en: `${e.name}, ${type === "advance" ? "advance" : "salary"} of ${formatAmount(amount)} rupees recorded`,
+  }),
+  unknown: (): Phrase => ({ np: "कार्ड भेटिएन", en: "Card not found" }),
+  test: (): Phrase => ({ np: "कमला भण्डारी, हाजिर", en: "Kamala Bhandari, present" }),
 } as const;
 
 /** Text for the settings sheet. */

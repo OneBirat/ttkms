@@ -52,13 +52,17 @@ describe("what to say", () => {
     assert.equal(spokenName({ name: "Kamala Bhandari", name_ne: "" }), "Kamala Bhandari");
     assert.equal(spokenName({ name: "Kamala Bhandari" }), "Kamala Bhandari");
   });
-  it("builds the sentences with Nepali digits", () => {
-    assert.equal(SPEECH.present("कमला भण्डारी"), "कमला भण्डारी, हाजिर");
-    assert.equal(SPEECH.overtime("कमला भण्डारी", 2), "कमला भण्डारी, हाजिर, ओभरटाइम २ घण्टा");
-    assert.equal(SPEECH.already("कमला भण्डारी"), "कमला भण्डारी, आज हाजिर भइसक्यो");
-    assert.equal(SPEECH.payment("कमला भण्डारी", "advance", 2000), "कमला भण्डारी, पेश्की रु २,००० भुक्तानी भयो");
-    assert.equal(SPEECH.payment("कमला भण्डारी", "salary", 18693), "कमला भण्डारी, तलब रु १८,६९३ भुक्तानी भयो");
-    assert.equal(SPEECH.unknown(), "कार्ड भेटिएन");
-    assert.equal(SPEECH.test(), "कमला भण्डारी, हाजिर");
+  it("builds the sentences with Nepali digits and an English fallback", () => {
+    const kamala = { name: "Kamala Bhandari", name_ne: "कमला भण्डारी" };
+    assert.deepEqual(SPEECH.present(kamala), { np: "कमला भण्डारी, हाजिर", en: "Kamala Bhandari, present" });
+    assert.equal(SPEECH.overtime(kamala, 2).np, "कमला भण्डारी, हाजिर, ओभरटाइम २ घण्टा");
+    assert.equal(SPEECH.overtime(kamala, 1).en, "Kamala Bhandari, present, overtime 1 hour");
+    assert.equal(SPEECH.already(kamala).np, "कमला भण्डारी, आज हाजिर भइसक्यो");
+    assert.equal(SPEECH.payment(kamala, "advance", 2000).np, "कमला भण्डारी, पेश्की रु २,००० भुक्तानी भयो");
+    assert.equal(SPEECH.payment(kamala, "salary", 18693).np, "कमला भण्डारी, तलब रु १८,६९३ भुक्तानी भयो");
+    assert.equal(SPEECH.payment(kamala, "salary", 18693).en, "Kamala Bhandari, salary of 18,693 rupees recorded");
+    assert.equal(SPEECH.present({ name: "Ram Thapa" }).np, "Ram Thapa, हाजिर");
+    assert.deepEqual(SPEECH.unknown(), { np: "कार्ड भेटिएन", en: "Card not found" });
+    assert.equal(SPEECH.test().np, "कमला भण्डारी, हाजिर");
   });
 });

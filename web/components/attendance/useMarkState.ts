@@ -21,7 +21,7 @@ import {
   type Draft,
   type MarkCounts,
 } from "./helpers";
-import { SPEECH, beep, speak, spokenName } from "./speak";
+import { SPEECH, beep, speak } from "./speak";
 import { useUnsavedWarning } from "./useUnsavedWarning";
 import type {
   AttendanceRecord,
@@ -490,7 +490,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
         });
         if (already) {
           loadBalance(found.employee.id);
-          void speak(SPEECH.already(spokenName(found.employee)));
+          void speak(SPEECH.already(found.employee));
         }
       })
       .catch((err: unknown) => {
@@ -527,11 +527,10 @@ export function useMarkState(options: { phone: boolean }): MarkState {
               }
             : s,
         );
-        const name = spokenName(result.employee);
         void speak(
           result.record.status === "O"
-            ? SPEECH.overtime(name, result.record.ot_hours)
-            : SPEECH.present(name),
+            ? SPEECH.overtime(result.employee, result.record.ot_hours)
+            : SPEECH.present(result.employee),
         );
       })
       .catch((err: unknown) =>
@@ -584,7 +583,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
       .then((paid) => {
         setScan((s) => (s ? { ...s, step: "paid", busy: false, paid } : s));
         loadBalance(employee.id);
-        void speak(SPEECH.payment(spokenName(employee), scan.ptype!, paid.amount));
+        void speak(SPEECH.payment(employee, scan.ptype!, paid.amount));
       })
       .catch((err: unknown) =>
         setScan((s) =>

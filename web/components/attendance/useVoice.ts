@@ -3,13 +3,23 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   currentVoice,
+  getSpeechStatus,
   getVoiceSettings,
   hasSpeech,
   setVoiceSettings,
+  subscribeSpeechStatus,
   subscribeVoiceSettings,
   type PickedVoice,
+  type SpeechStatus,
   type VoiceSettings,
 } from "./speak";
+
+const IDLE_STATUS: SpeechStatus = { outcome: "idle", text: "", voice: "", detail: "", at: 0 };
+
+/** What happened to the last utterance (diagnostic line in the settings sheet). */
+export function useSpeechStatus(): SpeechStatus {
+  return useSyncExternalStore(subscribeSpeechStatus, getSpeechStatus, () => IDLE_STATUS);
+}
 
 const SERVER_SETTINGS: VoiceSettings = { enabled: true, rate: 0.95 };
 

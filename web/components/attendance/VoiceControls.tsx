@@ -1,9 +1,9 @@
 "use client";
 
 import { useId, useState } from "react";
-import { RATE_MAX, RATE_MIN, SPEECH, speak, unlockAudio, voiceStatusText } from "./speak";
+import { RATE_MAX, RATE_MIN, SPEECH, beep, speak, unlockAudio, voiceStatusText, type SpeechStatus } from "./speak";
 import { useDialog } from "./useDialog";
-import { useVoiceInfo, useVoiceSettings } from "./useVoice";
+import { useSpeechStatus, useVoiceInfo, useVoiceSettings } from "./useVoice";
 import styles from "./voice.module.css";
 
 export interface VoiceControlsProps {
@@ -49,11 +49,29 @@ export function VoiceControls({ variant }: VoiceControlsProps) {
   );
 }
 
+/** "Last: spoke ✓ · Lekha (hi-IN)" / "Last: error not-allowed · tap the screen first". */
+export function lastSpokenText(last: SpeechStatus): string {
+  switch (last.outcome) {
+    case "spoke":
+      return `Last: spoke ✓ · ${last.voice}`;
+    case "speaking":
+    case "queued":
+      return `Last: ${last.outcome}… · ${last.voice}`;
+    case "error":
+      return `Last: error ${last.detail} · ${last.voice}${last.detail === "not-allowed" ? " · tap the screen, then scan again" : ""}`;
+    case "unsupported":
+      return "Last: this browser has no speech output";
+    default:
+      return "";
+  }
+}
+
 function VoiceSettingsSheet({ onClose }: { onClose: () => void }) {
   const titleId = useId();
   const dialog = useDialog(onClose);
   const [settings, update] = useVoiceSettings();
   const info = useVoiceInfo(true);
+  const last = useSpeechStatus();
   const [help, setHelp] = useState(false);
   const status = !info.supported
     ? "This browser has no speech output"
@@ -129,11 +147,17 @@ function VoiceSettingsSheet({ onClose }: { onClose: () => void }) {
           disabled={!info.supported}
           onClick={() => {
             unlockAudio();
+            beep("ok");
             void speak(SPEECH.test(), { force: true });
           }}
         >
           Test voice
         </button>
+        {last.outcome !== "idle" ? (
+          <p className={styles.status} aria-live="polite">
+            {lastSpokenText(last)}
+          </p>
+        ) : null}
       </div>
     </div>
   );
