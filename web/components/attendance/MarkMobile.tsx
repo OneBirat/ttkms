@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSession } from "@/lib/session";
+import { useEffect } from "react";
 import { formatAdShort, formatBs, toNepaliDigits, validBs } from "@/lib/bs";
+import { useShell } from "@/lib/shell";
 import { ChevronDownIcon, MenuIcon, ScanIcon, SearchIcon } from "./icons";
-import { MobileDrawer } from "./MobileDrawer";
 import { draftText, initials, type Draft, type StatusFilter } from "./helpers";
 import type { CellStatus, MarkRow } from "./types";
 import type { MarkState } from "./useMarkState";
@@ -22,12 +21,12 @@ const STATUS_CHIPS: { key: StatusFilter; label: string }[] = [
  * Phone layout of Mark attendance (design/final/AttendanceMarkMobile.dc.html):
  * dark header with menu, day card (‹ › आज / N दिन अघि, BS + AD, tap = calendar),
  * Present card and Scan; search, department and status chips, cards with ⋮;
- * every mark saves at once (no save bar). Covers the whole viewport because the
- * shared shell has no phone header.
+ * every mark saves at once (no save bar). Covers the whole viewport (its own
+ * header replaces the shell's phone bar); the menu button opens the shell's
+ * PhoneDrawer.
  */
 export function MarkMobile({ state }: { state: MarkState }) {
-  const { user, modules, logout } = useSession();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { openMenu } = useShell();
   const { data, counts, listRows, limit, draftOf, statusOf } = state;
   const shown = listRows.slice(0, limit);
   const remaining = Math.max(0, listRows.length - limit);
@@ -63,7 +62,7 @@ export function MarkMobile({ state }: { state: MarkState }) {
     <div className={styles.screen}>
       <header className={styles.header}>
         <div className={styles.headerRow}>
-          <button type="button" aria-label="Open menu" className={styles.iconBtn} onClick={() => setMenuOpen(true)}>
+          <button type="button" aria-label="Open menu" className={styles.iconBtn} onClick={openMenu}>
             <MenuIcon />
           </button>
           <div className={styles.titleBlock}>
@@ -222,10 +221,6 @@ export function MarkMobile({ state }: { state: MarkState }) {
           </div>
         ) : null}
       </div>
-
-      {menuOpen ? (
-        <MobileDrawer user={user} modules={modules} onClose={() => setMenuOpen(false)} onLogout={() => void logout()} />
-      ) : null}
     </div>
   );
 }

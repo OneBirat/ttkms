@@ -1,0 +1,149 @@
+/* Phone menu drawer (< 640px). Above every page overlay (Mark attendance's
+   full-screen phone layout sits at z-index 40). */
+
+.wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+}
+
+.drawer {
+  width: 300px;
+  max-width: 82%;
+  height: 100%;
+  background: var(--color-sidebar);
+  color: var(--color-sidebar-text);
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .drawer {
+    animation: drawerIn 0.22s ease;
+  }
+}
+
+.backdrop {
+  flex: 1;
+  background: rgba(15, 24, 29, 0.5);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 14px;
+}
+
+.tile {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.brandName {
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.brandSub {
+  color: var(--color-sidebar-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.close {
+  width: var(--touch);
+  height: var(--touch);
+  flex: none;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-sidebar-active);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.head {
+  color: var(--color-sidebar-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 14px 14px 6px;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 15px;
+  color: var(--color-sidebar-text);
+}
+
+.link svg {
+  flex: none;
+}
+
+.link:hover {
+  background: var(--color-sidebar-hover);
+  color: #fff;
+}
+
+.link[aria-current="page"] {
+  background: var(--color-sidebar-active);
+  color: #fff;
+  font-weight: 600;
+}
+
+.signOut {
+  margin-top: auto;
+  min-height: var(--touch);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--color-sidebar-active);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-sidebar-text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+@keyframes drawerIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}

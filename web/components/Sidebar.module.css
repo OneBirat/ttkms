@@ -154,3 +154,10 @@
     margin-top: 8px;
   }
 }
+
+/* Under 640px the shell shows a top bar and the PhoneDrawer instead. */
+@media (max-width: 639px) {
+  .sidebar {
+    display: none;
+  }
+}

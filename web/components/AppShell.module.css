@@ -24,6 +24,88 @@
   }
 }
 
+/* ---- phone (< 640px): top bar + drawer instead of the sidebar ---- */
+
+.phoneBar {
+  display: none;
+}
+
+.menuButton {
+  width: var(--touch);
+  height: var(--touch);
+  flex: none;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.menuButton:hover {
+  background: var(--color-sidebar-hover);
+}
+
+.phoneBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  text-decoration: none;
+}
+
+.phoneBrand:hover {
+  color: #fff;
+}
+
+.phoneTile {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+@media (max-width: 639px) {
+  .shell {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .phoneBar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background: var(--color-sidebar);
+    color: #fff;
+  }
+
+  .main {
+    padding: 16px 14px 32px;
+    gap: 16px;
+  }
+
+  /* A screen with its own phone header (usePhoneHeader) fills the column. */
+  .shell[data-own-header] .phoneBar {
+    display: none;
+  }
+
+  .shell[data-own-header] .main {
+    padding: 0;
+    gap: 0;
+  }
+}
+
 .status {
   min-height: 100vh;
   display: flex;

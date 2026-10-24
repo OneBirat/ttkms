@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Fragment, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "@/components/icons";
-import { useSession } from "@/lib/session";
+import { usePhoneHeader, useShell } from "@/lib/shell";
 import type { Branch } from "../../types";
 import styles from "./phone.module.css";
 
@@ -22,11 +21,14 @@ export interface PhoneFrameProps {
   children: ReactNode;
 }
 
-/** Dark header + drawer menu + scrolling body for the phone screens. */
+/**
+ * Dark header + scrolling body for the phone screens. The menu button opens
+ * the shell's PhoneDrawer (the same links as the sidebar); the frame claims
+ * the phone header, so the shell's own bar is hidden while it is mounted.
+ */
 export function PhoneFrame({ title, subtitle, backHref, branch, onMore, headerExtra, children }: PhoneFrameProps) {
-  const { user, modules, logout } = useSession();
-  const pathname = usePathname();
-  const [menu, setMenu] = useState(false);
+  const { openMenu } = useShell();
+  usePhoneHeader();
   const branchName = branch?.options.find((b) => b.id === branch.value)?.name ?? "";
 
   return (
@@ -38,7 +40,7 @@ export function PhoneFrame({ title, subtitle, backHref, branch, onMore, headerEx
               ‹
             </Link>
           ) : (
-            <button type="button" aria-label="Open menu" className={styles.iconButton} onClick={() => setMenu(true)}>
+            <button type="button" aria-label="Open menu" className={styles.iconButton} onClick={openMenu}>
               <Icon name="menu" size={22} />
             </button>
           )}
@@ -75,52 +77,6 @@ export function PhoneFrame({ title, subtitle, backHref, branch, onMore, headerEx
       </header>
 
       <div className={styles.body}>{children}</div>
-
-      {menu ? (
-        <div className={styles.drawerWrap}>
-          <nav aria-label="Menu" className={styles.drawer}>
-            <div className={styles.drawerBrand}>
-              <span className={styles.drawerTile} aria-hidden="true">
-                TT
-              </span>
-              <span style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-                <span className={styles.drawerName}>TTK Attendance</span>
-                <span className={styles.drawerSub}>
-                  {user?.full_name} · {user?.role_label}
-                </span>
-              </span>
-              <button type="button" aria-label="Close menu" className={styles.drawerClose} onClick={() => setMenu(false)}>
-                ×
-              </button>
-            </div>
-            <Link href="/" className={styles.drawerLink} aria-current={pathname === "/" ? "page" : undefined}>
-              Dashboard
-            </Link>
-            {modules
-              .filter((m) => m.nav.length > 0)
-              .map((m) => (
-                <Fragment key={m.name}>
-                  <div className={styles.drawerHead}>{m.title}</div>
-                  {m.nav.map((item) => (
-                    <Link
-                      key={item.path}
-                      href={item.path}
-                      className={styles.drawerLink}
-                      aria-current={pathname === item.path || pathname.startsWith(`${item.path}/`) ? "page" : undefined}
-                      onClick={() => setMenu(false)}
-                    >
-                      {item.label === "Payments" ? "Payment records" : item.label}
-                    </Link>
-                  ))}
-                </Fragment>
-              ))}
-            <button type="button" className={styles.drawerSignOut} onClick={() => void logout()}>
-              Sign out
-            </button>
-          </nav>
-          <div aria-hidden="true" className={styles.drawerBackdrop} onClick={() => setMenu(false)} />
-        </div>
-      ) : null}
     </div>
   );
 }
