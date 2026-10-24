@@ -26,6 +26,38 @@ const NAMES_BY_DEPARTMENT: [number, string[]][] = [
   [5, ["Rajesh Pandey", "Sabina Khadka", "Manoj Dahal", "Asmita Ghimire", "Bishal Neupane"]],
 ];
 
+/** Devanagari spellings (payroll's optional employee.name_ne), used by the spoken confirmation. */
+const NAMES_NE: Record<string, string> = {
+  "Anita Gurung": "अनिता गुरुङ",
+  "Ramesh K.C.": "रमेश के.सी.",
+  "Dipak Adhikari": "दीपक अधिकारी",
+  "Kamala Bhandari": "कमला भण्डारी",
+  "Nabin Poudel": "नबिन पौडेल",
+  "Sarita Basnet": "सरिता बस्नेत",
+  "Gopal Thakuri": "गोपाल ठकुरी",
+  "Bikash Shrestha": "बिकास श्रेष्ठ",
+  "Gita Magar": "गीता मगर",
+  "Hari Bista": "हरि बिष्ट",
+  "Laxmi Karki": "लक्ष्मी कार्की",
+  "Prakash Rana": "प्रकाश राना",
+  "Dil Kumari Rai": "दिलकुमारी राई",
+  "Sita Thapa": "सीता थापा",
+  "Maya Tamang": "माया तामाङ",
+  "Rita Shahi": "रीता शाही",
+  "Sunita B.K.": "सुनिता बि.क.",
+  "Bimala Oli": "बिमला ओली",
+  "Kalpana Sunar": "कल्पना सुनार",
+  "Priya Rai": "प्रिया राई",
+  "Suman Tamang": "सुमन तामाङ",
+  "Aarati Joshi": "आरती जोशी",
+  "Kiran Lama": "किरण लामा",
+  "Rajesh Pandey": "राजेश पाण्डे",
+  "Sabina Khadka": "सबिना खड्का",
+  "Manoj Dahal": "मनोज दाहाल",
+  "Asmita Ghimire": "अस्मिता घिमिरे",
+  "Bishal Neupane": "बिशाल न्यौपाने",
+};
+
 function build(): EmployeeRef[] {
   const list: EmployeeRef[] = [];
   for (const [departmentId, names] of NAMES_BY_DEPARTMENT) {
@@ -37,6 +69,7 @@ function build(): EmployeeRef[] {
         id: i + 1,
         code: `E-${String(i + 1).padStart(3, "0")}`,
         name,
+        name_ne: NAMES_NE[name] ?? null,
         branch_id: branch.id,
         branch_name: branch.name,
         department_id: department.id,

@@ -21,6 +21,7 @@ import {
   type Draft,
   type MarkCounts,
 } from "./helpers";
+import { SPEECH, beep, speak, spokenName } from "./speak";
 import { useUnsavedWarning } from "./useUnsavedWarning";
 import type {
   AttendanceRecord,
@@ -472,6 +473,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const submitCode = (raw: string) => {
     const code = raw.trim();
     if (!code) return;
+    beep("ok"); // the instant a code is read; the words follow once the sheet is open
     setScan((s) => ({ ...(s ?? freshScan("lookup")), code, busy: true, error: null }));
     lookupCode(code)
       .then((found) => {
@@ -486,11 +488,16 @@ export function useMarkState(options: { phone: boolean }): MarkState {
           current: draft,
           hours: draft.status === "O" ? draft.ot_hours : 1,
         });
-        if (already) loadBalance(found.employee.id);
+        if (already) {
+          loadBalance(found.employee.id);
+          void speak(SPEECH.already(spokenName(found.employee)));
+        }
       })
       .catch((err: unknown) => {
         if (err instanceof AttendanceApiError && err.status === 404) {
           setScan(freshScan("missing", code));
+          beep("error");
+          void speak(SPEECH.unknown());
         } else {
           setScan((s) =>
             s ? { ...s, busy: false, error: err instanceof Error ? err.message : "Lookup failed." } : s,
@@ -519,6 +526,12 @@ export function useMarkState(options: { phone: boolean }): MarkState {
                 today: result.record,
               }
             : s,
+        );
+        const name = spokenName(result.employee);
+        void speak(
+          result.record.status === "O"
+            ? SPEECH.overtime(name, result.record.ot_hours)
+            : SPEECH.present(name),
         );
       })
       .catch((err: unknown) =>
@@ -571,6 +584,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
       .then((paid) => {
         setScan((s) => (s ? { ...s, step: "paid", busy: false, paid } : s));
         loadBalance(employee.id);
+        void speak(SPEECH.payment(spokenName(employee), scan.ptype!, paid.amount));
       })
       .catch((err: unknown) =>
         setScan((s) =>

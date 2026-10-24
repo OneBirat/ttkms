@@ -6,7 +6,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { MarkRow } from "./MarkRow";
 import { Pager } from "./Pager";
 import { ScanIcon, SearchIcon } from "./icons";
+import { unlockAudio } from "./speak";
 import { DESKTOP_PAGE, type MarkState } from "./useMarkState";
+import { VoiceControls } from "./VoiceControls";
 import shared from "./shared.module.css";
 import styles from "./mark.module.css";
 
@@ -113,16 +115,20 @@ export function MarkDesktop({ state }: { state: MarkState }) {
           <label htmlFor="mark-scan" className={shared.label}>
             Scan staff card
           </label>
-          <div className={`${shared.field} ${styles.scanField}`}>
-            <ScanIcon />
-            <input
-              id="mark-scan"
-              ref={scanInput}
-              placeholder="Click here, then scan (USB scanner) or type ID + Enter"
-              autoComplete="off"
-              onKeyDown={onScanKey}
-              aria-describedby="mark-scan-hint"
-            />
+          <div className={styles.scanRow}>
+            <div className={`${shared.field} ${styles.scanField}`}>
+              <ScanIcon />
+              <input
+                id="mark-scan"
+                ref={scanInput}
+                placeholder="Click here, then scan (USB scanner) or type ID + Enter"
+                autoComplete="off"
+                onKeyDown={onScanKey}
+                onPointerDown={unlockAudio}
+                aria-describedby="mark-scan-hint"
+              />
+            </div>
+            <VoiceControls variant="light" />
           </div>
           <span id="mark-scan-hint" className={styles.scanHint}>
             TTK-E004, E-004, E004 and 4 all open the same card

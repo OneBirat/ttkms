@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { TorchIcon } from "../icons";
+import { VoiceControls } from "../VoiceControls";
 import { useDialog } from "../useDialog";
 import type { MarkState } from "../useMarkState";
 import { SCANNER_HINT, useBarcodeScanner } from "./useBarcodeScanner";
@@ -44,6 +45,7 @@ export function ScanCamera({ state }: { state: MarkState }) {
             {branch ? ` · ${branch}` : ""}
           </span>
         </div>
+        <VoiceControls variant="dark" />
         <button
           type="button"
           aria-label="Torch"

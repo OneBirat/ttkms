@@ -23,6 +23,17 @@
   flex: 2 1 240px;
 }
 
+.scanRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scanRow > .scanField {
+  flex: 1;
+  min-width: 0;
+}
+
 .scanField {
   border: 2px solid var(--color-primary);
   background: #f2f8f7;

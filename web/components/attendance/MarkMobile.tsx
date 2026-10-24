@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/lib/session";
 import { ChevronDownIcon, MenuIcon, ScanIcon, SearchIcon } from "./icons";
 import { MobileDrawer } from "./MobileDrawer";
+import { unlockAudio } from "./speak";
 import { SavedScreen } from "./SavedScreen";
 import { STATUS_META, draftText, initials, type Draft } from "./helpers";
 import type { MarkRow } from "./types";
@@ -25,6 +26,11 @@ export function MarkMobile({ state }: { state: MarkState }) {
   const branch = data?.branches.find((b) => b.id === state.branchId);
   const branchShort = branch ? branch.name.replace(/\s*branch$/i, "") || branch.name : "…";
   const marked = counts.total - counts.not_marked;
+  // iOS/Safari let a page speak only after a tap: unlock on the first scan tap.
+  const openScanner = () => {
+    unlockAudio();
+    state.openScanner();
+  };
 
   // The page scrolls inside its own panel; keep the shell behind it still.
   useEffect(() => {
@@ -64,7 +70,7 @@ export function MarkMobile({ state }: { state: MarkState }) {
             type="button"
             aria-label="Scan staff card"
             className={`${styles.iconBtn} ${styles.scanBtn}`}
-            onClick={state.openScanner}
+            onClick={openScanner}
           >
             <ScanIcon size={22} />
           </button>
@@ -119,7 +125,7 @@ export function MarkMobile({ state }: { state: MarkState }) {
           </div>
         </div>
         <div className={styles.pad}>
-          <button type="button" className={styles.bigScan} onClick={state.openScanner}>
+          <button type="button" className={styles.bigScan} onClick={openScanner}>
             <ScanIcon size={22} />
             Scan staff card
             <span lang="ne" className={styles.bigScanNp}>

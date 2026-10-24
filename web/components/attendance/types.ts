@@ -32,6 +32,8 @@ export interface EmployeeRef {
   /** "E-004" – also printed on the staff card as Code 128 "TTK-E004". */
   code: string;
   name: string;
+  /** Name in Devanagari (payroll's optional "Name in Nepali"); spoken by the scan flow. */
+  name_ne?: string | null;
   branch_id: number;
   branch_name: string;
   department_id: number;
