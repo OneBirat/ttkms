@@ -14,6 +14,8 @@ export type Role = "admin" | "manager" | "store_keeper" | "staff";
 export interface User {
   id: number;
   username: string;
+  /** Login phone number (10 digits) when set; staff usually sign in with it. */
+  phone: string | null;
   full_name: string;
   role: Role;
   role_label: string;
@@ -31,6 +33,7 @@ export interface CsrfResponse {
 }
 
 export interface LoginRequest {
+  /** Phone number or username. */
   username: string;
   password: string;
   remember: boolean;

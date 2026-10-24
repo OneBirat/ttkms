@@ -104,7 +104,7 @@ function LoginForm() {
       ) : null}
       <div className={styles.group}>
         <label htmlFor="login-username" className={styles.label}>
-          Username
+          Phone or username
         </label>
         <div className={styles.field}>
           <input

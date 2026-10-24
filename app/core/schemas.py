@@ -22,6 +22,7 @@ class ErrorOut(BaseModel):
 class UserOut(BaseModel):
     id: int
     username: str
+    phone: str | None = None
     full_name: str
     role: Role
     role_label: str
@@ -33,6 +34,7 @@ class UserOut(BaseModel):
         return cls(
             id=user.id,
             username=user.username,
+            phone=user.phone,
             full_name=user.full_name,
             role=user.role,
             role_label=user.role_label,
@@ -42,6 +44,7 @@ class UserOut(BaseModel):
 
 
 class LoginIn(BaseModel):
+    #: Phone number or username ("Phone or username" on the sign-in form).
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=1024)
     remember: bool = False

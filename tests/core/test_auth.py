@@ -51,7 +51,7 @@ async def test_login_wrong_password(client, make_user):
         headers={"X-CSRF-Token": token},
     )
     assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid username or password."}
+    assert response.json() == {"detail": "Invalid phone, username or password."}
 
 
 async def test_unknown_and_inactive_users_get_the_same_error(client, make_user):
@@ -64,7 +64,7 @@ async def test_unknown_and_inactive_users_get_the_same_error(client, make_user):
             headers={"X-CSRF-Token": token},
         )
         assert response.status_code == 401
-        assert response.json() == {"detail": "Invalid username or password."}
+        assert response.json() == {"detail": "Invalid phone, username or password."}
 
 
 async def test_login_validates_payload(client):
@@ -82,6 +82,7 @@ async def test_login_success_then_me(client, make_user, login, db):
     assert body["user"] == {
         "id": user.id,
         "username": "admin",
+        "phone": None,
         "full_name": "Site Admin",
         "role": "admin",
         "role_label": "Admin",
@@ -167,3 +168,37 @@ def test_require_role_rejects_unknown_roles():
         auth.require_role("superuser")
     with pytest.raises(ValueError):
         auth.require_role()
+
+
+async def test_login_with_phone_number(client, make_user, db):
+    user = await make_user("sita")
+    user.phone = "9841000002"
+    await db.flush()
+    token = await _csrf(client)
+    for identifier in ("9841000002", "+977 9841 000 002", "0984-1000002"):
+        response = await client.post(
+            "/api/auth/login",
+            json={"username": identifier, "password": "secret123"},
+            headers={"X-CSRF-Token": token},
+        )
+        assert response.status_code == 200, identifier
+        assert response.json()["user"]["phone"] == "9841000002"
+        token = response.json()["csrf_token"]
+    # A phone-shaped identifier never falls back to a username lookup.
+    await make_user("9841000003")
+    response = await client.post(
+        "/api/auth/login",
+        json={"username": "9841000003", "password": "secret123"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert response.status_code == 401
+
+
+def test_phone_normalisation():
+    from app.core.models import is_phone, normalize_phone
+
+    assert normalize_phone("+977 98-4100 0001") == "9841000001"
+    assert normalize_phone("09841000001") == "9841000001"
+    assert normalize_phone("9779841000001") == "9841000001"
+    assert is_phone("9841000001") and is_phone("+977 9851 234 567")
+    assert not is_phone("admin") and not is_phone("1234567890") and not is_phone("98410")

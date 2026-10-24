@@ -26,7 +26,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.core.csrf import get_csrf_token, rotate_csrf_token
-from app.core.models import Role, User, normalize_username
+from app.core.models import Role, User, is_phone, normalize_phone, normalize_username
 from app.core.schemas import CsrfOut, ErrorOut, LoginIn, SessionOut, UserOut
 from app.core.services import record_audit
 from app.core.sessions import PERSIST_KEY
@@ -117,18 +117,28 @@ async def csrf(request: Request) -> CsrfOut:
     return CsrfOut(csrf_token=get_csrf_token(request))
 
 
+LOGIN_FAILED = "Invalid phone, username or password."
+
+
+async def find_login_user(db, identifier: str) -> User | None:
+    """The user a sign-in identifier belongs to: a phone number when it looks like one
+    (``98XXXXXXXX``, optionally with spaces or +977), otherwise a username."""
+    if is_phone(identifier):
+        return await db.scalar(select(User).where(User.phone == normalize_phone(identifier)))
+    return await db.scalar(select(User).where(User.username == normalize_username(identifier)))
+
+
 @router.post(
     "/login",
     response_model=SessionOut,
     responses={401: {"model": ErrorOut}, 403: {"model": ErrorOut}},
 )
 async def login(request: Request, db: DbSession, payload: LoginIn) -> SessionOut:
-    uname = normalize_username(payload.username)
-    user = await db.scalar(select(User).where(User.username == uname))
+    user = await find_login_user(db, payload.username)
     # Always run one argon2 verification so unknown, inactive and wrong-password all take as long.
     password_ok = verify_password(user.password_hash if user else _dummy_hash(), payload.password)
     if user is None or not user.is_active or not password_ok:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password.")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail=LOGIN_FAILED)
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(payload.password)
     user.last_login_at = datetime.now(UTC)

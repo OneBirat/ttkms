@@ -52,6 +52,29 @@ def normalize_username(value: str) -> str:
     return value.strip().lower()
 
 
+_PHONE_STRIP = re.compile(r"[\s\-().]+")
+#: A Nepali mobile number as stored: ten digits starting with 97 or 98.
+PHONE_RE = re.compile(r"^9[78]\d{8}$")
+
+
+def normalize_phone(value: str) -> str:
+    """``"+977 98-4100 0001"`` -> ``"9841000001"``: drop spaces/punctuation and the country
+    code. The result is only a *valid* login phone when it matches :data:`PHONE_RE`."""
+    digits = _PHONE_STRIP.sub("", value.strip())
+    if digits.startswith("+977"):
+        digits = digits[4:]
+    elif digits.startswith("977") and len(digits) == 13:
+        digits = digits[3:]
+    if digits.startswith("0") and len(digits) == 11:
+        digits = digits[1:]
+    return digits
+
+
+def is_phone(value: str) -> bool:
+    """True when a login identifier is a phone number rather than a username."""
+    return PHONE_RE.match(normalize_phone(value)) is not None
+
+
 def _enum_values(enum_cls: type[enum.Enum]) -> list[str]:
     return [member.value for member in enum_cls]
 
@@ -175,6 +198,8 @@ class User(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)  # lower-cased
+    #: Optional second login identifier, normalised digits only ("9841000001").
+    phone: Mapped[str | None] = mapped_column(String(10), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
     role: Mapped[Role] = mapped_column(
