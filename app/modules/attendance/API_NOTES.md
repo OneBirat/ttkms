@@ -83,7 +83,7 @@ column stays). Payroll's own shapes use `mode` for the method and `bs_year`/`bs_
 `month_key`; attendance's client adapts in `api.ts` once the real endpoints exist. The paid sheet
 shows `PAY-{payment_id:04d}` as the receipt number.
 
-## AttendanceSummary (app/contracts.py) – shape change needed on main
+## AttendanceSummary (app/contracts.py) – shape change (applied on main 2026-10-25)
 
 ```python
 @dataclass

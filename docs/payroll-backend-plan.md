@@ -66,8 +66,8 @@ Migrations (`migrations/payroll/versions/`):
 
 ## 2. Cross-module contracts (`app/contracts.py`)
 
-- `MonthSummary` becomes `days_in_month, present, overtime_days, overtime_hours, absent, weekly_off, paid_days`
-  (no late / half / leave); `FakeAttendanceSummary` updated to match. Attendance registers the real one.
+- `MonthSummary` is `days_in_month, present, overtime_days, overtime_hours, absent, weekly_off, paid_days`
+  (no late / half / leave; done on main 2026-10-25, `FakeAttendanceSummary` matches). Attendance registers the real one.
 - `TodayStatus` per employee (`present | overtime | absent | weekly_off | not_marked`) from
   `GET /api/attendance/today?branch_id=` — payroll calls it for the list screens.
 - `MonthBalance`, `PaymentInput`, `PaymentResult` shared with attendance's scan pop-up

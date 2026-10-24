@@ -5,6 +5,11 @@ internals. Payroll asks attendance for a month summary through :func:`get_attend
 until the attendance module calls :func:`register_attendance_summary` with its implementation,
 the deterministic :class:`FakeAttendanceSummary` is returned so payroll can be built and tested
 on its own.
+
+Attendance rules (decided 24 Oct 2026, ``app/modules/attendance/API_NOTES.md``): a day is only
+``P`` present, ``O`` overtime (present + whole hours 1-12) or ``A`` absent; weekly off (Saturday)
+without a record is paid; "not marked" means no record. Paid days = present + overtime days +
+weekly off. Overtime hours are paid hourly by payroll.
 """
 
 from __future__ import annotations
@@ -15,14 +20,21 @@ from typing import Protocol, runtime_checkable
 
 @dataclass
 class MonthSummary:
+    """One employee's attendance for one BS month, the way payroll needs it."""
+
     days_in_month: int
-    present: float
-    late: int
-    half_days: int
-    leave: int
+    #: Days marked P.
+    present: int
+    #: Days marked O (present with overtime).
+    overtime_days: int
+    #: Sum of the overtime hours of those days.
+    overtime_hours: int
+    #: Days marked A (unpaid).
     absent: int
+    #: Weekly-off days without a record (paid).
     weekly_off: int
-    paid_days: float
+    #: present + overtime_days + weekly_off.
+    paid_days: int
 
 
 @runtime_checkable
@@ -37,27 +49,27 @@ def _days_in_month(bs_year: int, bs_month: int) -> int:
 
 
 class FakeAttendanceSummary:
-    """Deterministic sample data: the same inputs always give the same summary."""
+    """Deterministic sample data: the same inputs always give the same summary, and the days
+    add up (present + overtime_days + absent + weekly_off + not marked = days_in_month)."""
 
     async def for_month(self, employee_id: int, bs_year: int, bs_month: int) -> MonthSummary:
         days = _days_in_month(bs_year, bs_month)
         seed = (employee_id * 31 + bs_year * 12 + bs_month) % 7
         weekly_off = sum(1 for d in range(days) if (d + seed) % 7 == 0)
         working = days - weekly_off
-        leave = seed % 3
         absent = (seed + 1) % 2
-        half_days = (seed + employee_id) % 3
-        late = seed
-        present = working - leave - absent - half_days * 0.5
+        not_marked = seed % 3
+        overtime_days = (seed + employee_id) % 4
+        overtime_hours = overtime_days * (2 + seed % 3)
+        present = working - absent - not_marked - overtime_days
         return MonthSummary(
             days_in_month=days,
             present=present,
-            late=late,
-            half_days=half_days,
-            leave=leave,
+            overtime_days=overtime_days,
+            overtime_hours=overtime_hours,
             absent=absent,
             weekly_off=weekly_off,
-            paid_days=float(days - absent),
+            paid_days=present + overtime_days + weekly_off,
         )
 
 

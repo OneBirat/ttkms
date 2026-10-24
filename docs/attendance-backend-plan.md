@@ -103,8 +103,8 @@ cells simply omit the two fields and the UI shows no badges.
 
 ## 5. Payroll contract and today status
 
-- Change `MonthSummary` in `app/contracts.py` (main) to `days_in_month, present, overtime_days,
-  overtime_hours, absent, weekly_off, paid_days` and register the real `AttendanceSummary` at
+- `MonthSummary` in `app/contracts.py` is already `days_in_month, present, overtime_days,
+  overtime_hours, absent, weekly_off, paid_days` (main, 2026-10-25); register the real `AttendanceSummary` at
   module import (`register_attendance_summary`). Implementation: BS month → AD range, one query
   over `attendance.records`, count statuses, `weekly_off` = Saturdays without a record,
   `paid_days = present + overtime_days + weekly_off`. The frontend's `computeTotals` /
@@ -151,7 +151,8 @@ payroll ships its endpoints. The mock store stays behind an env flag for the nod
 
 ## Needs from other worktrees
 
-- **main**: `MonthSummary` shape change in `app/contracts.py`; a permissions table (or at least
-  `branch_id` on users) if the role mapping above is not enough; `GET /api/today`.
+- **main** (all done 2026-10-25): `MonthSummary` shape change in `app/contracts.py`; per-user
+  permissions and `branch_id` via `/api/auth/me` (`useSession().branchId`, `can(...)`); `GET /api/today`
+  (with `counts` for the dashboard stat row).
 - **payroll**: `payments_for_month` service (section 4) and the three payroll endpoints the scan
   flow calls (`API_NOTES.md`, payroll client section).

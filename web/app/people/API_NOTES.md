@@ -75,17 +75,18 @@ Core endpoints used by the Add-employee popup: `GET/POST /api/core/branches`, `G
 
 1. Nav section title "People" (core tests pin "People & payroll") and `tests/core/test_modules.py` /
    `tests/core/test_api.py` assert the first nav path is `/payroll`; the routes are `/people/*`.
-2. `web/lib/modules.ts` `moduleForPath`: map `/people` → `payroll` (module-off guard).
-3. `web/middleware.ts`: exempt `/people/photo/*` (token link opened on a phone without a session).
+2. `web/lib/modules.ts` `moduleForPath`: map `/people` → `payroll` (module-off guard). Done 2026-10-25.
+3. `web/middleware.ts`: exempt `/people/photo/*` (token link opened on a phone without a session). Done 2026-10-25.
 4. `app/contracts.py` MonthSummary: `days_in_month, present, overtime_days, overtime_hours, absent,
-   weekly_off, paid_days` (drop late/half_days/leave); Fake to match.
+   weekly_off, paid_days` (drop late/half_days/leave); Fake to match. Done 2026-10-25.
 5. Shared contract for `MonthBalance`, `PaymentInput` (`payment_mode_id`), `PaymentResult`.
 6. Done: BS conversions, Nepal time and formatting come from `web/lib/bs` (shared with attendance
    and admin; same table as `app/core/bsdate.py`).
-7. `User` from `/api/auth/me` needs `branch_id` (managers see their branch; the list screens fall back to
-   the first branch today). `store_keeper` is retired (core_0005); `Role` and the Add-employee dropdown no longer have it.
-8. AppShell: a phone drawer under 640px. The People pages hide the shared sidebar there and render their own
-   header + drawer (`_components/phone/PhoneFrame.tsx`); once the shell has one, drop `(shell)/people.module.css`.
+7. Done 2026-10-25: `/api/auth/me` carries `branch_id` and the effective `access` map
+   (`useSession().branchId`, `can("see_other_branches")`; `_lib/useBranchScope.ts` replaces the first-branch
+   fallback). `store_keeper` is retired (core_0005); `Role` and the Add-employee dropdown no longer have it.
+8. Done 2026-10-25: the shell has a phone bar + `PhoneDrawer` under 640px; `PhoneFrame` opens it with
+   `useShell().openMenu()` and claims the header with `usePhoneHeader()`; `(shell)/people.module.css` is gone.
 9. Icons camera / switch-camera / qr / barcode / receipt / chevron-down/up in `components/icons.tsx`.
 10. Optional: a barcode library (bwip-js or JsBarcode) if Admin › Barcodes wants one; `_lib/code128.ts`
     is dependency-free and can be replaced. Likewise `_lib/xlsx.ts` (stored-zip workbook writer) goes away
