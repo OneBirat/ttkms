@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useId, useMemo } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { BsDateInput } from "@/components/ui/BsDateInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Icon } from "@/components/icons";
-import { currentMonth, listMonths, listPayments } from "../api";
-import { formatBsLong, monthKey, monthLabel, monthName, parseMonthKey, sameMonth } from "../_lib/calendar";
-import { downloadText, printReceipt, registerCsv } from "../_lib/exports";
+import { useSession } from "@/lib/session";
+import { currentMonth, listPayments } from "../api";
+import { RANGE_PRESETS, formatBsLong, isValidBs, monthLabel, monthName, monthStart, presetOf, rangeFor } from "../_lib/calendar";
+import { downloadRegisterXlsx, printReceipt, printRegisterPdf, registerFileName, type RegisterExportInput } from "../_lib/exports";
 import { formatAmount, formatRs, matchesEmployee, paginate } from "../_lib/helpers";
-import type { RegisterTypeFilter } from "../types";
+import type { DateRange, RegisterTypeFilter } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import styles from "./report.module.css";
 import shared from "./payroll.module.css";
@@ -27,19 +29,39 @@ function isType(value: string | null): value is RegisterTypeFilter {
   return TYPES.some((t) => t.value === value);
 }
 
-/** /people/payments: every salary and advance payment, newest first. No record form here. */
+type Ask = { ext: "xlsx" | "pdf" } | null;
+
+/**
+ * /people/payments (design Payments.dc.html): every salary and advance
+ * payment in a BS date range. Excel and PDF download exactly that range; a
+ * range reaching into a previous month asks first.
+ */
 export function PaymentsRegisterScreen() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const monthId = useId();
+  const { user } = useSession();
   const searchId = useId();
+  const fromId = useId();
+  const toId = useId();
 
-  const monthParam = params.get("month");
-  const month = monthParam === "all" ? null : (parseMonthKey(monthParam ?? "") ?? currentMonth());
+  const defaults = useMemo(() => rangeFor("last_30"), []);
+  const from_bs = params.get("from") ?? defaults.from_bs;
+  const to_bs = params.get("to") ?? defaults.to_bs;
+  const range: DateRange = { from_bs, to_bs };
   const type: RegisterTypeFilter = isType(params.get("type")) ? (params.get("type") as RegisterTypeFilter) : "all";
   const query = params.get("q") ?? "";
   const page = Math.max(1, Number(params.get("page") ?? "1") || 1);
+  const validRange = isValidBs(from_bs) && isValidBs(to_bs);
+  const rangeBad = validRange && from_bs > to_bs;
+  const [ask, setAsk] = useState<Ask>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 7000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const setParams = useCallback(
     (changes: Record<string, string | null>) => {
@@ -61,31 +83,73 @@ export function PaymentsRegisterScreen() {
     const qs = next.toString();
     return qs ? `${pathname}?${qs}` : pathname;
   };
+  const setRange = (r: DateRange) => setParams({ from: r.from_bs, to: r.to_bs });
 
-  const months = usePayroll(listMonths, []);
-  const register = usePayroll(() => listPayments({ month, type }), [month ? monthKey(month) : "all", type]);
+  const register = usePayroll(
+    () => listPayments({ from_bs: validRange && !rangeBad ? from_bs : null, to_bs: validRange && !rangeBad ? to_bs : null, type }),
+    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type],
+  );
   const data = register.data;
   const rows = useMemo(() => (data ? data.rows.filter((r) => matchesEmployee(r.employee, query)) : []), [data, query]);
   const paged = paginate(rows, page, PAGE_SIZE);
   const total = rows.reduce((sum, r) => sum + r.payment.amount, 0);
-  const scopeLabel = month ? monthLabel(month) : "all months";
-  const fileStem = `payments-${month ? monthKey(month) : "all"}${type === "all" ? "" : `-${type}`}`;
+  const rangeText = `${from_bs} → ${to_bs}`;
+  const monthStartBs = monthStart(currentMonth()).bs;
+  const previousMonth = from_bs < monthStartBs;
+  const preset = presetOf(range);
+  const settle = data?.totals.month ?? currentMonth();
+
+  const exportInput = (r: DateRange): RegisterExportInput | null => {
+    if (!data) return null;
+    const scoped = r.from_bs === from_bs && r.to_bs === to_bs ? rows : data.rows.filter((x) => x.payment.date.bs >= r.from_bs && x.payment.date.bs <= r.to_bs && matchesEmployee(x.employee, query));
+    return {
+      register: { ...data, from_bs: r.from_bs, to_bs: r.to_bs },
+      rows: scoped,
+      branch: "All branches",
+      generatedBy: user?.full_name ?? user?.username ?? "TTK",
+      previousMonth: r.from_bs < monthStartBs,
+    };
+  };
+  const download = (ext: "xlsx" | "pdf", r: DateRange) => {
+    const input = exportInput(r);
+    if (!input) return;
+    setAsk(null);
+    if (r.from_bs !== from_bs || r.to_bs !== to_bs) setRange(r);
+    if (ext === "xlsx") {
+      downloadRegisterXlsx(input);
+      setToast(`${registerFileName(r.from_bs, r.to_bs, "xlsx")} downloaded · ${r.from_bs} → ${r.to_bs}`);
+    } else if (printRegisterPdf(input)) {
+      setToast(`${registerFileName(r.from_bs, r.to_bs, "pdf")} opened for printing · ${r.from_bs} → ${r.to_bs}`);
+    } else {
+      setToast("The browser blocked the print window. Allow pop-ups for this site and try again.");
+    }
+  };
+  const tryDownload = (ext: "xlsx" | "pdf") => {
+    if (!validRange || rangeBad) return;
+    if (previousMonth) setAsk({ ext });
+    else download(ext, range);
+  };
 
   return (
     <>
       <PageHeader
-        title="Payments"
-        subtitle={`Register of salary and advance payments · ${scopeLabel} · recorded from the employee account or the attendance scan`}
+        title="Salary & advance payments"
+        subtitle="Every salary and advance payment in one place. Payments are recorded from each employee's account (Pay salary / Give advance)."
         actions={
-          <div className={`${shared.row} ${styles.noPrint}`}>
-            <button type="button" className="btn" disabled={!data} onClick={() => downloadText(`${fileStem}.csv`, registerCsv(rows))}>
-              <Icon name="download" size={16} />
-              Excel
-            </button>
-            <button type="button" className="btn" disabled={!data} onClick={() => window.print()}>
-              <Icon name="print" size={16} />
-              PDF
-            </button>
+          <div className={styles.downloads}>
+            <div className={shared.row} style={{ gap: 8 }}>
+              <button type="button" className={`btn ${styles.xlsBtn}`} disabled={!data || rangeBad} onClick={() => tryDownload("xlsx")}>
+                <Icon name="download" size={16} />
+                Excel
+              </button>
+              <button type="button" className={`btn ${styles.pdfBtn}`} disabled={!data || rangeBad} onClick={() => tryDownload("pdf")}>
+                <Icon name="print" size={16} />
+                PDF
+              </button>
+            </div>
+            <span className={shared.note}>
+              Downloads the date range in the register: <b>{rangeText}</b>
+            </span>
           </div>
         }
       />
@@ -102,78 +166,82 @@ export function PaymentsRegisterScreen() {
         </p>
       ) : (
         <>
-          <section aria-label="Payment totals" className={styles.cards4}>
+          <section aria-label="Totals" className={styles.cards4}>
             <div className={`card ${styles.total}`}>
-              <span className={styles.totalLabel}>{month ? `${monthName(month)} net payroll` : `${monthName(currentMonth())} net payroll`}</span>
+              <span className={styles.totalLabel}>{monthName(settle)} net payroll</span>
               <span className={styles.totalValue}>{formatRs(data.totals.month_net)}</span>
-              <span className={styles.totalHint}>{month && sameMonth(month, currentMonth()) ? "so far this month" : "all employees"}</span>
+              <span className={styles.totalHint}>{data.totals.staff} staff</span>
             </div>
             <div className={`card ${styles.total}`}>
               <span className={styles.totalLabel}>Salary paid</span>
               <span className={`${styles.totalValue} ${shared.ok}`}>{formatRs(data.totals.salary_paid)}</span>
-              <span className={styles.totalHint}>{scopeLabel}</span>
+              <span className={styles.totalHint}>{monthLabel(settle)}</span>
             </div>
             <div className={`card ${styles.total}`}>
               <span className={styles.totalLabel}>Advances paid</span>
-              <span className={styles.totalValue}>{formatRs(data.totals.advance_paid)}</span>
-              <span className={styles.totalHint}>part of the month&apos;s salary</span>
+              <span className={styles.totalValue} style={{ color: "var(--pill-leave-fg)" }}>
+                {formatRs(data.totals.advance_paid)}
+              </span>
+              <span className={styles.totalHint}>counted as part of {monthName(settle)} salary</span>
             </div>
-            <div className={`card ${styles.total} ${styles.totalNet}`}>
+            <div className={`card ${styles.total} ${styles.totalDue}`}>
               <span className={styles.totalLabel}>Still due</span>
-              <span className={`${styles.totalValue} ${data.totals.due > 0 ? shared.danger : shared.ok}`}>{formatRs(data.totals.due)}</span>
-              <span className={styles.totalHint}>{month ? monthLabel(month) : monthLabel(currentMonth())}</span>
+              <span className={styles.totalValue} style={{ color: "var(--pill-low-fg)" }}>
+                {formatRs(data.totals.due)}
+              </span>
+              <span className={styles.totalHint}>to pay for {monthLabel(settle)}</span>
             </div>
           </section>
 
           <section aria-labelledby="reg-h" className={`card ${styles.sheet}`}>
             <div className={styles.sheetHead}>
-              <h2 id="reg-h" className={shared.cardTitle}>
-                Register
+              <h2 id="reg-h" className={shared.cardTitle} style={{ marginRight: "auto" }}>
+                Payment register · {rows.length}
               </h2>
-              <div className={`${styles.registerControls} ${styles.noPrint}`}>
-                <label htmlFor={searchId} className={shared.srOnly}>
-                  Search employee
-                </label>
-                <div className="field" style={{ width: 200 }}>
-                  <Icon name="search" size={16} style={{ color: "var(--color-muted)" }} />
-                  <input
-                    id={searchId}
-                    type="search"
-                    placeholder="Search name or ID"
-                    value={query}
-                    onChange={(event) => setParams({ q: event.target.value })}
-                    autoComplete="off"
-                  />
-                </div>
-                <div role="group" aria-label="Payment type" className={styles.typeFilter}>
-                  {TYPES.map((t) => (
-                    <button key={t.value} type="button" className={shared.chip} aria-pressed={type === t.value} onClick={() => setParams({ type: t.value === "all" ? null : t.value })}>
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-                <label htmlFor={monthId} className={shared.srOnly}>
-                  Month (BS)
-                </label>
-                <div className={`field ${shared.selectWrap} ${styles.monthField}`}>
-                  <select id={monthId} value={month ? monthKey(month) : "all"} onChange={(event) => setParams({ month: event.target.value })}>
-                    {(months.data ?? [currentMonth()]).map((m) => (
-                      <option key={monthKey(m)} value={monthKey(m)}>
-                        {monthLabel(m)}
-                      </option>
-                    ))}
-                    <option value="all">All months</option>
-                  </select>
-                </div>
+              <label htmlFor={searchId} className={shared.srOnly}>
+                Search employee
+              </label>
+              <div className="field" style={{ width: 200, minHeight: 40 }}>
+                <input id={searchId} type="search" placeholder="Search employee" value={query} onChange={(event) => setParams({ q: event.target.value })} autoComplete="off" />
+              </div>
+              <div role="group" aria-label="Type filter" className={styles.segment}>
+                {TYPES.map((t) => (
+                  <button key={t.value} type="button" className={styles.segmentOption} aria-pressed={type === t.value} onClick={() => setParams({ type: t.value === "all" ? null : t.value })}>
+                    {t.label}
+                  </button>
+                ))}
               </div>
             </div>
 
+            <div className={styles.rangeRow}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>Date range (BS)</span>
+              <label htmlFor={fromId} className={styles.rangeField}>
+                <span className={shared.note}>From</span>
+                <BsDateInput id={fromId} name="from_bs" value={from_bs} onChange={(v) => setParams({ from: v })} />
+              </label>
+              <span className={shared.muted}>→</span>
+              <label htmlFor={toId} className={styles.rangeField}>
+                <span className={shared.note}>To</span>
+                <BsDateInput id={toId} name="to_bs" value={to_bs} onChange={(v) => setParams({ to: v })} />
+              </label>
+              {RANGE_PRESETS.map((p) => (
+                <button key={p.value} type="button" className={styles.presetChip} aria-pressed={preset === p.value} onClick={() => setRange(rangeFor(p.value))}>
+                  {p.label}
+                </button>
+              ))}
+              {rangeBad ? <span className={shared.warn}>&quot;From&quot; is after &quot;To&quot; — swap the dates.</span> : null}
+              {!validRange ? <span className={shared.warn}>Enter both dates as YYYY-MM-DD (BS).</span> : null}
+              <span className={shared.note} style={{ marginLeft: "auto" }}>
+                {rows.length} payments · {rangeText}
+              </span>
+            </div>
+
             <div className={shared.tableWrap}>
-              <table className={shared.table}>
-                <caption className={shared.srOnly}>Payments, {scopeLabel}</caption>
+              <table className={shared.table} style={{ minWidth: 760 }}>
+                <caption className={shared.srOnly}>Payments from {formatBsLong(from_bs)} to {formatBsLong(to_bs)}</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Date</th>
+                    <th scope="col">Date (BS)</th>
                     <th scope="col">Employee</th>
                     <th scope="col">For month</th>
                     <th scope="col">Type</th>
@@ -191,15 +259,14 @@ export function PaymentsRegisterScreen() {
                   {paged.items.length === 0 ? (
                     <tr>
                       <td colSpan={8} className={shared.empty}>
-                        No payments match.
+                        No payments match these filters.
                       </td>
                     </tr>
                   ) : (
                     paged.items.map(({ payment: p, employee }) => (
                       <tr key={p.id}>
-                        <td>
-                          {formatBsLong(p.date.bs)}
-                          <span className={shared.note}> · {p.date.ad}</span>
+                        <td className="mono" style={{ fontSize: 13 }}>
+                          {p.date.bs}
                         </td>
                         <td>
                           <Link href={`/people/employees/${employee.id}`} className={styles.empCell}>
@@ -214,11 +281,11 @@ export function PaymentsRegisterScreen() {
                           <span className={p.type === "advance" ? shared.pillAdvance : shared.pillSalary}>{p.type === "advance" ? "Advance" : "Salary"}</span>
                         </td>
                         <td>
-                          {p.mode === "bank" ? "Bank" : "Cash"}
-                          {p.reference ? <span className={styles.refText}>{p.reference}</span> : null}
+                          {p.payment_mode.name}
+                          {p.reference || p.note ? <span className={styles.refText}>{[p.reference, p.note].filter(Boolean).join(" · ")}</span> : null}
                         </td>
                         <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(p.amount)}</td>
-                        <td>
+                        <td style={{ color: "#3e4a52" }}>
                           {p.recorded_by}
                           {p.source === "scan" ? <span className={shared.note}> · scan</span> : null}
                         </td>
@@ -260,13 +327,54 @@ export function PaymentsRegisterScreen() {
                 />
               </div>
             ) : null}
-            <span className={styles.sheetNote}>
-              Payments are recorded from the employee account (Pay salary, Give advance, Record payment) and from the
-              attendance scan pop-up. Exports include everything in the current filter.
-            </span>
           </section>
         </>
       )}
+
+      {ask ? (
+        <div className={styles.askBackdrop} onMouseDown={(e) => e.target === e.currentTarget && setAsk(null)}>
+          <div role="alertdialog" aria-modal="true" aria-labelledby="ask-h" className={styles.ask}>
+            <div className={shared.row} style={{ gap: 12, flexWrap: "nowrap" }}>
+              <span className={styles.askIcon} aria-hidden="true">
+                !
+              </span>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <h2 id="ask-h" style={{ fontSize: 18, fontWeight: 700 }}>
+                  Previous month in range
+                </h2>
+                <span className={shared.note} style={{ fontSize: 13 }}>
+                  {registerFileName(from_bs, to_bs, ask.ext)}
+                </span>
+              </div>
+            </div>
+            <p style={{ fontSize: 14, lineHeight: 1.5, color: "#3e4a52" }}>
+              Your date range ({rangeText}) includes a previous month — the current month starts {monthStartBs} ({monthLabel(currentMonth())}). Do you want to download the{" "}
+              {ask.ext === "pdf" ? "PDF" : "sheet"} for {rangeText}?
+            </p>
+            <div className={shared.toggle}>
+              <button type="button" className={shared.cancelBig} onClick={() => download(ask.ext, rangeFor("this_month"))}>
+                Use this month instead
+              </button>
+              <button type="button" className={shared.primaryBig} onClick={() => download(ask.ext, range)}>
+                Yes, download this range
+              </button>
+            </div>
+            <button type="button" className={styles.askCancel} onClick={() => setAsk(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {toast ? (
+        <div role="status" className={styles.toastDark}>
+          <span style={{ color: "#7fd1c3", fontWeight: 700 }}>✓</span>
+          {toast}
+          <button type="button" aria-label="Dismiss" className={styles.toastClose} onClick={() => setToast(null)}>
+            ×
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }
