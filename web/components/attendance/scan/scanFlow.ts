@@ -83,6 +83,8 @@ export type Scan =
       type: PaymentType;
       paid: PaymentResult;
       monthLabel: string;
+      /** Paid in the month including this payment (the paid sheet's "Paid in {month}" tile). */
+      monthPaid: number;
     };
 
 export type ScanStep = Scan["step"];
@@ -463,6 +465,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
     const emp = s.emp;
     const type = s.type;
     const monthLabel = s.balance.month_label;
+    const monthPaid = s.balance.paid + amount;
     setScan({ ...s, busy: true, error: null });
     deps.api
       .pay({ employee_id: emp.id, month_key: deps.monthKey(), type, amount, method: "cash", source: "scan" })
@@ -472,7 +475,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
         if (!cur || cur.emp.id !== emp.id) return;
         const token = now();
         const summary = paySummary(emp, type, amount);
-        set({ scan: { step: "paid", emp, token, summary, type, paid, monthLabel }, count: state.count + 1 });
+        set({ scan: { step: "paid", emp, token, summary, type, paid, monthLabel, monthPaid }, count: state.count + 1 });
         safe(() => sounds.paid?.(emp, type, amount));
         scheduleReturn(token, summary, autoReturnMs.paid);
       })

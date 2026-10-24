@@ -881,7 +881,7 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .progressBar {
-    animation: scBack 3s linear forwards;
+    animation: scBack 7s linear forwards;
   }
 }
 
@@ -1151,4 +1151,654 @@
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* ---- final pack: found (tall buttons), custom hours, record buttons, pay band, paid tiles ---- */
+
+.sheetPhone .bigTall {
+  min-height: 132px;
+}
+
+.bigSub {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.hcBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  border: 1px dashed #8fa0c6;
+  border-radius: 12px;
+  background: var(--color-card);
+  color: #253f73;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 4px;
+  border: 2px solid #2f4e8c;
+  border-radius: 12px;
+  background: #e3e8f4;
+  color: #253f73;
+}
+
+.stepBtn {
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-card);
+  color: #253f73;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.stepValue {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.recBtns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.recBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid #c3cde3;
+  border-radius: 10px;
+  background: #f5f7fc;
+  color: #253f73;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.payBand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  color: #fff;
+}
+
+.payBandSalary {
+  background: #0e6b6b;
+  box-shadow: 0 8px 18px rgba(14, 107, 107, 0.28);
+}
+
+.payBandAdvance {
+  background: #2f4e8c;
+  box-shadow: 0 8px 18px rgba(47, 78, 140, 0.28);
+}
+
+.payBandIcon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.payBandText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.payBandType {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.payBandNp {
+  font-family: var(--font-np);
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.payBandMonth {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.resultIconSal {
+  background: #0e6b6b;
+}
+
+.resultIconAdv {
+  background: #2f4e8c;
+}
+
+.paidTiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.paidTile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.paidTile b {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.paidTileSal {
+  background: #e3f0ee;
+  color: #0a5454;
+}
+
+.paidTileSal b,
+.paidTileAdv b,
+.paidTileDue b {
+  color: inherit;
+}
+
+.paidTileAdv {
+  background: #e3e8f4;
+  color: #253f73;
+}
+
+.paidTileDue {
+  background: #fbefe2;
+  color: #8a4205;
+}
+
+.receipt {
+  font-size: 12px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.nameRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.savedMark {
+  flex: none;
+}
+
+.donePhotoWrap {
+  position: relative;
+  margin-bottom: 6px;
+}
+
+.donePhoto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px #e3f0ee;
+  color: #fff;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.doneBadge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #1e9e4a;
+  color: #fff;
+}
+
+.doneBadge[data-status="O"] {
+  background: #e0a800;
+}
+
+.doneBadge[data-status="A"] {
+  background: #8e2f12;
+}
+
+/* ---- attendance record ---- */
+
+.recNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.recNavBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-input-border);
+  border-radius: 10px;
+  background: var(--color-card);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.recNavBtn:disabled {
+  color: #b8c0c6;
+  cursor: not-allowed;
+}
+
+.flip {
+  display: inline-flex;
+  transform: scaleX(-1);
+}
+
+.recTitle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.recNp {
+  font-family: var(--font-np);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.recEn {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.recTiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.recTile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.recTile b {
+  font-family: var(--font-mono);
+  font-size: 15px;
+}
+
+.recTileP {
+  background: #e6f5f3;
+  color: #0a5454;
+}
+
+.recTileO {
+  background: #fff4cc;
+  color: #7a5600;
+}
+
+.recTileA {
+  background: #fbe9e4;
+  color: #8e2f12;
+}
+
+.recWeekdays,
+.recGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.recWeekdays {
+  font-family: var(--font-np);
+  font-size: 11px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.recSat {
+  color: #c62828;
+}
+
+.recCell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-card);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.recCell:disabled {
+  cursor: default;
+}
+
+.recCell[data-k="P"] {
+  border-color: #bfe3df;
+  background: #e6f5f3;
+  color: #0a5454;
+}
+
+.recCell[data-k="O"] {
+  border-color: #edcf6e;
+  background: #fff4cc;
+  color: #7a5600;
+}
+
+.recCell[data-k="A"] {
+  border-color: #f3d9d0;
+  background: #fbe9e4;
+  color: #8e2f12;
+}
+
+.recCell[data-k="off"] {
+  border-color: #f3d9d0;
+  background: #fdf4f1;
+  color: #b07a6a;
+}
+
+.recCell[data-k="N"] {
+  border-style: dashed;
+  border-color: var(--color-input-border);
+  color: var(--color-muted);
+}
+
+.recCell[data-k="F"] {
+  border-color: var(--color-border-soft);
+  color: #c4cbd0;
+}
+
+.recCell[data-pop] {
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.recCellNp {
+  font-family: var(--font-np);
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.recCellText {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.recBadge {
+  position: absolute;
+  top: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.recBadgeAdv {
+  left: 3px;
+  background: #2f4e8c;
+}
+
+.recBadgeSal {
+  right: 3px;
+  background: #0e6b6b;
+}
+
+.recBadgeLeg {
+  position: static;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.recLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.recLegend b {
+  font-family: var(--font-mono);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+
+.recLegP {
+  background: #e6f5f3;
+  color: #0a5454;
+}
+
+.recLegO {
+  background: #fff4cc;
+  color: #7a5600;
+}
+
+.recLegA {
+  background: #fbe9e4;
+  color: #8e2f12;
+}
+
+.recLegOff {
+  background: #fdf4f1;
+  color: #b07a6a;
+}
+
+/* ---- day detail pop-up ---- */
+
+.dpBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 24, 29, 0.55);
+}
+
+.dpDialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 92vh;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--color-card);
+  overflow-y: auto;
+}
+
+.dpHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dpPhoto {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #e3f0ee;
+  color: #fff;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.dpName {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.dpNp {
+  font-family: var(--font-np);
+  font-size: 13px;
+}
+
+.dpAtt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #e6f5f3;
+  color: #0a5454;
+  font-size: 13px;
+}
+
+.dpAtt[data-k="A"] {
+  background: #fbe9e4;
+  color: #8e2f12;
+}
+
+.dpAtt[data-k="O"] {
+  background: #fff4cc;
+  color: #7a5600;
+}
+
+.dpAtt[data-k="off"],
+.dpAtt[data-k="N"],
+.dpAtt[data-k="F"] {
+  background: var(--color-bg);
+  color: var(--color-muted);
+}
+
+.dpList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dpRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.dpRowSal {
+  border: 1px solid #bfdcd8;
+  background: #e3f0ee;
+}
+
+.dpRowAdv {
+  border: 1px solid #c3cde3;
+  background: #e3e8f4;
+}
+
+.dpIcon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.dpIconSal {
+  background: #0e6b6b;
+}
+
+.dpIconAdv {
+  background: #2f4e8c;
+}
+
+.dpText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dpType {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dpTypeNp {
+  font-family: var(--font-np);
+  font-weight: 500;
+}
+
+.dpMeta {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.dpAmount {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.dpTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-bg);
+  font-size: 13px;
+}
+
+.dpTotal b {
+  font-family: var(--font-mono);
+  font-size: 15px;
 }
