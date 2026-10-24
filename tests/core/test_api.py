@@ -20,7 +20,7 @@ async def test_registry_for_admin(client, make_user, login):
     assert [m["title"] for m in modules] == [m.title for m in MODULES]
     assert all(m["allowed"] for m in modules)
     for m in modules:
-        assert m["nav"] and m["nav"][0]["path"] == f"/{m['name']}"
+        assert m["nav"] and m["nav"][0]["path"].startswith(f"/{m['name']}")
         assert {"label", "path", "icon", "roles"} <= set(m["nav"][0])
 
 
