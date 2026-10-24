@@ -38,7 +38,6 @@ import type {
 export const ROLE_LABELS: Record<Role, string> = {
   admin: "Admin",
   manager: "Manager",
-  store_keeper: "Store keeper",
   staff: "Staff",
 };
 

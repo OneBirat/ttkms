@@ -83,7 +83,7 @@ Core endpoints used by the Add-employee popup: `GET/POST /api/core/branches`, `G
 6. `web/lib/bsdate.ts`: `adToBs`, `bsToAd`, `daysInBsMonth`, `todayAd`, Nepali digits (copies live in
    `_lib/calendar.ts` and in the attendance worktree).
 7. `User` from `/api/auth/me` needs `branch_id` (managers see their branch; the list screens fall back to
-   the first branch today). `Role` still lists `store_keeper`; the Add-employee dropdown no longer offers it.
+   the first branch today). `store_keeper` is retired (core_0005); `Role` and the Add-employee dropdown no longer have it.
 8. AppShell: a phone drawer under 640px. The People pages hide the shared sidebar there and render their own
    header + drawer (`_components/phone/PhoneFrame.tsx`); once the shell has one, drop `(shell)/people.module.css`.
 9. Icons camera / switch-camera / qr / barcode / receipt / chevron-down/up in `components/icons.tsx`.
