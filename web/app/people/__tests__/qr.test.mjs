@@ -11,7 +11,7 @@ import {
   qrPath,
   rsEncode,
   versionBits,
-} from "../qr.ts";
+} from "../_lib/qr.ts";
 
 const URL = "http://192.168.1.23:3003/payroll/photo/0123456789abcdef0123456789abcdef";
 

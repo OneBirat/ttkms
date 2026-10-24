@@ -1,8 +1,8 @@
-// Node resolver hook so the payroll module's .ts files run under
+// Node resolver hook so the people module's .ts files run under
 // `node --experimental-strip-types --test`: extension-less relative imports
 // ("./calc") resolve to .ts, and the "@/lib/x" alias resolves to web/lib/x.ts.
 // Run from web/:
-//   node --experimental-strip-types --import ./components/payroll/__tests__/register.mjs --test "components/payroll/__tests__/*.test.mjs"
+//   node --experimental-strip-types --import ./app/people/__tests__/register.mjs --test "app/people/__tests__/*.test.mjs"
 import { register } from "node:module";
 
 const webRoot = new URL("../../../", import.meta.url).href;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { subscribe } from "./api";
+import { subscribe } from "../api";
 
 export interface PayrollQuery<T> {
   data: T | null;
@@ -12,8 +12,8 @@ export interface PayrollQuery<T> {
 
 /**
  * Runs `load` once, again on `reload()`, and again whenever the mock store
- * changes (so a photo saved from the phone shows up by itself). `deps` work
- * like useEffect deps: the query reloads when they change.
+ * changes (so a photo saved from the phone or a payment recorded in another
+ * tab shows up by itself). `deps` work like useEffect deps.
  */
 export function usePayroll<T>(load: () => Promise<T>, deps: unknown[]): PayrollQuery<T> {
   const [data, setData] = useState<T | null>(null);
