@@ -880,6 +880,8 @@ export async function getAccountSummary(employee_id: number): Promise<AccountSum
     paid_this_month: paid,
     room: Math.max(0, earned - paid),
     salary_month,
+    salary_net: salaryRow?.net ?? 0,
+    salary_paid: salaryRow?.paid ?? 0,
     salary_due: salaryRow?.due ?? 0,
     recent,
     advances_recent: sumBy(

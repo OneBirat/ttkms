@@ -87,7 +87,7 @@ export function EmployeeList({
             value={department === "all" ? "all" : String(department)}
             onChange={(event) => onDepartment(event.target.value === "all" ? "all" : Number(event.target.value))}
           >
-            <option value="all">All departments ({employees.length})</option>
+            <option value="all">All ({employees.length})</option>
             {counts.map(({ department: d, count }) => (
               <option key={d.id} value={d.id}>
                 {d.name} ({count})

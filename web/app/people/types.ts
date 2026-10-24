@@ -453,8 +453,10 @@ export interface AccountSummary {
   paid_this_month: number;
   /** max(0, earned_so_far − paid_this_month) */
   room: number;
-  /** The month "Pay <month> salary" targets and what is due for it. */
+  /** The month "Pay <month> salary" targets: its net, what is paid and what is due. */
   salary_month: BsMonth;
+  salary_net: number;
+  salary_paid: number;
   salary_due: number;
   /** Newest first, every month. */
   recent: Payment[];
