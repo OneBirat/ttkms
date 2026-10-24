@@ -1,5 +1,3 @@
-import { apiFetch, type BsConvertResponse } from "@/lib/api";
-
 /** Bikram Sambat month names, index 0 = Baishakh. */
 export const BS_MONTHS_EN = [
   "Baishakh",
@@ -67,29 +65,4 @@ export function formatBsNp(value: string): string {
   const parts = parseBs(value);
   if (!parts) return value;
   return `${BS_MONTHS_NP[parts.month - 1]} ${toDevanagariDigits(parts.day)}, ${toDevanagariDigits(parts.year)}`;
-}
-
-/**
- * Converts an AD date ("YYYY-MM-DD") through GET /api/bsdate/convert.
- * Throws ApiError 422 for invalid input and 503 while the BS table is missing.
- */
-export function convertAdToBs(
-  ad: string,
-  signal?: AbortSignal,
-): Promise<BsConvertResponse> {
-  return apiFetch<BsConvertResponse>(
-    `/api/bsdate/convert?ad=${encodeURIComponent(ad)}`,
-    { signal },
-  );
-}
-
-/** Converts a BS date ("YYYY-MM-DD") through GET /api/bsdate/convert. */
-export function convertBsToAd(
-  bs: string,
-  signal?: AbortSignal,
-): Promise<BsConvertResponse> {
-  return apiFetch<BsConvertResponse>(
-    `/api/bsdate/convert?bs=${encodeURIComponent(bs)}`,
-    { signal },
-  );
 }

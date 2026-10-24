@@ -114,17 +114,21 @@ export interface TodayText {
   full: string;
 }
 
+/** GET /api/today: today in Asia/Kathmandu, both calendars (app/core/schemas.py TodayOut). */
 export interface Today {
-  ad: string;
-  bs: string | null;
-  /** False while the BS calendar table is not installed; only text.ad is set then. */
-  available: boolean;
+  /** AD "YYYY-MM-DD". */
+  date: string;
+  /** BS "YYYY-MM-DD". */
+  date_bs: string;
+  /** 0 = Sunday … 6 = Saturday. */
+  weekday: number;
+  /** "2083/84" */
+  fiscal_year: string;
   text: TodayText;
 }
 
-export interface BsConvertResponse {
-  ad: string;
-  bs: string;
+/** GET /api/bsdate/convert?date= | ?date_bs= */
+export interface BsConvertResponse extends Omit<Today, "text"> {
   bs_text: string;
   bs_text_np: string;
   weekday_np: string;

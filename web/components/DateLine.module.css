@@ -7,7 +7,10 @@
   font-size: 14px;
 }
 
-.np {
-  font-family: var(--font-np);
-  color: var(--color-text);
+.fy {
+  font-variant-numeric: tabular-nums;
+}
+
+.toggle {
+  margin-left: 4px;
 }

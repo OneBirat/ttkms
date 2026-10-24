@@ -2,12 +2,20 @@
 // bundler: "@/..." resolves to web/, extensionless relative imports find .ts/.tsx files, .tsx is
 // transpiled with the TypeScript compiler (react-jsx), .json gets its import attribute and CSS
 // modules become a proxy that returns the class name.
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { dirname, resolve as resolvePath } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
 
 const WEB_ROOT = resolvePath(dirname(fileURLToPath(import.meta.url)), "..");
+
+function isFile(path) {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
 
 export async function resolve(specifier, context, nextResolve) {
   let target = specifier;
@@ -20,7 +28,7 @@ export async function resolve(specifier, context, nextResolve) {
   }
   const path = fileURLToPath(target);
   for (const candidate of [path, `${path}.ts`, `${path}.tsx`, `${path}/index.ts`]) {
-    if (existsSync(candidate) && !candidate.endsWith("/")) {
+    if (isFile(candidate)) {
       const url = pathToFileURL(candidate).href;
       if (candidate.endsWith(".json")) {
         return { url, shortCircuit: true, importAttributes: { type: "json" }, format: "json" };
