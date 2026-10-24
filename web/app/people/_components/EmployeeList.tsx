@@ -13,6 +13,8 @@ export interface EmployeeListProps {
   employees: Employee[];
   departments: Department[];
   selectedId: number | null;
+  /** The open employee's department: listed first with a dark header. */
+  ownDepartmentId?: number | null;
   query: string;
   onQuery: (value: string) => void;
   department: number | "all";
@@ -22,9 +24,9 @@ export interface EmployeeListProps {
 }
 
 const SORTS: { value: EmployeeSort; label: string }[] = [
-  { value: "name", label: "Name A–Z" },
-  { value: "code", label: "Employee ID" },
-  { value: "designation", label: "Designation" },
+  { value: "name", label: "Sort: Name A–Z" },
+  { value: "code", label: "Sort: Employee ID" },
+  { value: "designation", label: "Sort: Designation" },
 ];
 
 /** Search + department dropdown + sort, employees grouped by department. */
@@ -32,6 +34,7 @@ export function EmployeeList({
   employees,
   departments,
   selectedId,
+  ownDepartmentId = null,
   query,
   onQuery,
   department,
@@ -50,7 +53,12 @@ export function EmployeeList({
       ),
     [employees, department, query],
   );
-  const groups = useMemo(() => groupByDepartment(filtered, departments, sort), [filtered, departments, sort]);
+  const groups = useMemo(() => {
+    const all = groupByDepartment(filtered, departments, sort);
+    if (ownDepartmentId === null) return all;
+    const own = all.filter((g) => g.department?.id === ownDepartmentId);
+    return [...own, ...all.filter((g) => g.department?.id !== ownDepartmentId)];
+  }, [filtered, departments, sort, ownDepartmentId]);
   const deptName = department === "all" ? "All departments" : departments.find((d) => d.id === department)?.name ?? "Department";
 
   return (
@@ -63,7 +71,7 @@ export function EmployeeList({
         <input
           id={searchId}
           type="search"
-          placeholder="Search name, ID or barcode"
+          placeholder="Search name or ID"
           value={query}
           onChange={(event) => onQuery(event.target.value)}
           autoComplete="off"
@@ -79,7 +87,7 @@ export function EmployeeList({
             value={department === "all" ? "all" : String(department)}
             onChange={(event) => onDepartment(event.target.value === "all" ? "all" : Number(event.target.value))}
           >
-            <option value="all">All ({employees.length})</option>
+            <option value="all">All departments ({employees.length})</option>
             {counts.map(({ department: d, count }) => (
               <option key={d.id} value={d.id}>
                 {d.name} ({count})
@@ -105,10 +113,18 @@ export function EmployeeList({
         {groups.length === 0 ? <p className={styles.listFooter}>No employee matches.</p> : null}
         {groups.map((group) => (
           <div key={group.department?.id ?? "none"} role="presentation">
-            <span className={styles.group}>
-              <span>{group.department?.name ?? "No department"}</span>
-              <span className={styles.groupCount}>{group.employees.length}</span>
-            </span>
+            {group.department && group.department.id === ownDepartmentId ? (
+              <span className={styles.groupOwn}>
+                <span>
+                  {group.department.name} · {group.employees.length} · this employee
+                </span>
+              </span>
+            ) : (
+              <span className={styles.group}>
+                <span>{group.department?.name ?? "No department"}</span>
+                <span className={styles.groupCount}>{group.employees.length}</span>
+              </span>
+            )}
             {group.employees.map((employee) => {
               const selected = employee.id === selectedId;
               return (

@@ -37,6 +37,8 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
   const [open, setOpen] = useState<string | null>(null);
   const key = (l: MonthLedger) => `${l.month.bs_year}-${l.month.bs_month}`;
   const blocked = () => window.alert("The browser blocked the print window. Allow pop-ups for this site and try again.");
+  // The header's "Payslip PDF" prints the latest completed month.
+  const latest = ledger.find((l) => !l.in_progress) ?? ledger[0] ?? null;
 
   return (
     <section aria-labelledby="ledger-h" className={`card ${styles.ledger}`}>
@@ -44,17 +46,30 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
         <h3 id="ledger-h" className={shared.cardTitle}>
           Salary ledger
         </h3>
-        <button
-          type="button"
-          className="btn btn--sm"
-          onClick={() => downloadText(`${employee.code}-salary-ledger.csv`, ledgerCsv(employee, ledger))}
-          disabled={ledger.length === 0}
-        >
-          Excel
-        </button>
+        <div className={shared.row} style={{ gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn--sm"
+            disabled={!latest}
+            title={latest ? `Payslip for ${monthLabel(latest.month)}` : undefined}
+            onClick={() => {
+              if (latest && !printPayslip(employee, latest)) blocked();
+            }}
+          >
+            Payslip PDF
+          </button>
+          <button
+            type="button"
+            className="btn btn--sm"
+            onClick={() => downloadText(`${employee.code}-salary-ledger.csv`, ledgerCsv(employee, ledger))}
+            disabled={ledger.length === 0}
+          >
+            Excel
+          </button>
+        </div>
       </div>
       <div className={shared.tableWrap}>
-        <table className={shared.table}>
+        <table className={`${shared.table} ${shared.tableCentred}`}>
           <caption className={shared.srOnly}>Salary ledger for {employee.full_name}; select a month for details</caption>
           <thead>
             <tr>
@@ -75,7 +90,7 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
                 TDS
               </th>
               <th scope="col" className={shared.num}>
-                Net
+                Net pay
               </th>
               <th scope="col">Status</th>
               <th scope="col" className={styles.expandCell}>
