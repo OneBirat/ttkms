@@ -31,11 +31,11 @@ export interface AddEmployeeDialogProps {
   onCreated: (employee: Employee) => void;
 }
 
+/** Access presets (design AddEmployee.dc.html). Stock is discontinued, so no "Store keeper". */
 const ACCESS: { role: Role; label: string }[] = [
-  { role: "staff", label: "Staff · own attendance and payslips" },
-  { role: "store_keeper", label: "Store keeper · stock entry" },
-  { role: "manager", label: "Manager · attendance, people and reports" },
-  { role: "admin", label: "Admin · everything" },
+  { role: "staff", label: "Staff · mark attendance only" },
+  { role: "manager", label: "Manager · runs one branch" },
+  { role: "admin", label: "Admin · everything, all branches" },
 ];
 
 const NEW = "__new__";
@@ -570,7 +570,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
                     invalid={Boolean(errors.username)}
                   />
                 </Field>
-                <Field id={id("role")} label="Role">
+                <Field id={id("role")} label="Access">
                   <SelectInput id={id("role")} value={role} onChange={(e) => setRole(e.target.value as Role)}>
                     {ACCESS.map((a) => (
                       <option key={a.role} value={a.role}>
