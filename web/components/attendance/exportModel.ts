@@ -4,11 +4,9 @@
  * never just the current page.
  */
 
-import { toDevanagariDigits } from "@/lib/bsdate";
+import { bsTextNpFull, formatAdRange, WEEKDAY_NAMES_NP, toDevanagariDigits } from "./bsdate";
 import {
-  WEEKDAY_NAMES_NP,
   attendanceRate,
-  formatAdRange,
   groupByDepartment,
   matchesQuery,
   openDays,
@@ -32,10 +30,11 @@ export interface ExportSummary {
   staff: number;
   avg_present: number;
   rate: number | null;
+  /** Total days present (P or O) over the working days. */
   present_days: number;
-  late: number;
+  overtime_days: number;
+  overtime_hours: number;
   absent: number;
-  leave: number;
   working_days: number;
 }
 
@@ -72,7 +71,7 @@ function printedAd(now: Date): string {
 }
 
 function printedNp(today: TodayRef | null, now: Date): string {
-  if (today) return today.np_text;
+  if (today) return bsTextNpFull(today.bs_date, today.weekday);
   return `${WEEKDAY_NAMES_NP[now.getDay()]}, ${toDevanagariDigits(now.getDate())}`;
 }
 
@@ -111,9 +110,9 @@ export function buildExportModel(
       avg_present: presence.avg_present,
       rate: presence.rate,
       present_days: presence.present_days,
-      late: totals.late,
+      overtime_days: totals.overtime_days,
+      overtime_hours: totals.overtime_hours,
       absent: totals.absent,
-      leave: totals.leave,
       working_days: report.month.working_days,
     },
     groups: groupByDepartment(rows),

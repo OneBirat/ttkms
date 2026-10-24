@@ -1,10 +1,12 @@
 /**
  * Minimal .xlsx writer (no dependencies): sheets of inline-string / number
  * cells, a frozen header row per sheet, stored (uncompressed) zip. Enough for
- * the mock export; the backend will use openpyxl (app/core/export.py).
+ * the mock export; the backend will use openpyxl (app/core/export.py) with the
+ * same sheets and columns.
  */
 
-import { formatRate, statusCode, weekdayInitial } from "./helpers";
+import { weekdayInitial } from "./bsdate";
+import { cellCode, formatRate } from "./helpers";
 import type { ExportModel } from "./exportModel";
 
 export type SheetCell = string | number | null;
@@ -22,6 +24,8 @@ export interface Workbook {
   sheets: Sheet[];
 }
 
+export const PAID_RULE = "Paid days = present + overtime days + weekly off. Absent is unpaid.";
+
 // ------------------------------------------------------------ workbook model
 
 export function buildReportWorkbook(model: ExportModel): Workbook {
@@ -31,14 +35,12 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
   const titleRow = [`${model.company} · Attendance report · ${m.label} (${model.ad_range})`];
   const summaryLine =
     `${model.filter_label} · ${s.staff} staff · avg ${s.avg_present.toFixed(1)} present per ` +
-    `working day (${formatRate(s.rate)}) · ${s.late} late arrivals · ${s.absent} absences · ` +
-    `${s.leave} leave days`;
-  const totalsHead = ["P", "L", "H", "V", "A", "Paid"];
+    `working day (${formatRate(s.rate)}) · ${s.present_days} present days · ` +
+    `${s.overtime_hours} overtime hours · ${s.absent} absent days`;
+  const totalsHead = ["P", "O h", "A", "Paid"];
   const totalsOf = (r: ExportModel["rows"][number]) => [
-    r.totals.present,
-    r.totals.late,
-    r.totals.half_day,
-    r.totals.leave,
+    r.totals.present + r.totals.overtime_days,
+    r.totals.overtime_hours,
     r.totals.absent,
     r.totals.paid_days,
   ];
@@ -64,12 +66,13 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
       ["Total staff", s.staff],
       ["Present per working day (avg)", Number(s.avg_present.toFixed(1))],
       ["Attendance rate", formatRate(s.rate)],
-      ["Total present days", s.present_days],
-      ["Late arrivals", s.late],
+      ["Present days", s.present_days],
+      ["Overtime days", s.overtime_days],
+      ["Overtime hours", s.overtime_hours],
       ["Absent days", s.absent],
-      ["Leave days", s.leave],
       [],
-      ["Paid days = present + late + leave + weekly off + ½ per half day. Absent is unpaid."],
+      [PAID_RULE],
+      ["Overtime is paid hourly at the rate set per employee."],
       [`Generated ${model.printed_at_ad} by ${model.printed_by}`],
     ],
   };
@@ -77,7 +80,7 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
   const grid: Sheet = {
     name: "Daily grid",
     freezeRows: 4,
-    colWidths: [8, 22, 14, ...m.days.map(() => 4.5), 4, 4, 4, 4, 4, 6],
+    colWidths: [8, 22, 14, ...m.days.map(() => 4.5), 4, 5, 4, 6],
     rows: [
       titleRow,
       [summaryLine],
@@ -87,29 +90,28 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
         r.employee.code,
         r.employee.name,
         r.employee.department_name,
-        ...r.cells.map((c) => statusCode(c.status)),
+        ...r.cells.map((c) => cellCode(c)),
         ...totalsOf(r),
       ]),
       presentRow(["Staff present", "", ""]),
     ],
   };
 
-  const times: Sheet = {
-    name: "In–out times",
+  const hours: Sheet = {
+    name: "Overtime hours",
     freezeRows: 4,
-    colWidths: [8, 22, 14, ...m.days.map(() => 12)],
+    colWidths: [8, 22, 14, ...m.days.map(() => 4.5), 7],
     rows: [
       titleRow,
-      ["In–out times per day (HH:MM–HH:MM); blank when nothing was recorded"],
+      ["Overtime hours per day (blank = no overtime); whole hours, paid at the employee's hourly rate"],
       [],
-      ["Emp ID", "Name", "Department", ...dayHeads],
+      ["Emp ID", "Name", "Department", ...dayHeads, "Total h"],
       ...model.rows.map((r) => [
         r.employee.code,
         r.employee.name,
         r.employee.department_name,
-        ...r.cells.map((c) =>
-          c.in_time || c.out_time ? `${c.in_time ?? ""}–${c.out_time ?? ""}` : statusCode(c.status),
-        ),
+        ...r.cells.map((c) => (c.status === "O" ? c.ot_hours : c.status === "W" ? "–" : "")),
+        r.totals.overtime_hours,
       ]),
     ],
   };
@@ -117,49 +119,37 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
   const byDept: Sheet = {
     name: "By department",
     freezeRows: 4,
-    colWidths: [18, 8, 8, 8, 8, 8, 8, 10, 12],
+    colWidths: [18, 8, 8, 10, 8, 10, 12],
     rows: [
       titleRow,
       [summaryLine],
       [],
-      ["Department", "Staff", "P", "L", "H", "V", "A", "Paid days", "Attendance"],
+      ["Department", "Staff", "P", "O h", "A", "Paid days", "Attendance"],
       ...model.groups.map((g) => {
         const t = g.rows.reduce(
           (acc, r) => ({
-            present: acc.present + r.totals.present,
-            late: acc.late + r.totals.late,
-            half_day: acc.half_day + r.totals.half_day,
-            leave: acc.leave + r.totals.leave,
+            present: acc.present + r.totals.present + r.totals.overtime_days,
+            hours: acc.hours + r.totals.overtime_hours,
             absent: acc.absent + r.totals.absent,
             paid: acc.paid + r.totals.paid_days,
           }),
-          { present: 0, late: 0, half_day: 0, leave: 0, absent: 0, paid: 0 },
+          { present: 0, hours: 0, absent: 0, paid: 0 },
         );
-        return [
-          g.department_name,
-          g.rows.length,
-          t.present,
-          t.late,
-          t.half_day,
-          t.leave,
-          t.absent,
-          t.paid,
-          formatRate(g.rate),
-        ];
+        return [g.department_name, g.rows.length, t.present, t.hours, t.absent, t.paid, formatRate(g.rate)];
       }),
       [
         "All in filter",
         model.rows.length,
-        ...["present", "late", "half_day", "leave", "absent"].map((k) =>
-          model.rows.reduce((a, r) => a + r.totals[k as "present"], 0),
-        ),
+        model.rows.reduce((a, r) => a + r.totals.present + r.totals.overtime_days, 0),
+        model.rows.reduce((a, r) => a + r.totals.overtime_hours, 0),
+        model.rows.reduce((a, r) => a + r.totals.absent, 0),
         model.rows.reduce((a, r) => a + r.totals.paid_days, 0),
         formatRate(model.rate_all),
       ],
     ],
   };
 
-  return { sheets: [summary, grid, times, byDept] };
+  return { sheets: [summary, grid, hours, byDept] };
 }
 
 // ------------------------------------------------------------ xml

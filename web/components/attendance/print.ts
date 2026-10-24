@@ -1,28 +1,30 @@
 /**
  * Print-ready HTML for the attendance report (A4 landscape), matching
- * docs/design/ExportPdf.dc.html. The page opens it in a new window and calls
- * print(). TODO backend: same layout as a WeasyPrint template
- * (app/core/templates/print/attendance_report.html) served at
- * GET /api/attendance/report.pdf.
+ * design/attendance/ExportPdf.dc.html with the P / O / A codes. The page opens
+ * it in a new window and calls print(). TODO backend: same layout as a
+ * WeasyPrint template (app/modules/attendance/templates/report.html) served at
+ * GET /api/attendance/report/export.pdf.
  */
 
-import { formatRate, isLowPresence, statusCode, weekdayInitial } from "./helpers";
+import { weekdayInitial } from "./bsdate";
+import { cellCode, formatRate, isLowPresence } from "./helpers";
 import type { ExportModel } from "./exportModel";
-import type { DayStatus, ReportRow } from "./types";
+import type { CellStatus, ReportRow } from "./types";
 import type { DepartmentGroup } from "./helpers";
 
 const esc = (s: string | number) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-const FILL: Record<DayStatus, string> = {
-  present: "",
-  late: "background:#D7ECE9",
-  half_day: "background:#FBEBD0",
-  leave: "background:#E1E7F3",
-  absent: "background:#F6D9CF;font-weight:700",
-  weekly_off: "background:#EEF0EC;color:#6B757B",
-  not_marked: "color:#9AA3A9",
+const FILL: Record<CellStatus, string> = {
+  P: "",
+  O: "background:#E1E7F3;color:#253F73;font-weight:700",
+  A: "background:#F6D9CF;color:#8E2F12;font-weight:700",
+  W: "background:#EEF0EC;color:#6B757B",
+  N: "color:#9AA3A9",
 };
+
+export const PDF_LEGEND =
+  "P present · O overtime (hours) · A absent · – weekly off (Saturday). Paid = P + O + weekly off.";
 
 type Line = { kind: "head"; group: DepartmentGroup } | { kind: "row"; row: ReportRow };
 
@@ -98,20 +100,19 @@ function boxesHtml(m: ExportModel): string {
   return `<div class="boxes">
   <div class="box"><span>Total staff</span><span>${s.staff}</span></div>
   <div class="box"><span>Present per day (avg)</span><span>${s.avg_present.toFixed(1)} <small>· ${formatRate(s.rate)}</small></span></div>
-  <div class="box"><span>Total present days</span><span>${s.present_days}</span></div>
-  <div class="box"><span>Late arrivals</span><span>${s.late}</span></div>
-  <div class="box"><span>Absent · leave days</span><span>${s.absent} <small>· ${s.leave}</small></span></div>
+  <div class="box"><span>Present days</span><span>${s.present_days}</span></div>
+  <div class="box"><span>Overtime hours</span><span>${s.overtime_hours} <small>· ${s.overtime_days} days</small></span></div>
+  <div class="box"><span>Absent days</span><span>${s.absent}</span></div>
 </div>`;
 }
 
 function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
   const days = m.month.days;
-  const span = days.length + 7;
+  const span = days.length + 5;
   const colgroup =
     `<colgroup><col style="width:132px">` +
     days.map(() => `<col style="width:25px">`).join("") +
-    `<col style="width:26px">`.repeat(5) +
-    `<col style="width:36px"></colgroup>`;
+    `<col style="width:26px"><col style="width:30px"><col style="width:26px"><col style="width:36px"></colgroup>`;
   const head =
     `<thead><tr><th class="nm">Employee</th>` +
     days
@@ -120,7 +121,7 @@ function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
           `<th${d.is_weekly_off ? ' class="sat"' : ""}>${d.bs_day}<br><span class="wd">${weekdayInitial(d.weekday)}</span></th>`,
       )
       .join("") +
-    `<th>P</th><th>L</th><th>H</th><th>V</th><th>A</th><th>Paid</th></tr></thead>`;
+    `<th>P</th><th>O h</th><th>A</th><th>Paid</th></tr></thead>`;
   const body = lines
     .map((line) => {
       if (line.kind === "head") {
@@ -131,9 +132,9 @@ function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
       const t = r.totals;
       return (
         `<tr><th scope="row" class="nm">${esc(r.employee.name)}</th>` +
-        r.cells.map((c) => `<td style="${FILL[c.status]}">${statusCode(c.status)}</td>`).join("") +
-        `<td class="tt">${t.present}</td><td class="tt">${t.late}</td><td class="tt">${t.half_day}</td>` +
-        `<td class="tt">${t.leave}</td><td class="tt">${t.absent}</td><td class="tt" style="font-weight:700">${t.paid_days}</td></tr>`
+        r.cells.map((c) => `<td style="${FILL[c.status]}">${cellCode(c)}</td>`).join("") +
+        `<td class="tt">${t.present + t.overtime_days}</td><td class="tt">${t.overtime_hours}</td>` +
+        `<td class="tt">${t.absent}</td><td class="tt" style="font-weight:700">${t.paid_days}</td></tr>`
       );
     })
     .join("");
@@ -148,7 +149,7 @@ function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
               : `<td class="tt${isLowPresence(n, m.summary.staff) ? " low" : ""}" style="font-weight:700">${n}</td>`,
         )
         .join("") +
-      `<td colspan="6" style="font-size:9px;color:#4A555C">avg ${m.summary.avg_present.toFixed(1)} / day</td></tr></tfoot>`
+      `<td colspan="4" style="font-size:9px;color:#4A555C">avg ${m.summary.avg_present.toFixed(1)} / day</td></tr></tfoot>`
     : "";
   return `<table>${colgroup}${head}<tbody>${body}</tbody>${foot}</table>`;
 }
@@ -161,15 +162,12 @@ export function buildPrintDocument(m: ExportModel): string {
   }
   const pages = paginateLines(lines);
   const total = pages.length;
-  const legend =
-    "P present · L late · H half day · V leave · A absent · – weekly off (Saturday). " +
-    "Paid = P + L + V + weekly off + ½ H.";
   const body = pages
     .map(
       (page, i) =>
         `<section class="page">${headerHtml(m)}${i === 0 ? boxesHtml(m) : ""}` +
         tableHtml(m, page, i === total - 1) +
-        `<footer><span>${legend}</span><span>Page ${i + 1} of ${total}</span></footer></section>`,
+        `<footer><span>${PDF_LEGEND}</span><span>Page ${i + 1} of ${total}</span></footer></section>`,
     )
     .join("");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(m.title)}</title><style>${css()}</style></head><body>${body}</body></html>`;

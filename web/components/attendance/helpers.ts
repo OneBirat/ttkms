@@ -1,113 +1,91 @@
 /**
- * Pure attendance helpers: status metadata, paid-days rule, totals, week
- * slicing, staff-present counts, sorting/grouping. No React, no fetch, so
- * they are unit-tested with node:test (see __tests__/).
+ * Pure attendance helpers: status metadata, the paid-days rule, totals, week
+ * slicing, staff-present counts, sorting/grouping, staff-card codes. No React,
+ * no fetch, so they are unit-tested with node:test (see __tests__/).
  */
 
+import { monthName as bsMonthName, weekdayInitial } from "./bsdate";
 import type {
-  AttendanceStatus,
   AttendanceTotals,
+  CellStatus,
   DayCell,
   DayHeader,
-  DayStatus,
   EmployeeRef,
+  MarkStatus,
   ReportRow,
   ReportSort,
   WeekGrid,
 } from "./types";
+import { OT_MAX, OT_MIN } from "./types";
 
-// ------------------------------------------------------------ weekdays
-
-/** Single Nepali initials, Sunday … Saturday (आ सो मं बु बि शु श). */
-export const WEEKDAY_INITIALS_NP = ["आ", "सो", "मं", "बु", "बि", "शु", "श"] as const;
-
-export const WEEKDAY_NAMES_NP = [
-  "आइतबार",
-  "सोमबार",
-  "मंगलबार",
-  "बुधबार",
-  "बिहीबार",
-  "शुक्रबार",
-  "शनिबार",
-] as const;
-
-export const WEEKDAY_NAMES_EN = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-] as const;
-
-/** weekdayInitial(6) -> "श"; out-of-range values wrap like JS Date#getDay. */
-export function weekdayInitial(weekday: number): string {
-  return WEEKDAY_INITIALS_NP[((weekday % 7) + 7) % 7];
-}
-
-/** "आ आइत · सो सोम · …" for the legend. */
-export function weekdayKeyText(): string {
-  return WEEKDAY_INITIALS_NP.map(
-    (initial, i) => `${initial} ${WEEKDAY_NAMES_NP[i].replace(/बार$/, "")}`,
-  ).join(" · ");
-}
+export { weekdayInitial };
 
 // ------------------------------------------------------------ statuses
 
 export interface StatusMeta {
-  /** Full label, "Half day". */
+  /** "Present", "Overtime", "Absent", "Weekly off", "Not marked" */
   label: string;
-  /** Short label for narrow buttons, "Half". */
-  short: string;
-  /** Grid letter. */
+  /** Nepali label for the mobile buttons / sheets. */
+  label_np: string;
+  /** Grid letter: P, O, A, – or "" (not marked). */
   code: string;
+  /** Key shown before the mobile button label. */
+  key: string;
 }
 
-export const STATUS_META: Record<DayStatus, StatusMeta> = {
-  present: { label: "Present", short: "Present", code: "P" },
-  late: { label: "Late", short: "Late", code: "L" },
-  half_day: { label: "Half day", short: "Half", code: "H" },
-  leave: { label: "Leave", short: "Leave", code: "V" },
-  absent: { label: "Absent", short: "Absent", code: "A" },
-  weekly_off: { label: "Weekly off", short: "Off", code: "–" },
-  not_marked: { label: "Not marked", short: "Not marked", code: "" },
+export const STATUS_META: Record<CellStatus, StatusMeta> = {
+  P: { label: "Present", label_np: "हाजिर", code: "P", key: "✓" },
+  O: { label: "Overtime", label_np: "ओभरटाइम", code: "O", key: "+" },
+  A: { label: "Absent", label_np: "अनुपस्थित", code: "A", key: "✕" },
+  W: { label: "Weekly off", label_np: "साप्ताहिक बिदा", code: "–", key: "" },
+  N: { label: "Not marked", label_np: "हाजिरी छैन", code: "", key: "" },
 };
 
-export function statusCode(status: DayStatus): string {
-  return STATUS_META[status].code;
-}
-
-export function statusLabel(status: DayStatus): string {
+export function statusLabel(status: CellStatus): string {
   return STATUS_META[status].label;
 }
 
-/** Statuses that count as "in" for the staff-present row. */
-export function isPresentish(status: DayStatus): boolean {
-  return status === "present" || status === "late" || status === "half_day";
+/** Report cell text: "P", "O2", "A", "–", "". */
+export function cellCode(cell: DayCell): string {
+  if (cell.status === "O") return `O${cell.ot_hours || ""}`;
+  return STATUS_META[cell.status].code;
+}
+
+/** Long text for a cell: "Overtime 2 h", "Present", "Weekly off"… */
+export function cellText(cell: DayCell): string {
+  if (cell.status === "O") return `Overtime ${cell.ot_hours} h`;
+  return STATUS_META[cell.status].label;
+}
+
+/** Statuses that count as "in" (present or present + overtime). */
+export function isPresentish(status: CellStatus): boolean {
+  return status === "P" || status === "O";
+}
+
+/** Whole hours, clamped to 1–12. */
+export function clampHours(value: number): number {
+  const n = Math.round(Number.isFinite(value) ? value : OT_MIN);
+  return Math.min(OT_MAX, Math.max(OT_MIN, n));
 }
 
 // ------------------------------------------------------------ totals
 
 export interface PaidDaysInput {
   present: number;
-  late: number;
-  leave: number;
+  overtime_days: number;
   weekly_off: number;
-  half_day: number;
 }
 
-/** Paid days = present + late + leave + weekly off + ½ per half day. Absent is unpaid. */
+/** Paid days = present + overtime days + weekly off. Absent is unpaid. */
 export function paidDays(t: PaidDaysInput): number {
-  return t.present + t.late + t.leave + t.weekly_off + t.half_day / 2;
+  return t.present + t.overtime_days + t.weekly_off;
 }
 
 export function emptyTotals(): AttendanceTotals {
   return {
     present: 0,
-    late: 0,
-    half_day: 0,
-    leave: 0,
+    overtime_days: 0,
+    overtime_hours: 0,
     absent: 0,
     weekly_off: 0,
     not_marked: 0,
@@ -119,9 +97,27 @@ export function emptyTotals(): AttendanceTotals {
 
 export function computeTotals(cells: readonly DayCell[]): AttendanceTotals {
   const t = emptyTotals();
-  for (const cell of cells) t[cell.status] += 1;
-  t.marked_days = t.present + t.late + t.half_day + t.leave + t.absent;
-  t.attended = t.present + t.late + t.half_day / 2;
+  for (const cell of cells) {
+    switch (cell.status) {
+      case "P":
+        t.present += 1;
+        break;
+      case "O":
+        t.overtime_days += 1;
+        t.overtime_hours += cell.ot_hours;
+        break;
+      case "A":
+        t.absent += 1;
+        break;
+      case "W":
+        t.weekly_off += 1;
+        break;
+      default:
+        t.not_marked += 1;
+    }
+  }
+  t.marked_days = t.present + t.overtime_days + t.absent;
+  t.attended = t.present + t.overtime_days;
   t.paid_days = paidDays(t);
   return t;
 }
@@ -137,8 +133,8 @@ export function sumTotals(rows: readonly ReportRow[]): AttendanceTotals {
 }
 
 /**
- * Attendance rate of a set of rows: attended days over marked working days
- * (present + late + half + leave + absent). Null when nothing is marked yet.
+ * Attendance rate of a set of rows: days attended over marked working days
+ * (present + overtime + absent). Null when nothing is marked yet.
  */
 export function attendanceRate(rows: readonly ReportRow[]): number | null {
   let attended = 0;
@@ -156,9 +152,7 @@ export function formatRate(rate: number | null): string {
 
 // ------------------------------------------------------------ days
 
-/**
- * Staff present (present, late or half day) per day; null on weekly-off days.
- */
+/** Staff present (P or O) per day; null on weekly-off days. */
 export function staffPresentPerDay(
   rows: readonly ReportRow[],
   days: readonly DayHeader[],
@@ -167,7 +161,7 @@ export function staffPresentPerDay(
     if (day.is_weekly_off) return null;
     let count = 0;
     for (const row of rows) {
-      if (isPresentish(row.cells[i]?.status ?? "not_marked")) count += 1;
+      if (isPresentish(row.cells[i]?.status ?? "N")) count += 1;
     }
     return count;
   });
@@ -182,14 +176,14 @@ export function openDays(rows: readonly ReportRow[], days: readonly DayHeader[])
     (day, i) =>
       !day.is_weekly_off &&
       rows.length > 0 &&
-      rows.every((row) => (row.cells[i]?.status ?? "not_marked") === "not_marked"),
+      rows.every((row) => (row.cells[i]?.status ?? "N") === "N"),
   );
 }
 
 export interface PresenceSummary {
-  /** Working days in the range (not weekly off). */
+  /** Working days in the range (not weekly off, at least one mark). */
   working_days: number;
-  /** Sum of staff-present counts over working days. */
+  /** Sum of staff-present counts over those days. */
   present_days: number;
   /** present_days / working_days. */
   avg_present: number;
@@ -237,12 +231,7 @@ export function sliceWeeks(days: readonly DayHeader[], monthName: string): WeekG
   const flush = () => {
     if (!current.length) return;
     const index = weeks.length + 1;
-    weeks.push({
-      index,
-      label: weekLabel(monthName, current, index),
-      days: current,
-      offset,
-    });
+    weeks.push({ index, label: weekLabel(monthName, current, index), days: current, offset });
     offset += current.length;
     current = [];
   };
@@ -254,7 +243,7 @@ export function sliceWeeks(days: readonly DayHeader[], monthName: string): WeekG
   return weeks;
 }
 
-/** "Ashoj 1–3 (week 1)" */
+/** "Kartik 1–7 (week 1)" */
 export function weekLabel(monthName: string, days: readonly DayHeader[], index: number): string {
   const first = days[0]?.bs_day ?? 0;
   const last = days[days.length - 1]?.bs_day ?? first;
@@ -276,51 +265,15 @@ export function sliceRows(rows: readonly ReportRow[], week: WeekGrid): ReportRow
   });
 }
 
-// ------------------------------------------------------------ dates
-
-const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** "2026-09-17" -> "17 Sep" (or "17 Sep 2026" with `withYear`). */
-export function formatAdShort(iso: string, withYear = false): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return iso;
-  return `${d} ${MONTHS_SHORT[m - 1]}${withYear ? ` ${y}` : ""}`;
-}
-
-/** "17 Sep – 16 Oct 2026" (year shown once when it does not change). */
-export function formatAdRange(start: string, end: string): string {
-  const sameYear = start.slice(0, 4) === end.slice(0, 4);
-  return `${formatAdShort(start, !sameYear)} – ${formatAdShort(end, true)}`;
-}
-
-/** "Ashoj 4" from a day header and the month name. */
+/** "Kartik 4" from a day header and the month name. */
 export function bsDayLabel(monthName: string, day: DayHeader): string {
   return `${monthName} ${day.bs_day}`;
 }
 
-/** Loose "HH:MM" check (24h). */
-export function isValidTime(value: string): boolean {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
-/** Minutes since midnight for "HH:MM"; null when invalid. */
-export function timeToMinutes(value: string | null): number | null {
-  if (!value || !isValidTime(value)) return null;
-  const [h, m] = value.split(":").map(Number);
-  return h * 60 + m;
-}
-
-export function minutesToTime(minutes: number): string {
-  const h = Math.floor(minutes / 60) % 24;
-  const m = minutes % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-/** True when an in time is after the late threshold (both "HH:MM"). */
-export function isLateArrival(inTime: string | null, lateAfter: string): boolean {
-  const a = timeToMinutes(inTime);
-  const b = timeToMinutes(lateAfter);
-  return a !== null && b !== null && a > b;
+/** Month name of a "YYYY-MM-DD" BS date. */
+export function monthNameOf(bs: string): string {
+  const month = Number(bs.slice(5, 7));
+  return month >= 1 && month <= 12 ? bsMonthName(month) : "";
 }
 
 // ------------------------------------------------------------ lists
@@ -338,7 +291,7 @@ const SORTERS: Record<ReportSort, (a: ReportRow, b: ReportRow) => number> = {
   dept: byName,
   name: byName,
   absent: (a, b) => b.totals.absent - a.totals.absent || byName(a, b),
-  late: (a, b) => b.totals.late - a.totals.late || byName(a, b),
+  overtime: (a, b) => b.totals.overtime_hours - a.totals.overtime_hours || byName(a, b),
 };
 
 /**
@@ -413,9 +366,103 @@ export function paginate<T>(items: readonly T[], page: number, perPage: number):
   };
 }
 
-/** Counts of each status for a set of mark rows (not_marked for missing records). */
-export type StatusCounts = Record<AttendanceStatus | "not_marked", number>;
+// ------------------------------------------------------------ marking
 
-export function emptyCounts(): StatusCounts {
-  return { present: 0, late: 0, half_day: 0, leave: 0, absent: 0, not_marked: 0 };
+/** One employee's unsaved mark on the Mark screen. */
+export interface Draft {
+  status: MarkStatus | null;
+  /** 1–12 when status is "O", else 0. */
+  ot_hours: number;
+  note: string;
+}
+
+export const EMPTY_DRAFT: Draft = { status: null, ot_hours: 0, note: "" };
+
+export function sameDraft(a: Draft, b: Draft): boolean {
+  return a.status === b.status && a.ot_hours === b.ot_hours && a.note === b.note;
+}
+
+/** Counts shown in the summary chips / mobile tiles for a scope of drafts. */
+export interface MarkCounts {
+  total: number;
+  /** P only. */
+  present: number;
+  /** O only. */
+  overtime: number;
+  absent: number;
+  not_marked: number;
+  /** Sum of overtime hours. */
+  overtime_hours: number;
+}
+
+export function countMarks(drafts: readonly Draft[]): MarkCounts {
+  const c: MarkCounts = { total: drafts.length, present: 0, overtime: 0, absent: 0, not_marked: 0, overtime_hours: 0 };
+  for (const d of drafts) {
+    if (d.status === "P") c.present += 1;
+    else if (d.status === "O") {
+      c.overtime += 1;
+      c.overtime_hours += d.ot_hours;
+    } else if (d.status === "A") c.absent += 1;
+    else c.not_marked += 1;
+  }
+  return c;
+}
+
+/** Short text of a draft: "Present", "Overtime · 2 h", "Absent", "Not marked". */
+export function draftText(d: Draft): string {
+  if (d.status === "O") return `Overtime · ${d.ot_hours} h`;
+  return d.status ? STATUS_META[d.status].label : STATUS_META.N.label;
+}
+
+// ------------------------------------------------------------ staff cards
+
+/**
+ * Normalises whatever a scanner or a person typed to an employee code:
+ * "TTK-E004", "ttk-e004", "E-004", "E004", "e4", "4" -> "E-004".
+ * Returns null for anything that is not a code shape ("TTK-X917").
+ */
+export function normalizeCode(raw: string): string | null {
+  let c = raw.trim().toUpperCase().replace(/\s+/g, "");
+  if (!c) return null;
+  c = c.replace(/^TTK-?/, "").replace(/^E-?/, "");
+  if (!/^\d{1,6}$/.test(c)) return null;
+  return `E-${c.padStart(3, "0")}`;
+}
+
+export function findByCode<T extends { code: string }>(employees: readonly T[], raw: string): T | null {
+  const code = normalizeCode(raw);
+  if (!code) return null;
+  return employees.find((e) => e.code === code) ?? null;
+}
+
+/** "Kamala Bhandari" -> "KB"; "Sunita B.K." -> "SB". */
+export function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+// ------------------------------------------------------------ money
+
+const rsFormat = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+
+/** 2000 -> "2,000" (Nepali/Indian grouping). */
+export function formatAmount(amount: number): string {
+  return rsFormat.format(amount);
+}
+
+/** 2000 -> "Rs 2,000" */
+export function formatRs(amount: number): string {
+  return `Rs ${formatAmount(amount)}`;
+}
+
+/** Validates a payment amount against the balance due. Null = fine. */
+export function paymentError(amount: number, due: number, monthLabel: string): string | null {
+  if (!Number.isFinite(amount) || amount <= 0) return "Enter an amount above 0.";
+  if (amount > due) return `More than the balance due for ${monthLabel} (${formatRs(due)}).`;
+  return null;
 }
