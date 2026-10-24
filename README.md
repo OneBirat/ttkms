@@ -213,3 +213,22 @@ browser agree exactly. Until the table exists `/api/today` returns AD only and
 `/api/bsdate/convert` answers 503. AD `date` columns are stored in the database; BS is for display.
 
 TODO: BS 2082+ month lengths must be checked against the official government calendar.
+
+## Admin module (feat/admin)
+
+Screens: `/admin/users` (users, per-user access, temporary passwords), `/admin/barcodes`
+(Code 128 stickers), `/admin/payment-modes` (Cash + bank / wallet / QR / cheque). Branches &
+departments, Settings and the Audit log keep their routes on mock data but are not in the sidebar.
+
+- Roles are Admin / Manager / Staff; a role is only the starting preset. Six switches live in
+  `app/modules/admin/permissions.py` (`mark_attendance`, `view_attendance_report`,
+  `see_other_branches`, `manage_employees`, `salary_advances`, `manage_users`); overrides are
+  stored per user in `admin.user_access`. Guard endpoints with
+  `Depends(require_access("manage_users"))` instead of `require_role`.
+- Users sign in with their phone number or username (`POST /api/auth/login`, one field). A user
+  created or reset by an admin gets a temporary password and must change it
+  (`POST /api/auth/change-password`, `/set-password`) before any other call succeeds.
+- Payroll reads active payment modes from `GET /api/admin/payment-modes?active=1`; Cash is id 1
+  and always on. A mode is never deleted, only turned off.
+- Sticker PDFs need WeasyPrint with pango (`brew install pango`); the page prints from the
+  browser either way.
