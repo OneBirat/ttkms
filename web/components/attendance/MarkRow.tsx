@@ -1,25 +1,20 @@
 "use client";
 
 import { memo } from "react";
-import { ATTENDANCE_STATUSES, type AttendanceStatus, type EmployeeRef } from "./types";
-import { STATUS_META } from "./helpers";
+import type { Draft } from "./helpers";
+import type { EmployeeRef } from "./types";
 import styles from "./mark.module.css";
-
-export interface RowDraft {
-  status: AttendanceStatus | null;
-  in_time: string;
-  out_time: string;
-  note: string;
-}
 
 export interface MarkRowProps {
   employee: EmployeeRef;
-  value: RowDraft;
-  onChange: (employeeId: number, patch: Partial<RowDraft>) => void;
+  draft: Draft;
+  onStatus: (employeeId: number, status: "P" | "A") => void;
+  onOvertime: (employeeId: number) => void;
+  onNote: (employeeId: number, note: string) => void;
 }
 
-function MarkRowInner({ employee, value, onChange }: MarkRowProps) {
-  const open = value.status === null;
+function MarkRowInner({ employee, draft, onStatus, onOvertime, onNote }: MarkRowProps) {
+  const open = draft.status === null;
   return (
     <tr className={open ? styles.rowOpen : undefined}>
       <td>
@@ -32,49 +27,43 @@ function MarkRowInner({ employee, value, onChange }: MarkRowProps) {
       </td>
       <td>
         <div role="group" aria-label={`Status for ${employee.name}`} className={styles.statusGroup}>
-          {ATTENDANCE_STATUSES.map((status) => (
-            <button
-              key={status}
-              type="button"
-              className={styles.st}
-              data-status={status}
-              aria-pressed={value.status === status}
-              onClick={() => onChange(employee.id, { status })}
-            >
-              {STATUS_META[status].short}
-            </button>
-          ))}
+          <button
+            type="button"
+            className={styles.st}
+            data-status="P"
+            aria-pressed={draft.status === "P"}
+            onClick={() => onStatus(employee.id, "P")}
+          >
+            Present
+          </button>
+          <button
+            type="button"
+            className={styles.st}
+            data-status="O"
+            aria-pressed={draft.status === "O"}
+            aria-haspopup="dialog"
+            onClick={() => onOvertime(employee.id)}
+          >
+            {draft.status === "O" ? `Overtime · ${draft.ot_hours} h` : "Overtime"}
+          </button>
+          <button
+            type="button"
+            className={styles.st}
+            data-status="A"
+            aria-pressed={draft.status === "A"}
+            onClick={() => onStatus(employee.id, "A")}
+          >
+            Absent
+          </button>
         </div>
-      </td>
-      <td>
-        <input
-          className={styles.time}
-          aria-label={`In time, ${employee.name}`}
-          inputMode="numeric"
-          pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
-          maxLength={5}
-          value={value.in_time}
-          onChange={(e) => onChange(employee.id, { in_time: e.target.value })}
-        />
-      </td>
-      <td>
-        <input
-          className={styles.time}
-          aria-label={`Out time, ${employee.name}`}
-          inputMode="numeric"
-          pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
-          maxLength={5}
-          value={value.out_time}
-          onChange={(e) => onChange(employee.id, { out_time: e.target.value })}
-        />
       </td>
       <td>
         <input
           className={styles.note}
           aria-label={`Note, ${employee.name}`}
           maxLength={200}
-          value={value.note}
-          onChange={(e) => onChange(employee.id, { note: e.target.value })}
+          value={draft.note}
+          onChange={(e) => onNote(employee.id, e.target.value)}
         />
       </td>
     </tr>

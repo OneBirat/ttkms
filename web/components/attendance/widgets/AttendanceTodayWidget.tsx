@@ -14,48 +14,42 @@ export function readTodayData(data: Record<string, unknown>): AttendanceTodayWid
         .map<NotInEntry>((e) => ({
           employee_id: num(e.employee_id),
           name: String(e.name ?? ""),
-          status: e.status === "not_marked" ? "not_marked" : "absent",
+          status: e.status === "N" ? "N" : "A",
         }))
     : [];
   return {
     total: num(data.total),
-    on_time: num(data.on_time),
-    late: num(data.late),
-    half_day: num(data.half_day),
-    leave: num(data.leave),
+    present: num(data.present),
+    overtime: num(data.overtime),
     absent: num(data.absent),
     not_marked: num(data.not_marked),
+    overtime_hours: num(data.overtime_hours),
     not_in: notIn,
     mark_path: typeof data.mark_path === "string" ? data.mark_path : "/attendance/mark",
   };
 }
 
-type Segment = { kind: keyof Omit<AttendanceTodayWidgetData, "total" | "not_in" | "mark_path">; label: string };
+type SegmentKind = "present" | "overtime" | "absent" | "not_marked";
 
-const SEGMENTS: Segment[] = [
-  { kind: "on_time", label: "On time" },
-  { kind: "late", label: "Late" },
-  { kind: "half_day", label: "Half day" },
-  { kind: "leave", label: "Leave" },
+const SEGMENTS: { kind: SegmentKind; label: string }[] = [
+  { kind: "present", label: "Present" },
+  { kind: "overtime", label: "Overtime" },
   { kind: "absent", label: "Absent" },
   { kind: "not_marked", label: "Not marked" },
 ];
 
-/** "11 present, 2 of them late, 1 on leave, 2 absent out of 14" */
+/** "11 present, 3 of them with overtime (5 h), 2 absent, 1 not marked out of 14" */
 export function barLabel(d: AttendanceTodayWidgetData): string {
-  const present = d.on_time + d.late + d.half_day;
-  const parts = [`${present} present`];
-  if (d.late) parts.push(`${d.late} of them late`);
-  if (d.half_day) parts.push(`${d.half_day} half day`);
-  if (d.leave) parts.push(`${d.leave} on leave`);
+  const parts = [`${d.present + d.overtime} present`];
+  if (d.overtime) parts.push(`${d.overtime} of them with overtime (${d.overtime_hours} h)`);
   if (d.absent) parts.push(`${d.absent} absent`);
   if (d.not_marked) parts.push(`${d.not_marked} not marked`);
   return `${parts.join(", ")} out of ${d.total}`;
 }
 
+/** "Attendance today" card (design/attendance/Main.dc.html): bar, counts, "Not in yet". */
 export function AttendanceTodayWidget({ widget }: { widget: Widget }) {
   const d = readTodayData(widget.data);
-  const segments = SEGMENTS.filter((s) => d[s.kind] > 0 || (s.kind !== "half_day" && s.kind !== "not_marked"));
   return (
     <section className={`card ${styles.card}`} aria-labelledby="att-today-h">
       <div className={styles.head}>
@@ -67,17 +61,19 @@ export function AttendanceTodayWidget({ widget }: { widget: Widget }) {
         </Link>
       </div>
       <div role="img" aria-label={barLabel(d)} className={styles.bar}>
-        {segments
-          .filter((s) => d[s.kind] > 0)
-          .map((s) => (
-            <div key={s.kind} className={styles.seg} data-kind={s.kind} style={{ flex: d[s.kind] }} />
-          ))}
+        {SEGMENTS.filter((s) => d[s.kind] > 0).map((s) => (
+          <div key={s.kind} className={styles.seg} data-kind={s.kind} style={{ flex: d[s.kind] }} />
+        ))}
       </div>
       <ul className={styles.counts}>
-        {segments.map((s) => (
+        {SEGMENTS.map((s) => (
           <li key={s.kind} className={styles.count}>
             <span className={`${styles.swatch} ${styles.seg}`} data-kind={s.kind} aria-hidden="true" />
-            {s.label} <strong>{d[s.kind]}</strong>
+            {s.label}
+            {s.kind === "overtime" && d.overtime_hours ? (
+              <span className={styles.countHint}>· {d.overtime_hours} h</span>
+            ) : null}
+            <strong>{d[s.kind]}</strong>
           </li>
         ))}
       </ul>
@@ -88,9 +84,7 @@ export function AttendanceTodayWidget({ widget }: { widget: Widget }) {
             {d.not_in.map((e) => (
               <li key={e.employee_id} className={styles.notInRow}>
                 <span>{e.name}</span>
-                <span className={styles.notInStatus}>
-                  {e.status === "absent" ? "Absent" : "Not marked"}
-                </span>
+                <span className={styles.notInStatus}>{e.status === "A" ? "Absent" : "Not marked"}</span>
               </li>
             ))}
           </ul>

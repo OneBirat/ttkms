@@ -1,13 +1,14 @@
 """Attendance module.
 
-UI-only session: the Next.js screens under web/app/(app)/attendance run on mock data in
+UI-first pass: the Next.js screens under web/app/(app)/attendance run on mock data in
 web/components/attendance/api.ts. This file registers what the shell needs today - the sidebar
-entries and the two dashboard widgets (with sample data) - and keeps the index endpoint.
+entries and the "Attendance today" dashboard widget (with sample data) - and keeps the index
+endpoint. The endpoints, the table and the payroll contract to implement after UI sign-off are
+written down in API_NOTES.md next to this file.
 
-TODO (backend session): models in app/modules/attendance/models.py (schema "attendance",
-table records: employee_id, date, status, in_time, out_time, note, marked_by, updated_at,
-unique (employee_id, date)), the endpoints listed in web/components/attendance/api.ts, real
-widget data, and `register_attendance_summary(...)` replacing the fake in app/contracts.py.
+Rules (decided 24 Oct 2026): a day's status is only P (present), O (overtime: present + whole
+hours 1-12) or A (absent); no in/out times; weekly off is Saturday and shown as "-"; "not marked"
+means no record yet. Paid days = P + O + weekly off.
 """
 
 from __future__ import annotations
@@ -35,41 +36,27 @@ async def index() -> ModuleStatusOut:
 
 # --------------------------------------------------------------------------- widgets
 
-#: Sample figures matching docs/design/Main.dc.html until attendance.records exists.
+#: Sample figures for the dashboard card until attendance.records exists: 14 staff, 9 present,
+#: 2 with overtime (3 h in total), 2 absent, 1 not marked yet.
 SAMPLE_TODAY: dict[str, Any] = {
     "total": 14,
-    "on_time": 9,
-    "late": 2,
-    "half_day": 0,
-    "leave": 1,
+    "present": 9,
+    "overtime": 2,
+    "overtime_hours": 3,
     "absent": 2,
-    "not_marked": 0,
+    "not_marked": 1,
     "not_in": [
-        {"employee_id": 13, "name": "Sita Thapa", "status": "absent"},
-        {"employee_id": 2, "name": "Ramesh K.C.", "status": "absent"},
+        {"employee_id": 13, "name": "Sita Thapa", "status": "A"},
+        {"employee_id": 2, "name": "Ramesh K.C.", "status": "A"},
+        {"employee_id": 21, "name": "Kiran Lama", "status": "N"},
     ],
     "mark_path": "/attendance/mark",
 }
 
 
-async def staff_present_widget(ctx: WidgetContext) -> dict[str, Any]:
-    """Stat card: "Staff present today 11 / 14 · 2 late · 1 on leave"."""
-    today = SAMPLE_TODAY
-    return {
-        "kind": "attendance_stat",
-        "title": "Staff present today",
-        "data": {
-            "present": today["on_time"] + today["late"] + today["half_day"],
-            "total": today["total"],
-            "late": today["late"],
-            "leave": today["leave"],
-            "href": "/attendance/report",
-        },
-    }
-
-
 async def attendance_today_widget(ctx: WidgetContext) -> dict[str, Any]:
-    """Segmented bar, counts, "Not in yet" list and a Mark link."""
+    """The "Attendance today" card: segmented bar, Present / Overtime / Absent / Not marked
+    counts, the "Not in yet" list and a Mark link (web/components/attendance/widgets)."""
     return {"kind": "attendance_today", "title": "Attendance today", "data": dict(SAMPLE_TODAY)}
 
 
@@ -88,5 +75,5 @@ module = Module(
             roles=set(MARKING_ROLES),
         ),
     ],
-    dashboard_widgets=[staff_present_widget, attendance_today_widget],
+    dashboard_widgets=[attendance_today_widget],
 )

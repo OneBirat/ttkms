@@ -1,10 +1,11 @@
+/* Mark attendance, desktop (design/attendance/AttendanceMark.dc.html) + the overtime pop-up. */
+
 .filters {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 12px;
   padding: 14px 16px;
-  margin-bottom: 18px;
 }
 
 .filterCol {
@@ -16,6 +17,25 @@
 
 .filterSearch {
   flex: 2 1 220px;
+}
+
+.filterScan {
+  flex: 2 1 240px;
+}
+
+.scanField {
+  border: 2px solid var(--color-primary);
+  background: #f2f8f7;
+  color: var(--color-primary);
+}
+
+.scanField:focus-within {
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.scanHint {
+  font-size: 12px;
+  color: var(--color-muted);
 }
 
 .dateCol {
@@ -30,7 +50,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  margin-bottom: 18px;
 }
 
 .cnt {
@@ -50,6 +69,12 @@
   border-color: #ebcb9a;
   background: #fcefd9;
   color: #6e3504;
+}
+
+.cntOt {
+  border-color: #c3cde3;
+  background: #e3e8f4;
+  color: #253f73;
 }
 
 .scope {
@@ -77,7 +102,7 @@
 
 .table {
   width: 100%;
-  min-width: 940px;
+  min-width: 760px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -119,77 +144,53 @@
 }
 
 .statusGroup {
-  display: flex;
-  gap: 6px;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--color-bg);
 }
 
 .st {
-  min-height: var(--touch);
+  min-width: 92px;
+  min-height: 40px;
   padding: 0 10px;
-  border: 1px solid #d6dbd7;
+  border: 1px solid transparent;
   border-radius: var(--radius-input);
-  background: var(--color-card);
+  background: transparent;
   color: #3e4a52;
   font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .st:hover {
-  background: var(--color-bg);
+  background: var(--color-card);
 }
 
 .st[aria-pressed="true"] {
+  color: #fff;
   font-weight: 600;
 }
 
-.st[aria-pressed="true"][data-status="present"] {
-  background: #e3f0ee;
-  border-color: #0e6b6b;
-  color: #0a4f4f;
+.st[aria-pressed="true"][data-status="P"] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
-.st[aria-pressed="true"][data-status="late"] {
-  background: #d3eae7;
-  border-color: #4e9b95;
-  color: #073f3f;
-}
-
-.st[aria-pressed="true"][data-status="half_day"] {
-  background: #fcefd9;
-  border-color: #c98a3a;
-  color: #6e3504;
-}
-
-.st[aria-pressed="true"][data-status="leave"] {
-  background: #e3e8f4;
+.st[aria-pressed="true"][data-status="O"] {
+  background: #2f4e8c;
   border-color: #2f4e8c;
-  color: #253f73;
 }
 
-.st[aria-pressed="true"][data-status="absent"] {
-  background: #f3ece2;
-  border-color: #8c6b45;
-  color: #5a3f1e;
-}
-
-.time {
-  width: 84px;
-  min-height: var(--touch);
-  padding: 0 8px;
-  border: 1px solid var(--color-input-border);
-  border-radius: var(--radius-input);
-  background: var(--color-card);
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-.time:invalid {
-  border-color: var(--pill-danger-fg);
+.st[aria-pressed="true"][data-status="A"] {
+  background: #8e2f12;
+  border-color: #8e2f12;
 }
 
 .note {
-  width: 170px;
-  min-height: var(--touch);
+  width: 150px;
+  min-height: 40px;
   padding: 0 10px;
   border: 1px solid var(--color-input-border);
   border-radius: var(--radius-input);
@@ -228,5 +229,165 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 18px;
+}
+
+/* ---- overtime hours pop-up ---- */
+
+.otBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 24, 29, 0.55);
+}
+
+.otDialog {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 380px;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--color-card);
+  box-shadow: 0 24px 48px rgba(15, 24, 29, 0.3);
+  outline: none;
+}
+
+.otHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.otHead > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.otTitle {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.otSub {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.otClose {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.otDisplay {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #e3e8f4;
+  color: #253f73;
+}
+
+.otValue {
+  font-family: var(--font-mono);
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.otUnit {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.otChips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.otChip {
+  min-height: var(--touch);
+  border: 1px solid var(--color-input-border);
+  border-radius: 10px;
+  background: var(--color-card);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.otChip[aria-checked="true"] {
+  border: 2px solid #2f4e8c;
+  background: #2f4e8c;
+  color: #fff;
+  font-weight: 700;
+}
+
+.otFine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #3e4a52;
+}
+
+.otStep {
+  width: var(--touch);
+  height: var(--touch);
+  border: 1px solid var(--color-input-border);
+  border-radius: 10px;
+  background: var(--color-card);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.otStep:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.otFineHint {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.otActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.otCancel,
+.otSave {
+  min-height: 46px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.otCancel {
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+}
+
+.otSave {
+  border: none;
+  background: #2f4e8c;
+  color: #fff;
+  font-weight: 700;
 }

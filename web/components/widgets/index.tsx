@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import type { Widget } from "@/lib/api";
+import { ATTENDANCE_WIDGETS } from "@/components/attendance/widgets";
 import { ComingSoonWidget } from "./ComingSoonWidget";
 import styles from "./widgets.module.css";
 
@@ -8,6 +9,7 @@ export type WidgetComponent = (props: { widget: Widget }) => ReactElement;
 /** Dashboard widget renderers keyed by the API's `kind`. */
 const WIDGETS: Record<string, WidgetComponent> = {
   coming_soon: ComingSoonWidget,
+  ...ATTENDANCE_WIDGETS,
 };
 
 export function registerWidget(kind: string, component: WidgetComponent): void {

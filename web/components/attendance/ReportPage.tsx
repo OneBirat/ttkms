@@ -5,13 +5,14 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Segmented } from "@/components/ui/Segmented";
 import { useSession } from "@/lib/session";
 import { exportReport, getReport, getToday, listMonths } from "./api";
+import { formatAdRange, monthName as bsMonthName, weekdayKeyText } from "./bsdate";
 import { downloadFile, openPrintWindow, writePrintDocument } from "./download";
 import { filterReportRows } from "./exportModel";
+import { SearchIcon } from "./icons";
 import { Pager } from "./Pager";
 import { ReportGrid, type GridGroup } from "./ReportGrid";
 import {
   attendanceRate,
-  formatAdRange,
   formatRate,
   groupByDepartment,
   openDays,
@@ -23,17 +24,8 @@ import {
   staffPresentPerDay,
   sumTotals,
   weekIndexOfDay,
-  weekdayKeyText,
 } from "./helpers";
-import { BS_MONTHS_EN } from "@/lib/bsdate";
-import type {
-  DayStatus,
-  MonthOption,
-  MonthReport,
-  ReportFilters,
-  ReportSort,
-  TodayRef,
-} from "./types";
+import type { CellStatus, MonthOption, MonthReport, ReportFilters, ReportSort, TodayRef } from "./types";
 import shared from "./shared.module.css";
 import styles from "./report.module.css";
 
@@ -42,23 +34,12 @@ const COMPANY = "TTK"; // TODO backend: company name from core.settings
 
 type View = "month" | "week";
 
-const LEGEND: { status: DayStatus; label: string }[] = [
-  { status: "present", label: "Present" },
-  { status: "late", label: "Late" },
-  { status: "half_day", label: "Half day" },
-  { status: "leave", label: "Leave" },
-  { status: "absent", label: "Absent" },
-  { status: "weekly_off", label: "Weekly off (Sat)" },
+const LEGEND: { status: CellStatus; code: string; label: string }[] = [
+  { status: "P", code: "P", label: "Present" },
+  { status: "O", code: "O", label: "Overtime (hours)" },
+  { status: "A", code: "A", label: "Absent" },
+  { status: "W", code: "–", label: "Weekly off (Sat)" },
 ];
-
-const LEGEND_CODE: Record<string, string> = {
-  present: "P",
-  late: "L",
-  half_day: "H",
-  leave: "V",
-  absent: "A",
-  weekly_off: "–",
-};
 
 export function ReportPage() {
   const { user } = useSession();
@@ -114,7 +95,7 @@ export function ReportPage() {
     };
   }, [monthKey]);
 
-  const monthName = report ? BS_MONTHS_EN[report.month.bs_month - 1] : "";
+  const monthName = report ? bsMonthName(report.month.bs_month) : "";
   const weeks = useMemo(
     () => (report ? sliceWeeks(report.month.days, monthName) : []),
     [report, monthName],
@@ -149,8 +130,8 @@ export function ReportPage() {
   }, [report, filters, view, week, order]);
 
   const allRowsByDept = useMemo(() => {
-    if (!report) return new Map<number, { count: number; rate: number | null }>();
     const map = new Map<number, { count: number; rate: number | null }>();
+    if (!report) return map;
     for (const d of report.departments) {
       const rows = report.rows.filter((r) => r.employee.department_id === d.id);
       map.set(d.id, { count: rows.length, rate: attendanceRate(rows) });
@@ -175,7 +156,7 @@ export function ReportPage() {
   }, [group, viewRows, paged.items]);
 
   const subtitle = (() => {
-    if (!report) return "Monthly attendance per employee, with totals and paid days.";
+    if (!report) return "Monthly attendance per employee, with overtime hours and paid days.";
     const m = report.month;
     if (view === "week" && week) {
       const first = week.days[0];
@@ -333,10 +314,7 @@ export function ReportPage() {
 
       <section aria-label="Filters" className={styles.filters}>
         <div className={`${shared.field} ${styles.search}`}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M20 20l-3.5-3.5" />
-          </svg>
+          <SearchIcon />
           <input
             type="search"
             aria-label="Search employee name or ID"
@@ -361,7 +339,7 @@ export function ReportPage() {
               <option value="dept">Department, then name</option>
               <option value="name">Name</option>
               <option value="absent">Most absences</option>
-              <option value="late">Most late days</option>
+              <option value="overtime">Most overtime hours</option>
             </select>
           </span>
         </label>
@@ -391,18 +369,19 @@ export function ReportPage() {
           </span>
         </div>
         <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Total present days</span>
+          <span className={styles.sumLabel}>Present days</span>
           <span className={styles.sumValue}>{presence.present_days}</span>
         </div>
         <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Late arrivals</span>
-          <span className={styles.sumValue}>{totals.late}</span>
+          <span className={styles.sumLabel}>Overtime hours</span>
+          <span className={styles.sumValue}>
+            {totals.overtime_hours}{" "}
+            <span className={styles.sumSub}>· {totals.overtime_days} days</span>
+          </span>
         </div>
         <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Absences · leave</span>
-          <span className={styles.sumValue}>
-            {totals.absent} <span className={styles.sumSub}>· {totals.leave}</span>
-          </span>
+          <span className={styles.sumLabel}>Absent days</span>
+          <span className={styles.sumValue}>{totals.absent}</span>
         </div>
       </section>
 
@@ -410,7 +389,7 @@ export function ReportPage() {
         {LEGEND.map((item) => (
           <span key={item.status} className={styles.key}>
             <span className={styles.cell} data-status={item.status} aria-hidden="true">
-              {LEGEND_CODE[item.status]}
+              {item.code}
             </span>
             {item.label}
           </span>
@@ -457,8 +436,8 @@ export function ReportPage() {
             }
           />
           <p className={styles.rule}>
-            Paid days = present + late + leave + weekly off + half a day for each half day. Rules can
-            be changed in Settings.
+            Paid days = present + overtime days + weekly off. Absent is unpaid. Overtime hours are paid
+            at the rate set per employee.
           </p>
         </>
       ) : null}

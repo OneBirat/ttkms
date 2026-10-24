@@ -255,8 +255,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  min-width: 28px;
   height: 28px;
+  padding: 0 2px;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
@@ -275,50 +276,38 @@
   font-weight: 600;
 }
 
-.wcellTime {
+.wcellHours {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
 }
 
-.cell[data-status="present"],
-.wcell[data-status="present"] {
+.cell[data-status="P"],
+.wcell[data-status="P"] {
   background: #ddeeeb;
   color: #0a5454;
 }
 
-.cell[data-status="late"],
-.wcell[data-status="late"] {
-  background: #b9dcd7;
-  color: #073f3f;
-}
-
-.cell[data-status="half_day"],
-.wcell[data-status="half_day"] {
-  background: #fcefd9;
-  color: #8a4205;
-}
-
-.cell[data-status="leave"],
-.wcell[data-status="leave"] {
+.cell[data-status="O"],
+.wcell[data-status="O"] {
   background: #e3e8f4;
   color: #253f73;
 }
 
-.cell[data-status="absent"],
-.wcell[data-status="absent"] {
+.cell[data-status="A"],
+.wcell[data-status="A"] {
   background: #f6dcd3;
   color: #8e2f12;
 }
 
-.cell[data-status="weekly_off"],
-.wcell[data-status="weekly_off"] {
+.cell[data-status="W"],
+.wcell[data-status="W"] {
   background: #eceeea;
   color: #6b757b;
 }
 
-.cell[data-status="not_marked"],
-.wcell[data-status="not_marked"] {
+.cell[data-status="N"],
+.wcell[data-status="N"] {
   background: #fff;
   box-shadow: inset 0 0 0 1px #e2e5e1;
   color: #9aa3a9;

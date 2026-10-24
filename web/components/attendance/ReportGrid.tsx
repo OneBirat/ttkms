@@ -1,15 +1,14 @@
 "use client";
 
 import { Fragment } from "react";
+import { WEEKDAY_NAMES_EN, formatAdShort, weekdayInitial } from "./bsdate";
 import {
-  WEEKDAY_NAMES_EN,
   bsDayLabel,
-  formatAdShort,
+  cellCode,
+  cellText,
   formatRate,
   isLowPresence,
-  statusCode,
   statusLabel,
-  weekdayInitial,
   type DepartmentGroup,
 } from "./helpers";
 import type { DayCell, DayHeader, ReportRow } from "./types";
@@ -37,26 +36,20 @@ export interface ReportGridProps {
   emptyText?: string;
 }
 
-function cellTitle(monthName: string, day: DayHeader, cell: DayCell): string {
-  const time = cell.in_time || cell.out_time ? ` ${cell.in_time ?? ""}–${cell.out_time ?? ""}` : "";
-  return `${bsDayLabel(monthName, day)}: ${statusLabel(cell.status)}${time}`;
-}
-
 function Cell({ monthName, day, cell, wide }: { monthName: string; day: DayHeader; cell: DayCell; wide: boolean }) {
-  const title = cellTitle(monthName, day, cell);
+  const title = `${bsDayLabel(monthName, day)}: ${cellText(cell)}`;
   if (wide) {
-    const time = cell.in_time || cell.out_time ? `${cell.in_time ?? ""}–${cell.out_time ?? ""}` : "";
     return (
       <span className={styles.wcell} data-status={cell.status} title={title}>
-        <span>{cell.status === "weekly_off" ? "Off" : cell.status === "not_marked" ? "·" : statusLabel(cell.status)}</span>
-        {time ? <span className={styles.wcellTime}>{time}</span> : null}
+        <span>{cell.status === "W" ? "Off" : cell.status === "N" ? "·" : statusLabel(cell.status)}</span>
+        {cell.status === "O" ? <span className={styles.wcellHours}>{cell.ot_hours} h</span> : null}
         <span className="sr-only">{title}</span>
       </span>
     );
   }
   return (
     <span className={styles.cell} data-status={cell.status} title={title}>
-      <span aria-hidden="true">{cell.status === "not_marked" ? "·" : statusCode(cell.status)}</span>
+      <span aria-hidden="true">{cell.status === "N" ? "·" : cellCode(cell)}</span>
       <span className="sr-only">{title}</span>
     </span>
   );
@@ -74,7 +67,7 @@ export function ReportGrid({
   wide,
   emptyText = "No employees match this filter.",
 }: ReportGridProps) {
-  const span = days.length + 7;
+  const span = days.length + 5;
   const renderRow = (row: ReportRow) => (
     <tr key={row.employee.id}>
       <th scope="row" className={styles.empCol}>
@@ -90,10 +83,8 @@ export function ReportGrid({
           <Cell monthName={monthName} day={days[i]} cell={cell} wide={wide} />
         </td>
       ))}
-      <td className={styles.tot}>{row.totals.present}</td>
-      <td className={styles.tot}>{row.totals.late}</td>
-      <td className={styles.tot}>{row.totals.half_day}</td>
-      <td className={styles.tot}>{row.totals.leave}</td>
+      <td className={styles.tot}>{row.totals.present + row.totals.overtime_days}</td>
+      <td className={styles.tot}>{row.totals.overtime_hours}</td>
       <td className={styles.tot}>{row.totals.absent}</td>
       <td className={`${styles.tot} ${styles.totPaid}`}>{row.totals.paid_days}</td>
     </tr>
@@ -126,19 +117,13 @@ export function ReportGrid({
                 </span>
               </th>
             ))}
-            <th scope="col" className={styles.tot} title="Present">
+            <th scope="col" className={styles.tot} title="Present days (incl. overtime days)">
               P
             </th>
-            <th scope="col" className={styles.tot} title="Late">
-              L
+            <th scope="col" className={styles.tot} title="Overtime hours">
+              O h
             </th>
-            <th scope="col" className={styles.tot} title="Half day">
-              H
-            </th>
-            <th scope="col" className={styles.tot} title="Leave">
-              V
-            </th>
-            <th scope="col" className={styles.tot} title="Absent">
+            <th scope="col" className={styles.tot} title="Absent days">
               A
             </th>
             <th scope="col" className={styles.tot}>
@@ -191,7 +176,7 @@ export function ReportGrid({
                 </td>
               );
             })}
-            <td colSpan={6} className={styles.footNote}>
+            <td colSpan={4} className={styles.footNote}>
               avg {avgPresent.toFixed(1)} of {staffCount} per day
             </td>
           </tr>
