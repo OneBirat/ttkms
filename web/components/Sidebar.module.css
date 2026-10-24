@@ -60,7 +60,7 @@
   padding: 16px 12px 6px;
 }
 
-.brand + .sectionTitle {
+.brand + .list + .sectionTitle {
   padding-top: 12px;
 }
 

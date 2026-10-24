@@ -43,24 +43,16 @@ function NavLink({
 }
 
 /**
- * Sidebar from docs/design/Main.dc.html: brand block, then one titled section
- * per module (from /api/core/modules: enabled modules only, in sidebar order,
- * only those with nav items the user's role may see - so a paused module such
- * as stock has no section at all). The
- * Dashboard link is the first item of the first section, as in the design;
- * when the user can see no module at all it stands alone.
+ * Sidebar (docs/design/Main.dc.html): brand block, the Dashboard link, then one
+ * titled section per module from /api/core/modules - Attendance (Mark
+ * attendance, Attendance report), People & payroll (Employees, Salary report,
+ * Payments), Admin (Users, Barcodes, Payment modes). The backend has already
+ * filtered the entries to the user's effective permissions and left out
+ * modules with nothing visible, so a section never shows a placeholder link.
  */
 export function Sidebar({ user, modules, onLogout }: SidebarProps) {
   const pathname = usePathname();
   const sections = modules.filter((module) => module.nav.length > 0);
-  const dashboard = (
-    <NavLink
-      href="/"
-      icon="dashboard"
-      label="Dashboard"
-      active={pathname === "/"}
-    />
-  );
 
   return (
     <nav className={styles.sidebar} aria-label="Main">
@@ -74,29 +66,32 @@ export function Sidebar({ user, modules, onLogout }: SidebarProps) {
         </span>
       </Link>
 
-      {sections.length === 0 ? (
-        <ul className={styles.list}>{dashboard}</ul>
-      ) : (
-        sections.map((module, index) => (
-          <Fragment key={module.name}>
-            <div className={styles.sectionTitle} data-module={module.name}>
-              {module.title}
-            </div>
-            <ul className={styles.list}>
-              {index === 0 ? dashboard : null}
-              {module.nav.map((item) => (
-                <NavLink
-                  key={item.path}
-                  href={item.path}
-                  icon={item.icon}
-                  label={item.label}
-                  active={isActivePath(pathname, item.path)}
-                />
-              ))}
-            </ul>
-          </Fragment>
-        ))
-      )}
+      <ul className={styles.list}>
+        <NavLink
+          href="/"
+          icon="dashboard"
+          label="Dashboard"
+          active={pathname === "/"}
+        />
+      </ul>
+      {sections.map((module) => (
+        <Fragment key={module.name}>
+          <div className={styles.sectionTitle} data-module={module.name}>
+            {module.title}
+          </div>
+          <ul className={styles.list}>
+            {module.nav.map((item) => (
+              <NavLink
+                key={item.path}
+                href={item.path}
+                icon={item.icon}
+                label={item.label}
+                active={isActivePath(pathname, item.path)}
+              />
+            ))}
+          </ul>
+        </Fragment>
+      ))}
 
       <div className={styles.footer}>
         <div className={styles.user}>
