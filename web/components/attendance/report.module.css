@@ -518,6 +518,13 @@
   right: 3px;
 }
 
+/* Overtime keeps its hours centred; the payment badge sits on the corner. */
+.cell[data-status="O"] .payBadges {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+}
+
 .payBadge {
   display: inline-flex;
   align-items: center;
