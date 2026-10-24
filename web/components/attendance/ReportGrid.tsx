@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment } from "react";
-import { WEEKDAY_NAMES_EN, formatAdShort, weekdayInitial } from "./bsdate";
+import { WEEKDAYS_EN, formatAdShort, weekdayInitial } from "@/lib/bs";
 import { bsDayLabel, cellText, formatRate, initials, isLowPresence, type DepartmentGroup } from "./helpers";
 import { photoTint } from "./MarkRow";
 import type { DayCell, DayHeader, ReportRow } from "./types";
@@ -194,14 +194,14 @@ export function ReportGrid({
                 key={day.bs_date}
                 scope="col"
                 className={`${wide ? styles.dayHeadWide : styles.dayHead} ${day.is_weekly_off ? styles.dayHeadOff : ""}`}
-                title={`${bsDayLabel(monthName, day)} · ${formatAdShort(day.ad_date, true)} · ${WEEKDAY_NAMES_EN[day.weekday]}`}
+                title={`${bsDayLabel(monthName, day)} · ${formatAdShort(day.ad_date, true)} · ${WEEKDAYS_EN[day.weekday]}`}
               >
                 <span className={styles.dayHeadInner}>
                   <span className={styles.dayNum}>{day.bs_day}</span>
                   <span className={styles.dayNp} lang="ne">
                     {weekdayInitial(day.weekday)}
                   </span>
-                  {wide ? <span className={styles.dayAd}>{formatAdShort(day.ad_date)}</span> : null}
+                  {wide ? <span className={styles.dayAd}>{formatAdShort(day.ad_date, false)}</span> : null}
                 </span>
               </th>
             ))}

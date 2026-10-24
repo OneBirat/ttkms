@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Segmented } from "@/components/ui/Segmented";
 import { useSession } from "@/lib/session";
 import { exportReport, getReport, getToday, listMonths } from "./api";
-import { WEEKDAY_NAMES_EN, formatAdRange, formatAdShort, monthName as bsMonthName } from "./bsdate";
+import { WEEKDAYS_EN, formatAdRange, formatAdShort, monthName as bsMonthName } from "@/lib/bs";
 import { downloadFile, openPrintWindow, writePrintDocument } from "./download";
 import { filterReportRows } from "./exportModel";
 import { SearchIcon } from "./icons";
@@ -194,7 +194,7 @@ export function ReportPage() {
   const dayWord = (i: number) => {
     if (sameMonth && i === todayIndex) return "Today";
     if (sameMonth && i === todayIndex - 1) return "Yesterday";
-    return allDays[i] ? WEEKDAY_NAMES_EN[allDays[i].weekday] : "Day";
+    return allDays[i] ? WEEKDAYS_EN[allDays[i].weekday] : "Day";
   };
   const day = days[0];
 
@@ -202,7 +202,7 @@ export function ReportPage() {
     if (!report) return "Monthly attendance per employee, with overtime hours and paid days.";
     const m = report.month;
     if (view === "day" && day) {
-      return `${dayWord(dayIndex)} · ${monthName} ${day.bs_day}, ${m.bs_year} · ${formatAdShort(day.ad_date, true)} · ${WEEKDAY_NAMES_EN[day.weekday]}`;
+      return `${dayWord(dayIndex)} · ${monthName} ${day.bs_day}, ${m.bs_year} · ${formatAdShort(day.ad_date, true)} · ${WEEKDAYS_EN[day.weekday]}`;
     }
     if (view === "week" && week) {
       const first = week.days[0];

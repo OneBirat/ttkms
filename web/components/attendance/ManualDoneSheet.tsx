@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { toDevanagariDigits } from "./bsdate";
+import { toNepaliDigits } from "@/lib/bs";
 import { CheckIcon } from "./icons";
 import { initials, statusLabel } from "./helpers";
 import { photoTint } from "./MarkRow";
@@ -27,7 +27,7 @@ export function ManualDoneSheet({ done, employee, onClose }: ManualDoneSheetProp
     done.status === "O" ? `Present + ${done.hours} h overtime` : done.status === "A" ? "Marked absent" : "Marked present";
   const np =
     done.status === "O"
-      ? `हाजिर + ओभरटाइम ${toDevanagariDigits(done.hours)} घण्टा`
+      ? `हाजिर + ओभरटाइम ${toNepaliDigits(done.hours)} घण्टा`
       : done.status === "A"
         ? "अनुपस्थित"
         : "हाजिर भयो";

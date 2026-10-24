@@ -11,7 +11,7 @@
  * payments: they are the client of a contract the PAYROLL module implements.
  */
 
-import { monthLabel, parseMonthKey } from "./bsdate";
+import { monthLabel, parseMonthKey } from "@/lib/bs";
 import { dayFromBs, findMonth, listMonths as calendarMonths, todayRef } from "./calendar";
 import { buildExportModel, type ExportContext } from "./exportModel";
 import { computeTotals, findByCode } from "./helpers";

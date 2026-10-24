@@ -1,17 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import {
-  WEEKDAY_NAMES_NP,
-  bsMonthDays,
-  diffDays,
-  formatAdShort,
-  monthLabel,
-  monthLabelNp,
-  monthName,
-  parseMonthKey,
-  toDevanagariDigits,
-} from "../bsdate";
+import { WEEKDAYS_NE, diffDays, formatAdShort, monthLabel, monthName, parseMonthKey, toNepaliDigits } from "@/lib/bs";
+import { bsMonthDays } from "../calendar";
 import { CheckIcon } from "../icons";
 import { draftText, formatAmount, formatRs, initials } from "../helpers";
 import { photoTint } from "../MarkRow";
@@ -621,7 +612,7 @@ function AttendanceRecord({ scan, state, titleId }: StepProps<"attrec">) {
   const lead = headers[0]?.weekday ?? 0;
   const totals = data?.totals;
   const dayPop = scan.dayPop !== null ? days.find((d) => d.header.bs_day === scan.dayPop) ?? null : null;
-  const np = data?.month.label_np ?? monthLabelNp(year, month);
+  const np = data?.month.label_np ?? monthLabel(year, month, "ne");
   const en = data?.month.label ?? monthLabel(year, month);
   return (
     <>
@@ -714,7 +705,7 @@ function AttendanceRecord({ scan, state, titleId }: StepProps<"attrec">) {
                 </span>
               ) : null}
               <span lang="ne" className={styles.recCellNp}>
-                {toDevanagariDigits(d.header.bs_day)}
+                {toNepaliDigits(d.header.bs_day)}
               </span>
               <span className={styles.recCellText}>{cellText(d.kind, d.cell)}</span>
             </button>
@@ -789,7 +780,7 @@ function DayDetail({
               {scan.emp.name}
             </h3>
             <span lang="ne" className={styles.dpNp}>
-              {WEEKDAY_NAMES_NP[h.weekday]}, {monthLabelNp(year, monthIndex).split(" ")[0]} {toDevanagariDigits(h.bs_day)}
+              {WEEKDAYS_NE[h.weekday]}, {monthLabel(year, monthIndex, "ne").split(" ")[0]} {toNepaliDigits(h.bs_day)}
             </span>
             <span className={styles.personMeta}>
               {monthName(monthIndex)} {h.bs_day}, {year} · {formatAdShort(h.ad_date, true)}
@@ -918,7 +909,7 @@ function Done({ scan, state, titleId, phone }: StepProps<"done"> & { phone: bool
         </h2>
         <span className={styles.resultText}>{ot ? `Present + ${scan.hours} h overtime` : "Marked present"}</span>
         <span className={styles.resultNp} lang="ne">
-          {ot ? `हाजिर + ओभरटाइम ${toDevanagariDigits(scan.hours)} घण्टा` : "हाजिर भयो"}
+          {ot ? `हाजिर + ओभरटाइम ${toNepaliDigits(scan.hours)} घण्टा` : "हाजिर भयो"}
         </span>
       </div>
       <Countdown state={state} phone={phone} token={scan.token} totalMs={AUTO_RETURN.done} />

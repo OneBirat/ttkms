@@ -4,7 +4,7 @@
  * no fetch, so they are unit-tested with node:test (see __tests__/).
  */
 
-import { monthName as bsMonthName, weekdayInitial } from "./bsdate";
+import { WEEKDAYS_NE, WEEKDAY_INITIALS_NE, monthName as bsMonthName, weekdayInitial } from "@/lib/bs";
 import type {
   AttendanceTotals,
   CellStatus,
@@ -19,6 +19,11 @@ import type {
 import { OT_MAX, OT_MIN } from "./types";
 
 export { weekdayInitial };
+
+/** "आ आइत · सो सोम · …" for the weekday legend. */
+export function weekdayKeyText(): string {
+  return WEEKDAY_INITIALS_NE.map((initial, i) => `${initial} ${WEEKDAYS_NE[i].replace(/बार$/, "")}`).join(" · ");
+}
 
 // ------------------------------------------------------------ statuses
 

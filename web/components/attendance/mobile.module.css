@@ -590,9 +590,6 @@
   color: var(--color-text);
 }
 
-/* ---- calendar sheet ---- */
-
-.calBackdrop,
 .actWrap,
 .askBackdrop,
 .doneBackdrop {
@@ -605,7 +602,6 @@
   background: rgba(15, 24, 29, 0.5);
 }
 
-.calSheet,
 .actSheet {
   display: flex;
   flex-direction: column;
@@ -616,153 +612,6 @@
   background: var(--color-card);
   overflow-y: auto;
   outline: none;
-}
-
-.calNav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.calNavBtn {
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--color-input-border);
-  border-radius: 10px;
-  background: var(--color-card);
-  font-size: 22px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.calNavBtn:disabled {
-  color: var(--color-border);
-  cursor: default;
-}
-
-.calTitle {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.calNp {
-  font-family: var(--font-np);
-  font-size: 17px;
-  font-weight: 600;
-}
-
-.calEn {
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.calWeekdays,
-.calGrid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
-}
-
-.calWeekdays {
-  font-family: var(--font-np);
-  font-size: 11px;
-  color: var(--color-muted);
-  text-align: center;
-}
-
-.calSat {
-  color: #c62828;
-}
-
-.calCell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 46px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: var(--color-bg);
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.calCell:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.calCell[data-sat] {
-  background: #fbe9e4;
-  color: #c62828;
-}
-
-.calCell[data-today] {
-  border-color: var(--color-primary);
-}
-
-.calCell[data-sel] {
-  background: var(--color-primary);
-  color: #fff;
-}
-
-.calCellNp {
-  font-family: var(--font-np);
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.1;
-}
-
-.calCellEn {
-  font-size: 9px;
-  opacity: 0.75;
-}
-
-.calDot,
-.calLegendDot {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #1e9e4a;
-}
-
-.calCell .calDot {
-  position: absolute;
-  bottom: 4px;
-}
-
-.calCell[data-sel] .calDot {
-  background: #fff;
-}
-
-.calLegend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  font-size: 11px;
-  color: var(--color-muted);
-}
-
-.calSelected {
-  display: flex;
-  flex-direction: column;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--color-bg);
-  font-size: 13px;
-}
-
-.calSelectedNp {
-  font-family: var(--font-np);
-  font-weight: 600;
-}
-
-.calSelectedAd {
-  font-size: 12px;
-  color: var(--color-muted);
 }
 
 /* ---- action sheet ---- */

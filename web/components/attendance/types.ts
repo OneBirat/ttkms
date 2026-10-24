@@ -7,7 +7,7 @@
  *
  * Dates: every record carries the BS date ("YYYY-MM-DD", Bikram Sambat) first
  * and the AD date second. The UI converts with web/components/attendance/bsdate.ts
- * (a wrapper over @remotemerge/nepali-date-converter).
+ * (web/lib/bs, the shared calendar table).
  */
 
 // ------------------------------------------------------------ statuses
@@ -78,7 +78,7 @@ export interface DayHeader {
 /** A BS month with its days. */
 export interface BsMonthRef {
   bs_year: number;
-  /** 1 = Baishakh … 12 = Chaitra. */
+  /** 1 = Baisakh … 12 = Chaitra. */
   bs_month: number;
   /** "Kartik 2083" */
   label: string;

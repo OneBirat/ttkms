@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { BsDateInput } from "@/components/ui/BsDateInput";
+import { BSDate } from "@/components/date";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { CheckIcon, ScanIcon, SearchIcon } from "./icons";
 import { MarkRow } from "./MarkRow";
@@ -77,7 +77,7 @@ export function MarkDesktop({ state }: { state: MarkState }) {
         subtitle="Pick a branch, narrow down and mark. Each mark is saved as soon as you confirm it."
         actions={
           <div className={styles.dateCol}>
-            <BsDateInput name="date" label="Date (BS)" value={state.date} onChange={state.setDate} />
+            <BSDate label="Date" name="date" value={state.date} align="right" noFutureDays onChange={(bs) => state.setDate(bs)} />
           </div>
         }
       />

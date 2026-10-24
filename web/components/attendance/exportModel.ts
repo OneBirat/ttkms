@@ -4,7 +4,7 @@
  * never just the current page.
  */
 
-import { bsTextNpFull, formatAdRange, WEEKDAY_NAMES_NP, toDevanagariDigits } from "./bsdate";
+import { WEEKDAYS_NE, formatAdRange, formatBs, toNepaliDigits } from "@/lib/bs";
 import {
   attendanceRate,
   groupByDepartment,
@@ -73,8 +73,8 @@ function printedAd(now: Date): string {
 }
 
 function printedNp(today: TodayRef | null, now: Date): string {
-  if (today) return bsTextNpFull(today.bs_date, today.weekday);
-  return `${WEEKDAY_NAMES_NP[now.getDay()]}, ${toDevanagariDigits(now.getDate())}`;
+  if (today) return formatBs(today.bs_date, "%A, %B %-d, %Y", "ne");
+  return `${WEEKDAYS_NE[now.getDay()]}, ${toNepaliDigits(now.getDate())}`;
 }
 
 export function filterReportRows(report: MonthReport, filters: ReportFilters): ReportRow[] {

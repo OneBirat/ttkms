@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/session";
-import { BS_MONTHS_NP, formatAdShort, parseBs, toDevanagariDigits, bsText } from "./bsdate";
+import { formatAdShort, formatBs, toNepaliDigits, validBs } from "@/lib/bs";
 import { ChevronDownIcon, MenuIcon, ScanIcon, SearchIcon } from "./icons";
 import { MobileDrawer } from "./MobileDrawer";
 import { draftText, initials, type Draft, type StatusFilter } from "./helpers";
@@ -43,11 +43,11 @@ export function MarkMobile({ state }: { state: MarkState }) {
     };
   }, []);
 
-  const sel = parseBs(state.date);
-  const selNpShort = sel ? `${BS_MONTHS_NP[sel.month - 1]} ${toDevanagariDigits(sel.day)}` : "";
+  const sel = validBs(state.date);
+  const selNpShort = sel ? formatBs(sel, "%B %-d", "ne") : "";
   const selAd = data ? formatAdShort(data.day.ad_date, true) : "";
-  const selEn = sel ? bsText(state.date) : state.date;
-  const dayWord = state.isPast ? `${toDevanagariDigits(state.daysAgo)} दिन अघि` : "आज";
+  const selEn = sel ? formatBs(sel) : state.date;
+  const dayWord = state.isPast ? `${toNepaliDigits(state.daysAgo)} दिन अघि` : "आज";
   const countOf = (key: StatusFilter) =>
     key === ""
       ? counts.total

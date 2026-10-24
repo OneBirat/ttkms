@@ -5,7 +5,7 @@
  * module's tables) once the backend lands.
  */
 
-import { adToBs, diffDays, isoBs, todayAd } from "../bsdate";
+import { adToBs, diffDays, isoBs, todayAd } from "@/lib/bs";
 import type {
   AttendanceRecord,
   AttendanceSettings,

@@ -14,7 +14,7 @@ import {
   recordPayment,
   scanMark,
 } from "./api";
-import { addDays, adToBs, bsToAd, diffDays, isValidBs, isoBs } from "./bsdate";
+import { addDays, adToBs, bsToAd, diffDays, isValidBs, isoBs } from "@/lib/bs";
 import {
   clampHours,
   countMarks,

@@ -8,7 +8,7 @@
  * GET /api/attendance/report/export.pdf.
  */
 
-import { weekdayInitial } from "./bsdate";
+import { weekdayInitial } from "@/lib/bs";
 import { formatRate, isLowPresence } from "./helpers";
 import type { ExportModel } from "./exportModel";
 import type { DayCell, DayHeader, ReportRow } from "./types";

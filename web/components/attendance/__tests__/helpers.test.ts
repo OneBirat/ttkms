@@ -1,18 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  WEEKDAY_INITIALS_NP,
-  adToBs,
-  bsText,
-  bsTextNp,
-  bsToAd,
-  daysInBsMonth,
-  formatAdRange,
-  isValidBs,
-  shiftMonth,
-  weekdayInitial,
-  weekdayKeyText,
-} from "../bsdate";
+import { WEEKDAY_INITIALS_NE, adToBs, bsToAd, daysInMonth, formatAdRange, isValidBs, shiftMonth, weekdayInitial } from "@/lib/bs";
 import { buildMonth, dayFromBs, listMonths, todayRef } from "../calendar";
 import {
   attendanceRate,
@@ -38,6 +26,7 @@ import {
   staffPresentPerDay,
   weekIndexOfDay,
   weekLabel,
+  weekdayKeyText,
 } from "../helpers";
 import type { CellStatus, DayCell, DayHeader, EmployeeRef, ReportRow } from "../types";
 
@@ -64,15 +53,15 @@ function row(emp: EmployeeRef, statuses: (CellStatus | [CellStatus, number])[]):
   return { employee: emp, cells, totals: computeTotals(cells) };
 }
 
-describe("BS dates (converter wrapper)", () => {
+describe("BS dates (shared library)", () => {
   it("converts both ways", () => {
     assert.deepEqual(adToBs("2026-10-21"), { year: 2083, month: 7, day: 4 });
     assert.equal(bsToAd("2083-07-04"), "2026-10-21");
     assert.equal(bsToAd("2083-06-01"), "2026-09-17");
   });
   it("knows month lengths and validity", () => {
-    assert.equal(daysInBsMonth(2083, 6), 31);
-    assert.equal(daysInBsMonth(2083, 12) > 28, true);
+    assert.equal(daysInMonth(2083, 6), 31);
+    assert.equal(daysInMonth(2083, 12) > 28, true);
     assert.ok(isValidBs("2083-06-31"));
     assert.ok(!isValidBs("2083-06-32"));
     assert.ok(!isValidBs("2083-13-01"));
@@ -82,10 +71,6 @@ describe("BS dates (converter wrapper)", () => {
     assert.deepEqual(shiftMonth(2083, 1, -1), { year: 2082, month: 12 });
     assert.deepEqual(shiftMonth(2083, 12, 1), { year: 2084, month: 1 });
   });
-  it("formats BS first, Nepali with Devanagari digits", () => {
-    assert.equal(bsText("2083-07-04"), "Kartik 4, 2083");
-    assert.equal(bsTextNp("2083-07-04", 3), "बुधबार, कार्तिक ४");
-  });
   it("formats AD ranges with the year once", () => {
     assert.equal(formatAdRange("2026-09-17", "2026-10-17"), "17 Sep – 17 Oct 2026");
     assert.equal(formatAdRange("2026-12-20", "2027-01-05"), "20 Dec 2026 – 5 Jan 2027");
@@ -94,7 +79,7 @@ describe("BS dates (converter wrapper)", () => {
 
 describe("Nepali weekday initials", () => {
   it("are the seven single initials in Sunday…Saturday order", () => {
-    assert.deepEqual([...WEEKDAY_INITIALS_NP], ["आ", "सो", "मं", "बु", "बि", "शु", "श"]);
+    assert.deepEqual([...WEEKDAY_INITIALS_NE], ["आ", "सो", "मं", "बु", "बि", "शु", "श"]);
     assert.equal(weekdayInitial(6), "श");
     assert.equal(weekdayInitial(0), "आ");
     assert.equal(weekdayInitial(7), "आ");

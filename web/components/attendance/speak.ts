@@ -12,7 +12,7 @@
  * are unit-tested in __tests__/speak.test.ts.
  */
 
-import { toDevanagariDigits } from "./bsdate";
+import { toNepaliDigits } from "@/lib/bs";
 import { formatAmount } from "./helpers";
 import type { PaymentType } from "./types";
 
@@ -512,7 +512,7 @@ export const SPEECH = {
   present: (): Phrase => ({ np: "हाजिर", en: "present" }),
   absent: (): Phrase => ({ np: "अनुपस्थित", en: "absent" }),
   overtime: (hours: number): Phrase => ({
-    np: `हाजिर, ओभरटाइम ${toDevanagariDigits(hours)} घण्टा`,
+    np: `हाजिर, ओभरटाइम ${toNepaliDigits(hours)} घण्टा`,
     en: `present, overtime ${hours} ${hours === 1 ? "hour" : "hours"}`,
   }),
   already: (e: Named): Phrase => ({
@@ -520,7 +520,7 @@ export const SPEECH = {
     en: `${e.name}, already marked today`,
   }),
   payment: (e: Named, type: PaymentType, amount: number): Phrase => ({
-    np: `${spokenName(e)}, ${type === "advance" ? "पेश्की" : "तलब"} रु ${toDevanagariDigits(formatAmount(amount))} भुक्तानी भयो`,
+    np: `${spokenName(e)}, ${type === "advance" ? "पेश्की" : "तलब"} रु ${toNepaliDigits(formatAmount(amount))} भुक्तानी भयो`,
     en: `${e.name}, ${type === "advance" ? "advance" : "salary"} of ${formatAmount(amount)} rupees recorded`,
   }),
   unknown: (): Phrase => ({ np: "कार्ड भेटिएन", en: "Card not found" }),

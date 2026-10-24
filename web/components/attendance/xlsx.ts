@@ -5,7 +5,7 @@
  * same sheets and columns (design/final/ExportExcel.dc.html).
  */
 
-import { weekdayInitial } from "./bsdate";
+import { weekdayInitial } from "@/lib/bs";
 import { formatRate } from "./helpers";
 import type { ExportModel } from "./exportModel";
 import type { DayCell } from "./types";
