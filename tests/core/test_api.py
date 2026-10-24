@@ -7,8 +7,12 @@ import pytest
 from app.core import bsdate
 from app.core.models import Role
 from app.main import MODULES
+from tests.core.test_modules import frontend_prefix
 
 pytestmark = pytest.mark.anyio
+
+#: Dashboard card per module: attendance has its real "Attendance today" card, the rest are stubs.
+WIDGET_KINDS = {"attendance": "attendance_today", "payroll": "coming_soon", "admin": "coming_soon"}
 
 
 async def test_registry_for_admin(client, make_user, login):
@@ -20,15 +24,17 @@ async def test_registry_for_admin(client, make_user, login):
     assert [m["title"] for m in modules] == [m.title for m in MODULES]
     assert all(m["allowed"] for m in modules)
     for m in modules:
-        assert m["nav"] and m["nav"][0]["path"].startswith(f"/{m['name']}")
-        assert {"label", "path", "icon", "roles"} <= set(m["nav"][0])
+        assert m["nav"] and m["nav"][0]["path"].startswith(frontend_prefix(m["name"])), m["name"]
+        assert {"label", "path", "icon", "roles", "permission"} <= set(m["nav"][0])
 
 
-async def test_registry_filters_nav_by_role(client, make_user, login):
+async def test_registry_filters_nav_by_access(client, make_user, login):
+    """The Staff preset is mark_attendance only: one attendance entry, nothing else."""
     await make_user("clerk", role=Role.staff)
     await login("clerk")
     modules = {m["name"]: m for m in (await client.get("/api/registry")).json()["modules"]}
-    assert modules["attendance"]["allowed"] and modules["attendance"]["nav"]
+    assert modules["attendance"]["allowed"]
+    assert [i["label"] for i in modules["attendance"]["nav"]] == ["Mark attendance"]
     for name in ("payroll", "admin"):
         assert not modules[name]["allowed"] and modules[name]["nav"] == []
 
@@ -50,9 +56,10 @@ async def test_dashboard_stats_and_widgets(client, make_user, login):
     assert data["stats"][0]["tone"] == "ok"
     widgets = data["widgets"]
     assert [w["module"] for w in widgets] == [m.name for m in MODULES]
-    assert all(w["kind"] == "coming_soon" for w in widgets)
+    assert [w["kind"] for w in widgets] == [WIDGET_KINDS[m.name] for m in MODULES]
+    assert [w["title"] for w in widgets if w["module"] == "attendance"] == ["Attendance today"]
     assert [w["title"] for w in widgets if w["module"] == "payroll"] == ["People & payroll"]
-    assert isinstance(widgets[0]["data"], dict)
+    assert all(isinstance(w["data"], dict) for w in widgets)
 
 
 async def test_today_endpoint_is_public(client):

@@ -155,7 +155,9 @@ async def test_deactivated_user_is_logged_out(client, make_user, login, db):
     assert (await client.get("/api/auth/me")).status_code == 401
 
 
-async def test_require_role_blocks_other_roles(client, make_user, login):
+async def test_access_guard_blocks_staff_from_payroll(client, make_user, login):
+    """Staff (mark_attendance only) reach attendance but get the same 403 wording from
+    payroll's permission guard as ``require_role`` gives."""
     await make_user("clerk", role=Role.staff)
     await login("clerk")
     response = await client.get("/api/payroll")

@@ -48,7 +48,8 @@ async def test_stock_disabled_everywhere(client_for, make_user):
         assert [s["module"] for s in modules["nav"]] == ["attendance", "payroll", "admin"]
         assert [s["title"] for s in modules["nav"]] == ["Attendance", "People & payroll", "Admin"]
         assert modules["nav"][0]["items"] == [
-            {"label": "Overview", "path": "/attendance", "icon": "calendar"}
+            {"label": "Mark attendance", "path": "/attendance/mark", "icon": "check"},
+            {"label": "Attendance report", "path": "/attendance/report", "icon": "calendar"},
         ]
         assert not any("stock" in i["path"] for s in modules["nav"] for i in s["items"])
 
@@ -64,13 +65,14 @@ async def test_stock_disabled_everywhere(client_for, make_user):
         assert not any(path.startswith("/api/stock") for path in openapi)
 
 
-async def test_modules_nav_is_filtered_by_role(client_for, make_user):
+async def test_modules_nav_is_filtered_by_access(client_for, make_user):
     await make_user("clerk", role="staff")
     async with client_for(DEFAULT) as client:
         await login_as(client, "clerk")
         modules = (await client.get("/api/core/modules")).json()
         assert modules["enabled"] == ["attendance", "payroll", "admin"]
         assert [s["module"] for s in modules["nav"]] == ["attendance"]
+        assert [i["label"] for i in modules["nav"][0]["items"]] == ["Mark attendance"]
 
 
 async def test_modules_requires_login(client):
