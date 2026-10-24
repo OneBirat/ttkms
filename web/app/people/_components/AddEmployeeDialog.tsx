@@ -6,6 +6,7 @@ import type { Role } from "@/lib/api";
 import { Avatar } from "./Avatar";
 import { CameraCapture } from "./CameraCapture";
 import { Field, SelectInput, TextArea, TextInput, parseAmount, splitError } from "./FormBits";
+import { NepaliNameField } from "./NepaliNameField";
 import { ReviewCrop } from "./ReviewCrop";
 import {
   createBranch,
@@ -70,6 +71,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
   const code = usePayroll(nextEmployeeCode, []);
 
   const [fullName, setFullName] = useState("");
+  const [fullNameNp, setFullNameNp] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneAlt, setPhoneAlt] = useState("");
   const [address, setAddress] = useState("");
@@ -99,6 +101,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
   useEffect(() => {
     if (!open) return;
     setFullName("");
+    setFullNameNp("");
     setPhone("");
     setPhoneAlt("");
     setAddress("");
@@ -204,6 +207,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
     try {
       const created = await createEmployee({
         full_name: fullName,
+        full_name_np: fullNameNp,
         phone,
         phone_alt: phoneAlt,
         address,
@@ -347,6 +351,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
                 required
               />
             </Field>
+            <NepaliNameField id={id("namenp")} value={fullNameNp} onChange={setFullNameNp} fullName={fullName} />
             <Field id={id("phone")} label="Phone" error={errors.phone}>
               <TextInput
                 id={id("phone")}

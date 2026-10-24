@@ -173,6 +173,12 @@
   color: var(--color-muted);
 }
 
+.nameNp {
+  font-family: var(--font-np);
+  font-size: 15px;
+  color: #3e4a52;
+}
+
 .lineSmall {
   font-size: 13px;
   color: var(--color-muted);

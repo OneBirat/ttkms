@@ -56,6 +56,8 @@ export interface Employee {
   /** Code 128 value printed on the sticker: "TTK-E001". Unique. */
   barcode: string;
   full_name: string;
+  /** Name in Devanagari, optional (shown under the name and on payslips). */
+  full_name_np: string | null;
   phone: string | null;
   /** Extra contact (family member, second number). */
   phone_alt: string | null;
@@ -329,6 +331,7 @@ export interface PhotoTokenInfo {
 
 export interface EmployeeIn {
   full_name: string;
+  full_name_np?: string | null;
   phone: string;
   phone_alt?: string | null;
   address?: string | null;
@@ -347,6 +350,7 @@ export interface EmployeeIn {
 
 export interface EmployeeUpdateIn {
   full_name: string;
+  full_name_np: string | null;
   phone: string;
   phone_alt: string | null;
   address: string | null;

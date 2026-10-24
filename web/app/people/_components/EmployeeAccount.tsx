@@ -84,6 +84,11 @@ export function EmployeeAccount({ id }: { id: number }) {
                 <h2 className={styles.name}>{person.full_name}</h2>
                 <Pill status={person.active ? "active" : "inactive"} />
               </div>
+              {person.full_name_np ? (
+                <span className={styles.nameNp} lang="ne">
+                  {person.full_name_np}
+                </span>
+              ) : null}
               <span className={styles.line}>{meta}</span>
               <div className={styles.profileMeta}>
                 <span>Joined {formatDateBoth(person.joined)}</span>

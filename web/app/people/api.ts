@@ -320,6 +320,7 @@ export async function createEmployee(input: EmployeeIn): Promise<EmployeeCreated
     code,
     barcode: barcodeFor(code),
     full_name: input.full_name.trim(),
+    full_name_np: cleanOptional(input.full_name_np),
     phone: input.phone.trim(),
     phone_alt: cleanOptional(input.phone_alt),
     address: cleanOptional(input.address),
@@ -381,6 +382,7 @@ export async function updateEmployee(id: number, input: EmployeeUpdateIn): Promi
   if (!isValidBs(input.joined_bs)) throw new PayrollApiError(422, "Enter the joining date as YYYY-MM-DD (BS).", "joined_bs");
   Object.assign(employee, {
     full_name: input.full_name.trim(),
+    full_name_np: cleanOptional(input.full_name_np),
     phone: input.phone.trim(),
     phone_alt: cleanOptional(input.phone_alt),
     address: cleanOptional(input.address),

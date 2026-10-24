@@ -21,7 +21,8 @@ endpoint it stands in for; the shapes are in `types.ts`. Backend lives in
 
 ```
 payroll.employees        id, code "E-001" (core.next_employee_code()), barcode "TTK-E001" UNIQUE,
-                         full_name, phone, phone_alt, address, branch_id, department_id, designation,
+                         full_name, full_name_np (Devanagari, nullable; the UI suggests it via
+                         _lib/devanagari.ts, local rules + name dictionary), phone, phone_alt, address, branch_id, department_id, designation,
                          pay_type monthly|daily, amount, ot_rate, paid_by cash|bank, joined_bs, joined_ad,
                          photo_path, active, user_id (core.users, nullable), created_at
 payroll.salary_history   id, employee_id, effective_bs, effective_ad, pay_type, basic, allowances,

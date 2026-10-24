@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { BsDateInput } from "@/components/ui/BsDateInput";
 import { Modal } from "@/components/ui/Modal";
 import { Field, SelectInput, TextArea, TextInput, splitError } from "./FormBits";
+import { NepaliNameField } from "./NepaliNameField";
 import { listBranches, listDepartments, updateEmployee } from "../api";
 import type { Employee } from "../types";
 import { usePayroll } from "../_lib/usePayroll";
@@ -21,6 +22,7 @@ export function EditProfileDialog({ open, employee, onClose, onSaved }: EditProf
   const branches = usePayroll(listBranches, []);
   const departments = usePayroll(listDepartments, []);
   const [fullName, setFullName] = useState(employee.full_name);
+  const [fullNameNp, setFullNameNp] = useState(employee.full_name_np ?? "");
   const [phone, setPhone] = useState(employee.phone ?? "");
   const [phoneAlt, setPhoneAlt] = useState(employee.phone_alt ?? "");
   const [address, setAddress] = useState(employee.address ?? "");
@@ -36,6 +38,7 @@ export function EditProfileDialog({ open, employee, onClose, onSaved }: EditProf
   useEffect(() => {
     if (!open) return;
     setFullName(employee.full_name);
+    setFullNameNp(employee.full_name_np ?? "");
     setPhone(employee.phone ?? "");
     setPhoneAlt(employee.phone_alt ?? "");
     setAddress(employee.address ?? "");
@@ -59,6 +62,7 @@ export function EditProfileDialog({ open, employee, onClose, onSaved }: EditProf
     try {
       const saved = await updateEmployee(employee.id, {
         full_name: fullName,
+        full_name_np: fullNameNp,
         phone,
         phone_alt: phoneAlt,
         address,
@@ -88,6 +92,7 @@ export function EditProfileDialog({ open, employee, onClose, onSaved }: EditProf
           <Field id={id("name")} label="Full name" error={errors.full_name} span2>
             <TextInput id={id("name")} value={fullName} onChange={(e) => setFullName(e.target.value)} invalid={Boolean(errors.full_name)} required />
           </Field>
+          <NepaliNameField id={id("namenp")} value={fullNameNp} onChange={setFullNameNp} fullName={fullName} span2 />
           <Field id={id("phone")} label="Phone" error={errors.phone}>
             <TextInput id={id("phone")} value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" prefix="+977" invalid={Boolean(errors.phone)} required />
           </Field>

@@ -19,6 +19,7 @@ import {
   thisMonth,
   today,
 } from "./calendar";
+import { transliterateName } from "./devanagari";
 import { barcodeFor, employeeCode } from "./helpers";
 import type {
   Branch,
@@ -214,6 +215,7 @@ export function buildSeedState(now: Date = new Date()): MockState {
       code: employeeCode(employee_id),
       barcode: barcodeFor(employeeCode(employee_id)),
       full_name: name,
+      full_name_np: transliterateName(name),
       phone,
       phone_alt: phone_alt ?? null,
       address,
