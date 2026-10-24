@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
-import { EmployeesScreen } from "@/app/people/_components/EmployeesScreen";
+import { Suspense } from "react";
+import { EmployeesListScreen } from "@/app/people/_components/EmployeesListScreen";
 
 export const metadata: Metadata = { title: "Employees" };
 
 export default function EmployeesPage() {
-  return <EmployeesScreen selectedId={null} />;
+  return (
+    <Suspense fallback={<p className="muted">Loading…</p>}>
+      <EmployeesListScreen />
+    </Suspense>
+  );
 }
