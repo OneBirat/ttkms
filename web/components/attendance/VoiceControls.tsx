@@ -61,6 +61,8 @@ export function lastSpokenText(last: SpeechStatus): string {
       return `Last: error ${last.detail} · ${last.voice}${last.detail === "not-allowed" ? " · tap the screen, then scan again" : ""}`;
     case "unsupported":
       return "Last: this browser has no speech output";
+    case "no-voice":
+      return "Last: no voices loaded — beep only";
     default:
       return "";
   }
@@ -153,6 +155,11 @@ function VoiceSettingsSheet({ onClose }: { onClose: () => void }) {
         >
           Test voice
         </button>
+        {last.audio === "unavailable" ? (
+          <p className={styles.status} role="status">
+            Sound not available on this device
+          </p>
+        ) : null}
         {last.outcome !== "idle" ? (
           <p className={styles.status} aria-live="polite">
             {lastSpokenText(last)}

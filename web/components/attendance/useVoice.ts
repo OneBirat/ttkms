@@ -14,7 +14,7 @@ import {
   type VoiceSettings,
 } from "./speak";
 
-const IDLE_STATUS: SpeechStatus = { outcome: "idle", text: "", voice: "", detail: "", at: 0 };
+const IDLE_STATUS: SpeechStatus = { outcome: "idle", text: "", voice: "", detail: "", audio: "unknown", at: 0 };
 
 /** What happened to the last utterance (diagnostic line in the settings sheet). */
 export function useSpeechStatus(): SpeechStatus {

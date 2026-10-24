@@ -21,7 +21,23 @@ import {
   type Draft,
   type MarkCounts,
 } from "./helpers";
-import { SPEECH, beep, speak } from "./speak";
+import { SPEECH, beep as rawBeep, speak as rawSpeak } from "./speak";
+
+// Sound is a courtesy: nothing in the scan/save chain may depend on it.
+const say = (phrase: Parameters<typeof rawSpeak>[0]) => {
+  try {
+    void rawSpeak(phrase);
+  } catch {
+    // speak() never throws, but the save path must not rely on that.
+  }
+};
+const beep = (kind: "ok" | "error") => {
+  try {
+    rawBeep(kind);
+  } catch {
+    // Same.
+  }
+};
 import { useUnsavedWarning } from "./useUnsavedWarning";
 import type {
   AttendanceRecord,
@@ -490,16 +506,16 @@ export function useMarkState(options: { phone: boolean }): MarkState {
         });
         if (already) {
           loadBalance(found.employee.id);
-          void speak(SPEECH.already(found.employee));
+          say(SPEECH.already(found.employee));
         } else {
-          void speak(SPEECH.name(found.employee)); // say who it is as soon as the card is read
+          say(SPEECH.name(found.employee)); // say who it is as soon as the card is read
         }
       })
       .catch((err: unknown) => {
         if (err instanceof AttendanceApiError && err.status === 404) {
           setScan(freshScan("missing", code));
           beep("error");
-          void speak(SPEECH.unknown());
+          say(SPEECH.unknown());
         } else {
           setScan((s) =>
             s ? { ...s, busy: false, error: err instanceof Error ? err.message : "Lookup failed." } : s,
@@ -529,7 +545,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
               }
             : s,
         );
-        void speak(
+        say(
           result.record.status === "O"
             ? SPEECH.overtime(result.employee, result.record.ot_hours)
             : SPEECH.present(result.employee),
@@ -585,7 +601,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
       .then((paid) => {
         setScan((s) => (s ? { ...s, step: "paid", busy: false, paid } : s));
         loadBalance(employee.id);
-        void speak(SPEECH.payment(employee, scan.ptype!, paid.amount));
+        say(SPEECH.payment(employee, scan.ptype!, paid.amount));
       })
       .catch((err: unknown) =>
         setScan((s) =>

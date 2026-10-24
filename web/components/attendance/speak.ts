@@ -120,10 +120,22 @@ export function pickVoice<T extends VoiceLike>(voices: readonly T[]): PickedVoic
 }
 
 export function hasSpeech(): boolean {
-  return typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+  try {
+    return (
+      typeof window !== "undefined" &&
+      "speechSynthesis" in window &&
+      !!window.speechSynthesis &&
+      typeof SpeechSynthesisUtterance !== "undefined"
+    );
+  } catch {
+    return false;
+  }
 }
 
 let voicesPromise: Promise<SpeechSynthesisVoice[]> | null = null;
+
+/** How long to wait for the voice list before speech gives up (beep only). */
+export const VOICES_TIMEOUT_MS = 2000;
 
 /**
  * getVoices(); when the list is still empty (iOS/Android fill it late) waits
@@ -133,8 +145,15 @@ export function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   if (!hasSpeech()) return Promise.resolve([]);
   if (voicesPromise) return voicesPromise;
   const synth = window.speechSynthesis;
+  const list = (): SpeechSynthesisVoice[] => {
+    try {
+      return synth.getVoices() ?? [];
+    } catch {
+      return [];
+    }
+  };
   voicesPromise = new Promise<SpeechSynthesisVoice[]>((resolve) => {
-    const now = synth.getVoices();
+    const now = list();
     if (now.length) {
       resolve(now);
       return;
@@ -143,16 +162,28 @@ export function loadVoices(): Promise<SpeechSynthesisVoice[]> {
     const finish = () => {
       if (done) return;
       done = true;
-      synth.removeEventListener("voiceschanged", finish);
-      resolve(synth.getVoices());
+      try {
+        synth.removeEventListener?.("voiceschanged", finish);
+      } catch {
+        // Fine.
+      }
+      resolve(list());
     };
-    synth.addEventListener("voiceschanged", finish);
-    setTimeout(finish, 2000);
+    try {
+      synth.addEventListener?.("voiceschanged", finish);
+    } catch {
+      // Fine: the timeout resolves it.
+    }
+    setTimeout(finish, VOICES_TIMEOUT_MS);
   });
   // Voices installed later (e.g. after the help steps) replace the cache.
-  synth.addEventListener("voiceschanged", () => {
-    voicesPromise = Promise.resolve(synth.getVoices());
-  });
+  try {
+    synth.addEventListener?.("voiceschanged", () => {
+      voicesPromise = Promise.resolve(list());
+    });
+  } catch {
+    // Fine.
+  }
   return voicesPromise;
 }
 
@@ -169,21 +200,32 @@ export interface Phrase {
   en: string;
 }
 
+export type AudioAvailability = "unknown" | "ok" | "unavailable";
+
 export interface SpeechStatus {
   /** What happened to the last utterance, for the settings sheet. */
   outcome: "idle" | "queued" | "speaking" | "spoke" | "error" | "unsupported" | "no-voice";
   text: string;
   voice: string;
   detail: string;
+  /** Set by unlockAudio(): "unavailable" when the device refused audio/speech on the first tap. */
+  audio: AudioAvailability;
   at: number;
 }
 
-let status: SpeechStatus = { outcome: "idle", text: "", voice: "", detail: "", at: 0 };
+const IDLE: SpeechStatus = { outcome: "idle", text: "", voice: "", detail: "", audio: "unknown", at: 0 };
+let status: SpeechStatus = IDLE;
 const statusListeners = new Set<() => void>();
 
 function setStatus(patch: Partial<SpeechStatus>): void {
   status = { ...status, ...patch, at: Date.now() };
-  statusListeners.forEach((fn) => fn());
+  statusListeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      // A listener must never break speech.
+    }
+  });
 }
 
 export function getSpeechStatus(): SpeechStatus {
@@ -195,12 +237,37 @@ export function subscribeSpeechStatus(listener: () => void): () => void {
   return () => statusListeners.delete(listener);
 }
 
+function warn(message: string, err?: unknown): void {
+  try {
+    console.warn(`[attendance voice] ${message}`, err ?? "");
+  } catch {
+    // Even logging is optional here.
+  }
+}
+
 let sequence = 0;
 // Chrome garbage-collects an utterance that nothing references and then stops it mid-word.
 let lastUtterance: SpeechSynthesisUtterance | null = null;
+let watchdog: ReturnType<typeof setTimeout> | null = null;
+
+/** An utterance that has not ended after this long is cancelled (engine wedged). */
+export const WATCHDOG_MS = 5000;
+
+/** Errors the engine reports when we cancel on purpose (a newer scan); not worth a warning. */
+const EXPECTED_ERRORS = new Set(["interrupted", "canceled", "cancelled"]);
+
+function clearWatchdog(): void {
+  if (watchdog) clearTimeout(watchdog);
+  watchdog = null;
+}
 
 export function stopSpeaking(): void {
-  if (hasSpeech()) window.speechSynthesis.cancel();
+  clearWatchdog();
+  try {
+    if (hasSpeech()) window.speechSynthesis.cancel();
+  } catch {
+    // Nothing was speaking.
+  }
 }
 
 /** The utterance most recently handed to the engine (kept referenced; useful in devtools). */
@@ -211,18 +278,36 @@ export function lastSpokenUtterance(): SpeechSynthesisUtterance | null {
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
- * Says `phrase` with the picked voice: Nepali text with a Nepali or Hindi
- * voice, the English line when the device has neither (an English voice skips
- * Devanagari letters and says nothing). Whatever is still being said is
+ * Says `phrase`. Never throws and never rejects: scanning and saving must not
+ * depend on the speech engine. Callers fire and forget (`void speak(...)`).
+ */
+export async function speak(phrase: Phrase | string, options: { force?: boolean } = {}): Promise<void> {
+  try {
+    await speakUnsafe(phrase, options);
+  } catch (err) {
+    warn("speak failed", err);
+    try {
+      setStatus({ outcome: "error", detail: err instanceof Error ? err.message : "speak failed" });
+    } catch {
+      // Status is best effort.
+    }
+  }
+}
+
+/**
+ * Nepali text with a Nepali or Hindi voice, the English line when the device
+ * has neither (an English voice skips Devanagari letters and says nothing);
+ * beep only when no voice has loaded at all. Whatever is still being said is
  * cancelled first (fast back-to-back scans must not queue). Nothing happens
  * when the setting is off (unless `force`, used by "Test voice") or speech is
  * missing.
  *
  * Mobile quirks handled: speak() right after cancel() is dropped on Android
  * Chrome and iOS, so there is a short pause between them; iOS pauses the
- * engine after backgrounding, so resume() follows speak().
+ * engine after backgrounding, so resume() follows speak(); a 5 s watchdog
+ * cancels an utterance whose end never comes.
  */
-export async function speak(phrase: Phrase | string, options: { force?: boolean } = {}): Promise<void> {
+async function speakUnsafe(phrase: Phrase | string, options: { force?: boolean }): Promise<void> {
   const p: Phrase = typeof phrase === "string" ? { np: phrase, en: phrase } : phrase;
   if (!hasSpeech()) {
     setStatus({ outcome: "unsupported", text: p.np, voice: "", detail: "No speechSynthesis in this browser" });
@@ -233,38 +318,61 @@ export async function speak(phrase: Phrase | string, options: { force?: boolean 
   const mine = ++sequence;
   const synth = window.speechSynthesis;
   if (synth.speaking || synth.pending) {
-    synth.cancel();
+    stopSpeaking();
     await delay(80);
   }
   const { voice, kind } = pickVoice(await loadVoices());
   if (mine !== sequence) return; // a newer scan spoke meanwhile
+  if (kind === "none") {
+    // Voices never loaded (2 s): the beep already confirmed the scan; say so in settings.
+    setStatus({ outcome: "no-voice", text: p.np, voice: "", detail: "No voices loaded — beep only" });
+    return;
+  }
   const devanagari = kind === "nepali" || kind === "hindi";
   const text = devanagari ? p.np : p.en;
   const utterance = new SpeechSynthesisUtterance(text);
   if (voice) {
     utterance.voice = voice;
     utterance.lang = voice.lang;
-  } else {
-    // No voice list (iOS before the first speak): let the engine pick one for Hindi,
-    // which reads Devanagari; English text goes to the default voice.
-    utterance.lang = devanagari ? "hi-IN" : "en-US";
   }
   utterance.rate = clampRate(settings.rate);
   utterance.pitch = 1;
   utterance.volume = 1;
-  const voiceName = voice ? `${voice.name} (${voice.lang})` : `engine default (${utterance.lang})`;
+  const voiceName = voice ? `${voice.name} (${voice.lang})` : "engine default";
+  const finish = (patch: Partial<SpeechStatus>) => {
+    if (lastUtterance === utterance) clearWatchdog();
+    setStatus({ text, voice: voiceName, ...patch });
+  };
   utterance.onstart = () => setStatus({ outcome: "speaking", text, voice: voiceName, detail: "" });
-  utterance.onend = () => setStatus({ outcome: "spoke", text, voice: voiceName, detail: "" });
-  utterance.onerror = (event) =>
-    setStatus({ outcome: "error", text, voice: voiceName, detail: event.error || "unknown error" });
+  utterance.onend = () => finish({ outcome: "spoke", detail: "" });
+  utterance.onerror = (event) => {
+    const code = event?.error || "unknown error";
+    if (EXPECTED_ERRORS.has(code)) {
+      finish({ outcome: "idle", detail: "" });
+      return;
+    }
+    warn(`utterance error: ${code}`);
+    finish({ outcome: "error", detail: code });
+  };
   lastUtterance = utterance;
-  setStatus({ outcome: "queued", text, voice: voiceName, detail: kind === "none" ? "no voice listed" : "" });
+  setStatus({ outcome: "queued", text, voice: voiceName, detail: "" });
+  synth.speak(utterance);
   try {
-    synth.speak(utterance);
     synth.resume();
-  } catch (err) {
-    setStatus({ outcome: "error", text, voice: voiceName, detail: err instanceof Error ? err.message : "speak() threw" });
+  } catch {
+    // Not every engine implements resume().
   }
+  clearWatchdog();
+  watchdog = setTimeout(() => {
+    if (lastUtterance !== utterance) return;
+    warn("utterance did not end; cancelling");
+    try {
+      synth.cancel();
+    } catch {
+      // Nothing to cancel.
+    }
+    setStatus({ outcome: "error", text, voice: voiceName, detail: "timed out" });
+  }, WATCHDOG_MS);
 }
 
 /** Android haptic tap alongside the beep (no-op elsewhere). */
@@ -313,28 +421,32 @@ function tone(ctx: AudioContext, frequency: number, start: number, duration: num
   osc.stop(start + duration + 0.02);
 }
 
-/** ok = one short high tone; error = two low tones. Silent when the setting is off. */
+/** ok = one short high tone; error = two low tones. Silent when the setting is off. Never throws. */
 export function beep(kind: "ok" | "error"): void {
-  if (!getVoiceSettings().enabled) return;
-  vibrate(kind === "ok" ? 40 : [60, 60, 60]);
-  const ctx = getAudio();
-  if (!ctx) return;
-  const play = () => {
-    const t = ctx.currentTime;
-    try {
-      if (kind === "ok") {
-        tone(ctx, 1046, t, 0.12);
-      } else {
-        tone(ctx, 220, t, 0.15);
-        tone(ctx, 220, t + 0.2, 0.15);
+  try {
+    if (!getVoiceSettings().enabled) return;
+    vibrate(kind === "ok" ? 40 : [60, 60, 60]);
+    const ctx = getAudio();
+    if (!ctx) return;
+    const play = () => {
+      try {
+        const t = ctx.currentTime;
+        if (kind === "ok") {
+          tone(ctx, 1046, t, 0.12);
+        } else {
+          tone(ctx, 220, t, 0.15);
+          tone(ctx, 220, t + 0.2, 0.15);
+        }
+      } catch (err) {
+        warn("beep failed", err);
       }
-    } catch {
-      // No sound rather than a broken scan.
-    }
-  };
-  // A context created before any tap is suspended on phones: play once it is running.
-  if (ctx.state === "suspended") ctx.resume().then(play, () => undefined);
-  else play();
+    };
+    // A context created before any tap is suspended on phones: play once it is running.
+    if (ctx.state === "suspended") ctx.resume().then(play, () => undefined);
+    else play();
+  } catch (err) {
+    warn("beep failed", err);
+  }
 }
 
 /**
@@ -342,23 +454,44 @@ export function beep(kind: "ok" | "error"): void {
  * first tap on "Scan staff card" so the scans that follow can talk.
  */
 export function unlockAudio(): void {
-  const ctx = getAudio();
-  if (ctx && ctx.state === "suspended") void ctx.resume().catch(() => undefined);
-  if (!hasSpeech()) return;
   try {
+    const ctx = getAudio();
+    if (ctx && ctx.state === "suspended") void ctx.resume().catch(() => undefined);
+    if (!hasSpeech()) {
+      if (status.audio === "unknown") setStatus({ audio: ctx ? "ok" : "unavailable" });
+      return;
+    }
     const synth = window.speechSynthesis;
-    if (synth.speaking || synth.pending) return; // already unlocked and busy
-    // iOS skips an empty utterance; a single space at volume 0 counts as the first speak().
-    const silent = new SpeechSynthesisUtterance(" ");
-    silent.volume = 0;
-    silent.rate = 2;
-    lastUtterance = silent;
-    synth.speak(silent);
-    synth.resume();
+    if (!(synth.speaking || synth.pending)) {
+      // iOS skips an empty utterance; a single space at volume 0 counts as the first speak().
+      const silent = new SpeechSynthesisUtterance(" ");
+      silent.volume = 0;
+      silent.rate = 2;
+      lastUtterance = silent;
+      synth.speak(silent);
+      try {
+        synth.resume();
+      } catch {
+        // Optional.
+      }
+    }
     void loadVoices(); // iOS fills the voice list after the first speak()
-  } catch {
-    // Nothing to unlock.
+    if (status.audio !== "ok") setStatus({ audio: "ok" });
+  } catch (err) {
+    warn("audio unlock failed", err);
+    setStatus({ audio: "unavailable" });
   }
+}
+
+/** Test hook: forget cached voices, settings, status and the audio context. */
+export function resetSpeechForTests(): void {
+  voicesPromise = null;
+  current = null;
+  status = IDLE;
+  audio = null;
+  lastUtterance = null;
+  clearWatchdog();
+  sequence = 0;
 }
 
 // ------------------------------------------------------------ what to say
