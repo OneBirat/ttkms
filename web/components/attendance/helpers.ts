@@ -408,6 +408,21 @@ export function countMarks(drafts: readonly Draft[]): MarkCounts {
   return c;
 }
 
+/** Status filter of the Mark screens: "" = all, else one status, "N" = not marked. */
+export type StatusFilter = "" | CellStatus;
+
+/** Does a day status pass the filter? The Present pill counts overtime days too. */
+export function matchesStatusFilter(status: CellStatus, filter: StatusFilter): boolean {
+  if (!filter) return true;
+  if (filter === "P") return status === "P" || status === "O";
+  return status === filter;
+}
+
+/** Status of a mark row as the screens show it ("N" without a record). */
+export function recordStatus(record: { status: MarkStatus } | null | undefined): CellStatus {
+  return record?.status ?? "N";
+}
+
 /** Short text of a draft: "Present", "Overtime · 2 h", "Absent", "Not marked". */
 export function draftText(d: Draft): string {
   if (d.status === "O") return `Overtime · ${d.ot_hours} h`;

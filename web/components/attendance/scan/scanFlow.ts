@@ -14,6 +14,7 @@
 import { clampHours, formatAmount, type Draft } from "../helpers";
 import type {
   AttendanceRecord,
+  EmployeeMonth,
   EmployeeRef,
   LookupResponse,
   MarkStatus,
@@ -60,7 +61,18 @@ export type Scan =
     })
   | (Person & { step: "already"; busy: boolean; error: string | null })
   | (Person & PayFields & { step: "pay"; busy: boolean; error: string | null })
-  | (Person & PayFields & { step: "history"; busy: boolean; error: string | null })
+  /** `from` says where Back goes: "pay" (default), "already" (Payment record button) or "list" (phone ⋮ menu: close). */
+  | (Person & PayFields & { step: "history"; from: HistoryOrigin; busy: boolean; error: string | null })
+  /** Attendance record: one person's month, with a tappable day detail pop-up. */
+  | (Person & {
+      step: "attrec";
+      from: "already" | "list";
+      monthKey: string;
+      month: EmployeeMonth | null;
+      dayPop: number | null;
+      busy: boolean;
+      error: string | null;
+    })
   | { step: "missing"; code: string }
   | { step: "done"; emp: EmployeeRef; token: number; summary: string; status: MarkStatus; hours: number }
   | {
@@ -74,6 +86,7 @@ export type Scan =
     };
 
 export type ScanStep = Scan["step"];
+export type HistoryOrigin = "pay" | "already" | "list";
 
 export interface ScanFlowState {
   scan: Scan | null;
@@ -82,7 +95,12 @@ export interface ScanFlowState {
 }
 
 /** Steps that show a sheet over the camera / page. */
-export const SHEET_STEPS: readonly ScanStep[] = ["found", "already", "pay", "history", "missing", "done", "paid"];
+export const SHEET_STEPS: readonly ScanStep[] = ["found", "already", "pay", "history", "attrec", "missing", "done", "paid"];
+
+/** Sheets opened from the phone list (⋮ menu) run without the camera; Back closes them. */
+export function isListOrigin(scan: Scan | null | undefined): boolean {
+  return !!scan && (scan.step === "history" || scan.step === "attrec") && scan.from === "list";
+}
 
 export function isSheetStep(step: ScanStep | undefined): boolean {
   return step !== undefined && SHEET_STEPS.includes(step);
@@ -96,6 +114,7 @@ export interface ScanFlowApi {
   balance(employeeId: number): Promise<MonthBalance>;
   history(employeeId: number): Promise<PaymentHistory>;
   pay(input: PaymentInput): Promise<PaymentResult>;
+  employeeMonth(employeeId: number, monthKey: string): Promise<EmployeeMonth>;
 }
 
 /** Sounds are semantic events; the hook maps them to beep()/speak(). Every one is optional. */
@@ -120,16 +139,33 @@ export interface ScanFlowDeps {
   now?: () => number;
   setTimeout?: (fn: () => void, ms: number) => unknown;
   clearTimeout?: (handle: unknown) => void;
-  /** Done / paid stay this long before the camera reopens. */
-  autoReturnMs?: number;
+  /** Done / paid stay this long before the camera reopens (design: 7 s after a mark, 8 s after a payment). */
+  autoReturnMs?: Partial<AutoReturn>;
   /** The same code read again within this window is ignored. */
   repeatIgnoreMs?: number;
 }
 
-export const AUTO_RETURN_MS = 3000;
+export interface AutoReturn {
+  done: number;
+  paid: number;
+}
+
+export const AUTO_RETURN: AutoReturn = { done: 7000, paid: 8000 };
+/** @deprecated kept for older tests; the done sheet uses AUTO_RETURN.done. */
+export const AUTO_RETURN_MS = AUTO_RETURN.done;
 export const REPEAT_IGNORE_MS = 3000;
 
 // ------------------------------------------------------------ helpers
+
+/** "2083-07" + (-1) -> "2083-06"; null for a malformed key. */
+export function shiftMonthKey(key: string, delta: number): string | null {
+  const m = /^(\d{4})-(\d{1,2})$/.exec(key);
+  if (!m) return null;
+  const index = Number(m[1]) * 12 + (Number(m[2]) - 1) + delta;
+  const year = Math.floor(index / 12);
+  const month = (index % 12) + 1;
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
 
 export function isNotFound(err: unknown): boolean {
   return !!err && typeof err === "object" && "status" in err && (err as { status: unknown }).status === 404;
@@ -191,6 +227,16 @@ export interface ScanFlow {
   savePayment(): void;
   openHistory(): void;
   historyBack(): void;
+  /** From the already-marked sheet: this month's payments (Back returns there). */
+  openPaymentRecord(): void;
+  /** From the already-marked sheet: the attendance record (Back returns there). */
+  openAttendanceRecord(): void;
+  /** Phone ⋮ menu: open the history / record for a person without a scan; Back closes the sheet. */
+  openHistoryFor(employee: EmployeeRef, current: Draft): void;
+  openRecordFor(employee: EmployeeRef, current: Draft, monthKey: string): void;
+  recordMonth(delta: number): void;
+  recordDay(day: number | null): void;
+  recordBack(): void;
   /** Leave the current person without saving; back to the camera. */
   skip(): void;
   /** From done / paid (or missing): straight back to the camera. */
@@ -206,7 +252,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
   const now = deps.now ?? (() => Date.now());
   const schedule = deps.setTimeout ?? ((fn, ms) => setTimeout(fn, ms));
   const unschedule = deps.clearTimeout ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
-  const autoReturnMs = deps.autoReturnMs ?? AUTO_RETURN_MS;
+  const autoReturnMs: AutoReturn = { ...AUTO_RETURN, ...deps.autoReturnMs };
   const repeatIgnoreMs = deps.repeatIgnoreMs ?? REPEAT_IGNORE_MS;
   const sounds = deps.sounds ?? {};
 
@@ -245,7 +291,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
     if (timer !== null) unschedule(timer);
     timer = null;
   };
-  const scheduleReturn = (token: number, summary: string) => {
+  const scheduleReturn = (token: number, summary: string, ms: number) => {
     clearTimer();
     timer = schedule(() => {
       timer = null;
@@ -253,7 +299,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
       if (s && (s.step === "done" || s.step === "paid") && s.token === token) {
         setScan({ step: "camera", last: summary });
       }
-    }, autoReturnMs);
+    }, ms);
   };
   const toCamera = (last?: string) => {
     clearTimer();
@@ -291,6 +337,22 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
       .history(employeeId)
       .then((h) => apply({ history: h.payments, balance: { ...balanceFromHistory(h) } }))
       .catch(() => apply({ history: [] }));
+  };
+
+  const loadRecord = (employeeId: number, monthKey: string) => {
+    const seq = ++loadSeq;
+    deps.api
+      .employeeMonth(employeeId, monthKey)
+      .then((month) => {
+        if (seq !== loadSeq || disposed) return;
+        const s = scanIs("attrec");
+        if (s && s.emp.id === employeeId && s.monthKey === monthKey) setScan({ ...s, month, busy: false, error: null });
+      })
+      .catch((err: unknown) => {
+        if (seq !== loadSeq || disposed) return;
+        const s = scanIs("attrec");
+        if (s && s.emp.id === employeeId) setScan({ ...s, busy: false, error: messageOf(err, "Could not load the month.") });
+      });
   };
 
   const balanceFromHistory = (h: PaymentHistory): MonthBalance => ({
@@ -378,7 +440,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
           count: state.count + 1,
         });
         safe(() => sounds.marked?.(result.record.status, result.record.ot_hours));
-        scheduleReturn(token, summary);
+        scheduleReturn(token, summary, autoReturnMs.done);
       })
       .catch((err: unknown) => {
         if (disposed) return;
@@ -412,7 +474,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
         const summary = paySummary(emp, type, amount);
         set({ scan: { step: "paid", emp, token, summary, type, paid, monthLabel }, count: state.count + 1 });
         safe(() => sounds.paid?.(emp, type, amount));
-        scheduleReturn(token, summary);
+        scheduleReturn(token, summary, autoReturnMs.paid);
       })
       .catch((err: unknown) => {
         if (disposed) return;
@@ -426,6 +488,10 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
   const skip = () => {
     const s = state.scan;
     if (!s) return;
+    if ((s.step === "history" || s.step === "attrec") && s.from === "list") {
+      stop();
+      return;
+    }
     if (s.step === "missing") toCamera();
     else if ("emp" in s) toCamera(`Skipped ${s.emp.name}`);
     else return;
@@ -450,8 +516,12 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
         stop();
         return false;
       case "history":
-        setScan({ ...s, step: "pay" });
-        return true;
+        historyBack();
+        return state.scan !== null;
+      case "attrec":
+        if (s.dayPop !== null) setScan({ ...s, dayPop: null });
+        else recordBack();
+        return state.scan !== null;
       case "found":
         if (s.mode === "ot") setScan({ ...s, mode: null });
         else skip();
@@ -465,6 +535,43 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
         return true;
     }
   };
+
+  const emptyPay = (emp: EmployeeRef, code: string, current: Draft, type: PaymentType) => ({
+    emp,
+    code,
+    current,
+    type,
+    pick: null as string | null,
+    amount: "",
+    balance: null as MonthBalance | null,
+    history: null as PaymentEntry[] | null,
+    busy: false,
+    error: null as string | null,
+  });
+
+  const openRecord = (emp: EmployeeRef, code: string, current: Draft, monthKey: string, from: "already" | "list") => {
+    setScan({ step: "attrec", emp, code, current, from, monthKey, month: null, dayPop: null, busy: true, error: null });
+    loadRecord(emp.id, monthKey);
+  };
+
+  function historyBack(): void {
+    const s = scanIs("history");
+    if (!s) return;
+    if (s.from === "list") stop();
+    else if (s.from === "already") setScan({ step: "already", emp: s.emp, code: s.code, current: s.current, busy: false, error: null });
+    else {
+      const { from: _from, ...rest } = s;
+      void _from;
+      setScan({ ...rest, step: "pay" });
+    }
+  }
+
+  function recordBack(): void {
+    const s = scanIs("attrec");
+    if (!s) return;
+    if (s.from === "list") stop();
+    else setScan({ step: "already", emp: s.emp, code: s.code, current: s.current, busy: false, error: null });
+  }
 
   return {
     getState: () => state,
@@ -535,13 +642,43 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
     openHistory: () => {
       const s = scanIs("pay");
       if (!s) return;
-      setScan({ ...s, step: "history", error: null });
+      setScan({ ...s, step: "history", from: "pay", error: null });
       loadPayData(s.emp.id); // a payment saved in this session shows at the top
     },
-    historyBack: () => {
-      const s = scanIs("history");
-      if (s) setScan({ ...s, step: "pay" });
+    historyBack,
+    openPaymentRecord: () => {
+      const s = scanIs("already");
+      if (!s) return;
+      setScan({ ...emptyPay(s.emp, s.code, s.current, "advance"), step: "history", from: "already" });
+      loadPayData(s.emp.id);
     },
+    openAttendanceRecord: () => {
+      const s = scanIs("already");
+      if (!s) return;
+      openRecord(s.emp, s.code, s.current, deps.monthKey(), "already");
+    },
+    openHistoryFor: (employee, current) => {
+      clearTimer();
+      setScan({ ...emptyPay(employee, employee.code, current, "advance"), step: "history", from: "list" });
+      loadPayData(employee.id);
+    },
+    openRecordFor: (employee, current, monthKey) => {
+      clearTimer();
+      openRecord(employee, employee.code, current, monthKey, "list");
+    },
+    recordMonth: (delta) => {
+      const s = scanIs("attrec");
+      if (!s) return;
+      const next = shiftMonthKey(s.monthKey, delta);
+      if (!next || next > deps.monthKey()) return; // the future is locked
+      setScan({ ...s, monthKey: next, month: null, dayPop: null, busy: true, error: null });
+      loadRecord(s.emp.id, next);
+    },
+    recordDay: (day) => {
+      const s = scanIs("attrec");
+      if (s) setScan({ ...s, dayPop: day });
+    },
+    recordBack,
     skip,
     scanNext,
     back,

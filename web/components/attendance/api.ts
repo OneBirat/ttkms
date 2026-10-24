@@ -19,11 +19,16 @@ import { EMPLOYEES, branchRefs, departmentRefs } from "./mock/employees";
 import { MOCK_SETTINGS, addPayment, getBalance, getPaymentHistory, getRecord, putMarks } from "./mock/store";
 import { buildPrintDocument } from "./print";
 import type {
+  BulkMarkRequest,
+  BulkMarkResponse,
   DayAttendance,
   DayCell,
+  EmployeeMonth,
   ExportFile,
   LookupResponse,
   MarkInput,
+  MarkOneRequest,
+  MarkOneResponse,
   MarkRow,
   MonthBalance,
   MonthOption,
@@ -104,6 +109,55 @@ export async function saveDay(request: SaveDayRequest): Promise<SaveDayResponse>
   return { saved: records.length, records };
 }
 
+/** POST /api/attendance/mark  body MarkOneRequest -> MarkOneResponse (upsert on employee + day; CSRF header). */
+export async function markOne(request: MarkOneRequest): Promise<MarkOneResponse> {
+  await wait();
+  const day = dayFromBs(request.date_bs, MOCK_SETTINGS.weekly_off);
+  if (!day) throw new AttendanceApiError(422, `${request.date_bs} is not a valid BS date.`);
+  if (!EMPLOYEES.some((e) => e.id === request.employee_id)) {
+    throw new AttendanceApiError(404, "Unknown employee.");
+  }
+  const mark: MarkInput = {
+    employee_id: request.employee_id,
+    status: request.status,
+    ot_hours: request.status === "O" ? request.ot_hours : 0,
+    note: request.note ?? getRecord(request.employee_id, day)?.note ?? "",
+  };
+  checkMark(mark);
+  const previous = getRecord(request.employee_id, day)?.status ?? "N";
+  const [record] = putMarks(day, [mark], "admin", "manual");
+  return { record, previous };
+}
+
+/**
+ * POST /api/attendance/bulk-mark  body BulkMarkRequest -> BulkMarkResponse.
+ * One transaction; only employees without a record that day are written, the
+ * rest are reported in `skipped`.
+ */
+export async function bulkMarkPresent(request: BulkMarkRequest): Promise<BulkMarkResponse> {
+  await wait();
+  const day = dayFromBs(request.date_bs, MOCK_SETTINGS.weekly_off);
+  if (!day) throw new AttendanceApiError(422, `${request.date_bs} is not a valid BS date.`);
+  if (!request.employee_ids && request.department_id === undefined) {
+    throw new AttendanceApiError(422, "Give employee_ids or a department_id.");
+  }
+  const scope = EMPLOYEES.filter(
+    (e) =>
+      e.branch_id === request.branch_id &&
+      (request.department_id === undefined || e.department_id === request.department_id) &&
+      (!request.employee_ids || request.employee_ids.includes(e.id)),
+  );
+  const open = scope.filter((e) => !getRecord(e.id, day));
+  const skipped = scope.filter((e) => getRecord(e.id, day)).map((e) => e.id);
+  const records = putMarks(
+    day,
+    open.map((e) => ({ employee_id: e.id, status: "P" as const, ot_hours: 0, note: "" })),
+    "admin",
+    "manual",
+  );
+  return { marked: open.map((e) => ({ employee_id: e.id, name: e.name })), skipped, records };
+}
+
 /** GET /api/attendance/lookup?code=TTK-E004 -> LookupResponse (404 when no active employee has that code). */
 export async function lookupCode(code: string): Promise<LookupResponse> {
   await wait();
@@ -138,18 +192,33 @@ export async function listMonths(): Promise<MonthOption[]> {
   return calendarMonths();
 }
 
+function monthCells(employeeId: number, month: MonthReport["month"]): DayCell[] {
+  const paid = new Map<string, { advance: number; salary: number }>();
+  for (const p of getPaymentHistory(employeeId, month.key, month.label).payments) {
+    const slot = paid.get(p.bs_date) ?? { advance: 0, salary: 0 };
+    slot[p.type] += p.amount;
+    paid.set(p.bs_date, slot);
+  }
+  return month.days.map((day) => {
+    // A weekly-off day without a record is "–"; a record on it (overtime on a Saturday) shows as marked.
+    const record = getRecord(employeeId, day);
+    const cell: DayCell = record
+      ? { status: record.status, ot_hours: record.ot_hours }
+      : { status: day.is_weekly_off ? "W" : "N", ot_hours: 0 };
+    const money = paid.get(day.bs_date);
+    if (money?.advance) cell.advance = money.advance;
+    if (money?.salary) cell.salary = money.salary;
+    return cell;
+  });
+}
+
 /** GET /api/attendance/report?bs_year=&bs_month= -> MonthReport (all departments; week/dept are sliced client-side). */
 export async function getReport(monthKey: string): Promise<MonthReport> {
   await wait();
   const month = findMonth(monthKey, MOCK_SETTINGS.weekly_off);
   if (!month) throw new AttendanceApiError(404, `No report for ${monthKey}.`);
   const rows: ReportRow[] = EMPLOYEES.map((employee) => {
-    const cells: DayCell[] = month.days.map((day) => {
-      // A weekly-off day without a record is "–"; a record on it (overtime on a Saturday) shows as marked.
-      const record = getRecord(employee.id, day);
-      if (record) return { status: record.status, ot_hours: record.ot_hours };
-      return { status: day.is_weekly_off ? "W" : "N", ot_hours: 0 };
-    });
+    const cells = monthCells(employee.id, month);
     return { employee, cells, totals: computeTotals(cells) };
   });
   return {
@@ -158,6 +227,23 @@ export async function getReport(monthKey: string): Promise<MonthReport> {
     departments: departmentRefs(),
     rows,
     generated_at: new Date().toISOString(),
+  };
+}
+
+/** GET /api/attendance/employees/{id}/month?bs_year=&bs_month= -> EmployeeMonth (attendance record sheet). */
+export async function getEmployeeMonth(employeeId: number, monthKey: string): Promise<EmployeeMonth> {
+  await wait();
+  const employee = EMPLOYEES.find((e) => e.id === employeeId);
+  if (!employee) throw new AttendanceApiError(404, "Unknown employee.");
+  const month = findMonth(monthKey, MOCK_SETTINGS.weekly_off);
+  if (!month) throw new AttendanceApiError(404, `No month ${monthKey}.`);
+  const cells = monthCells(employeeId, month);
+  return {
+    employee,
+    month,
+    cells,
+    totals: computeTotals(cells),
+    payments: getPaymentHistory(employeeId, monthKey, month.label).payments,
   };
 }
 

@@ -35,7 +35,7 @@ export function OvertimeModal({ name, hours, onHours, onCancel, onSave }: Overti
             <h2 id={titleId} className={styles.otTitle}>
               Overtime hours
             </h2>
-            <span className={styles.otSub}>{name} · marked present + overtime</span>
+            <span className={styles.otSub}>{name} · marked present + overtime · saved when you press Save</span>
           </div>
           <button type="button" aria-label="Cancel" className={styles.otClose} onClick={onCancel}>
             ×

@@ -510,6 +510,7 @@ export const SPEECH = {
   name: (e: Named): Phrase => ({ np: spokenName(e), en: e.name }),
   /** The name was already said when the card was read, so the confirmation is just the status. */
   present: (): Phrase => ({ np: "हाजिर", en: "present" }),
+  absent: (): Phrase => ({ np: "अनुपस्थित", en: "absent" }),
   overtime: (hours: number): Phrase => ({
     np: `हाजिर, ओभरटाइम ${toDevanagariDigits(hours)} घण्टा`,
     en: `present, overtime ${hours} ${hours === 1 ? "hour" : "hours"}`,

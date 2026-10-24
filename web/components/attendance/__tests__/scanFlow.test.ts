@@ -4,7 +4,10 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { AUTO_RETURN_MS, amountError, amountOf, createScanFlow, type Scan, type ScanFlowApi } from "../scan/scanFlow";
+import { amountError, amountOf, createScanFlow, shiftMonthKey, type Scan, type ScanFlowApi } from "../scan/scanFlow";
+
+/** The tests use a short, equal auto-return for done and paid. */
+const AUTO_RETURN_MS = 3000;
 import type { EmployeeRef, PaymentEntry, PaymentHistory, ScanResponse } from "../types";
 
 // ---- fakes
@@ -90,6 +93,16 @@ function setup(options: { markFails?: boolean; marked?: Set<number> } = {}) {
       calls.push("history");
       return history();
     },
+    async employeeMonth(employeeId, monthKey) {
+      calls.push(`month ${employeeId} ${monthKey}`);
+      return {
+        employee: kamala,
+        month: { bs_year: 2083, bs_month: 7, label: "Kartik 2083", label_np: "कार्तिक २०८३", key: monthKey, ad_start: "2026-10-18", ad_end: "2026-11-16", days: [], working_days: 26 },
+        cells: [],
+        totals: { present: 0, overtime_days: 0, overtime_hours: 0, absent: 0, weekly_off: 0, not_marked: 0, marked_days: 0, attended: 0, paid_days: 0 },
+        payments: history().payments,
+      };
+    },
     async pay(input) {
       calls.push(`pay ${input.type} ${input.amount} ${input.method}`);
       paid += input.amount;
@@ -105,6 +118,7 @@ function setup(options: { markFails?: boolean; marked?: Set<number> } = {}) {
     now: () => clock.now,
     setTimeout: clock.setTimeout,
     clearTimeout: clock.clearTimeout,
+    autoReturnMs: { done: AUTO_RETURN_MS, paid: AUTO_RETURN_MS },
     sounds: {
       read: () => sounds.push("read"),
       name: (e) => sounds.push(`name ${e.name}`),
@@ -363,6 +377,50 @@ describe("scan loop", () => {
     await t.clock.advance(AUTO_RETURN_MS);
     assert.equal(t.step(), "found");
     assert.equal(t.flow.getState().count, 1);
+  });
+
+  it("payment record and attendance record open from the already sheet and go back there", async () => {
+    const t = setup({ marked: new Set([4]) });
+    t.flow.open();
+    t.flow.scan("E-004");
+    await flush();
+    t.flow.openPaymentRecord();
+    await flush();
+    assert.equal(t.step(), "history");
+    assert.equal((t.scan() as Extract<Scan, { step: "history" }>).from, "already");
+    t.flow.historyBack();
+    assert.equal(t.step(), "already");
+    t.flow.openAttendanceRecord();
+    await flush();
+    const rec = t.scan() as Extract<Scan, { step: "attrec" }>;
+    assert.equal(rec.step, "attrec");
+    assert.equal(rec.monthKey, "2083-07");
+    assert.ok(rec.month);
+    t.flow.recordMonth(-1);
+    await flush();
+    assert.equal((t.scan() as Extract<Scan, { step: "attrec" }>).monthKey, "2083-06");
+    t.flow.recordMonth(2); // the future is locked
+    assert.equal((t.scan() as Extract<Scan, { step: "attrec" }>).monthKey, "2083-06");
+    t.flow.recordDay(15);
+    assert.equal(t.flow.back(), true); // closes the day pop-up first
+    assert.equal((t.scan() as Extract<Scan, { step: "attrec" }>).dayPop, null);
+    assert.equal(t.flow.back(), true);
+    assert.equal(t.step(), "already");
+    assert.equal(shiftMonthKey("2083-01", -1), "2082-12");
+  });
+
+  it("history and record opened from the list close on Back", async () => {
+    const t = setup();
+    t.flow.openHistoryFor(kamala, { status: "P", ot_hours: 0, note: "" });
+    await flush();
+    assert.equal(t.step(), "history");
+    assert.equal(t.flow.back(), false);
+    assert.equal(t.scan(), null);
+    t.flow.openRecordFor(kamala, { status: "P", ot_hours: 0, note: "" }, "2083-07");
+    await flush();
+    assert.equal(t.step(), "attrec");
+    t.flow.skip();
+    assert.equal(t.scan(), null);
   });
 
   it("dispose clears the timer and stops notifying", async () => {

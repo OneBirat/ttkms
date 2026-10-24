@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { AttendanceApiError, getMonthBalance, getReport, lookupCode, recordPayment, saveDay, scanMark } from "../api";
+import {
+  AttendanceApiError,
+  bulkMarkPresent,
+  getDay,
+  getEmployeeMonth,
+  getMonthBalance,
+  getReport,
+  getToday,
+  lookupCode,
+  markOne,
+  recordPayment,
+  saveDay,
+  scanMark,
+} from "../api";
 import { buildExportModel } from "../exportModel";
 import { buildPrintDocument, paginateLines } from "../print";
 import { buildReportWorkbook, columnName, crc32, workbookToBytes } from "../xlsx";
@@ -110,12 +123,55 @@ describe("mock API rules", () => {
     const sat = await saveDay({ date_bs: "2083-06-03", rows: [{ employee_id: 3, status: "O", ot_hours: 3, note: "" }] });
     assert.equal(sat.saved, 1);
     const row = (await getReport("2083-06")).rows.find((r) => r.employee.id === 3)!;
-    assert.deepEqual(row.cells[2], { status: "O", ot_hours: 3 });
+    assert.equal(row.cells[2].status, "O");
+    assert.equal(row.cells[2].ot_hours, 3);
     assert.equal(row.totals.weekly_off, 4);
     await assert.rejects(
       saveDay({ date_bs: "2083-06-32", rows: [] }),
       (e: unknown) => e instanceof AttendanceApiError && e.status === 422,
     );
+  });
+  it("per-mark save upserts one record and reports what it replaced", async () => {
+    const first = await markOne({ date_bs: "2083-06-02", employee_id: 5, status: "A", ot_hours: 0 });
+    assert.equal(first.record.status, "A");
+    const second = await markOne({ date_bs: "2083-06-02", employee_id: 5, status: "O", ot_hours: 2 });
+    assert.equal(second.previous, "A");
+    assert.equal(second.record.ot_hours, 2);
+    await assert.rejects(
+      markOne({ date_bs: "2083-06-02", employee_id: 5, status: "O", ot_hours: 0 }),
+      (e: unknown) => e instanceof AttendanceApiError && e.status === 422,
+    );
+    await assert.rejects(
+      markOne({ date_bs: "2083-06-02", employee_id: 9999, status: "P", ot_hours: 0 }),
+      (e: unknown) => e instanceof AttendanceApiError && e.status === 404,
+    );
+  });
+  it("bulk-mark writes Present only for the unmarked in scope, in one call", async () => {
+    // Today is only partly seeded, so there is something left to mark.
+    const date_bs = (await getToday()).bs_date;
+    const before = await getDay(date_bs, 1);
+    const dept = before.departments[0].id;
+    const openIds = before.rows.filter((r) => r.employee.department_id === dept && !r.record).map((r) => r.employee.id);
+    const doneIds = before.rows.filter((r) => r.employee.department_id === dept && r.record).map((r) => r.employee.id);
+    const res = await bulkMarkPresent({ date_bs, branch_id: 1, department_id: dept });
+    assert.deepEqual(res.marked.map((m) => m.employee_id).sort(), openIds.sort());
+    assert.deepEqual([...res.skipped].sort(), doneIds.sort());
+    assert.ok(res.records.every((r) => r.status === "P" && r.ot_hours === 0 && r.marked_via === "manual"));
+    const again = await bulkMarkPresent({ date_bs, branch_id: 1, employee_ids: openIds });
+    assert.equal(again.marked.length, 0);
+    assert.equal(again.skipped.length, openIds.length);
+    await assert.rejects(
+      bulkMarkPresent({ date_bs, branch_id: 1 }),
+      (e: unknown) => e instanceof AttendanceApiError && e.status === 422,
+    );
+  });
+  it("employee month carries cells, totals and payments for the record screen", async () => {
+    const m = await getEmployeeMonth(4, "2083-06");
+    assert.equal(m.employee.id, 4);
+    assert.equal(m.month.bs_month, 6);
+    assert.equal(m.cells.length, 31);
+    assert.equal(m.totals.paid_days, m.totals.present + m.totals.overtime_days + m.totals.weekly_off);
+    assert.ok(Array.isArray(m.payments));
   });
   it("looks up every code shape and 404s unknown cards", async () => {
     const found = await lookupCode("TTK-E004");

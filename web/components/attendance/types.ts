@@ -173,6 +173,41 @@ export interface SaveDayResponse {
   records: AttendanceRecord[];
 }
 
+/** POST /api/attendance/mark – one person, saved at once (the screens no longer batch). */
+export interface MarkOneRequest {
+  date_bs: string;
+  employee_id: number;
+  status: MarkStatus;
+  /** 1–12 with "O", 0 otherwise. */
+  ot_hours: number;
+  note?: string;
+}
+
+export interface MarkOneResponse {
+  record: AttendanceRecord;
+  /** The status before this save, "N" when there was none. */
+  previous: CellStatus;
+}
+
+/**
+ * POST /api/attendance/bulk-mark – marks Present, in one transaction, only the
+ * employees of the scope that have no record for the day yet. Either a list of
+ * ids (the selected rows) or a whole department of a branch.
+ */
+export interface BulkMarkRequest {
+  date_bs: string;
+  branch_id: number;
+  employee_ids?: number[];
+  department_id?: number;
+}
+
+export interface BulkMarkResponse {
+  marked: { employee_id: number; name: string }[];
+  /** Ids that already had a record and were left untouched. */
+  skipped: number[];
+  records: AttendanceRecord[];
+}
+
 /** GET /api/attendance/lookup?code=TTK-E004 */
 export interface LookupResponse {
   /** The code as scanned/typed. */
@@ -201,6 +236,9 @@ export interface DayCell {
   status: CellStatus;
   /** Overtime hours when status is "O", else 0. */
   ot_hours: number;
+  /** Rupees of advance / salary paid that day (report payment icons); absent or 0 when none. */
+  advance?: number;
+  salary?: number;
 }
 
 /** Per-employee counts over a range of days. */
@@ -322,6 +360,17 @@ export interface PaymentEntry {
   note: string;
   /** ISO timestamp. */
   created_at: string;
+}
+
+/** GET /api/attendance/employees/{id}/month?bs_year=&bs_month= – one person's month (attendance record sheet). */
+export interface EmployeeMonth {
+  employee: EmployeeRef;
+  month: BsMonthRef;
+  /** One cell per day of the month; "N" for days not marked yet, "W" weekly off. */
+  cells: DayCell[];
+  totals: AttendanceTotals;
+  /** That month's payments, newest first. */
+  payments: PaymentEntry[];
 }
 
 /** GET /api/payroll/payments?employee_id=&bs_year=&bs_month= (newest first). */

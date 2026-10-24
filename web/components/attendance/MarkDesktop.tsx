@@ -1,42 +1,40 @@
 "use client";
 
 import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useRouter } from "next/navigation";
 import { BsDateInput } from "@/components/ui/BsDateInput";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { CheckIcon, ScanIcon, SearchIcon } from "./icons";
 import { MarkRow } from "./MarkRow";
 import { Pager } from "./Pager";
-import { ScanIcon, SearchIcon } from "./icons";
 import { isSheetStep } from "./scan/scanFlow";
 import { unlockAudio } from "./speak";
 import { DESKTOP_PAGE, type MarkState } from "./useMarkState";
 import { VoiceControls } from "./VoiceControls";
+import type { StatusFilter } from "./helpers";
 import shared from "./shared.module.css";
 import styles from "./mark.module.css";
 
+const PILLS: { key: StatusFilter; label: string }[] = [
+  { key: "", label: "All" },
+  { key: "N", label: "Not marked" },
+  { key: "P", label: "Present" },
+  { key: "A", label: "Absent" },
+];
+
+/** Mark attendance, desktop (design/final/AttendanceMark.dc.html). */
 export function MarkDesktop({ state }: { state: MarkState }) {
-  const {
-    data,
-    loading,
-    error,
-    message,
-    counts,
-    scopeLabel,
-    paged,
-    listRows,
-    draftOf,
-    dirty,
-    dirtyCount,
-    saving,
-  } = state;
+  const router = useRouter();
+  const { data, loading, error, counts, scopeLabel, paged, listRows, statusFilter, selected } = state;
   const scanInput = useRef<HTMLInputElement>(null);
   const ready = data !== null;
   const step = state.scan?.step;
   // Done / paid keep the box focused so the next card is read at once (the sheet shows only a countdown).
-  const sheetHoldsFocus = isSheetStep(step) && step !== "done" && step !== "paid";
+  const sheetHoldsFocus =
+    (isSheetStep(step) && step !== "done" && step !== "paid") ||
+    state.saved !== null ||
+    state.otModal !== null;
 
-  // The scan box is the focused field: USB scanners type into it and press Enter.
-  // Refocus after every sheet closes and when the window regains focus, but never
-  // steal it from a custom-amount box.
   useEffect(() => {
     if (!ready || sheetHoldsFocus) return;
     const focusBox = () => {
@@ -49,13 +47,6 @@ export function MarkDesktop({ state }: { state: MarkState }) {
     return () => window.removeEventListener("focus", focusBox);
   }, [ready, sheetHoldsFocus]);
 
-  const lastLine =
-    step === "camera" && state.scan && "last" in state.scan && state.scan.last
-      ? `${state.scan.last} — ready for next card · scanned ${state.scanCount}`
-      : state.scan && state.scanCount > 0
-        ? `Ready for next card · scanned ${state.scanCount}`
-        : null;
-
   const onScanKey = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== "Enter") return;
     event.preventDefault();
@@ -64,13 +55,26 @@ export function MarkDesktop({ state }: { state: MarkState }) {
     state.submitCode(value);
   };
 
+  const lastLine =
+    step === "camera" && state.scan && "last" in state.scan && state.scan.last
+      ? `${state.scan.last} — ready for next card · scanned ${state.scanCount}`
+      : state.scan && state.scanCount > 0
+        ? `Ready for next card · scanned ${state.scanCount}`
+        : null;
+
+  const bulk = statusFilter === "N";
+  const canAll = state.departmentId !== null;
+  const department = data?.departments.find((d) => d.id === state.departmentId);
+  const openOnPage = paged.items.filter((row) => state.statusOf(row) === "N").map((row) => row.employee.id);
+  const allOnPageSelected = openOnPage.length > 0 && openOnPage.every((id) => selected.has(id));
+  const selectedOpen = state.scopeRows.filter((row) => selected.has(row.employee.id) && state.statusOf(row) === "N").length;
   const weeklyOff = data?.day.is_weekly_off ?? false;
 
   return (
     <>
       <PageHeader
         title="Mark attendance"
-        subtitle="Pick a branch, narrow down, mark, save. Unsaved changes stay when you switch pages."
+        subtitle="Pick a branch, narrow down and mark. Each mark is saved as soon as you confirm it."
         actions={
           <div className={styles.dateCol}>
             <BsDateInput name="date" label="Date (BS)" value={state.date} onChange={state.setDate} />
@@ -84,33 +88,10 @@ export function MarkDesktop({ state }: { state: MarkState }) {
             Branch
           </label>
           <div className={shared.field}>
-            <select
-              id="mark-branch"
-              value={state.branchId}
-              onChange={(e) => state.setBranch(Number(e.target.value))}
-            >
+            <select id="mark-branch" value={state.branchId} onChange={(e) => state.setBranch(Number(e.target.value))}>
               {(data?.branches ?? [{ id: state.branchId, name: "Loading…", headcount: 0 }]).map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name} ({b.headcount})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className={styles.filterCol}>
-          <label htmlFor="mark-department" className={shared.label}>
-            Department
-          </label>
-          <div className={shared.field}>
-            <select
-              id="mark-department"
-              value={state.departmentId ?? ""}
-              onChange={(e) => state.setDepartment(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">All departments</option>
-              {(data?.departments ?? []).map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} ({d.headcount})
                 </option>
               ))}
             </select>
@@ -163,36 +144,124 @@ export function MarkDesktop({ state }: { state: MarkState }) {
         <label className={shared.check}>
           <input
             type="checkbox"
-            checked={state.onlyOpen}
-            onChange={(e) => state.setOnlyOpen(e.target.checked)}
+            checked={bulk}
+            onChange={(e) => state.setStatusFilter(e.target.checked ? "N" : "")}
           />
           Only not marked
         </label>
       </section>
 
-      <section aria-label="Day summary" className={styles.counts}>
-        <span className={styles.cnt}>
-          Present <strong>{counts.present + counts.overtime}</strong>
-        </span>
-        <span className={styles.cnt}>
-          Absent <strong>{counts.absent}</strong>
-        </span>
-        <span className={`${styles.cnt} ${styles.cntOpen}`}>
-          Not marked <strong>{counts.not_marked}</strong>
-        </span>
-        <span className={`${styles.cnt} ${styles.cntOt}`}>
-          Overtime <strong>{counts.overtime_hours} h</strong> · {counts.overtime} staff
-        </span>
-        <span className={styles.scope}>for {scopeLabel}</span>
+      <section role="group" aria-label="Department" className={styles.deptChips}>
         <button
           type="button"
-          className={`btn ${styles.markAll}`}
-          onClick={state.markAllPresent}
-          disabled={!data || counts.not_marked === 0 || weeklyOff}
+          className={styles.deptChip}
+          aria-pressed={state.departmentId === null}
+          onClick={() => state.setDepartment(null)}
         >
-          Mark {counts.not_marked} not marked as present
+          <span className={styles.deptChipName}>All departments</span>
+          <span className={styles.deptChipCount}>{data?.rows.length ?? 0}</span>
         </button>
+        {(data?.departments ?? []).map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            className={styles.deptChip}
+            aria-pressed={state.departmentId === d.id}
+            onClick={() => state.setDepartment(d.id)}
+          >
+            <span className={styles.deptChipName}>{d.name}</span>
+            <span className={styles.deptChipCount}>{d.headcount}</span>
+          </button>
+        ))}
       </section>
+
+      <section aria-label="Day summary" className={styles.counts}>
+        {PILLS.map((pill) => {
+          const n =
+            pill.key === ""
+              ? counts.total
+              : pill.key === "N"
+                ? counts.not_marked
+                : pill.key === "P"
+                  ? counts.present + counts.overtime
+                  : counts.absent;
+          return (
+            <button
+              key={pill.key || "all"}
+              type="button"
+              className={styles.pill}
+              data-filter={pill.key || "all"}
+              aria-pressed={statusFilter === pill.key}
+              onClick={() => state.setStatusFilter(statusFilter === pill.key ? "" : pill.key)}
+            >
+              {pill.label} <strong>{n}</strong>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          className={styles.pill}
+          data-filter="O"
+          aria-pressed={statusFilter === "O"}
+          onClick={() => state.setStatusFilter(statusFilter === "O" ? "" : "O")}
+        >
+          Overtime <strong>{counts.overtime_hours} h</strong> · {counts.overtime} staff
+        </button>
+        <span className={styles.scope}>for {scopeLabel}</span>
+        <label className={`${shared.check} ${styles.photosToggle}`}>
+          <input type="checkbox" checked={state.photos} onChange={(e) => state.setPhotos(e.target.checked)} />
+          Show employee photos
+        </label>
+      </section>
+
+      {bulk ? (
+        <section aria-label="Bulk mark" className={styles.bulkBar}>
+          <span className={styles.bulkText}>
+            <strong>{counts.not_marked}</strong> not marked · <strong>{selectedOpen}</strong> selected
+          </span>
+          <span className={styles.bulkSpacer} />
+          <button
+            type="button"
+            className={styles.bulkSelBtn}
+            disabled={selectedOpen === 0 || state.bulkBusy || weeklyOff}
+            onClick={state.markSelected}
+          >
+            Mark selected as Present ({selectedOpen})
+          </button>
+          {canAll ? (
+            <button
+              type="button"
+              className={styles.bulkAllBtn}
+              disabled={state.bulkBusy || counts.not_marked === 0 || weeklyOff}
+              onClick={state.markDepartment}
+            >
+              Mark all {counts.not_marked} in {department?.name ?? ""} as Present
+            </button>
+          ) : (
+            <span className={styles.bulkHint}>Pick a department to select or mark everyone at once</span>
+          )}
+        </section>
+      ) : null}
+
+      {state.bulkMessage ? (
+        <div role="status" className={styles.bulkMsg}>
+          <div className={styles.bulkMsgHead}>
+            <span className={styles.bulkMsgText}>✓ {state.bulkMessage.text}</span>
+            <span className={styles.bulkSpacer} />
+            <button type="button" aria-label="Close" className={styles.bulkMsgClose} onClick={state.closeBulkMessage}>
+              ×
+            </button>
+          </div>
+          <div className={styles.bulkChips}>
+            {state.bulkMessage.names.map((name) => (
+              <span key={name} className={styles.bulkChip}>
+                <CheckIcon size={12} />
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div className={styles.messages}>
@@ -201,29 +270,15 @@ export function MarkDesktop({ state }: { state: MarkState }) {
           </p>
         </div>
       ) : null}
-      {message ? (
-        <div className={styles.messages}>
-          <p role="status" className={shared.ok}>
-            {message}
-          </p>
-        </div>
-      ) : null}
       {weeklyOff ? (
         <div className={styles.messages}>
           <p role="status" className={shared.status}>
-            {data?.day.bs_date} is the weekly off (Saturday). Nobody needs a mark; mark only staff who
-            came in.
+            {data?.day.bs_date} is the weekly off (Saturday). Nobody needs a mark; mark only staff who came in.
           </p>
         </div>
       ) : null}
 
-      <form
-        className={`card ${styles.form}`}
-        onSubmit={(e) => {
-          e.preventDefault();
-          void state.save();
-        }}
-      >
+      <section className={`card ${styles.form}`} aria-label="Staff">
         <div className={styles.scroll}>
           <table className={styles.table}>
             <caption className="sr-only">
@@ -231,9 +286,21 @@ export function MarkDesktop({ state }: { state: MarkState }) {
             </caption>
             <thead>
               <tr>
+                {bulk ? (
+                  <th scope="col" className={styles.selectCol}>
+                    {canAll ? (
+                      <input
+                        type="checkbox"
+                        aria-label="Select all not marked on this page"
+                        checked={allOnPageSelected}
+                        disabled={openOnPage.length === 0}
+                        onChange={(e) => state.setSelected(openOnPage, e.target.checked)}
+                      />
+                    ) : null}
+                  </th>
+                ) : null}
                 <th scope="col">Employee</th>
                 <th scope="col">Status</th>
-                <th scope="col">Note</th>
               </tr>
             </thead>
             <tbody>
@@ -241,10 +308,16 @@ export function MarkDesktop({ state }: { state: MarkState }) {
                 <MarkRow
                   key={row.employee.id}
                   employee={row.employee}
-                  draft={draftOf(row)}
-                  onStatus={state.setStatus}
+                  status={state.statusOf(row)}
+                  hours={row.record?.ot_hours ?? 0}
+                  photos={state.photos}
+                  bulk={bulk}
+                  selected={selected.has(row.employee.id)}
+                  pending={state.pending.has(row.employee.id)}
+                  onToggleSelect={state.toggleSelected}
+                  onPick={state.pickStatus}
                   onOvertime={state.openOvertime}
-                  onNote={state.setNote}
+                  onOpenProfile={(id, dept) => router.push(`/people/employees/${id}?dept=${dept}`)}
                 />
               ))}
             </tbody>
@@ -264,14 +337,8 @@ export function MarkDesktop({ state }: { state: MarkState }) {
             onPage={state.setPage}
             label={`${paged.total} shown · ${DESKTOP_PAGE} per page`}
           />
-          <div className={styles.footerRight}>
-            <span className={styles.hint}>Overtime is paid hourly · rate set per employee</span>
-            <button type="submit" className="btn btn--primary" disabled={saving || loading || !dirty}>
-              {saving ? "Saving…" : dirty ? `Save attendance (${dirtyCount})` : "Save attendance"}
-            </button>
-          </div>
         </div>
-      </form>
+      </section>
     </>
   );
 }

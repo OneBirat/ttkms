@@ -24,6 +24,7 @@ export function useScanFlow(deps: ScanFlowDeps, options: { trapBack?: boolean } 
         balance: (id) => depsRef.current.api.balance(id),
         history: (id) => depsRef.current.api.history(id),
         pay: (input) => depsRef.current.api.pay(input),
+        employeeMonth: (id, monthKey) => depsRef.current.api.employeeMonth(id, monthKey),
       },
       currentDraft: (emp, today) => depsRef.current.currentDraft(emp, today),
       onMarked: (result) => depsRef.current.onMarked?.(result),
