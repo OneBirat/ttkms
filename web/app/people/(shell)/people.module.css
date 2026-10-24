@@ -1,0 +1,13 @@
+/* Under 640px the People pages render their own phone header and drawer
+   (design PayrollMobile), so the shared sidebar is hidden there. */
+
+@media (max-width: 639px) {
+  .peopleShell > :global(div) > :global(nav[aria-label="Main"]) {
+    display: none;
+  }
+
+  .peopleShell :global(main#main) {
+    padding: 0;
+    gap: 0;
+  }
+}
