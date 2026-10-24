@@ -506,10 +506,11 @@ type Named = { name: string; name_ne?: string | null };
 export const SPEECH = {
   /** Said the moment a card is read, before any marking: just who it is. */
   name: (e: Named): Phrase => ({ np: spokenName(e), en: e.name }),
-  present: (e: Named): Phrase => ({ np: `${spokenName(e)}, हाजिर`, en: `${e.name}, present` }),
-  overtime: (e: Named, hours: number): Phrase => ({
-    np: `${spokenName(e)}, हाजिर, ओभरटाइम ${toDevanagariDigits(hours)} घण्टा`,
-    en: `${e.name}, present, overtime ${hours} ${hours === 1 ? "hour" : "hours"}`,
+  /** The name was already said when the card was read, so the confirmation is just the status. */
+  present: (): Phrase => ({ np: "हाजिर", en: "present" }),
+  overtime: (hours: number): Phrase => ({
+    np: `हाजिर, ओभरटाइम ${toDevanagariDigits(hours)} घण्टा`,
+    en: `present, overtime ${hours} ${hours === 1 ? "hour" : "hours"}`,
   }),
   already: (e: Named): Phrase => ({
     np: `${spokenName(e)}, आज हाजिर भइसक्यो`,
@@ -520,7 +521,7 @@ export const SPEECH = {
     en: `${e.name}, ${type === "advance" ? "advance" : "salary"} of ${formatAmount(amount)} rupees recorded`,
   }),
   unknown: (): Phrase => ({ np: "कार्ड भेटिएन", en: "Card not found" }),
-  test: (): Phrase => ({ np: "कमला भण्डारी, हाजिर", en: "Kamala Bhandari, present" }),
+  test: (): Phrase => ({ np: "कमला भण्डारी, हाजिर", en: "Kamala Bhandari, present" }), // name + status, as a scan sounds
 } as const;
 
 /** Text for the settings sheet. */

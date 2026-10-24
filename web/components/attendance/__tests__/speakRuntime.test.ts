@@ -110,7 +110,7 @@ afterEach(uninstall);
 describe("speech without a browser", () => {
   it("speak, beep and unlockAudio are quiet no-ops when speechSynthesis is undefined", async () => {
     resetSpeechForTests();
-    await speak(SPEECH.present(kamala));
+    await speak(SPEECH.present());
     assert.equal(getSpeechStatus().outcome, "unsupported");
     assert.doesNotThrow(() => beep("ok"));
     assert.doesNotThrow(() => beep("error"));
@@ -122,24 +122,24 @@ describe("speech without a browser", () => {
 describe("speech with a fake engine", () => {
   it("speaks Nepali with a Hindi voice and reports success", async () => {
     const synth = installSynth({ voices: [{ lang: "hi-IN", name: "Lekha" }] });
-    await speak(SPEECH.present(kamala));
+    await speak(SPEECH.name(kamala));
     await tick();
     assert.equal(synth.spoken.length, 1);
-    assert.equal(synth.spoken[0].text, "कमला भण्डारी, हाजिर");
+    assert.equal(synth.spoken[0].text, "कमला भण्डारी");
     assert.equal(synth.spoken[0].lang, "hi-IN");
     assert.equal(getSpeechStatus().outcome, "spoke");
   });
 
   it("falls back to the English line when only an English voice exists", async () => {
     const synth = installSynth({ voices: [{ lang: "en-US", name: "Samantha", default: true }] });
-    await speak(SPEECH.overtime(kamala, 2));
-    assert.equal(synth.spoken[0].text, "Kamala Bhandari, present, overtime 2 hours");
+    await speak(SPEECH.overtime(2));
+    assert.equal(synth.spoken[0].text, "present, overtime 2 hours");
   });
 
   it("gives up quietly (beep only) when voices never load", async () => {
     const synth = installSynth({ voices: [] });
     const started = Date.now();
-    await speak(SPEECH.present(kamala));
+    await speak(SPEECH.present());
     assert.ok(Date.now() - started >= VOICES_TIMEOUT_MS - 50);
     assert.equal(synth.spoken.length, 0);
     assert.equal(getSpeechStatus().outcome, "no-voice");
@@ -168,11 +168,11 @@ describe("speech with a fake engine", () => {
 
   it("resolves when the utterance constructor or speak() throws", async () => {
     installSynth({ voices: [{ lang: "ne-NP", name: "Nepali" }], utteranceThrows: true });
-    await speak(SPEECH.present(kamala));
+    await speak(SPEECH.present());
     assert.equal(getSpeechStatus().outcome, "error");
     uninstall();
     installSynth({ voices: [{ lang: "ne-NP", name: "Nepali" }], speakThrows: true });
-    await speak(SPEECH.present(kamala));
+    await speak(SPEECH.present());
     assert.equal(getSpeechStatus().outcome, "error");
     assert.equal(getSpeechStatus().detail, "speak() refused");
   });
@@ -198,7 +198,7 @@ describe("speech with a fake engine", () => {
   it("does nothing while the setting is off, except a forced test", async () => {
     const synth = installSynth({ voices: [{ lang: "ne-NP", name: "Nepali" }] });
     setVoiceSettings({ enabled: false });
-    await speak(SPEECH.present(kamala));
+    await speak(SPEECH.present());
     beep("ok");
     assert.equal(synth.spoken.length, 0);
     await speak(SPEECH.test(), { force: true });
@@ -236,7 +236,7 @@ describe("scan still saves when speech fails", () => {
     await scanMark({ code: "E-005", action: "present", ot_hours: 0 })
       .then((result) => {
         saved = result.record.status === "P";
-        void speak(SPEECH.present(result.employee));
+        void speak(SPEECH.present());
       })
       .catch(() => {
         saved = false;

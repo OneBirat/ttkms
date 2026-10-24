@@ -547,8 +547,8 @@ export function useMarkState(options: { phone: boolean }): MarkState {
         );
         say(
           result.record.status === "O"
-            ? SPEECH.overtime(result.employee, result.record.ot_hours)
-            : SPEECH.present(result.employee),
+            ? SPEECH.overtime(result.record.ot_hours)
+            : SPEECH.present(),
         );
       })
       .catch((err: unknown) =>
