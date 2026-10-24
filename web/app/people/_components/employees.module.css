@@ -476,6 +476,10 @@
   gap: 0 24px;
 }
 
+.structureGrid .kv > span:first-child {
+  white-space: nowrap;
+}
+
 /* ---- ledger with expandable detail rows */
 
 .ledgerRow {

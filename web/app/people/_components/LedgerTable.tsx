@@ -158,7 +158,7 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
       <span className={styles.ledgerNote}>
         Monthly: net = salary − salary ÷ days in month × absent days + overtime − TDS; Saturdays are paid. Daily wage:
         net = wage × days present (overtime days included) + overtime hours × rate − TDS. Advances are part of that
-        month&apos;s salary. Attendance comes from the attendance module.
+        month&apos;s salary. The running month shows the monthly salary in full less absences so far (daily wages count days so far). Attendance comes from the attendance module.
       </span>
     </section>
   );
