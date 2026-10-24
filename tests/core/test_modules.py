@@ -38,7 +38,12 @@ def test_registry_shape():
         assert module.nav and all(isinstance(item, NavItem) for item in module.nav)
         prefix = frontend_prefix(module.name)
         assert all(item.path.startswith(prefix) for item in module.nav), module.name
-        assert module.dashboard_widgets, "every module exposes a dashboard widget"
+    # Dashboard cards: Attendance today and Payments today only; admin contributes none.
+    assert {m.name: len(m.dashboard_widgets) for m in MODULES} == {
+        "attendance": 1,
+        "payroll": 1,
+        "admin": 0,
+    }
 
 
 def test_nav_visibility():

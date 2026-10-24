@@ -10,7 +10,9 @@ worktree never has to edit core files.
 
 Dashboard widgets are async callables ``widget(ctx: WidgetContext) -> dict`` returning
 ``{"kind": str, "title": str, "data": {...}}``; the frontend picks a component by ``kind``
-(``web/components/widgets/index.tsx``).
+(``web/components/widgets/index.tsx``). A module may also contribute to the dashboard's headline
+numbers through ``Module.today_counts`` - an async callable returning a subset of the
+``TodayCountsOut`` fields (``app.core.schemas``), merged by ``GET /api/today``.
 
 Sidebar visibility is decided per user from their *effective access* - the role preset plus the
 per-user switches of ``app.modules.admin.permissions`` - not from the role alone. A
@@ -98,6 +100,8 @@ class WidgetContext:
 
 
 DashboardWidget = Callable[[WidgetContext], Awaitable[dict[str, Any]]]
+#: ``today_counts(ctx) -> {field: int}`` for the fields of ``TodayCountsOut`` a module owns.
+TodayCounts = Callable[[WidgetContext], Awaitable[dict[str, Any]]]
 
 
 @dataclass
@@ -107,6 +111,9 @@ class Module:
     router: APIRouter
     nav: list[NavItem]
     dashboard_widgets: list[Callable] = field(default_factory=list)
+    #: Headline numbers for today (attendance: present / overtime / absent / not marked;
+    #: payroll: paid today). ``None`` = the module has nothing to report.
+    today_counts: TodayCounts | None = None
 
     def visible_nav(self, role: str | None, access: Access | None = None) -> list[NavItem]:
         return [item for item in self.nav if item.visible_to(role, access)]
@@ -119,13 +126,3 @@ class Module:
     def permissions(self) -> frozenset[str]:
         """Every permission named by this module's nav (what unlocks the module at all)."""
         return frozenset(item.permission for item in self.nav if item.permission)
-
-
-def coming_soon_widget(title: str, note: str = "") -> DashboardWidget:
-    """Placeholder dashboard widget used by the module stubs."""
-
-    async def widget(ctx: WidgetContext) -> dict[str, Any]:
-        return {"kind": "coming_soon", "title": title, "data": {"note": note}}
-
-    widget.__name__ = f"coming_soon_{title.lower().replace(' ', '_')}"
-    return widget

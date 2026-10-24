@@ -106,14 +106,6 @@ export interface ModulesResponse {
 
 export type Tone = "ok" | "low" | "danger" | "leave" | "neutral";
 
-export interface Stat {
-  label: string;
-  value: number;
-  hint?: string | null;
-  tone?: Tone | null;
-  href?: string | null;
-}
-
 export interface Widget {
   module: string;
   kind: string;
@@ -121,8 +113,8 @@ export interface Widget {
   data: Record<string, unknown>;
 }
 
+/** GET /api/dashboard: the enabled modules' cards ("Attendance today", "Payments today"). */
 export interface DashboardResponse {
-  stats: Stat[];
   widgets: Widget[];
 }
 
@@ -131,6 +123,26 @@ export interface TodayText {
   bs_en: string;
   ad: string;
   full: string;
+}
+
+/**
+ * Today's headline numbers for the dashboard stat row (app/core/schemas.py
+ * TodayCountsOut). A field is null when its module is not enabled. Scope: the
+ * caller's branch, or every branch with `see_other_branches`.
+ */
+export interface TodayCounts {
+  /** Active employees in scope. */
+  total: number | null;
+  /** Marked P. */
+  present: number | null;
+  /** Marked O (present with overtime). */
+  overtime: number | null;
+  overtime_hours: number | null;
+  absent: number | null;
+  not_marked: number | null;
+  /** Rupees paid today (salary + advances). */
+  paid_today: number | null;
+  payments_today: number | null;
 }
 
 /** GET /api/today: today in Asia/Kathmandu, both calendars (app/core/schemas.py TodayOut). */
@@ -144,6 +156,8 @@ export interface Today {
   /** "2083/84" */
   fiscal_year: string;
   text: TodayText;
+  /** Only for a signed-in caller; null on the public (anonymous) answer. */
+  counts: TodayCounts | null;
 }
 
 /** GET /api/bsdate/convert?date= | ?date_bs= */

@@ -17,7 +17,7 @@ from starlette.concurrency import run_in_threadpool
 from app.core.auth import CurrentUser, require_role
 from app.core.export import PDF_MEDIA_TYPE, PDFUnavailable
 from app.core.models import User
-from app.core.modules import Module, NavItem, coming_soon_widget
+from app.core.modules import Module, NavItem
 from app.core.schemas import ModuleStatusOut
 from app.core.services import company_name
 from app.db import DbSession
@@ -264,7 +264,6 @@ module = Module(
     title="Admin",
     router=router,
     nav=NAV,
-    dashboard_widgets=[coming_soon_widget("Admin", "Users, barcodes and payment modes")],
 )
 
 __all__ = ["module", "router", "require_access"]

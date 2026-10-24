@@ -1,17 +1,13 @@
-"""Core JSON endpoints: modules, registry, dashboard, today's date, BS conversion."""
+"""Core JSON endpoints: modules, registry, dashboard widgets, today (date and counts), BS dates."""
 
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, status
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import bsdate
-from app.core.auth import CurrentUser
-from app.core.models import Branch, Department, Employee, EmployeeStatus, User
+from app.core.auth import CurrentUser, OptionalUser
 from app.core.modules import WidgetContext
 from app.core.schemas import (
     BsConvertOut,
@@ -23,7 +19,7 @@ from app.core.schemas import (
     NavLinkOut,
     NavSectionOut,
     RegistryOut,
-    StatOut,
+    TodayCountsOut,
     TodayOut,
     TodayText,
     WidgetOut,
@@ -82,27 +78,9 @@ async def registry(request: Request, user: CurrentUser, db: DbSession) -> Regist
     return RegistryOut(modules=modules)
 
 
-async def _count(db: AsyncSession, model: Any, *where: Any) -> int:
-    stmt = select(func.count()).select_from(model)
-    if where:
-        stmt = stmt.where(*where)
-    return int(await db.scalar(stmt) or 0)
-
-
 @router.get("/dashboard", response_model=DashboardOut, responses={401: {"model": ErrorOut}})
 async def dashboard(request: Request, user: CurrentUser, db: DbSession) -> DashboardOut:
-    stats = [
-        StatOut(
-            label="Active employees",
-            value=await _count(db, Employee, Employee.status == EmployeeStatus.active),
-            hint="core.employees",
-            tone="ok",
-            href="/payroll",
-        ),
-        StatOut(label="Branches", value=await _count(db, Branch), hint="core.branches"),
-        StatOut(label="Departments", value=await _count(db, Department), hint="core.departments"),
-        StatOut(label="Users", value=await _count(db, User), hint="core.users", href="/admin"),
-    ]
+    """The enabled modules' dashboard widgets, in sidebar order."""
     ctx = WidgetContext(request=request, user=user, db=db)
     widgets: list[WidgetOut] = []
     for module in request.app.state.modules:
@@ -116,12 +94,23 @@ async def dashboard(request: Request, user: CurrentUser, db: DbSession) -> Dashb
                     data=dict(result.get("data") or {}),
                 )
             )
-    return DashboardOut(stats=stats, widgets=widgets)
+    return DashboardOut(widgets=widgets)
+
+
+async def today_counts(request: Request, user, db) -> TodayCountsOut:
+    """Merge every enabled module's ``today_counts`` into one row (see ``TodayCountsOut``)."""
+    ctx = WidgetContext(request=request, user=user, db=db)
+    merged: dict[str, int] = {}
+    for module in request.app.state.modules:
+        if module.today_counts is not None:
+            merged.update(await module.today_counts(ctx))
+    return TodayCountsOut(**merged)
 
 
 @router.get("/today", response_model=TodayOut)
-async def today() -> TodayOut:
-    """Today in Asia/Kathmandu, both calendars, with the header texts."""
+async def today(request: Request, user: OptionalUser, db: DbSession) -> TodayOut:
+    """Today in Asia/Kathmandu, both calendars, with the header texts - public. A signed-in
+    caller also gets ``counts``, the dashboard's headline numbers for today."""
     header = bsdate.header_date()
     return TodayOut(
         date=header.ad_date,
@@ -129,6 +118,7 @@ async def today() -> TodayOut:
         weekday=header.bs_date.weekday,
         fiscal_year=bsdate.fiscal_year(header.bs_date).label,
         text=TodayText(np=header.np, bs_en=header.bs_en, ad=header.ad, full=header.full),
+        counts=await today_counts(request, user, db) if user is not None else None,
     )
 
 

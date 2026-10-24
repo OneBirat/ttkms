@@ -5,12 +5,14 @@ import pytest
 from app.core import bsdate
 from app.core.models import Role
 from app.main import MODULES
+from app.modules.attendance import SAMPLE_TODAY
+from app.modules.payroll import SAMPLE_PAYMENTS_TODAY
 from tests.core.test_modules import frontend_prefix
 
 pytestmark = pytest.mark.anyio
 
-#: Dashboard card per module: attendance has its real "Attendance today" card, the rest are stubs.
-WIDGET_KINDS = {"attendance": "attendance_today", "payroll": "coming_soon", "admin": "coming_soon"}
+#: Dashboard cards: only "Attendance today" and "Payments today"; admin has none.
+WIDGET_KINDS = {"attendance": ["attendance_today"], "payroll": ["payments_today"], "admin": []}
 
 
 async def test_registry_for_admin(client, make_user, login):
@@ -43,21 +45,25 @@ async def test_registry_requires_login(client):
     assert response.json() == {"detail": "login required"}
 
 
-async def test_dashboard_stats_and_widgets(client, make_user, login):
+async def test_dashboard_widgets(client, make_user, login):
+    """Only the two real cards, in sidebar order; the old core stat row is gone."""
     await make_user("admin")
     await login("admin")
     data = (await client.get("/api/dashboard")).json()
-    assert [s["label"] for s in data["stats"]] == [
-        "Active employees", "Branches", "Departments", "Users",
-    ]  # fmt: skip
-    assert data["stats"][3]["value"] == 1
-    assert data["stats"][0]["tone"] == "ok"
+    assert "stats" not in data
     widgets = data["widgets"]
-    assert [w["module"] for w in widgets] == [m.name for m in MODULES]
-    assert [w["kind"] for w in widgets] == [WIDGET_KINDS[m.name] for m in MODULES]
-    assert [w["title"] for w in widgets if w["module"] == "attendance"] == ["Attendance today"]
-    assert [w["title"] for w in widgets if w["module"] == "payroll"] == ["People & payroll"]
+    assert [w["module"] for w in widgets] == ["attendance", "payroll"]
+    assert [w["kind"] for w in widgets] == [k for m in MODULES for k in WIDGET_KINDS[m.name]]
+    assert [w["title"] for w in widgets] == ["Attendance today", "Payments today"]
     assert all(isinstance(w["data"], dict) for w in widgets)
+    payments = widgets[1]["data"]
+    assert payments["count"] == len(SAMPLE_PAYMENTS_TODAY) == 3
+    assert payments["total"] == payments["salary_total"] + payments["advance_total"] == 12500
+    assert payments["date"] == bsdate.header_date().ad_date.isoformat()
+    assert [p["time"] for p in payments["payments"]] == sorted(
+        (p["time"] for p in SAMPLE_PAYMENTS_TODAY), reverse=True
+    )
+    assert payments["payments_path"] == "/people/payments"
 
 
 async def test_today_endpoint_is_public(client):
@@ -70,6 +76,28 @@ async def test_today_endpoint_is_public(client):
     assert data["text"]["ad"] == header.ad
     assert data["text"]["full"] == header.full
     assert data["text"]["np"].endswith(bsdate.to_nepali_digits(header.bs_date.year))
+    assert data["counts"] is None, "headline numbers only for a signed-in caller"
+
+
+async def test_today_counts_for_signed_in_users(client, make_user, login):
+    """The dashboard stat row: attendance's and payroll's figures merged (sample data for now)."""
+    await make_user("clerk", role=Role.staff)
+    await login("clerk")
+    counts = (await client.get("/api/today")).json()["counts"]
+    assert counts == {
+        "total": SAMPLE_TODAY["total"],
+        "present": SAMPLE_TODAY["present"],
+        "overtime": SAMPLE_TODAY["overtime"],
+        "overtime_hours": SAMPLE_TODAY["overtime_hours"],
+        "absent": SAMPLE_TODAY["absent"],
+        "not_marked": SAMPLE_TODAY["not_marked"],
+        "paid_today": 12500,
+        "payments_today": 3,
+    }
+    assert (
+        counts["present"] + counts["overtime"] + counts["absent"] + counts["not_marked"]
+        == (counts["total"])
+    )
 
 
 async def test_bs_convert(client):

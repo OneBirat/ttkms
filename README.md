@@ -112,8 +112,10 @@ curl -c jar -b jar -H "X-CSRF-Token: <token>" -H 'Content-Type: application/json
 curl -b jar localhost:8000/api/auth/me          # {"user": {...}, "csrf_token": ...}
 curl -b jar localhost:8000/api/core/modules     # {"enabled": [...], "nav": [...]} for the sidebar
 curl -b jar localhost:8000/api/registry         # enabled modules + nav filtered to the user's role
-curl -b jar localhost:8000/api/dashboard        # stats + widgets (kind "coming_soon" for stubs)
-curl       localhost:8000/api/today             # AD + BS date strings for the header
+curl -b jar localhost:8000/api/dashboard        # widgets: attendance_today, payments_today
+curl -b jar localhost:8000/api/today            # AD + BS date for the header; with a session also
+                                                # "counts" (present/overtime/absent/not marked/paid
+                                                # today) for the dashboard stat row
 ```
 
 Every POST/PUT/PATCH/DELETE needs the `X-CSRF-Token` header (the token comes back from

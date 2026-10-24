@@ -64,7 +64,9 @@ async def test_paused_module_is_invisible_everywhere(client_for, make_user):
         assert [m["name"] for m in registry] == ["attendance", "admin"]
 
         dashboard = (await client.get("/api/dashboard")).json()
-        assert [w["module"] for w in dashboard["widgets"]] == ["attendance", "admin"]
+        assert [w["module"] for w in dashboard["widgets"]] == ["attendance"]
+        counts = (await client.get("/api/today")).json()["counts"]
+        assert counts["present"] is not None and counts["paid_today"] is None
 
         openapi = (await client.get("/api/openapi.json")).json()["paths"]
         assert not any(path.startswith("/api/payroll") for path in openapi)

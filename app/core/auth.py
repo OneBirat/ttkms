@@ -112,6 +112,18 @@ async def get_current_user(request: Request, db: DbSession) -> User:
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+async def get_optional_user(request: Request, db: DbSession) -> User | None:
+    """The signed-in user, or ``None`` for an anonymous (or expired / password-change-pending)
+    session - for endpoints that are public but say more to a signed-in caller."""
+    try:
+        return await get_current_user(request, db)
+    except (LoginRequired, PasswordChangeRequired):
+        return None
+
+
+OptionalUser = Annotated[User | None, Depends(get_optional_user)]
+
+
 async def session_out(db, user: User, csrf_token: str) -> SessionOut:
     """The session body: user, token, own branch and effective access. The admin module owns the
     permission catalogue and imports this module, so it is imported here lazily."""

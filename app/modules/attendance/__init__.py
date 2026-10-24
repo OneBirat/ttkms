@@ -61,6 +61,16 @@ async def attendance_today_widget(ctx: WidgetContext) -> dict[str, Any]:
     return {"kind": "attendance_today", "title": "Attendance today", "data": dict(SAMPLE_TODAY)}
 
 
+TODAY_COUNT_FIELDS = ("total", "present", "overtime", "overtime_hours", "absent", "not_marked")
+
+
+async def attendance_today_counts(ctx: WidgetContext) -> dict[str, Any]:
+    """Attendance's share of ``GET /api/today`` ``counts`` (``TodayCountsOut``): the same figures
+    as the widget, for the dashboard stat row. Sample data until ``attendance.records`` exists;
+    the real version counts today's records of the caller's branch(es)."""
+    return {key: SAMPLE_TODAY[key] for key in TODAY_COUNT_FIELDS}
+
+
 module = Module(
     name="attendance",
     title="Attendance",
@@ -72,4 +82,5 @@ module = Module(
         ),
     ],
     dashboard_widgets=[attendance_today_widget],
+    today_counts=attendance_today_counts,
 )

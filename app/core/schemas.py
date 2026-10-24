@@ -119,14 +119,6 @@ class ModulesOut(BaseModel):
     nav: list[NavSectionOut]
 
 
-class StatOut(BaseModel):
-    label: str
-    value: float | int
-    hint: str | None = None
-    tone: Tone | None = None
-    href: str | None = None
-
-
 class WidgetOut(BaseModel):
     module: str
     kind: str
@@ -135,7 +127,9 @@ class WidgetOut(BaseModel):
 
 
 class DashboardOut(BaseModel):
-    stats: list[StatOut]
+    """``GET /api/dashboard``: the enabled modules' widgets in sidebar order ("Attendance today",
+    "Payments today"). The headline stat row comes from ``GET /api/today`` (``counts``)."""
+
     widgets: list[WidgetOut]
 
 
@@ -180,12 +174,39 @@ class TodayText(BaseModel):
     full: str
 
 
+class TodayCountsOut(BaseModel):
+    """Today's headline numbers for the dashboard stat row (Present today / Overtime today /
+    Absent · not marked / Paid today). Each module fills the fields it owns through
+    ``Module.today_counts``; a field stays ``None`` when its module is not enabled. Scope: the
+    caller's own branch unless they hold ``see_other_branches`` (then every branch).
+
+    Attendance (``app.modules.attendance``): ``total`` active employees, ``present`` marked P,
+    ``overtime`` marked O (present with overtime), ``overtime_hours`` summed, ``absent`` marked A,
+    ``not_marked`` without a record. Payroll (``app.modules.payroll``): ``paid_today`` rupees paid
+    today (salary + advances), ``payments_today`` number of payments.
+
+    Mock-backed until the attendance and payroll backends exist (the modules' ``SAMPLE_*``
+    constants); the shape is the contract both backends implement.
+    """
+
+    total: int | None = None
+    present: int | None = None
+    overtime: int | None = None
+    overtime_hours: int | None = None
+    absent: int | None = None
+    not_marked: int | None = None
+    paid_today: int | None = None
+    payments_today: int | None = None
+
+
 class TodayOut(DateBoth):
-    """GET /api/today: today in Asia/Kathmandu."""
+    """GET /api/today: today in Asia/Kathmandu, both calendars and the header texts (public), plus
+    ``counts`` for a signed-in caller (``None`` without a session)."""
 
     weekday: int = Field(description="0 = Sunday ... 6 = Saturday")
     fiscal_year: str = Field(description='e.g. "2083/84"')
     text: TodayText
+    counts: TodayCountsOut | None = None
 
 
 class BsConvertOut(DateBoth):
