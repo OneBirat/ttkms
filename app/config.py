@@ -21,9 +21,10 @@ STATIC_DIR = BASE_DIR / "static"
 MEDIA_DIR = BASE_DIR / "media"
 
 PLACEHOLDER_SECRETS = frozenset({"CHANGE_ME", "change-me", "change-me-dev-only", "secret", ""})
-#: Every feature module that exists in the code base, in sidebar order.
-KNOWN_MODULES: tuple[str, ...] = ("stock", "attendance", "payroll", "admin")
-#: Modules switched on when ENABLED_MODULES is not set. "stock" is paused (see README).
+#: Every feature module that exists in the code base, in sidebar order. (The stock module was
+#: removed from the app on 2026-10-25; its tables and migrations/stock/ are kept, see README.)
+KNOWN_MODULES: tuple[str, ...] = ("attendance", "payroll", "admin")
+#: Modules switched on when ENABLED_MODULES is not set.
 DEFAULT_ENABLED_MODULES = "attendance,payroll,admin"
 log = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ class Settings(BaseSettings):
         from sqlalchemy.engine import make_url
 
         # One test database per checkout, so worktrees running `make test` at the same time
-        # never reset each other's schemas: ttk_test_ttkms, ttk_test_ttk_stock, ...
+        # never reset each other's schemas: ttk_test_ttkms, ttk_test_ttk_payroll, ...
         suffix = re.sub(r"[^a-z0-9_]+", "_", BASE_DIR.name.lower()).strip("_")
         url = make_url(self.database_url)
         return url.set(database=f"{url.database}_test_{suffix}").render_as_string(

@@ -143,13 +143,11 @@ export const SETTINGS: Settings = {
       "Arriving after 12:00 or leaving before 14:00 counts as a half day (½ day pay).",
   },
   payroll: { pay_day: 5, default_paid_by: "cash", rounding: "nearest_rupee" },
-  stock: { default_reorder_level: 5, default_unit: "pcs" },
   display: { show_ad_dates: true, nepali_digits: false },
   meta: {
     company: meta("Prakash Tamang", 41),
     attendance: meta("Prakash Tamang", 120, "16:05"),
     payroll: meta("Deepak Lama", 28, "10:20"),
-    stock: meta(null, 0),
     display: meta("Prakash Tamang", 41),
   },
 };

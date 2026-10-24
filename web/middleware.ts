@@ -41,9 +41,9 @@ async function moduleEnabled(
  * 1. No session cookie: never render the shell, go straight to the login page.
  *    The real check is done by the API, every 401 it returns also sends the
  *    user to /login (see lib/api.ts).
- * 2. A page owned by a paused module (every /stock/* page, and Admin › Products,
- *    which belongs to stock): send the user to the "module turned off" page.
- *    The page files stay in the repo; this is what makes them unreachable.
+ * 2. A page owned by a module that is not in the backend's ENABLED_MODULES:
+ *    send the user to the "module turned off" page. The page files stay in
+ *    the repo; this is what makes them unreachable.
  */
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;

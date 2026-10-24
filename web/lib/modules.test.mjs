@@ -8,80 +8,84 @@ import {
   modulesFromNav,
 } from "./modules.ts";
 
-const NAV_WITHOUT_STOCK = [
+const NAV = [
   {
     module: "attendance",
     title: "Attendance",
-    items: [{ label: "Overview", path: "/attendance", icon: "calendar" }],
+    items: [
+      { label: "Mark attendance", path: "/attendance/mark", icon: "check" },
+      { label: "Attendance report", path: "/attendance/report", icon: "calendar" },
+    ],
   },
   {
     module: "payroll",
     title: "People & payroll",
-    items: [{ label: "Overview", path: "/payroll", icon: "users" }],
+    items: [
+      { label: "Employees", path: "/people/employees", icon: "users" },
+      { label: "Salary report", path: "/people/salary", icon: "banknote" },
+      { label: "Payments", path: "/people/payments", icon: "list" },
+    ],
   },
   {
     module: "admin",
     title: "Admin",
     items: [
-      { label: "Users", path: "/admin/users", icon: "shield" },
-      { label: "Barcodes", path: "/admin/barcodes", icon: "box" },
+      { label: "Users", path: "/admin/users", icon: "user" },
+      { label: "Barcodes", path: "/admin/barcodes", icon: "barcode" },
+      { label: "Payment modes", path: "/admin/payment-modes", icon: "card" },
     ],
   },
 ];
 
-const NAV_WITH_STOCK = [
-  {
-    module: "stock",
-    title: "Stock",
-    items: [{ label: "Stock entry", path: "/stock/entry", icon: "box" }],
-  },
-  ...NAV_WITHOUT_STOCK,
-];
+const NAV_WITHOUT_PAYROLL = NAV.filter((section) => section.module !== "payroll");
 
-test("moduleForPath maps stock routes and Admin › Products to stock", () => {
-  assert.equal(moduleForPath("/stock"), "stock");
-  assert.equal(moduleForPath("/stock/entry"), "stock");
-  assert.equal(moduleForPath("/stock/report?x=1".split("?")[0]), "stock");
-  assert.equal(moduleForPath("/admin/products"), "stock");
-  assert.equal(moduleForPath("/admin/products/12"), "stock");
+test("moduleForPath maps every module prefix and nothing else", () => {
+  assert.equal(moduleForPath("/attendance"), "attendance");
+  assert.equal(moduleForPath("/attendance/mark"), "attendance");
+  assert.equal(moduleForPath("/attendance/report?x=1".split("?")[0]), "attendance");
+  assert.equal(moduleForPath("/payroll"), "payroll");
   assert.equal(moduleForPath("/admin"), "admin");
   assert.equal(moduleForPath("/admin/users"), "admin");
   assert.equal(moduleForPath("/admin/barcodes"), "admin");
-  assert.equal(moduleForPath("/attendance/mark"), "attendance");
-  assert.equal(moduleForPath("/stockroom"), null);
+  assert.equal(moduleForPath("/stock"), null);
+  assert.equal(moduleForPath("/admin/products"), "admin");
+  assert.equal(moduleForPath("/attendancexyz"), null);
   assert.equal(moduleForPath("/"), null);
   assert.equal(moduleForPath("/module-off"), null);
 });
 
-test("the sidebar sections contain no stock when stock is paused", () => {
-  const modules = modulesFromNav(NAV_WITHOUT_STOCK);
+test("sidebar sections come from the nav, in order", () => {
+  const modules = modulesFromNav(NAV);
   assert.deepEqual(
     modules.map((m) => m.name),
     ["attendance", "payroll", "admin"],
   );
   assert.ok(modules.every((m) => m.allowed));
   const paths = modules.flatMap((m) => m.nav.map((item) => item.path));
-  assert.ok(paths.every((p) => !p.startsWith("/stock") && p !== "/admin/products"));
-  assert.ok(paths.includes("/admin/users") && paths.includes("/admin/barcodes"));
+  assert.ok(paths.includes("/people/employees") && paths.includes("/admin/users"));
+  assert.ok(paths.every((p) => !p.startsWith("/stock")));
+  assert.deepEqual(
+    modulesFromNav(NAV_WITHOUT_PAYROLL).map((m) => m.name),
+    ["attendance", "admin"],
+  );
 });
 
-test("after login users land on Attendance when stock is paused", () => {
-  assert.equal(homePath(NAV_WITHOUT_STOCK), "/attendance");
-  assert.equal(homePath(NAV_WITH_STOCK), "/stock/entry");
+test("after login users land on the first link they may see", () => {
+  assert.equal(homePath(NAV), "/attendance/mark");
+  assert.equal(homePath(NAV.slice(1)), "/people/employees");
   assert.equal(homePath([]), "/");
   assert.equal(homePath([{ module: "x", title: "X", items: [] }]), "/");
 });
 
 test("dashboard widgets of a disabled module are dropped", () => {
   const widgets = [
-    { module: "stock", kind: "stock_low", title: "Low in stock", data: {} },
-    { module: "stock", kind: "stock_current", title: "Current stock", data: {} },
+    { module: "payroll", kind: "payments_today", title: "Payments today", data: {} },
     { module: "attendance", kind: "attendance_today", title: "Attendance today", data: {} },
   ];
-  const shown = enabledOnly(widgets, ["attendance", "payroll", "admin"]);
+  const shown = enabledOnly(widgets, ["attendance", "admin"]);
   assert.deepEqual(
     shown.map((w) => w.kind),
     ["attendance_today"],
   );
-  assert.equal(enabledOnly(widgets, ["stock", "attendance"]).length, 3);
+  assert.equal(enabledOnly(widgets, ["attendance", "payroll"]).length, 2);
 });

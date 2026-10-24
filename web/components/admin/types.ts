@@ -158,23 +158,17 @@ export interface PayrollSettings {
   rounding: Rounding;
 }
 
-export interface StockSettings {
-  default_reorder_level: number;
-  default_unit: string;
-}
-
 export interface DisplaySettings {
   show_ad_dates: boolean;
   nepali_digits: boolean;
 }
 
-export type SettingsGroup = "company" | "attendance" | "payroll" | "stock" | "display";
+export type SettingsGroup = "company" | "attendance" | "payroll" | "display";
 
 export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
   "company",
   "attendance",
   "payroll",
-  "stock",
   "display",
 ];
 
@@ -188,7 +182,6 @@ export interface Settings {
   company: CompanySettings;
   attendance: AttendanceSettings;
   payroll: PayrollSettings;
-  stock: StockSettings;
   display: DisplaySettings;
   meta: Record<SettingsGroup, SettingsMeta>;
 }

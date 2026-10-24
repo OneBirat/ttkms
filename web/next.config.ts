@@ -13,10 +13,6 @@ const nextConfig: NextConfig = {
     return [
       { source: "/api/:path*", destination: `${API_URL}/api/:path*` },
       { source: "/health", destination: `${API_URL}/health` },
-      {
-        source: "/core/export-demo.:ext",
-        destination: `${API_URL}/api/core/export-demo.:ext`,
-      },
     ];
   },
 };

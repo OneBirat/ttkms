@@ -1,7 +1,7 @@
 [project]
 name = "ttk"
 version = "0.1.0"
-description = "TTK - stock, attendance and payroll for a kitchen-appliance business in Nepal"
+description = "TTK - attendance and payroll for a kitchen-appliance business in Nepal"
 requires-python = ">=3.12,<3.13"
 
 [tool.ruff]

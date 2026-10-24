@@ -205,7 +205,6 @@ function settingsInputOf(settings: Settings): SettingsInput {
     company,
     attendance: settings.attendance,
     payroll: settings.payroll,
-    stock: settings.stock,
     display: settings.display,
   };
 }
@@ -236,7 +235,6 @@ export async function updateSettings(input: SettingsInput): Promise<Settings> {
     company: { ...input.company, logo_url: state.settings.company.logo_url },
     attendance: clone(input.attendance),
     payroll: clone(input.payroll),
-    stock: clone(input.stock),
     display: clone(input.display),
   };
   return respond(state.settings);

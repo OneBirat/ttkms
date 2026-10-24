@@ -38,7 +38,6 @@ const GROUP_LABELS: Record<SettingsGroup, string> = {
   company: "Company",
   attendance: "Attendance",
   payroll: "Payroll",
-  stock: "Stock",
   display: "Display",
 };
 
@@ -60,7 +59,6 @@ function inputOf(settings: Settings): SettingsInput {
     },
     attendance: { ...settings.attendance, weekly_off: [...settings.attendance.weekly_off] },
     payroll: { ...settings.payroll },
-    stock: { ...settings.stock },
     display: { ...settings.display },
   };
 }
@@ -429,55 +427,6 @@ function SettingsScreen() {
                   <option value="nearest_rupee">Nearest rupee</option>
                   <option value="none">No rounding (paisa kept)</option>
                 </Select>
-              )}
-            </Field>
-          </SettingsCard>
-
-          <SettingsCard
-            group="stock"
-            meta={saved.meta.stock}
-            dirty={dirtyGroups.includes("stock")}
-            invalid={touched && groupHasErrors(errors, "stock")}
-          >
-            <Field
-              label="Default reorder level"
-              hint="Starting value for new variations; each one can override it."
-              error={fieldError("stock.default_reorder_level")}
-            >
-              {({ id, describedBy, invalid }) => (
-                <input
-                  id={id}
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  className={inputClass(invalid, styles.numInput)}
-                  value={
-                    Number.isNaN(form.stock.default_reorder_level)
-                      ? ""
-                      : form.stock.default_reorder_level
-                  }
-                  onChange={(e) =>
-                    patch("stock", { default_reorder_level: e.target.valueAsNumber })
-                  }
-                  aria-describedby={describedBy}
-                  aria-invalid={invalid || undefined}
-                  required
-                />
-              )}
-            </Field>
-            <Field label="Default stock unit" error={fieldError("stock.default_unit")}>
-              {({ id, describedBy, invalid }) => (
-                <input
-                  id={id}
-                  className={inputClass(invalid, styles.numInput)}
-                  value={form.stock.default_unit}
-                  onChange={(e) => patch("stock", { default_unit: e.target.value })}
-                  aria-describedby={describedBy}
-                  aria-invalid={invalid || undefined}
-                  maxLength={16}
-                  placeholder="pcs"
-                  required
-                />
               )}
             </Field>
           </SettingsCard>

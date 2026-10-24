@@ -6,7 +6,6 @@ import { PageHeader } from "@/components/ui/PageHeader";
 export const metadata: Metadata = { title: "Module turned off" };
 
 const TITLES: Record<string, string> = {
-  stock: "Stock",
   attendance: "Attendance",
   payroll: "People & payroll",
   admin: "Admin",
@@ -14,8 +13,8 @@ const TITLES: Record<string, string> = {
 
 /**
  * Landing page for a route whose module is not in ENABLED_MODULES
- * (middleware.ts sends the user here, e.g. from /stock/entry or
- * /admin/products while stock is paused).
+ * (middleware.ts sends the user here, e.g. from /people/employees while
+ * payroll is paused).
  */
 export default async function ModuleOffPage({
   searchParams,

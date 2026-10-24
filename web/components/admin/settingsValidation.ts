@@ -14,7 +14,6 @@ export const SETTINGS_DEFAULTS: SettingsInput = {
       "Arriving after 12:00 or leaving before 14:00 counts as a half day (½ day pay).",
   },
   payroll: { pay_day: 1, default_paid_by: "cash", rounding: "nearest_rupee" },
-  stock: { default_reorder_level: 5, default_unit: "pcs" },
   display: { show_ad_dates: true, nepali_digits: false },
 };
 
@@ -81,14 +80,6 @@ export function validateSettings(input: SettingsInput): SettingsErrors {
     errors["payroll.rounding"] = "Choose a rounding rule.";
   }
 
-  const reorder = input.stock.default_reorder_level;
-  if (!Number.isInteger(reorder) || reorder < 0 || reorder > 100000) {
-    errors["stock.default_reorder_level"] = "Enter a whole number, 0 or more.";
-  }
-  const unit = input.stock.default_unit.trim();
-  if (!unit) errors["stock.default_unit"] = "Unit is required, e.g. pcs.";
-  else if (unit.length > 16) errors["stock.default_unit"] = "Keep the unit short (16 characters).";
-
   return errors;
 }
 
@@ -103,6 +94,6 @@ export function settingsEqual(a: SettingsInput, b: SettingsInput): boolean {
 
 /** Groups whose values differ between two inputs. */
 export function changedGroups(a: SettingsInput, b: SettingsInput): SettingsGroup[] {
-  const groups: SettingsGroup[] = ["company", "attendance", "payroll", "stock", "display"];
+  const groups: SettingsGroup[] = ["company", "attendance", "payroll", "display"];
   return groups.filter((group) => JSON.stringify(a[group]) !== JSON.stringify(b[group]));
 }

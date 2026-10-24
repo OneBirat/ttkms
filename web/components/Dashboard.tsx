@@ -16,8 +16,7 @@ import styles from "./Dashboard.module.css";
  * the summary stat-card row, then each module's widgets stacked full-width in
  * registry order. Page actions (e.g. "Record purchase") belong to the modules
  * and are added through their widgets. Widgets of a module that is not in
- * ENABLED_MODULES are never rendered (the API does not send them either), so
- * with stock paused the attendance widget takes the full row.
+ * ENABLED_MODULES are never rendered (the API does not send them either).
  */
 export function Dashboard() {
   const { today, enabled } = useSession();
@@ -73,13 +72,6 @@ export function Dashboard() {
           )}
         </>
       ) : null}
-
-      <footer className={styles.footer}>
-        <span>Export demo:</span>{" "}
-        <a href="/api/core/export-demo.pdf">PDF</a>
-        <span aria-hidden="true"> · </span>
-        <a href="/api/core/export-demo.xlsx">Excel</a>
-      </footer>
     </>
   );
 }

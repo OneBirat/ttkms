@@ -2,7 +2,7 @@
 
 The user interface lives in the Next.js app (``web/``); FastAPI renders HTML only for WeasyPrint
 PDFs. Template search path: ``app/core/templates`` first, then ``app/modules/<name>/templates`` so a
-module can ship its own print templates (namespace them: ``app/modules/stock/templates/stock/...``).
+module can ship its own print templates (namespace them: ``app/modules/admin/templates/admin/...``).
 Filters: ``bs``, ``bs_np``, ``bs_long``, ``np_digits``.
 """
 

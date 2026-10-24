@@ -92,7 +92,7 @@ async def test_settings_store_json(db):
 
 async def test_record_audit(db):
     row = await record_audit(
-        db, module="stock", action="create", entity="item", entity_id=42, data={"qty": 3}
+        db, module="admin", action="create", entity="item", entity_id=42, data={"qty": 3}
     )
     assert row.id is not None and row.at is not None
     stored = (await db.execute(select(AuditLog))).scalar_one()

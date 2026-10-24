@@ -126,7 +126,7 @@ async def client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
 
 @pytest.fixture
 def client_for(db: AsyncSession):
-    """``async with client_for("stock,attendance,payroll,admin") as client:`` builds a fresh app
+    """``async with client_for("attendance,admin") as client:`` builds a fresh app
     with that module set (``settings.enabled_modules`` is patched for the duration, so
     ``is_enabled()`` agrees with the mounted routers)."""
 

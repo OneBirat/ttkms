@@ -18,8 +18,7 @@ export interface AdminGateProps {
 
 /**
  * Role gate for the admin pages: admins get everything, managers may view
- * Branches & departments, everyone else sees "Access denied" (the same
- * screen ModulePlaceholder shows on a 403 from the API).
+ * Branches & departments, everyone else sees "Access denied".
  */
 export function AdminGate({ page, title, subtitle, children }: AdminGateProps) {
   const { user } = useSession();

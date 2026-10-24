@@ -6,8 +6,6 @@ import pytest
 from openpyxl import load_workbook
 
 from app.core.export import (
-    PDF_MEDIA_TYPE,
-    XLSX_MEDIA_TYPE,
     Column,
     PDFUnavailable,
     to_pdf,
@@ -36,11 +34,11 @@ def _weasyprint_available() -> bool:
 
 
 def test_to_xlsx_layout():
-    data = to_xlsx("Stock items", ["TTK", "Printed by Admin"], COLUMNS, ROWS)
+    data = to_xlsx("Items", ["TTK", "Printed by Admin"], COLUMNS, ROWS)
     wb = load_workbook(BytesIO(data))
     ws = wb.active
-    assert ws.title == "Stock items"
-    assert ws["A1"].value == "Stock items" and ws["A1"].font.bold
+    assert ws.title == "Items"
+    assert ws["A1"].value == "Items" and ws["A1"].font.bold
     assert ws["A2"].value == "TTK" and ws["A3"].value == "Printed by Admin"
     header_row = 5
     assert [c.value for c in ws[header_row]] == ["Item", "नाम", "Qty"]
@@ -118,24 +116,3 @@ def test_to_pdf_without_native_libraries_raises_clear_error():
         pytest.skip("WeasyPrint is importable here; the fallback path is covered elsewhere")
     with pytest.raises(PDFUnavailable, match="pango"):
         to_pdf("print/export_demo.html", {"title": "x", "columns": [], "rows": []})
-
-
-async def test_export_demo_routes(client, make_user, login):
-    await make_user("admin", full_name="Site Admin")
-    assert (await client.get("/api/core/export-demo.xlsx")).status_code == 401
-    await login("admin")
-
-    xlsx = await client.get("/api/core/export-demo.xlsx")
-    assert xlsx.status_code == 200
-    assert xlsx.headers["content-type"].startswith(XLSX_MEDIA_TYPE)
-    assert "attachment" in xlsx.headers["content-disposition"]
-    ws = load_workbook(BytesIO(xlsx.content)).active
-    assert ws["A1"].value.startswith("Export demo")
-    assert ws["A4"].value == "Printed by Site Admin"
-
-    pdf = await client.get("/api/core/export-demo.pdf")
-    if pdf.status_code == 503:
-        pytest.skip(f"PDF export unavailable: {pdf.json()['detail']}")
-    assert pdf.status_code == 200
-    assert pdf.headers["content-type"].startswith(PDF_MEDIA_TYPE)
-    assert pdf.content.startswith(b"%PDF")

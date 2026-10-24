@@ -7,13 +7,10 @@
 import type { Module, NavSection } from "./api";
 
 /**
- * Which module owns a frontend path. Routes a module owns beyond its own
- * prefix are listed first (Admin › Products belongs to stock, because products
- * are stock data). Unknown paths (dashboard, module-off, ...) return null.
+ * Which module owns a frontend path. Unknown paths (dashboard, module-off, ...)
+ * return null.
  */
 const MODULE_ROUTES: ReadonlyArray<readonly [prefix: string, module: string]> = [
-  ["/admin/products", "stock"],
-  ["/stock", "stock"],
   ["/attendance", "attendance"],
   ["/payroll", "payroll"],
   ["/admin", "admin"],
@@ -42,8 +39,8 @@ export function modulesFromNav(nav: NavSection[]): Module[] {
 
 /**
  * Where a user lands after signing in (when the login URL carries no `next`):
- * the first link of the first module they may see. With stock paused that is
- * Attendance; with stock on it is the first stock link, as before.
+ * the first link of the first module they may see (Mark attendance for most
+ * users).
  */
 export function homePath(nav: NavSection[]): string {
   for (const section of nav) {

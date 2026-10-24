@@ -15,8 +15,6 @@ test("defaults are valid and match the brief", () => {
   assert.deepEqual(validateSettings(SETTINGS_DEFAULTS), {});
   assert.equal(SETTINGS_DEFAULTS.attendance.late_after, "09:30");
   assert.deepEqual(SETTINGS_DEFAULTS.attendance.weekly_off, ["sat"]);
-  assert.equal(SETTINGS_DEFAULTS.stock.default_reorder_level, 5);
-  assert.equal(SETTINGS_DEFAULTS.stock.default_unit, "pcs");
   assert.equal(SETTINGS_DEFAULTS.payroll.rounding, "nearest_rupee");
 });
 
@@ -50,23 +48,15 @@ test("attendance validation: time format and at least one working day", () => {
   assert.match(errors["attendance.weekly_off"], /working day/);
 });
 
-test("payroll and stock ranges", () => {
+test("payroll ranges", () => {
   const input = clone(SETTINGS_DEFAULTS);
   input.payroll.pay_day = 0;
-  input.stock.default_reorder_level = -1;
-  input.stock.default_unit = "";
   let errors = validateSettings(input);
   assert.match(errors["payroll.pay_day"], /1 to 32/);
-  assert.match(errors["stock.default_reorder_level"], /whole number/);
-  assert.match(errors["stock.default_unit"], /required/);
   input.payroll.pay_day = 33;
-  input.stock.default_reorder_level = 2.5;
   errors = validateSettings(input);
   assert.ok(errors["payroll.pay_day"]);
-  assert.ok(errors["stock.default_reorder_level"]);
   input.payroll.pay_day = 32;
-  input.stock.default_reorder_level = 0;
-  input.stock.default_unit = "pcs";
   assert.deepEqual(validateSettings(input), {});
 });
 

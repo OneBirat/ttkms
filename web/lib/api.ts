@@ -77,8 +77,8 @@ export interface NavSection {
 
 /**
  * GET /api/core/modules. `enabled` is the ENABLED_MODULES setting as loaded by
- * the backend (a paused module such as "stock" is absent); `nav` is what the
- * sidebar renders, in sidebar order, filtered to the user's role.
+ * the backend (a paused module is absent); `nav` is what the sidebar renders,
+ * in sidebar order, filtered to the user's effective permissions.
  */
 export interface ModulesResponse {
   enabled: string[];
@@ -134,12 +134,13 @@ export interface BsConvertResponse extends Omit<Today, "text"> {
   weekday_np: string;
 }
 
-export type ModuleName = "stock" | "attendance" | "payroll" | "admin";
+export type ModuleName = "attendance" | "payroll" | "admin";
 
-export interface ModulePlaceholderResponse {
+/** GET /api/<module>: the module's index endpoint. */
+export interface ModuleStatusResponse {
   module: ModuleName;
   title: string;
-  status: "coming_soon";
+  status: "coming_soon" | "ready";
 }
 
 export interface ApiErrorBody {

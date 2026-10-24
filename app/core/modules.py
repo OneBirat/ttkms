@@ -47,7 +47,8 @@ def enabled_modules() -> tuple[str, ...]:
 
 def is_enabled(name: str) -> bool:
     """True when module ``name`` is switched on. Use it to guard any cross-module code path
-    (e.g. a dashboard widget that reads stock tables) so it degrades instead of crashing."""
+    (e.g. a dashboard widget that reads another module's tables) so it degrades instead of
+    crashing."""
     return name in enabled_modules()
 
 

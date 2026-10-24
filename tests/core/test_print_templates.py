@@ -4,35 +4,53 @@ from datetime import UTC, date, datetime
 
 from app.config import APP_DIR
 from app.core import bsdate
-from app.core.export import generated_at_text
-from app.core.routes import DEMO_COLUMNS, DEMO_LEGEND, DEMO_ROWS, DEMO_TITLE
+from app.core.export import Column, generated_at_text
 from app.core.templating import TEMPLATE_DIRS, bs_filter, bs_np_filter, env
+
+#: Sample table for the generic print layout (print/export_demo.html).
+COLUMNS = [
+    Column("code", "Code"),
+    Column("name", "Name"),
+    Column("name_np", "नाम (नेपाली)"),
+    Column("days", "Days", number_format="0"),
+    Column("status", "Status"),
+    Column("updated", "Updated (BS)"),
+]
+ROWS = [
+    {"code": "E-001", "name": "Sita Thapa", "name_np": "सीता थापा", "days": 24,
+     "status": "ok", "updated": "2083-07-02"},
+    {"code": "E-002", "name": "Ramesh K.C.", "name_np": "रमेश के.सी.", "days": 3,
+     "status": "low", "updated": "2083-07-01"},
+    {"code": "E-003", "name": "Kiran Lama", "name_np": "किरण लामा", "days": 0,
+     "status": "out", "updated": "2083-06-28"},
+]  # fmt: skip
+LEGEND = [("OK", "ok"), ("Low", "low"), ("Out", "danger")]
 
 
 def test_module_template_dirs_are_on_the_search_path():
     assert TEMPLATE_DIRS[0] == APP_DIR / "core" / "templates"
-    assert APP_DIR / "modules" / "stock" / "templates" in TEMPLATE_DIRS
+    assert APP_DIR / "modules" / "admin" / "templates" in TEMPLATE_DIRS
 
 
 def test_generated_at_text_uses_kathmandu_time():
     assert generated_at_text(datetime(2026, 10, 20, 10, 35, tzinfo=UTC)) == "20 Oct 2026, 16:20"
 
 
-def test_export_demo_template_renders_with_nepali_text():
+def test_print_table_template_renders_with_nepali_text():
     html = env.get_template("print/export_demo.html").render(
-        title=DEMO_TITLE,
+        title="Sample table",
         company="TTK",
         subtitle="all branches",
         printed_by="Site Admin",
         printed_at=bsdate.header_date(date(2026, 10, 20)),
         generated_at="20 Oct 2026, 16:20",
-        legend=DEMO_LEGEND,
+        legend=LEGEND,
         legend_text="",
-        columns=DEMO_COLUMNS,
-        rows=DEMO_ROWS,
+        columns=COLUMNS,
+        rows=ROWS,
         landscape=False,
     )
-    assert "प्रेसर कुकर" in html and "नेपाली पाठ" in html
+    assert "सीता थापा" in html and "नेपाली पाठ" in html
     assert 'class="pill pill--danger"' in html and ">Out<" in html
     assert "Generated 20 Oct 2026, 16:20 by Site Admin" in html
     assert "TTK · all branches" in html

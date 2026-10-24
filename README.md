@@ -1,6 +1,6 @@
 # TTK
 
-Attendance and payroll for a kitchen-appliance business in Nepal (the stock module is paused).
+Attendance and payroll for a kitchen-appliance business in Nepal.
 
 - **Backend** (`app/`): Python 3.12, FastAPI as a JSON API under `/api`, SQLAlchemy 2 (async,
   asyncpg), Alembic, PostgreSQL 16, argon2 session-cookie auth, openpyxl (Excel), WeasyPrint (PDF).
@@ -13,25 +13,20 @@ Attendance and payroll for a kitchen-appliance business in Nepal (the stock modu
   `attendance,payroll,admin`). A module that is not listed is hidden everywhere - no API routes,
   no sidebar section, no dashboard widgets, no migrations - while its code and tables stay put.
 
-## Stock module (paused)
+## Stock module (removed)
 
-Stock module is paused (2026-10-24). Code is on branch `feat/stock`, tag
-`stock-paused-2026-10-24`. To re-enable: merge the branch, add `stock` to `ENABLED_MODULES`,
-run `alembic -n stock upgrade head`.
+The stock module was paused on 2026-10-24 and taken out of the app on 2026-10-25: `stock` is no
+longer a known module name (`KNOWN_MODULES` in `app/config.py`), there is no stock code under
+`app/modules/` or `web/`, and the admin "Stock" settings group is gone. Its full code stays on
+branch `feat/stock` (tag `stock-paused-2026-10-24`). The `stock` Postgres schema, its tables and
+`migrations/stock/` are **kept untouched** (`alembic.ini` still has a `[stock]` section); `make
+migrate` never touches them because the module is not enabled. To bring stock back: merge the
+branch, add `stock` to `KNOWN_MODULES`, `DEFAULT_ENABLED_MODULES` and `ENABLED_MODULES`, and run
+`alembic -n stock upgrade head`.
 
-What the switch does while `stock` is absent from `ENABLED_MODULES`:
-
-- `app.main` never imports `app/modules/stock`, so `/api/stock/*` answers 404 and
-  `GET /api/core/modules` lists neither the module nor its nav items;
-- `make migrate` skips `migrations/stock/` (the schema is never upgraded, downgraded or dropped);
-- the Next.js sidebar is built from `/api/core/modules`, so the Stock section and Admin › Products
-  are gone; `web/middleware.ts` sends `/stock/*` and `/admin/products` to `/module-off`; the
-  dashboard renders no stock widgets; after login users land on Attendance;
-- `web/app/(app)/stock/` and `app/modules/stock/` remain in the tree, unreachable.
-
-Code outside a module that touches it must guard with `is_enabled("stock")`
-(`app/core/modules.py`), and the test-suite builds a stock-enabled app with the `client_for`
-fixture (`tests/conftest.py`), e.g. `async with client_for("stock,attendance,payroll,admin")`.
+Code outside a module that touches another module must guard with `is_enabled(<name>)`
+(`app/core/modules.py`); the test-suite builds an app with another module set through the
+`client_for` fixture (`tests/conftest.py`), e.g. `async with client_for("attendance,admin")`.
 
 ## Setup
 
@@ -99,13 +94,13 @@ app/
     services.py    settings store, audit log, normalised-name lookups
     templates/     print/ templates for PDFs (the only server-rendered HTML)
   modules/
-    stock/ attendance/ payroll/ admin/   each exports `module = Module(...)`, mounted at /api/<name>
-                                         when listed in ENABLED_MODULES (stock is paused)
+    attendance/ payroll/ admin/          each exports `module = Module(...)`, mounted at /api/<name>
+                                         when listed in ENABLED_MODULES
 web/               Next.js app: app/ (routes), components/ (shell + ui/), lib/ (api, session, bsdate)
 static/            css/print.css and vendor/fonts for PDFs
 scripts/           gen_bs_calendar.py (exports the BS calendar table to web/lib/bs/calendar-data.json)
 migrations/        env_helper.py + <module>/env.py + <module>/versions/
-tests/             conftest.py, core/, stock/, attendance/, payroll/, admin/
+tests/             conftest.py, core/, attendance/, payroll/, admin/
 ```
 
 ## API in one minute
@@ -153,7 +148,7 @@ name + `_test_` + the checkout directory (`ttk_test_ttkms`, `ttk_test_ttk_stock`
 server, so worktrees never share a test database. It is created if missing, its schemas are reset,
 every enabled module's migrations are run through Alembic, and each test runs in a rolled-back
 transaction. `tests/__init__.py` pins `ENABLED_MODULES` to the default set so `.env` cannot change
-what the suite asserts; `client_for("stock,attendance,payroll,admin")` builds a stock-enabled app.
+what the suite asserts; `client_for("attendance,admin")` builds an app with another module set.
 The core downgrade/upgrade round-trip test uses a further throwaway database (`..._roundtrip`).
 
 Skipped until their inputs exist: the BS round-trip tests (need the calendar table, below) and the

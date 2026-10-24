@@ -8,7 +8,6 @@ from app.modules.admin.permissions import preset_for
 pytestmark = pytest.mark.anyio
 
 TITLES = {
-    "stock": "Stock",
     "attendance": "Attendance",
     "payroll": "People & payroll",
     "admin": "Admin",
@@ -43,7 +42,7 @@ def test_registry_shape():
 
 
 def test_nav_visibility():
-    item = NavItem("Overview", "/stock", "box", {"admin", "manager"})
+    item = NavItem("Overview", "/x", "box", {"admin", "manager"})
     assert item.visible_to("admin") and not item.visible_to("staff") and not item.visible_to(None)
     assert NavItem("All", "/x", "box", set()).visible_to("staff")
     assert Module("x", "X", MODULES[0].router, [item]).allowed("manager")

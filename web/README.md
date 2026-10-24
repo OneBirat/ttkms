@@ -20,8 +20,7 @@ works without a running backend.
 
 ## Proxy model (no CORS)
 
-`next.config.ts` rewrites `/api/:path*`, `/health` and `/core/export-demo.:ext`
-to the backend. The browser only ever talks to the Next.js origin, so the
+`next.config.ts` rewrites `/api/:path*` and `/health` to the backend. The browser only ever talks to the Next.js origin, so the
 `ttk_session` cookie (HttpOnly, SameSite=Lax) stays same-origin and there is no
 CORS configuration anywhere. Rewrites are evaluated when the server starts
 (`next dev`) or at `next build`, so set `API_URL` for that process.
@@ -49,13 +48,13 @@ CORS configuration anywhere. Rewrites are evaluated when the server starts
   See `docs/bs-calendar.md`.
 - `components/date/`: `BSDate`, `BSDatePicker`, `BSDateRangePicker`,
   `BSDateTimePicker`, `DateLangToggle` (demo at `/dev/date-picker` in dev).
-- `components/`: `AppShell`, `Sidebar`, `Header`, `Dashboard`,
-  `ModulePlaceholder`, `icons.tsx`, `widgets/` (dashboard widgets by `kind`)
+- `components/`: `AppShell`, `Sidebar`, `Dashboard`, `icons.tsx`,
+  `widgets/` (dashboard widgets by `kind`)
   and `ui/` (PageHeader, StatCard, Pill, DataTable, Modal, Segmented,
   EmptyState, Pagination).
 - `app/`: routes. `(app)/` is the authenticated shell (dashboard, attendance,
-  payroll, admin, module-off; `stock/` stays in the tree but is paused, see the
-  root README); `login/` is the sign-in page. `middleware.ts` redirects pages of
+  admin, module-off); `people/` holds the payroll module's pages in the same
+  shell; `login/` is the sign-in page. `middleware.ts` redirects pages of
   a module missing from the backend's `ENABLED_MODULES` to `/module-off`.
 
 ## Worktrees

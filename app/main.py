@@ -38,7 +38,7 @@ async def password_change_required_handler(
 
 def create_app(modules: list[Module] | None = None) -> FastAPI:
     """Build the app. ``modules`` defaults to the enabled set read from settings when called,
-    so a test can monkeypatch ``settings.enabled_modules`` and build an app with stock on."""
+    so a test can monkeypatch ``settings.enabled_modules`` and build an app with another set."""
     modules = load_modules() if modules is None else modules
     # Swagger UI loads from a CDN: dev only (a LAN deployment may have no internet).
     app = FastAPI(
