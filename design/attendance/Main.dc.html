@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;family=Noto+Sans+Devanagari:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F2}
+a{color:#0E6B6B}a:hover{color:#0A4F4F}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-weight:600;color:#5B6670;font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:10px 12px;border-bottom:1px solid #E2E5E1;white-space:nowrap}
+.tbl td{padding:11px 12px;border-bottom:1px solid #EEF0EC;white-space:nowrap}
+.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.pill{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.nav{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#C9D2D7;text-decoration:none;font-size:14px;min-height:24px}
+.nav:hover{background:#22323B;color:#FFFFFF}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; background: #F4F5F2">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 100%; background: #17222A; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px 20px">
+<div style="width: 34px; height: 34px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">TT</div>
+<div style="display: flex; flex-direction: column"><span style="color: #FFFFFF; font-weight: 600; font-size: 15px">TTK Stock</span><span style="color: #93A3AC; font-size: 12px">Stock &amp; attendance</span></div>
+</div>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 12px 12px 6px">Stock</div>
+<a class="nav" href="Main.dc.html" aria-current="page" style="background: #24363F; color: #FFFFFF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>Dashboard</a>
+<a class="nav" href="StockEntry.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Stock entry</a>
+<a class="nav" href="Movements.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7h13M7 12h13M7 17h13M3.5 7h.01M3.5 12h.01M3.5 17h.01"></path></svg>Stock report</a>
+<a class="nav" href="Items.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"></path></svg>Items</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Attendance</div>
+<a class="nav" href="AttendanceMark.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l5 5L20 6"></path></svg>Mark attendance</a>
+<a class="nav" href="AttendanceReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>Attendance report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">People &amp; payroll</div>
+<a class="nav" href="Employees.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c2 .8 3.2 2.6 3.5 5.2"></path></svg>Employees</a>
+<a class="nav" href="SalaryReport.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 9.5v5M18 9.5v5"></path></svg>Salary report</a>
+<div style="color: #93A3AC; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 16px 12px 6px">Admin</div>
+<a class="nav" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg>Users</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 26px; font-weight: 600">Dashboard</h1>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #5B6670; font-size: 14px"><span style="font-family: 'Noto Sans Devanagari', sans-serif; color: #1B2328">मंगलबार, कार्तिक ४, २०८३</span><span aria-hidden="true">·</span><span>Kartik 4, 2083 BS</span><span aria-hidden="true">·</span><span>Tue 20 Oct 2026</span></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<a href="StockEntry.dc.html" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; color: #1B2328; text-decoration: none; font-weight: 500; font-size: 14px; box-sizing: border-box">Record consumption</a>
+<a href="StockEntry.dc.html" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 8px; background: #0E6B6B; color: #FFFFFF; text-decoration: none; font-weight: 500; font-size: 14px; box-sizing: border-box"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Record purchase</a>
+</div>
+</header>
+<section aria-label="Summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px">
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 13px; color: #5B6670">Variations tracked</span>
+<span style="font-size: 30px; font-weight: 600">29</span>
+<span style="font-size: 13px; color: #5B6670">across 12 products</span>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 13px; color: #5B6670">Below reorder level</span>
+<span style="font-size: 30px; font-weight: 600; color: #9A4A06">6</span>
+<a href="#low" style="font-size: 13px">See items</a>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 13px; color: #5B6670">Entries today</span>
+<span style="font-size: 30px; font-weight: 600">14</span>
+<span style="font-size: 13px; color: #5B6670">9 purchase · 5 consumption</span>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 13px; color: #5B6670">Staff present today</span>
+<span style="font-size: 30px; font-weight: 600">11 <span style="font-size: 18px; color: #5B6670; font-weight: 500">/ 14</span></span>
+<span style="font-size: 13px; color: #5B6670">2 late · 1 on leave</span>
+</div>
+</section>
+<div style="display: flex; flex-wrap: wrap; gap: 16px">
+<section id="low" aria-labelledby="low-h" style="flex: 2 1 560px; min-width: 0; background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 18px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px"><h2 id="low-h" style="margin: 0; font-size: 17px; font-weight: 600">Low in stock</h2><span style="font-size: 13px; color: #5B6670">6 items at or below their reorder level · out of stock first</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center"><button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328">Print shopping list</button></div>
+</div>
+<div style="overflow-x: auto">
+<table class="tbl">
+<thead><tr><th scope="col">Item</th><th scope="col">Status</th><th scope="col" class="num">In stock</th><th scope="col">Last purchased</th><th scope="col"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Action</span></th></tr></thead>
+<tbody>
+<tr><td style="font-weight: 500">SS Black cooker · 5 L</td><td><span class="pill" style="background: #F6DCD3; color: #8E2F12">Out of stock</span></td><td class="num" style="font-weight: 600">0 <span style="font-weight: 400; color: #5B6670">pcs</span></td><td>2083-06-12 · 10 pcs</td><td><a href="StockEntry.dc.html" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #CBD2CC; color: #1B2328; text-decoration: none; font-size: 13px; font-weight: 500">Record purchase</a></td></tr>
+<tr><td style="font-weight: 500">Non-stick tawa · 28 cm</td><td><span class="pill" style="background: #FCEFD9; color: #8A4205">Low</span></td><td class="num" style="font-weight: 600">1 <span style="font-weight: 400; color: #5B6670">pcs</span></td><td>2083-06-20 · 6 pcs</td><td><a href="StockEntry.dc.html" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #CBD2CC; color: #1B2328; text-decoration: none; font-size: 13px; font-weight: 500">Record purchase</a></td></tr>
+<tr><td style="font-weight: 500">Steel kadhai · 30 cm</td><td><span class="pill" style="background: #FCEFD9; color: #8A4205">Low</span></td><td class="num" style="font-weight: 600">2 <span style="font-weight: 400; color: #5B6670">pcs</span></td><td>2083-05-28 · 8 pcs</td><td><a href="StockEntry.dc.html" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #CBD2CC; color: #1B2328; text-decoration: none; font-size: 13px; font-weight: 500">Record purchase</a></td></tr>
+<tr><td style="font-weight: 500">Mixer grinder · 750 W</td><td><span class="pill" style="background: #FCEFD9; color: #8A4205">Low</span></td><td class="num" style="font-weight: 600">2 <span style="font-weight: 400; color: #5B6670">pcs</span></td><td>2083-05-15 · 5 pcs</td><td><a href="StockEntry.dc.html" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #CBD2CC; color: #1B2328; text-decoration: none; font-size: 13px; font-weight: 500">Record purchase</a></td></tr>
+<tr><td style="font-weight: 500">Rice cooker · 2.8 L</td><td><span class="pill" style="background: #FCEFD9; color: #8A4205">Low</span></td><td class="num" style="font-weight: 600">3 <span style="font-weight: 400; color: #5B6670">pcs</span></td><td>2083-06-02 · 6 pcs</td><td><a href="StockEntry.dc.html" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #CBD2CC; color: #1B2328; text-decoration: none; font-size: 13px; font-weight: 500">Record purchase</a></td></tr>
+<tr><td style="font-weight: 500">Steel spoon set · 12 pcs</td><td><span class="pill" style="background: #FCEFD9; color: #8A4205">Low</span></td><td class="num" style="font-weight: 600">4 <span style="font-weight: 400; color: #5B6670">pcs</span></td><td>2083-06-25 · 12 pcs</td><td><a href="StockEntry.dc.html" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #CBD2CC; color: #1B2328; text-decoration: none; font-size: 13px; font-weight: 500">Record purchase</a></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+<section aria-labelledby="att-h" style="flex: 1 1 320px; min-width: 0; background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 18px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px"><h2 id="att-h" style="margin: 0; font-size: 17px; font-weight: 600">Attendance today</h2><a href="AttendanceMark.dc.html" style="font-size: 14px">Mark</a></div>
+<div role="img" aria-label="11 present, 2 of them late, 1 on leave, 2 absent out of 14" style="display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px">
+<div style="flex: 9; background: #0E6B6B"></div><div style="flex: 2; background: #6FB3AE"></div><div style="flex: 1; background: #2F4E8C"></div><div style="flex: 2; background: #C9B49A"></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; font-size: 14px">
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #0E6B6B"></span>On time <strong style="margin-left: auto">9</strong></div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #6FB3AE"></span>Late <strong style="margin-left: auto">2</strong></div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #2F4E8C"></span>Leave <strong style="margin-left: auto">1</strong></div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #C9B49A"></span>Absent <strong style="margin-left: auto">2</strong></div>
+</div>
+<div style="border-top: 1px solid #EEF0EC; padding-top: 12px; font-size: 14px; display: flex; flex-direction: column; gap: 8px">
+<span style="color: #5B6670; font-size: 13px">Not in yet</span>
+<div style="display: flex; justify-content: space-between"><span>Sita Thapa</span><span style="color: #5B6670">Absent</span></div>
+<div style="display: flex; justify-content: space-between"><span>Ramesh K.C.</span><span style="color: #5B6670">Absent</span></div>
+</div>
+</section>
+</div>
+<section aria-labelledby="stock-h" style="background: #FFFFFF; border: 1px solid #E2E5E1; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<h2 id="stock-h" style="margin: 0; font-size: 17px; font-weight: 600">Current stock</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+<label style="display: flex; align-items: center; gap: 8px; border: 1px solid #CBD2CC; border-radius: 8px; padding: 0 12px; min-height: 40px; font-size: 14px; color: #5B6670"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search items</span><input type="search" placeholder="Search items" style="border: none; outline: none; font: inherit; color: #1B2328; width: 160px; background: transparent"></label>
+<button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328">Excel</button>
+<button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit; font-size: 14px; color: #1B2328">PDF</button>
+</div>
+</div>
+<div style="overflow-x: auto">
+<table class="tbl">
+<thead><tr><th scope="col">Product</th><th scope="col">Variation</th><th scope="col" class="num">Opening</th><th scope="col" class="num">Purchased</th><th scope="col" class="num">Consumed</th><th scope="col" class="num">In stock</th><th scope="col">Status</th></tr></thead>
+<tbody>
+<tr><td>SS Black cooker</td><td>2.5 L</td><td class="num">6</td><td class="num">8</td><td class="num">2</td><td class="num" style="font-weight: 600">12</td><td><span style="background: #E3F0EE; color: #0A5454; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600">OK</span></td></tr>
+<tr><td>SS Black cooker</td><td>3 L</td><td class="num">10</td><td class="num">0</td><td class="num">4</td><td class="num" style="font-weight: 600">6</td><td><span style="background: #E3F0EE; color: #0A5454; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600">OK</span></td></tr>
+<tr><td>SS Black cooker</td><td>5 L</td><td class="num">4</td><td class="num">0</td><td class="num">4</td><td class="num" style="font-weight: 600">0</td><td><span style="background: #F6DCD3; color: #8E2F12; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600">Out</span></td></tr>
+<tr><td>Rice cooker</td><td>1.8 L</td><td class="num">8</td><td class="num">4</td><td class="num">3</td><td class="num" style="font-weight: 600">9</td><td><span style="background: #E3F0EE; color: #0A5454; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600">OK</span></td></tr>
+<tr><td>Glass top gas stove</td><td>2 burner</td><td class="num">3</td><td class="num">6</td><td class="num">2</td><td class="num" style="font-weight: 600">7</td><td><span style="background: #E3F0EE; color: #0A5454; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600">OK</span></td></tr>
+<tr><td>Non-stick tawa</td><td>28 cm</td><td class="num">2</td><td class="num">0</td><td class="num">1</td><td class="num" style="font-weight: 600">1</td><td><span style="background: #FCEFD9; color: #8A4205; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600">Low</span></td></tr>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: #5B6670"><span>Showing 6 of 29 variations</span><div style="display: flex; gap: 6px"><button type="button" aria-label="Previous page" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">‹</button><button type="button" aria-current="page" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #0E6B6B; background: #0E6B6B; color: #FFFFFF; font: inherit">1</button><button type="button" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">2</button><button type="button" aria-label="Next page" style="min-width: 40px; min-height: 40px; border-radius: 8px; border: 1px solid #CBD2CC; background: #FFFFFF; font: inherit">›</button></div></div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Attendance report Excel sample</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.xs{border-collapse:collapse;table-layout:fixed;font-size:11px}
+.xs th,.xs td{border:1px solid #E1E3E1;height:21px;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xs thead th{background:#F3F4F3;color:#5B6670;font-weight:500;text-align:center}
+.rn{background:#F3F4F3;color:#5B6670;text-align:center!important;font-weight:500}
+.c{text-align:center}
+.n{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 820px; box-sizing: border-box; background: #FFFFFF; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; display: flex; flex-direction: column; border: 1px solid #D5D9D5">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 40px; background: #1F5C45; color: #FFFFFF; font-size: 13px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M4 9h16M4 15h16M10 3v18"></path></svg>
+<span style="font-weight: 600">Attendance_Ashoj_2083.xlsx</span><span style="opacity: .8">· exported 20 Oct 2026, 16:20</span>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; height: 28px; border-bottom: 1px solid #E1E3E1; padding: 0 8px; font-size: 12px">
+<span style="width: 60px; border-right: 1px solid #E1E3E1; color: #5B6670">D7</span><span style="font-family: 'IBM Plex Mono', monospace; color: #1B2328">P</span>
+</div>
+<div style="flex: 1; overflow: hidden">
+<table class="xs">
+<colgroup><col style="width: 34px"><col style="width: 52px"><col style="width: 116px"><col style="width: 88px"><sc-for list="{{days}}" as="d" hint-placeholder-count="30"><col style="width: 25px"></sc-for><col style="width: 28px"><col style="width: 28px"><col style="width: 28px"><col style="width: 28px"><col style="width: 28px"><col style="width: 38px"></colgroup>
+<thead><tr><th scope="col"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Row</span></th><sc-for list="{{letters}}" as="l" hint-placeholder-count="39"><th scope="col">{{l}}</th></sc-for></tr></thead>
+<tbody>
+<tr><td class="rn">1</td><td colspan="39" style="font-weight: 700; font-size: 13px">TTK · Attendance report · Ashoj 2083 (17 Sep – 16 Oct 2026)</td></tr>
+<tr><td class="rn">2</td><td colspan="39" style="color: #5B6670">All departments · {{staff}} staff · avg {{avg}} present per working day ({{rate}}) · {{late}} late arrivals · {{absent}} absences · {{leave}} leave days</td></tr>
+<tr><td class="rn">3</td><td colspan="39"></td></tr>
+<tr style="background: #E7F1EF; font-weight: 600"><td class="rn">4</td><td>Emp ID</td><td>Name</td><td>Department</td><sc-for list="{{days}}" as="d" hint-placeholder-count="30"><td class="c" style="{{d.style}}">{{d.n}}</td></sc-for><td class="c">P</td><td class="c">L</td><td class="c">H</td><td class="c">V</td><td class="c">A</td><td class="c">Paid</td></tr>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="24">
+<tr><td class="rn">{{r.rn}}</td><td style="font-family: 'IBM Plex Mono', monospace">{{r.id}}</td><td>{{r.name}}</td><td>{{r.dept}}</td><sc-for list="{{r.cells}}" as="c" hint-placeholder-count="30"><td class="c" style="{{c.style}}">{{c.v}}</td></sc-for><td class="n">{{r.p}}</td><td class="n">{{r.l}}</td><td class="n">{{r.h}}</td><td class="n">{{r.v}}</td><td class="n">{{r.a}}</td><td class="n" style="font-weight: 600">{{r.paid}}</td></tr>
+</sc-for>
+<tr style="font-weight: 700; background: #F3F4F3"><td class="rn">29</td><td colspan="3">Staff present</td><sc-for list="{{totals}}" as="t" hint-placeholder-count="30"><td class="n" style="{{t.style}}">{{t.v}}</td></sc-for><td colspan="6" style="color: #5B6670; font-weight: 500">avg {{avg}}</td></tr>
+</tbody>
+</table>
+</div>
+<div style="display: flex; align-items: stretch; height: 32px; border-top: 1px solid #D5D9D5; background: #F3F4F3; font-size: 12px">
+<span style="display: flex; align-items: center; padding: 0 16px; color: #5B6670; border-right: 1px solid #D5D9D5">Summary</span>
+<span style="display: flex; align-items: center; padding: 0 16px; background: #FFFFFF; color: #1F5C45; font-weight: 600; border-right: 1px solid #D5D9D5; border-bottom: 3px solid #1F5C45">Daily grid</span>
+<span style="display: flex; align-items: center; padding: 0 16px; color: #5B6670; border-right: 1px solid #D5D9D5">In–out times</span>
+<span style="display: flex; align-items: center; padding: 0 16px; color: #5B6670; border-right: 1px solid #D5D9D5">By department</span>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+renderVals() {
+var fill = { P: '', L: 'background: #D7ECE9', H: 'background: #FBEBD0', V: 'background: #E1E7F3', A: 'background: #F6D9CF; font-weight: 700', W: 'background: #EEF0EC; color: #6B757B' };
+var depts = [
+['Store', ['Anita Gurung', 'Ramesh K.C.', 'Dipak Adhikari', 'Kamala Bhandari', 'Nabin Poudel']],
+['Kitchen', ['Bikash Shrestha', 'Gita Magar', 'Hari Bista', 'Laxmi Karki', 'Prakash Rana']],
+['Housekeeping', ['Sita Thapa', 'Maya Tamang', 'Rita Shahi', 'Sunita B.K.', 'Bimala Oli']],
+['Front desk', ['Priya Rai', 'Suman Tamang', 'Aarati Joshi', 'Kiran Lama']],
+['Accounts', ['Rajesh Pandey', 'Sabina Khadka', 'Manoj Dahal', 'Asmita Ghimire', 'Bishal Neupane']]
+];
+var dayNums = [];
+for (var d = 1; d <= 30; d++) dayNums.push(d);
+var statusOf = function (ei, day) {
+if ((3 + day) % 7 === 6) return 'W';
+var h = (ei * 37 + day * 17 + ei * day * 7) % 100;
+return h < 3 ? 'A' : h < 12 ? 'L' : h < 14 ? 'H' : h < 17 ? 'V' : 'P';
+};
+var colName = function (i) { var s = ''; i++; while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+var letters = [];
+for (var i = 0; i < 39; i++) letters.push(colName(i));
+var emps = [];
+depts.forEach(function (dp) { dp[1].forEach(function (n) {
+var idx = emps.length;
+var c = { P: 0, L: 0, H: 0, V: 0, A: 0, W: 0 };
+var codes = dayNums.map(function (day) { var x = statusOf(idx, day); c[x]++; return x; });
+emps.push({ rn: idx + 5, id: 'E-' + String(idx + 1).padStart(3, '0'), name: n, dept: dp[0], codes: codes, c: c });
+}); });
+var rows = emps.map(function (e) {
+return { rn: e.rn, id: e.id, name: e.name, dept: e.dept, cells: e.codes.map(function (x) { return { v: x === 'W' ? '–' : x, style: fill[x] }; }), p: e.c.P, l: e.c.L, h: e.c.H, v: e.c.V, a: e.c.A, paid: e.c.P + e.c.L + e.c.V + e.c.W + e.c.H / 2 };
+});
+var presentSum = 0, work = 0;
+var totals = dayNums.map(function (day, di) {
+if ((3 + day) % 7 === 6) return { v: '–', style: 'text-align: center; color: #6B757B' };
+work++;
+var n = emps.filter(function (e) { var x = e.codes[di]; return x === 'P' || x === 'L' || x === 'H'; }).length;
+presentSum += n;
+return { v: n, style: n < emps.length * 0.8 ? 'color: #8E2F12' : '' };
+});
+var sum = function (k) { return emps.reduce(function (a, e) { return a + e.c[k]; }, 0); };
+var avg = presentSum / work;
+return {
+letters: letters,
+days: dayNums.map(function (day) { return { n: day, style: (3 + day) % 7 === 6 ? 'color: #8E2F12' : '' }; }),
+rows: rows, totals: totals,
+staff: emps.length, avg: avg.toFixed(1), rate: Math.round(avg / emps.length * 100) + '%',
+late: sum('L'), absent: sum('A'), leave: sum('V')
+};
+}
+}
+</script>
+</body>
+</html>

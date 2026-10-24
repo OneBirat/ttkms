@@ -1,0 +1,119 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  font-size: 17px;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 6px;
+  font-size: 14px;
+}
+
+.bar {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.seg {
+  min-width: 0;
+}
+
+.seg[data-kind="present"] {
+  background: #0e6b6b;
+}
+
+.seg[data-kind="overtime"] {
+  background: #2f4e8c;
+}
+
+.seg[data-kind="absent"] {
+  background: #c9b49a;
+}
+
+.seg[data-kind="not_marked"] {
+  background: #e2e5e1;
+}
+
+.counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  list-style: none;
+}
+
+.count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.countHint {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.count strong {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.notIn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #eef0ec;
+  font-size: 14px;
+}
+
+.notInTitle {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.notInList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notInRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notInStatus {
+  color: var(--color-muted);
+}
