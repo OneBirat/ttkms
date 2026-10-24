@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { BsDateInput } from "@/components/ui/BsDateInput";
+import { BSDate } from "@/components/date";
 import { Modal } from "@/components/ui/Modal";
 import { Field, SelectInput, TextArea, TextInput, splitError } from "./FormBits";
 import { NepaliNameField } from "./NepaliNameField";
@@ -124,8 +124,8 @@ export function EditProfileDialog({ open, employee, onClose, onSaved }: EditProf
           <Field id={id("desig")} label="Designation" error={errors.designation}>
             <TextInput id={id("desig")} value={designation} onChange={(e) => setDesignation(e.target.value)} invalid={Boolean(errors.designation)} required />
           </Field>
-          <Field id={id("joined")} label="Joined (BS)" error={errors.joined_bs}>
-            <BsDateInput id={id("joined")} name="joined_bs" value={joined} onChange={setJoined} />
+          <Field id={id("joined")} label="Joined" error={errors.joined_bs}>
+            <BSDate id={id("joined")} name="joined_bs" value={joined} onChange={(bs) => setJoined(bs)} invalid={Boolean(errors.joined_bs)} noFutureDays block />
           </Field>
           <label className={`${styles.checkLabel} ${styles.span2}`}>
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />

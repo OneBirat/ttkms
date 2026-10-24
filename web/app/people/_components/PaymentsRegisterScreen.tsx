@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
-import { BsDateInput } from "@/components/ui/BsDateInput";
+import { BSDateRangePicker, BSDateText } from "@/components/date";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Icon } from "@/components/icons";
 import { useSession } from "@/lib/session";
 import { currentMonth, listPayments } from "../api";
-import { RANGE_PRESETS, formatBsLong, isValidBs, monthLabel, monthName, monthStart, presetOf, rangeFor } from "../_lib/calendar";
+import { formatBs, isValidBs } from "@/lib/bs";
+import { monthLabel, monthName, monthStart, rangeFor } from "../_lib/months";
 import { downloadRegisterXlsx, printReceipt, printRegisterPdf, registerFileName, type RegisterExportInput } from "../_lib/exports";
 import { formatAmount, formatRs, matchesEmployee, paginate } from "../_lib/helpers";
 import type { DateRange, RegisterTypeFilter } from "../types";
@@ -42,8 +43,6 @@ export function PaymentsRegisterScreen() {
   const params = useSearchParams();
   const { user } = useSession();
   const searchId = useId();
-  const fromId = useId();
-  const toId = useId();
 
   const defaults = useMemo(() => rangeFor("last_30"), []);
   const from_bs = params.get("from") ?? defaults.from_bs;
@@ -96,7 +95,6 @@ export function PaymentsRegisterScreen() {
   const rangeText = `${from_bs} → ${to_bs}`;
   const monthStartBs = monthStart(currentMonth()).bs;
   const previousMonth = from_bs < monthStartBs;
-  const preset = presetOf(range);
   const settle = data?.totals.month ?? currentMonth();
 
   const exportInput = (r: DateRange): RegisterExportInput | null => {
@@ -214,23 +212,9 @@ export function PaymentsRegisterScreen() {
             </div>
 
             <div className={styles.rangeRow}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>Date range (BS)</span>
-              <label htmlFor={fromId} className={styles.rangeField}>
-                <span className={shared.note}>From</span>
-                <BsDateInput id={fromId} name="from_bs" value={from_bs} onChange={(v) => setParams({ from: v })} />
-              </label>
-              <span className={shared.muted}>→</span>
-              <label htmlFor={toId} className={styles.rangeField}>
-                <span className={shared.note}>To</span>
-                <BsDateInput id={toId} name="to_bs" value={to_bs} onChange={(v) => setParams({ to: v })} />
-              </label>
-              {RANGE_PRESETS.map((p) => (
-                <button key={p.value} type="button" className={styles.presetChip} aria-pressed={preset === p.value} onClick={() => setRange(rangeFor(p.value))}>
-                  {p.label}
-                </button>
-              ))}
+              <BSDateRangePicker value={{ from: from_bs, to: to_bs }} onChange={(r) => setRange({ from_bs: r.from, to_bs: r.to })} size="sm" />
               {rangeBad ? <span className={shared.warn}>&quot;From&quot; is after &quot;To&quot; — swap the dates.</span> : null}
-              {!validRange ? <span className={shared.warn}>Enter both dates as YYYY-MM-DD (BS).</span> : null}
+              {!validRange ? <span className={shared.warn}>Pick both dates.</span> : null}
               <span className={shared.note} style={{ marginLeft: "auto" }}>
                 {rows.length} payments · {rangeText}
               </span>
@@ -238,7 +222,7 @@ export function PaymentsRegisterScreen() {
 
             <div className={shared.tableWrap}>
               <table className={shared.table} style={{ minWidth: 760 }}>
-                <caption className={shared.srOnly}>Payments from {formatBsLong(from_bs)} to {formatBsLong(to_bs)}</caption>
+                <caption className={shared.srOnly}>Payments from {formatBs(from_bs)} to {formatBs(to_bs)}</caption>
                 <thead>
                   <tr>
                     <th scope="col">Date (BS)</th>
@@ -265,8 +249,8 @@ export function PaymentsRegisterScreen() {
                   ) : (
                     paged.items.map(({ payment: p, employee }) => (
                       <tr key={p.id}>
-                        <td className="mono" style={{ fontSize: 13 }}>
-                          {p.date.bs}
+                        <td>
+                          <BSDateText value={p.date.bs} />
                         </td>
                         <td>
                           <Link href={`/people/employees/${employee.id}`} className={styles.empCell}>

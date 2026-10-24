@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useSession } from "@/lib/session";
 import { PhoneFrame } from "./PhoneFrame";
 import { listBranches, listPayments } from "../../api";
-import { formatBsDayNp, rangeFor, today } from "../../_lib/calendar";
+import { formatBsDay } from "@/lib/bs";
+import { rangeFor, today } from "../../_lib/months";
 import { formatAmount, groupBy, initials } from "../../_lib/helpers";
 import type { RegisterTypeFilter } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
@@ -30,7 +31,7 @@ export function PhonePayments() {
   const t = today().bs;
   const days = groupBy(rows, (r) => r.payment.date.bs);
   const dayLabel = (bs: string) => {
-    const np = formatBsDayNp(bs);
+    const np = formatBsDay(bs, "ne");
     if (bs === t) return `Today · ${np}`;
     return `${np}${bs.slice(0, 4) !== t.slice(0, 4) ? `, ${bs.slice(0, 4)}` : ""}`;
   };

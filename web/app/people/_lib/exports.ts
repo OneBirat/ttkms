@@ -4,7 +4,8 @@
  * from the same rows and PDF / receipt buttons open a printable page.
  */
 
-import { formatAd, formatAdRange, formatBsLong, formatBsRange, formatMonthRange, monthLabel, monthLabelNp, bsToAd } from "./calendar";
+import { bsToAd, formatAd, formatAdRange, formatBs, formatBsRange } from "@/lib/bs";
+import { formatMonthRange, monthLabel } from "./months";
 import { STATUS_LABEL, formatAmount, formatDays, formatRs, toCsv } from "./helpers";
 import { XLSX_MIME, buildXlsx, cellRef, type Cell, type Sheet } from "./xlsx";
 import type { Employee, MonthLedger, Payment, PaymentsRegister, RegisterRow, ReportRow } from "../types";
@@ -142,7 +143,7 @@ export function payslipHtml(employee: Employee, l: MonthLedger): string {
       ? `Monthly salary ${formatRs(l.rate)} · overtime ${formatRs(l.ot_rate)}/h`
       : `Daily wage ${formatRs(l.rate)} × ${formatDays(l.paid_days)} days · overtime ${formatRs(l.ot_rate)}/h`;
   const payments = l.payments
-    .map((p) => `<tr><td>${escapeHtml(formatBsLong(p.date.bs))}</td><td>${p.type === "salary" ? "Salary" : "Advance"}</td><td>${escapeHtml(modeLabel(p))}</td><td class="num">${escapeHtml(formatRs(p.amount))}</td></tr>`)
+    .map((p) => `<tr><td>${escapeHtml(formatBs(p.date.bs))}</td><td>${p.type === "salary" ? "Salary" : "Advance"}</td><td>${escapeHtml(modeLabel(p))}</td><td class="num">${escapeHtml(formatRs(p.amount))}</td></tr>`)
     .join("");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Payslip ${escapeHtml(employee.code)} ${escapeHtml(monthLabel(l.month))}</title>
 <style>${PRINT_CSS}</style></head><body>
@@ -190,7 +191,7 @@ export function receiptHtml(employee: Employee, payment: Payment, due_after: num
 <div class="big">${escapeHtml(formatRs(payment.amount))}</div>
 <table>
 <tr><td>For month</td><td class="num">${escapeHtml(monthLabel(payment.month))}</td></tr>
-<tr><td>Date</td><td class="num">${escapeHtml(formatBsLong(payment.date.bs))} · ${escapeHtml(payment.date.ad)}</td></tr>
+<tr><td>Date</td><td class="num">${escapeHtml(formatBs(payment.date.bs))} · ${escapeHtml(payment.date.ad)}</td></tr>
 <tr><td>Paid by</td><td class="num">${escapeHtml(modeLabel(payment))}</td></tr>
 <tr><td>Recorded by</td><td class="num">${escapeHtml(payment.recorded_by)}${payment.source === "scan" ? " (attendance scan)" : ""}</td></tr>
 ${payment.note ? `<tr><td>Note</td><td class="num">${escapeHtml(payment.note)}</td></tr>` : ""}
@@ -431,7 +432,7 @@ export function registerPdfHtml({ register, rows, branch, generatedBy, previousM
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${registerFileName(register.from_bs, register.to_bs, "pdf")}</title>
 <style>${PDF_CSS}</style></head><body><div class="page">
 <header><div class="brand"><div class="tile">TT</div><div><h1>Payment register · ${escapeHtml(formatBsRange(register.from_bs, register.to_bs))}</h1><span class="sub">Salary &amp; advance payments · ${escapeHtml(adRange)} · ${escapeHtml(branch)} · ${rows.length} payments</span></div></div>
-<div class="right"><span class="np">${escapeHtml(monthLabelNp(t.month))}</span><span>Generated ${escapeHtml(formatAd(now.toISOString().slice(0, 10)))}, ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} by ${escapeHtml(generatedBy)}</span>${previousMonth ? '<span class="prev">PREVIOUS MONTH</span>' : ""}</div></header>
+<div class="right"><span class="np">${escapeHtml(monthLabel(t.month, "ne"))}</span><span>Generated ${escapeHtml(formatAd(now.toISOString().slice(0, 10)))}, ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} by ${escapeHtml(generatedBy)}</span>${previousMonth ? '<span class="prev">PREVIOUS MONTH</span>' : ""}</div></header>
 <div class="tiles">${tiles}</div>
 <table class="pg"><thead><tr><th style="width:22px">#</th><th>Date (BS)</th><th>Employee</th><th>Department</th><th>For month</th><th>Type</th><th>Paid by</th><th>Reference / note</th><th class="n">Amount (Rs)</th><th>Recorded by</th><th>Signature</th></tr></thead>
 <tbody>${body || '<tr><td colspan="11" style="color:#6b757b">No payments in this range.</td></tr>'}</tbody>

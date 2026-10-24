@@ -9,7 +9,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { Pill } from "@/components/ui/Pill";
 import { Icon } from "@/components/icons";
 import { currentMonth, getSalaryReport, listDepartments, listMonths } from "../api";
-import { monthKey, monthLabel, monthName, parseMonthKey, sameMonth } from "../_lib/calendar";
+import { monthKey, monthLabel, monthName, parseMonthKey, sameMonth } from "../_lib/months";
 import { downloadText, payrollSheetCsv } from "../_lib/exports";
 import {
   STATUS_LABEL,

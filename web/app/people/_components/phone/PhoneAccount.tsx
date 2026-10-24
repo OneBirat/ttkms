@@ -12,7 +12,8 @@ import { BarcodeDialog } from "../BarcodeDialog";
 import { EditProfileDialog } from "../EditProfileDialog";
 import { PayrollIcon } from "../icons";
 import { currentMonth, getAccountSummary, getEmployee, getEmployeeLedger, getLedger, getSalaryStructure } from "../../api";
-import { formatBsLong, formatBsShort, monthLabel, monthName } from "../../_lib/calendar";
+import { formatBs, formatBsShort } from "@/lib/bs";
+import { monthLabel, monthName } from "../../_lib/months";
 import { formatAmount, formatRs } from "../../_lib/helpers";
 import type { Employee, LedgerEntry, LedgerEntryType, MonthLedger, PaymentType } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
@@ -310,7 +311,7 @@ function LedgerTab({ id }: { id: number }) {
                     </span>
                     <span className={styles.txLine}>
                       <span className={styles.txWhen}>
-                        {formatBsLong(e.date.bs)}
+                        {formatBs(e.date.bs)}
                         {e.paid > 0 ? ` · for ${monthName(e.month)}` : ""}
                         {e.in_progress ? " · so far" : ""}
                       </span>

@@ -2,7 +2,7 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import * as api from "../api.ts";
 import { mockAttendance } from "../_lib/mockData.ts";
-import { addMonths, monthKey, rangeFor, thisMonth, today } from "../_lib/calendar.ts";
+import { addMonths, monthKey, rangeFor, thisMonth, today } from "../_lib/months.ts";
 
 /** A fixed "now" (Kartik 7, 2083) so the seed is stable whatever the real date. */
 const NOW = new Date("2026-10-24T06:00:00Z");

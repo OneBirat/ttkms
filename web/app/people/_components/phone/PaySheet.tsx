@@ -5,7 +5,8 @@ import { Icon } from "@/components/icons";
 import { BottomSheet } from "./BottomSheet";
 import { PaidByPicker, modesFor } from "../PaidByPicker";
 import { getAccountSummary, listPaymentModes, recordPayment } from "../../api";
-import { formatBsNp, formatBsShort, monthName, today } from "../../_lib/calendar";
+import { formatBs, formatBsShort } from "@/lib/bs";
+import { monthName, today } from "../../_lib/months";
 import { printReceipt } from "../../_lib/exports";
 import { ADVANCE_QUICK, formatAmount, formatRs, initials } from "../../_lib/helpers";
 import type { Employee, PaymentResult, PaymentType } from "../../types";
@@ -119,7 +120,7 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
               {formatRs(done.payment.amount)}
             </span>
             <span className={styles.rowSub} lang="ne">
-              {done.payment.payment_mode.name} · {formatBsNp(done.payment.date.bs)} · receipt {done.payment.receipt_no}
+              {done.payment.payment_mode.name} · {formatBs(done.payment.date.bs, "%B %-d, %Y", "ne")} · receipt {done.payment.receipt_no}
             </span>
             <span style={{ fontSize: 13, color: "var(--pill-low-fg)" }}>
               {monthName(done.payment.month)} still due: {formatRs(done.due_after)}

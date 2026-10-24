@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { BsDateInput } from "@/components/ui/BsDateInput";
+import { BSDate } from "@/components/date";
 import { Modal } from "@/components/ui/Modal";
 import { Field, SelectInput, TextInput, parseAmount, splitError } from "./FormBits";
 import { currentMonth, reviseSalary } from "../api";
 import { defaultOtRate } from "../_lib/calc";
-import { daysInMonth, isoBs } from "../_lib/calendar";
+import { isoBs } from "@/lib/bs";
+import { daysInMonth } from "../_lib/months";
 import { formatRs } from "../_lib/helpers";
 import type { Employee, PaidBy, PayType, SalaryStructure } from "../types";
 import styles from "./payroll.module.css";
@@ -174,8 +175,8 @@ export function ReviseSalaryDialog({ open, employee, current, onClose, onSaved }
               </SelectInput>
             </Field>
           ) : null}
-          <Field id={id("eff")} label="Effective from (BS)" error={errors.effective_from_bs}>
-            <BsDateInput id={id("eff")} name="effective_from_bs" value={effective} onChange={setEffective} />
+          <Field id={id("eff")} label="Effective from" error={errors.effective_from_bs}>
+            <BSDate id={id("eff")} name="effective_from_bs" value={effective} onChange={(bs) => setEffective(bs)} invalid={Boolean(errors.effective_from_bs)} block />
           </Field>
           <Field id={id("reason")} label="Reason (optional)">
             <TextInput id={id("reason")} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Annual increment" autoComplete="off" />

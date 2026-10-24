@@ -8,17 +8,8 @@
 
 import type { Role } from "@/lib/api";
 import { dailyPay, defaultOtRate, monthlyPay, roundRs, settle } from "./calc";
-import {
-  addMonths,
-  adToBs,
-  daysInMonth,
-  dateBoth,
-  isoBs,
-  monthKey,
-  saturdaysInMonth,
-  thisMonth,
-  today,
-} from "./calendar";
+import { adToBs, isoBs, monthDays } from "@/lib/bs";
+import { addMonths, dateBoth, daysInMonth, monthKey, thisMonth, today } from "./months";
 import { transliterateName } from "./devanagari";
 import { barcodeFor, employeeCode, receiptNo } from "./helpers";
 import type {
@@ -166,7 +157,7 @@ export function mockAttendance(employee_id: number, month: BsMonth, now: Date = 
   let upTo = days;
   if (index(month) > index(current)) upTo = 0;
   else if (index(month) === index(current)) upTo = adToBs(today(now).ad).day;
-  const weekly_off = upTo > 0 ? saturdaysInMonth(month, upTo) : 0;
+  const weekly_off = upTo > 0 ? monthDays(month.bs_year, month.bs_month).slice(0, upTo).filter((d) => d.weekday === 6).length : 0;
   const working = Math.max(0, upTo - weekly_off);
   const seed = (employee_id * 31 + month.bs_year * 12 + month.bs_month) % 7;
   const absent = Math.min(working, seed % 3);

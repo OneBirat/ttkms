@@ -20,20 +20,8 @@ import {
   toCsv,
   totalsFor,
 } from "../_lib/helpers.ts";
-import {
-  addMonths,
-  adToBs,
-  bsToAd,
-  compareMonths,
-  daysInMonth,
-  formatBsLong,
-  formatDateBoth,
-  isValidBs,
-  monthKey,
-  monthLabel,
-  parseMonthKey,
-  saturdaysInMonth,
-} from "../_lib/calendar.ts";
+import { adToBs, bsToAd, formatBs, formatDateBoth, isValidBs, monthDays } from "@/lib/bs";
+import { addMonths, compareMonths, daysInMonth, monthKey, monthLabel, parseMonthKey } from "../_lib/months.ts";
 
 const DEPTS = [
   { id: 1, name: "Store", is_active: true },
@@ -184,7 +172,7 @@ test("BS calendar: real conversions, month lengths and Saturdays", () => {
   assert.equal(bsToAd("2083-07-07"), "2026-10-24");
   assert.equal(bsToAd(`2083-07-01`), "2026-10-18");
   assert.equal(daysInMonth({ bs_year: 2083, bs_month: 3 }), 32);
-  assert.equal(saturdaysInMonth({ bs_year: 2083, bs_month: 7 }), 4);
+  assert.equal(monthDays(2083, 7).filter((d) => d.weekday === 6).length, 4);
   assert.ok(isValidBs("2083-03-32"));
   assert.ok(!isValidBs("2083-07-31"));
   assert.ok(!isValidBs("nope"));
@@ -198,6 +186,6 @@ test("month helpers", () => {
   assert.equal(monthLabel(m), "Kartik 2083");
   assert.deepEqual(addMonths(m, -7), { bs_year: 2082, bs_month: 12 });
   assert.ok(compareMonths(m, addMonths(m, 1)) < 0);
-  assert.equal(formatBsLong("2083-07-07"), "Kartik 7, 2083");
-  assert.equal(formatDateBoth({ bs: "2083-07-07", ad: "2026-10-24" }), "Kartik 7, 2083 · 24 Oct 2026");
+  assert.equal(formatBs("2083-07-07"), "Kartik 7, 2083");
+  assert.equal(formatDateBoth("2083-07-07"), "Kartik 7, 2083 · 24 Oct 2026");
 });

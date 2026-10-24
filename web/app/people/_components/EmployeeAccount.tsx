@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pill } from "@/components/ui/Pill";
 import { useSession } from "@/lib/session";
@@ -15,7 +15,9 @@ import { PhotoDialog } from "./PhotoDialog";
 import { ReviseSalaryDialog } from "./ReviseSalaryDialog";
 import { TransactionsLedger } from "./TransactionsLedger";
 import { currentMonth, getAttendance, getEmployee, getLedger, getSalaryStructure, suggestPayMonth } from "../api";
-import { formatBsLong, formatDateBoth, monthLabel, monthName, sameMonth } from "../_lib/calendar";
+import { BSDateText } from "@/components/date";
+import { formatBs } from "@/lib/bs";
+import { monthLabel, monthName, sameMonth } from "../_lib/months";
 import { formatAmount, formatDays, formatRs } from "../_lib/helpers";
 import { PayrollIcon } from "./icons";
 import type { BsMonth, Employee, MonthLedger, Payment, SalaryStructure } from "../types";
@@ -119,7 +121,7 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
             ) : null}
             <span className={styles.line}>{meta}</span>
             <span className={styles.lineSmall}>
-              Joined {person.joined.bs} · {person.phone ?? "no phone"} · Login:{" "}
+              Joined {formatBs(person.joined.bs)} · {person.phone ?? "no phone"} · Login:{" "}
               {person.login ? `${person.login.username} (${person.login.role_label.toLowerCase()})` : "none"}
             </span>
           </div>
@@ -203,7 +205,7 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
         onClose={() => setDialog(null)}
         onSaved={(s: SalaryStructure) => {
           setDialog(null);
-          setToast({ text: `Salary structure saved: ${formatRs(s.gross)} from ${formatBsLong(s.effective_from.bs)}.` });
+          setToast({ text: `Salary structure saved: ${formatRs(s.gross)} from ${formatBs(s.effective_from.bs)}.` });
         }}
       />
       <PhotoDialog open={dialog?.kind === "photo"} employee={person} onClose={() => setDialog(null)} onChanged={(text) => setToast({ text })} />
@@ -245,7 +247,7 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
 function OverviewTab({ employee: e, structure, ledger }: { employee: Employee; structure: SalaryStructure | null; ledger: MonthLedger[] }) {
   const running = ledger.find((l) => l.in_progress) ?? null;
   const balance = ledger.reduce((sum, l) => sum + l.due, 0);
-  const rows: [string, string][] = [
+  const rows: [string, ReactNode][] = [
     ["Employee ID", `${e.code} · barcode ${e.barcode}`],
     ["Name in Nepali", e.full_name_np ?? "—"],
     ["Branch", e.branch.name],
@@ -254,7 +256,7 @@ function OverviewTab({ employee: e, structure, ledger }: { employee: Employee; s
     ["Phone", e.phone ? `+977 ${e.phone}` : "—"],
     ["Extra contact", e.phone_alt ?? "—"],
     ["Address", e.address ?? "—"],
-    ["Joined", formatDateBoth(e.joined)],
+    ["Joined", <BSDateText key="joined" value={e.joined.bs} inline />],
     ["Salary paid to", structure ? (structure.paid_by === "bank" ? "Bank" : "Cash") : "—"],
     ["App login", e.login ? `${e.login.username} (${e.login.role_label.toLowerCase()})` : "none"],
     ["Status", e.active ? "Active" : "Inactive"],
@@ -390,11 +392,10 @@ function SalaryStructureCard({ structure, onRevise }: { structure: SalaryStructu
           </div>
           <div className={`${shared.kv} ${shared.kvMuted}`}>
             <span>
-              Effective from {formatBsLong(structure.effective_from.bs)}
+              Effective from <BSDateText value={structure.effective_from.bs} inline />
               {structure.previous_gross !== null ? ` · previous ${formatRs(structure.previous_gross)}` : ""}
               {structure.reason ? ` · ${structure.reason}` : ""}
             </span>
-            <span style={{ whiteSpace: "nowrap" }}>{structure.effective_from.ad}</span>
           </div>
         </>
       ) : (
@@ -432,7 +433,7 @@ function AdvancesCard({ ledger, onGiveAdvance }: { ledger: MonthLedger[]; onGive
           advances.map(({ payment, month }) => (
             <div key={payment.id} className={shared.kv}>
               <span>
-                {payment.date.bs} · {monthName(month)} advance ({payment.payment_mode.name.toLowerCase()})
+                {formatBs(payment.date.bs)} · {monthName(month)} advance ({payment.payment_mode.name.toLowerCase()})
               </span>
               <span className={shared.num}>{formatRs(payment.amount)}</span>
             </div>

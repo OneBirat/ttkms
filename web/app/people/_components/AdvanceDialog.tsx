@@ -7,7 +7,8 @@ import { Avatar } from "./Avatar";
 import { Field, TextInput, parseAmount, splitError } from "./FormBits";
 import { PaidByPicker, modesFor } from "./PaidByPicker";
 import { getAccountSummary, listPaymentModes, recordPayment } from "../api";
-import { formatBsDay, formatBsDayNp, formatBsShort, monthLabel, monthName, today } from "../_lib/calendar";
+import { formatBsDay, formatBsShort } from "@/lib/bs";
+import { monthLabel, monthName, today } from "../_lib/months";
 import { printReceipt } from "../_lib/exports";
 import { ADVANCE_QUICK, formatAmount, formatRs } from "../_lib/helpers";
 import type { Employee, PaymentResult } from "../types";
@@ -208,7 +209,7 @@ export function AdvanceDialog({ open, employee, manageModes = false, onClose, on
                   <span />
                 )}
                 <Field id={id("date")} label="Date (BS)">
-                  <TextInput id={id("date")} value={`${t.bs} · ${formatBsDayNp(t.bs)}`} readOnly lang="ne" />
+                  <TextInput id={id("date")} value={`${t.bs} · ${formatBsDay(t.bs, "ne")}`} readOnly lang="ne" />
                 </Field>
               </div>
               <Field id={id("note")} label="Note (optional)">

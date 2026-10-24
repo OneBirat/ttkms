@@ -5,7 +5,8 @@ import { useState } from "react";
 import { useSession } from "@/lib/session";
 import { PhoneFrame } from "./PhoneFrame";
 import { currentMonth, getSalaryReport, listBranches, listMonths } from "../../api";
-import { addMonths, compareMonths, formatAdRange, monthEnd, monthLabel, monthLabelNp, monthStart, sameMonth } from "../../_lib/calendar";
+import { formatAdRange } from "@/lib/bs";
+import { addMonths, compareMonths, monthEnd, monthLabel, monthStart, sameMonth } from "../../_lib/months";
 import { formatAmount } from "../../_lib/helpers";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import styles from "./phone.module.css";
@@ -42,7 +43,7 @@ export function PhoneSalaryReport() {
             ‹
           </button>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <span className={styles.monthNp}>{monthLabelNp(month)}</span>
+            <span className={styles.monthNp}>{monthLabel(month, "ne")}</span>
             <span className={styles.subtitle}>
               {monthLabel(month)}
               {running ? " · so far" : ""} · {formatAdRange(monthStart(month).ad, running ? monthEnd(month).ad : monthEnd(month).ad)}

@@ -3,7 +3,9 @@
 import { Fragment, useState } from "react";
 import { Pill } from "@/components/ui/Pill";
 import { PayrollIcon } from "./icons";
-import { formatBsLong, formatBsShort, formatMonthRange, monthLabel } from "../_lib/calendar";
+import { BSDateText } from "@/components/date";
+import { formatBsShort } from "@/lib/bs";
+import { formatMonthRange, monthLabel } from "../_lib/months";
 import { downloadText, ledgerCsv, modeLabel, printPayslip, printReceipt } from "../_lib/exports";
 import {
   STATUS_LABEL,
@@ -324,8 +326,7 @@ function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceip
                 l.payments.map((p) => (
                   <tr key={p.id}>
                     <td>
-                      {formatBsLong(p.date.bs)}
-                      <span className={shared.note}> · {p.date.ad}</span>
+                      <BSDateText value={p.date.bs} inline />
                     </td>
                     <td>
                       <span className={p.type === "advance" ? shared.pillAdvance : shared.pillSalary}>

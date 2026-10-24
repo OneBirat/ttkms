@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { BsDateInput } from "@/components/ui/BsDateInput";
+import { BSDate } from "@/components/date";
 import { Modal } from "@/components/ui/Modal";
 import { Field, TextInput, parseAmount, splitError } from "./FormBits";
 import { PaidByPicker, modesFor } from "./PaidByPicker";
 import { currentMonth, getBalance, listMonths, listPaymentModes, recordPayment } from "../api";
 import { paymentError } from "../_lib/calc";
-import { monthKey, monthLabel, parseMonthKey, sameMonth, today } from "../_lib/calendar";
+import { monthKey, monthLabel, parseMonthKey, sameMonth, today } from "../_lib/months";
 import { formatAmount, formatRs } from "../_lib/helpers";
 import type { BsMonth, Employee, PaymentResult, PaymentType } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
@@ -217,8 +217,8 @@ export function PaymentDialog({ open, employee, purpose, month, preferBank = fal
         ) : null}
 
         <div className={styles.fieldset}>
-          <Field id={id("date")} label="Date (BS)">
-            <BsDateInput id={id("date")} name="date_bs" value={dateBs} onChange={setDateBs} />
+          <Field id={id("date")} label="Date">
+            <BSDate id={id("date")} name="date_bs" value={dateBs} onChange={(bs) => setDateBs(bs)} noFutureDays block />
           </Field>
           <Field id={id("note")} label="Note (optional)">
             <TextInput id={id("note")} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Dashain" autoComplete="off" />

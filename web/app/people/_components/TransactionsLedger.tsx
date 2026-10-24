@@ -4,7 +4,8 @@ import { useState } from "react";
 import { getEmployeeLedger } from "../api";
 import { downloadText } from "../_lib/exports";
 import { formatAmount, formatRs, toCsv } from "../_lib/helpers";
-import { monthLabel, monthName } from "../_lib/calendar";
+import { BSDateText } from "@/components/date";
+import { monthLabel, monthName } from "../_lib/months";
 import type { Employee, LedgerEntry, LedgerEntryType } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import styles from "./employees.module.css";
@@ -154,8 +155,8 @@ export function TransactionsLedger({ employee }: { employee: Employee }) {
               ) : (
                 shown.map((e) => (
                   <tr key={e.id} className={e.paid > 0 ? styles.txPaidRow : undefined}>
-                    <td className="mono" style={{ fontSize: 13 }}>
-                      {e.date.bs}
+                    <td>
+                      <BSDateText value={e.date.bs} />
                       {e.in_progress ? <span className={shared.note}> · so far</span> : null}
                     </td>
                     <td>{monthName(e.month)}</td>
