@@ -16,10 +16,13 @@ export interface BSDateRangePickerProps extends PickerLimits {
   labels?: { from?: string; to?: string };
   size?: "sm" | "md";
   now?: Date | string | number;
+  /** Show a Clear chip when either end is set; `onChange({ from: "", to: "" }, null)` is sent. */
+  clearable?: boolean;
+  placeholder?: string;
 }
 
 /** From / To dates plus presets. Picking a From after To (or vice versa) moves the other end. */
-export function BSDateRangePicker({ value, onChange, lang: langProp, presets = true, labels, size, now, ...limits }: BSDateRangePickerProps) {
+export function BSDateRangePicker({ value, onChange, lang: langProp, presets = true, labels, size, now, clearable, placeholder, ...limits }: BSDateRangePickerProps) {
   const [savedLang] = useDateLang();
   const lang = langProp ?? savedLang;
   const active = presetOf(value, now);
@@ -36,9 +39,9 @@ export function BSDateRangePicker({ value, onChange, lang: langProp, presets = t
         lang={lang}
         size={size}
         now={now}
+        placeholder={placeholder}
         {...limits}
-        max={limits.max}
-        onChange={(from) => update({ from, to: compareIso(from, value.to) > 0 ? from : value.to })}
+        onChange={(from) => update({ from, to: value.to && compareIso(from, value.to) > 0 ? from : value.to })}
       />
       <BSDate
         label={labels?.to ?? (lang === "ne" ? "सम्म" : "To")}
@@ -46,8 +49,9 @@ export function BSDateRangePicker({ value, onChange, lang: langProp, presets = t
         lang={lang}
         size={size}
         now={now}
+        placeholder={placeholder}
         {...limits}
-        onChange={(to) => update({ from: compareIso(to, value.from) < 0 ? to : value.from, to })}
+        onChange={(to) => update({ from: value.from && compareIso(to, value.from) < 0 ? to : value.from, to })}
       />
       {presets ? (
         <div className={styles.presets} role="group" aria-label={lang === "ne" ? "अवधि" : "Range presets"}>
@@ -63,6 +67,11 @@ export function BSDateRangePicker({ value, onChange, lang: langProp, presets = t
               {lang === "ne" ? p.label_ne : p.label}
             </button>
           ))}
+          {clearable && (value.from || value.to) ? (
+            <button type="button" className={styles.chip} onClick={() => onChange({ from: "", to: "" }, null)}>
+              {lang === "ne" ? "हटाउनुहोस्" : "Clear"}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

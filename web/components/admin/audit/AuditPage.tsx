@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BsDateInput } from "@/components/ui/BsDateInput";
+import { BSDateRangePicker, BSDateTimeText } from "@/components/date";
 import { DataTable, type Column } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,7 +11,6 @@ import { Pill } from "@/components/ui/Pill";
 import { errorMessage } from "@/lib/api";
 import { exportAudit, listAudit, listAuditUsers } from "../api";
 import { AUDIT_MODULES, type AuditEntry, type AuditListParams, type AuditModule } from "../types";
-import { adDateTime, bsDateTime } from "../dates";
 import { AdminGate } from "../components/AdminGate";
 import { Select } from "../components/Field";
 import { Toast, useToast } from "../components/Toast";
@@ -122,11 +121,7 @@ function AuditScreen() {
 
   const rows = (page.data?.items ?? []).map((entry) => ({
     id: entry.id,
-    when: (
-      <span className={styles.when} title={`${adDateTime(entry.at)} AD`}>
-        {bsDateTime(entry.at_bs, entry.at)}
-      </span>
-    ),
+    when: <BSDateTimeText value={entry.at} className={styles.when} />,
     user: entry.user ? (
       <span>
         <span className={styles.primary}>{entry.user.full_name}</span>
@@ -188,20 +183,14 @@ function AuditScreen() {
             setParams({ q: qDraft.trim() });
           }}
         >
-          <div className={`${styles.filterField} ${styles.narrow}`}>
-            <BsDateInput
-              name="from"
-              label="From (BS)"
-              value={params.from_bs}
-              onChange={(value) => setParams({ from: value })}
-            />
-          </div>
-          <div className={`${styles.filterField} ${styles.narrow}`}>
-            <BsDateInput
-              name="to"
-              label="To (BS)"
-              value={params.to_bs}
-              onChange={(value) => setParams({ to: value })}
+          <div className={styles.filterField}>
+            <BSDateRangePicker
+              value={{ from: params.from_bs, to: params.to_bs }}
+              onChange={(range) => setParams({ from: range.from, to: range.to })}
+              size="sm"
+              noFutureDays
+              clearable
+              placeholder="Any date"
             />
           </div>
           <div className={`${styles.filterField} ${styles.narrow}`}>

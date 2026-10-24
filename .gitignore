@@ -13,3 +13,6 @@ web/node_modules/
 web/.next/
 web/out/
 web/.env*.local
+
+# Claude Code agent worktrees
+.claude/worktrees/

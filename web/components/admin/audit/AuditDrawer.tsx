@@ -2,7 +2,7 @@
 
 import { Pill } from "@/components/ui/Pill";
 import type { AuditEntry, AuditValues } from "../types";
-import { adDateTime, bsDateTime, bsLong } from "../dates";
+import { BSDateTimeText } from "@/components/date";
 import { Drawer } from "../components/Drawer";
 import { MODULE_TONE, actionLabel } from "./labels";
 import styles from "../components/admin.module.css";
@@ -52,8 +52,7 @@ export function AuditDrawer({
           <dl className={styles.diffMeta}>
             <dt>When</dt>
             <dd>
-              {bsLong(entry.at_bs)} · {bsDateTime(entry.at_bs, entry.at)}
-              <span className={styles.secondary}>{adDateTime(entry.at)} AD</span>
+              <BSDateTimeText value={entry.at} />
             </dd>
             <dt>User</dt>
             <dd>

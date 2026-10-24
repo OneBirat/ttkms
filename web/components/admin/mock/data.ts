@@ -1,9 +1,9 @@
 /**
- * Seed data for the mock admin API. Mock only: the real backend computes
- * BS dates with app/core/bsdate.py; `approxBs` here just keeps the sample
- * data plausible (2026-10-23 AD ~ 2083-07-06 BS) and must never ship.
+ * Seed data for the mock admin API. BS dates come from web/lib/bs (the same calendar table as
+ * app/core/bsdate.py); the anchor below only dates the sample rows (23 Oct 2026 = Kartik 6, 2083).
  */
 
+import { bsToAd, isValidBs, kathmanduDateBs } from "@/lib/bs";
 import type {
   AuditActor,
   AuditEntry,
@@ -18,68 +18,19 @@ import type {
 // ---------------------------------------------------------------- dates
 
 const ANCHOR_AD = Date.UTC(2026, 9, 23); // 2026-10-23
-const ANCHOR_BS = { year: 2083, month: 7, day: 6 };
-// Approximate month lengths, reused for every year (mock only).
-const BS_MONTH_DAYS = [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30];
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-/** Mock-only AD -> BS ("YYYY-MM-DD") by day offset from the anchor. */
+/** AD timestamp -> the Kathmandu BS day "YYYY-MM-DD" (the same table as the backend). */
 export function approxBs(iso: string): string {
-  const ad = new Date(iso);
-  const dayMs = 24 * 60 * 60 * 1000;
-  let offset = Math.floor(
-    (Date.UTC(ad.getUTCFullYear(), ad.getUTCMonth(), ad.getUTCDate()) - ANCHOR_AD) / dayMs,
-  );
-  let { year, month, day } = ANCHOR_BS;
-  while (offset > 0) {
-    const len = BS_MONTH_DAYS[month - 1];
-    if (day + offset <= len) {
-      day += offset;
-      offset = 0;
-    } else {
-      offset -= len - day + 1;
-      day = 1;
-      month += 1;
-      if (month > 12) {
-        month = 1;
-        year += 1;
-      }
-    }
-  }
-  while (offset < 0) {
-    if (day + offset >= 1) {
-      day += offset;
-      offset = 0;
-    } else {
-      offset += day;
-      month -= 1;
-      if (month < 1) {
-        month = 12;
-        year -= 1;
-      }
-      day = BS_MONTH_DAYS[month - 1];
-    }
-  }
-  return `${year}-${pad(month)}-${pad(day)}`;
+  return kathmanduDateBs(iso);
 }
 
-/** Mock-only BS "YYYY-MM-DD" -> approximate AD ISO date (for date filters). */
+/** BS "YYYY-MM-DD" -> AD "YYYY-MM-DD" for the date filters; null when the date does not exist. */
 export function approxAd(bs: string): string | null {
-  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(bs.trim());
-  if (!match) return null;
-  const target = { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
-  if (target.month < 1 || target.month > 12 || target.day < 1 || target.day > 32) return null;
-  const toOrdinal = (d: { year: number; month: number; day: number }) => {
-    let days = d.year * 365;
-    for (let m = 1; m < d.month; m += 1) days += BS_MONTH_DAYS[m - 1];
-    return days + d.day;
-  };
-  const offset = toOrdinal(target) - toOrdinal(ANCHOR_BS);
-  const date = new Date(ANCHOR_AD + offset * 24 * 60 * 60 * 1000);
-  return date.toISOString().slice(0, 10);
+  return isValidBs(bs) ? bsToAd(bs) : null;
 }
 
 /** ISO timestamp `days` days before the anchor, at `time` Nepal time (UTC+5:45). */

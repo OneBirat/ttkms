@@ -1,8 +1,9 @@
 "use client";
 
+import type { ReactNode } from "react";
+import { BSDateTimeText } from "@/components/date";
 import { Modal } from "@/components/ui/Modal";
 import { Pill } from "@/components/ui/Pill";
-import { adDateTime, bsDateTime } from "../dates";
 import { formatPhone, initials } from "../phone";
 import { allowedCount, PERMISSION_GROUPS, PERMISSIONS } from "../permissions";
 import type { AdminUser } from "../types";
@@ -16,11 +17,9 @@ export interface UserDetailsModalProps {
   onEditAccess: () => void;
 }
 
-export function lastSignIn(user: AdminUser): string {
-  if (!user.last_login_at) return "Never";
-  return user.last_login_at_bs
-    ? bsDateTime(user.last_login_at_bs, user.last_login_at)
-    : adDateTime(user.last_login_at);
+/** "Kartik 6, 2083 · 9:14 AM" (Nepal time) with the AD date small; "Never" when unset. */
+export function lastSignIn(user: AdminUser): ReactNode {
+  return <BSDateTimeText value={user.last_login_at} inline placeholder="Never" />;
 }
 
 /** "View details & access" (design/final/AdminUsers.dc.html): every detail + every permission. */
@@ -30,7 +29,7 @@ export function UserDetailsModal({
   onEditDetails,
   onEditAccess,
 }: UserDetailsModalProps) {
-  const details: [string, string, boolean?][] = [
+  const details: [string, ReactNode, boolean?][] = [
     ["Login (phone)", user.phone ? `+977 ${formatPhone(user.phone)}` : user.username, true],
     ["Branch", user.branch?.name ?? "All branches"],
     [

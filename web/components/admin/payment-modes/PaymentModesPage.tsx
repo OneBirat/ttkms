@@ -13,7 +13,7 @@ import { useLoader } from "../components/useLoader";
 import { MODE_KINDS, usedFor } from "../modeKinds";
 import { listPaymentModes, setPaymentModeActive } from "../paymentModesApi";
 import type { PaymentMode } from "../types";
-import { PHONE_QUERY, useMediaQuery } from "../useMediaQuery";
+import { PHONE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import styles from "../components/admin.module.css";
 import { PaymentModeForm, type ModeFormMode } from "./PaymentModeForm";
 

@@ -22,7 +22,7 @@ import {
   type SettingsMeta,
   type Weekday,
 } from "../types";
-import { adDate, bsLong } from "../dates";
+import { BSDateTimeText } from "@/components/date";
 import { AdminGate } from "../components/AdminGate";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Field, inputClass, Select } from "../components/Field";
@@ -565,8 +565,7 @@ function SettingsCard({
       <p className={styles.lastChanged}>
         {meta.updated_by && meta.updated_at && meta.updated_at_bs ? (
           <>
-            Last changed by {meta.updated_by} on{" "}
-            <span title={adDate(meta.updated_at)}>{bsLong(meta.updated_at_bs)}</span>
+            Last changed by {meta.updated_by} on <BSDateTimeText value={meta.updated_at} inline />
           </>
         ) : (
           "Not changed yet - using defaults."

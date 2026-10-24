@@ -22,7 +22,7 @@ import {
 } from "../permissions";
 import { listUsers, resetPassword, setUserActive, userOptions } from "../usersApi";
 import { ROLES, type AdminUser, type Role } from "../types";
-import { PHONE_QUERY, useMediaQuery } from "../useMediaQuery";
+import { PHONE_QUERY, useMediaQuery } from "@/lib/useMediaQuery";
 import styles from "../components/admin.module.css";
 import { ROLE_TONE } from "./roleTone";
 import { TempPasswordDialog } from "./TempPasswordDialog";
