@@ -11,7 +11,7 @@ import type { Role } from "@/lib/api";
 
 export type { Role };
 
-export const ROLES: readonly Role[] = ["admin", "manager", "store_keeper", "staff"];
+export const ROLES: readonly Role[] = ["admin", "manager", "staff"];
 
 export interface EmployeeRef {
   id: number;

@@ -80,16 +80,17 @@ def _enum_values(enum_cls: type[enum.Enum]) -> list[str]:
 
 
 class Role(enum.StrEnum):
+    """Admin / Manager / Staff. The database enum still holds the retired ``store_keeper``
+    value (stock module discontinued); migration core_0005 moved those users to staff."""
+
     admin = "admin"
     manager = "manager"
-    store_keeper = "store_keeper"
     staff = "staff"
 
 
 ROLE_LABELS: dict[str, str] = {
     Role.admin: "Admin",
     Role.manager: "Manager",
-    Role.store_keeper: "Store keeper",
     Role.staff: "Staff",
 }
 

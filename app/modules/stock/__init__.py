@@ -12,7 +12,7 @@ from app.core.auth import require_role
 from app.core.modules import Module, NavItem, coming_soon_widget
 from app.core.schemas import ModuleStatusOut
 
-ROLES = {"admin", "manager", "store_keeper"}
+ROLES = {"admin", "manager"}
 
 router = APIRouter(dependencies=[Depends(require_role(*ROLES))])
 

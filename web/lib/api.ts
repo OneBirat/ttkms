@@ -9,7 +9,7 @@
 
 // ---------------------------------------------------------------- contract
 
-export type Role = "admin" | "manager" | "store_keeper" | "staff";
+export type Role = "admin" | "manager" | "staff";
 
 export interface User {
   id: number;

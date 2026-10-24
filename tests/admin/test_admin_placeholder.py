@@ -40,7 +40,6 @@ async def test_admin_nav_for_admin(client, make_user, login):
     ("role", "paths"),
     [
         ("manager", ["/admin/org"]),
-        ("store_keeper", []),
         ("staff", []),
     ],
 )

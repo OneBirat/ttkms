@@ -9,7 +9,7 @@ import {
   ROLE_DESCRIPTIONS,
 } from "../../../web/components/admin/permissions.ts";
 
-const ROLES = ["admin", "manager", "store_keeper", "staff"] as const;
+const ROLES = ["admin", "manager", "staff"] as const;
 
 test("every role has an entry for every area", () => {
   for (const role of ROLES) {
@@ -26,13 +26,10 @@ test("every role has an entry for every area", () => {
 test("admins can do everything; only admins get the Admin area in full", () => {
   for (const area of AREAS) assert.equal(accessFor("admin", area.key), "full");
   assert.equal(accessFor("manager", "admin"), "view");
-  assert.equal(accessFor("store_keeper", "admin"), "none");
   assert.equal(accessFor("staff", "admin"), "none");
 });
 
 test("store keepers work in stock, staff see only their own records", () => {
-  assert.equal(accessFor("store_keeper", "stock_entry"), "full");
-  assert.equal(accessFor("store_keeper", "salary_report"), "none");
   assert.equal(accessFor("staff", "mark_attendance"), "view");
   assert.equal(accessFor("staff", "items"), "none");
   assert.equal(accessFor("unknown" as never, "items"), "none");

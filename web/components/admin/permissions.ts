@@ -9,7 +9,6 @@ import type { Role } from "./types";
 export const ROLE_LABELS: Record<Role, string> = {
   admin: "Admin",
   manager: "Manager",
-  store_keeper: "Store keeper",
   staff: "Staff",
 };
 
@@ -17,7 +16,6 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   admin: "Everything, including users, settings and the audit log.",
   manager: "Attendance, employees and all reports; stock read-only.",
-  store_keeper: "Stock entry, items and the stock report.",
   staff: "Own attendance and payslips only.",
 };
 
@@ -63,17 +61,6 @@ export const PERMISSION_MATRIX: Record<Role, Record<string, Access>> = {
     employees: "full",
     salary_report: "full",
     admin: "view",
-  },
-  store_keeper: {
-    dashboard: "full",
-    stock_entry: "full",
-    items: "full",
-    stock_report: "full",
-    mark_attendance: "none",
-    attendance_report: "none",
-    employees: "none",
-    salary_report: "none",
-    admin: "none",
   },
   staff: {
     dashboard: "full",

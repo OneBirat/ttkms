@@ -39,7 +39,6 @@ import styles from "../components/admin.module.css";
 const ROLE_TONE: Record<Role, string> = {
   admin: "info",
   manager: "ok",
-  store_keeper: "pending",
   staff: "staff",
 };
 

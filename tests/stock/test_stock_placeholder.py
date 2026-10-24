@@ -16,7 +16,7 @@ WITH_STOCK = "stock,attendance,payroll,admin"
 async def test_stock_placeholder(client_for, make_user):
     from app.modules.stock import module
 
-    await make_user("keeper", role="store_keeper")
+    await make_user("keeper", role="manager")
     async with client_for(WITH_STOCK) as client:
         await login_as(client, "keeper")
         response = await client.get("/api/stock")
