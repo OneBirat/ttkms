@@ -7,10 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --import ./test/register.mjs --test \"lib/**/*.test.{ts,tsx,mjs}\" \"components/**/*.test.{ts,tsx,mjs}\""
+    "test": "node --experimental-strip-types --import ./test/register.mjs --test \"lib/**/*.test.{ts,tsx,mjs}\" \"components/**/*.test.{ts,tsx,mjs}\" \"app/**/*.test.{ts,tsx,mjs}\""
   },
   "dependencies": {
-    "@remotemerge/nepali-date-converter": "1.2.5",
     "next": "15.5.28",
     "react": "19.1.0",
     "react-dom": "19.1.0"

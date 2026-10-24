@@ -3,7 +3,7 @@
 Node's built-in runner, no extra dependency. From `web/`:
 
 ```sh
-npm test            # everything: lib/**, components/**  (*.test.ts, *.test.tsx, *.test.mjs)
+npm test            # everything: lib/**, components/**, app/**  (*.test.ts, *.test.tsx, *.test.mjs)
 ```
 
 `test/register.mjs` installs the module hooks in `test/hooks.mjs`: `@/` alias, extensionless

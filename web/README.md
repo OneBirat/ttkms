@@ -43,13 +43,16 @@ CORS configuration anywhere. Rewrites are evaluated when the server starts
 - `lib/modules.ts`: pure helpers over `/api/core/modules` (`moduleForPath`,
   `homePath`, `enabledOnly`), shared by `middleware.ts`, the login page and the
   dashboard; unit-tested with `npm test`.
-- `lib/bsdate.ts`: BS month names, Devanagari digits, `formatBs`, `formatBsNp`
-  and the `/api/bsdate/convert` helpers. `lib/bsDatepicker.ts` holds the
-  optional vendor date-picker hook (off unless `NEXT_PUBLIC_BS_DATEPICKER=1`).
+- `lib/bs/`: the Bikram Sambat calendar (conversions over `calendar-data.json` +
+  `calendar-overrides.json`, the same files the backend reads), Nepal time,
+  month / fiscal-year helpers, English and Nepali formatting, range presets.
+  See `docs/bs-calendar.md`.
+- `components/date/`: `BSDate`, `BSDatePicker`, `BSDateRangePicker`,
+  `BSDateTimePicker`, `DateLangToggle` (demo at `/dev/date-picker` in dev).
 - `components/`: `AppShell`, `Sidebar`, `Header`, `Dashboard`,
   `ModulePlaceholder`, `icons.tsx`, `widgets/` (dashboard widgets by `kind`)
   and `ui/` (PageHeader, StatCard, Pill, DataTable, Modal, Segmented,
-  BsDateInput, EmptyState, Pagination).
+  EmptyState, Pagination).
 - `app/`: routes. `(app)/` is the authenticated shell (dashboard, attendance,
   payroll, admin, module-off; `stock/` stays in the tree but is paused, see the
   root README); `login/` is the sign-in page. `middleware.ts` redirects pages of

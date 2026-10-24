@@ -190,7 +190,7 @@ What a module can rely on from core:
   in `app/core/schemas.py` as the pattern for new endpoints.
 - Frontend: `apiFetch` (`web/lib/api.ts`, adds the CSRF header and handles 401), `useSession()`,
   the UI kit in `web/components/ui/` (PageHeader, StatCard, Pill, DataTable, Modal, Segmented,
-  BsDateInput, EmptyState, Pagination) and `web/lib/bsdate.ts` helpers.
+  EmptyState, Pagination), the date components in `web/components/date/` and `web/lib/bs`.
 - Exports: `to_xlsx(title, meta_lines, columns, rows)` and `to_pdf(template, context)`; print
   templates extend `print/base.html`.
 - Cross-module data goes through `app/contracts.py` (payroll gets attendance summaries via
