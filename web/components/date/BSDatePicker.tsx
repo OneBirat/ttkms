@@ -21,6 +21,9 @@ export interface BSDatePickerProps extends PickerLimits {
   now?: Date | string | number;
   /** Extra content under the calendar (e.g. the time row of <BSDateTimePicker>). */
   children?: ReactNode;
+  /** BS dates to flag with a dot, and the legend text for it. */
+  markedDays?: Iterable<string>;
+  markedLabel?: string;
 }
 
 /**
@@ -28,7 +31,7 @@ export interface BSDatePickerProps extends PickerLimits {
  * `position: relative` wrapper next to its trigger; <BSDate> does that for you.
  * Escape, the backdrop and clicks outside close it; focus returns to the opener.
  */
-export function BSDatePicker({ open, onClose, value, onChange, lang = "en", align = "left", title, now, children, ...limits }: BSDatePickerProps) {
+export function BSDatePicker({ open, onClose, value, onChange, lang = "en", align = "left", title, now, children, markedDays, markedLabel, ...limits }: BSDatePickerProps) {
   const phone = useIsPhone();
   const ref = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -66,6 +69,8 @@ export function BSDatePicker({ open, onClose, value, onChange, lang = "en", alig
       value={value}
       lang={lang}
       now={now}
+      markedDays={markedDays}
+      markedLabel={markedLabel}
       onClose={onClose}
       onSelect={(bs) => {
         onChange(bs);

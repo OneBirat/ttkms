@@ -267,6 +267,21 @@
 .lead {
   min-height: 42px;
 }
+.dot,
+.legendDot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #1e9e4a;
+}
+.cell .dot {
+  position: absolute;
+  bottom: 3px;
+}
+.cell[data-sel] .dot {
+  background: #fff;
+}
 
 .footer {
   display: flex;

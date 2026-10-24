@@ -68,13 +68,16 @@ export interface BSDateProps extends BSDateTextProps, PickerLimits {
   /** Display block (full-width field) instead of inline. */
   block?: boolean;
   now?: Date | string | number;
+  /** BS dates to flag with a dot in the picker, and the legend text for it. */
+  markedDays?: Iterable<string>;
+  markedLabel?: string;
 }
 
 /**
  * A date, BS first and AD small ("Kartik 7, 2083 · 24 Oct 2026"). With `onChange` it is a
  * button that opens <BSDatePicker>; without it, plain text.
  */
-export function BSDate({ onChange, label, name, id, size = "md", disabled, required, invalid, align, block, now, min, max, noFutureDays, ...text }: BSDateProps) {
+export function BSDate({ onChange, label, name, id, size = "md", disabled, required, invalid, align, block, now, min, max, noFutureDays, markedDays, markedLabel, ...text }: BSDateProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const [open, setOpen] = useState(false);
@@ -117,6 +120,8 @@ export function BSDate({ onChange, label, name, id, size = "md", disabled, requi
         min={min}
         max={max}
         noFutureDays={noFutureDays}
+        markedDays={markedDays}
+        markedLabel={markedLabel}
         onChange={(bs) => onChange(bs, bsToAd(bs))}
       />
     </div>

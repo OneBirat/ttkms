@@ -57,6 +57,10 @@ describe("<BSCalendar>", () => {
     assert.match(html, />1 Nov</); // AD month change shown in the cell
     assert.match(html, /Tue 20 Oct 2026/);
     assert.match(html, /आज<\/span> \/ Today/);
+    assert.match(html, /Future days locked/);
+    const marked = renderToStaticMarkup(createElement(BSCalendar, { value: null, onSelect: () => {}, now: NOW, markedDays: ["2083-07-03"], markedLabel: "attendance marked" }));
+    assert.match(marked, /data-bs="2083-07-03"[^>]*data-marked="true"/);
+    assert.match(marked, /attendance marked/);
     assert.ok(html.includes("<option") && html.includes(">Kartik</option>"));
   });
   it("switches to Nepali names and digits", () => {

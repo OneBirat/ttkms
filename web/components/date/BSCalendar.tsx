@@ -45,6 +45,9 @@ export interface BSCalendarProps extends PickerLimits {
   autoFocus?: boolean;
   /** Show the type-a-date box and the Today / Done buttons (default true). */
   footer?: boolean;
+  /** BS dates to flag with a dot (e.g. days with attendance marked) and the legend text for it. */
+  markedDays?: Iterable<string>;
+  markedLabel?: string;
 }
 
 /**
@@ -63,7 +66,10 @@ export function BSCalendar({
   now,
   autoFocus = true,
   footer = true,
+  markedDays,
+  markedLabel,
 }: BSCalendarProps) {
+  const marked = useMemo(() => new Set(markedDays ?? []), [markedDays]);
   const today = useMemo(() => todayParts(now), [now]);
   const bounds = useMemo(() => effectiveBounds({ min, max, noFutureDays }, today.bs), [min, max, noFutureDays, today.bs]);
   const [view, setView] = useState(() => initialMonth(value, today.parts, bounds));
@@ -228,6 +234,7 @@ export function BSCalendar({
               data-sel={isSel || undefined}
               data-today={d.isToday || undefined}
               data-sat={d.isSaturday || undefined}
+              data-marked={marked.has(d.bs) || undefined}
               onClick={() => onSelect(d.bs)}
               onFocus={() => setFocusBs(d.bs)}
             >
@@ -235,10 +242,22 @@ export function BSCalendar({
                 {digits(d.day, lang)}
               </span>
               <span className={styles.cellAd}>{adLabel}</span>
+              {marked.has(d.bs) ? <span aria-hidden="true" className={styles.dot} /> : null}
             </button>
           );
         })}
       </div>
+      {marked.size > 0 || noFutureDays ? (
+        <div className={styles.legend}>
+          {marked.size > 0 ? (
+            <span>
+              <span className={styles.legendDot} /> {markedLabel ?? (lang === "ne" ? "भरिएको" : "marked")}
+            </span>
+          ) : null}
+          <span className={styles.sat}>{lang === "ne" ? "शनि = साप्ताहिक बिदा" : "Sat = weekly off"}</span>
+          {noFutureDays ? <span>{lang === "ne" ? "आउँदा दिन बन्द" : "Future days locked"}</span> : null}
+        </div>
+      ) : null}
       {footer ? (
         <>
           <div className={styles.footer}>
