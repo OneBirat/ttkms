@@ -7,9 +7,11 @@ import type {
   EmployeeSort,
   MonthLedger,
   MonthStatus,
+  PaymentType,
   ReportRow,
   ReportSort,
   ReportTotals,
+  TodayStatus,
 } from "../types";
 
 /** "Rs 1,23,456" (en-IN grouping). */
@@ -231,5 +233,39 @@ export function avatarTone(id: number): number {
   return id % 6;
 }
 
-/** Quick amounts in the payment modal: advances in fixed steps, salary "full due". */
-export const ADVANCE_QUICK = [500, 1000, 1500, 2000] as const;
+/** Quick amounts in the Give advance dialog (plus "Max <room>" when room is larger). */
+export const ADVANCE_QUICK = [500, 1000, 2000, 3000] as const;
+
+/** "ADV-0412" / "SAL-0410" */
+export function receiptNo(type: PaymentType, id: number): string {
+  return `${type === "advance" ? "ADV" : "SAL"}-${String(id).padStart(4, "0")}`;
+}
+
+export const TODAY_LABEL: Record<TodayStatus, string> = {
+  present: "Present",
+  overtime: "Overtime",
+  absent: "Absent",
+  weekly_off: "Weekly off",
+  not_marked: "Not marked",
+};
+
+export function sumBy<T>(items: T[], pick: (item: T) => number): number {
+  return items.reduce((acc, item) => acc + pick(item), 0);
+}
+
+/** Groups consecutive items by key, keeping first-seen order. */
+export function groupBy<T, K extends string | number>(items: T[], keyOf: (item: T) => K): { key: K; items: T[] }[] {
+  const groups: { key: K; items: T[] }[] = [];
+  const index = new Map<K, { key: K; items: T[] }>();
+  for (const item of items) {
+    const key = keyOf(item);
+    let group = index.get(key);
+    if (!group) {
+      group = { key, items: [] };
+      index.set(key, group);
+      groups.push(group);
+    }
+    group.items.push(item);
+  }
+  return groups;
+}

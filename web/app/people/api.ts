@@ -27,30 +27,38 @@ import {
   thisMonth,
   today,
 } from "./_lib/calendar";
-import { barcodeFor, employeeCode, normalizeName, normalizePhone, totalsFor } from "./_lib/helpers";
+import { barcodeFor, employeeCode, normalizeName, normalizePhone, receiptNo, sumBy, totalsFor } from "./_lib/helpers";
 import {
+  CASH_MODE_ID,
   MOCK_USER,
   ROLE_LABELS,
   buildSeedState,
   mockAttendance,
+  modeRef,
   monthsKept,
   structureFor,
+  todayStatusFor,
   type MockState,
 } from "./_lib/mockData";
 import type {
+  AccountSummary,
   Branch,
   BsMonth,
   Department,
   DepartmentNetTotal,
   Employee,
   EmployeeIn,
+  EmployeeLedger,
+  EmployeeListRow,
   EmployeeUpdateIn,
+  LedgerEntry,
   MonthBalance,
   MonthLedger,
   MonthNetTotal,
   MonthSummary,
   Payment,
   PaymentInput,
+  PaymentMode,
   PaymentResult,
   PaymentsRegister,
   PhotoToken,
@@ -61,6 +69,8 @@ import type {
   SalaryReport,
   SalaryRevisionIn,
   SalaryStructure,
+  TodayAttendance,
+  TodayStatus,
 } from "./types";
 
 export const PHOTO_TOKEN_TTL_MS = 10 * 60 * 1000;
@@ -82,7 +92,7 @@ export class PayrollApiError extends Error {
 
 // ------------------------------------------------------------------ store
 
-const STORAGE_KEY = "ttk.people.mock.v2";
+const STORAGE_KEY = "ttk.people.mock.v3";
 const CHANNEL = "ttk.people.mock";
 
 type Listener = () => void;
@@ -211,11 +221,64 @@ export async function createDepartment(name: string): Promise<Department> {
   return respond(department);
 }
 
+// ---------------------------------------------------------- payment modes
+
+/**
+ * GET /api/admin/payment-modes?active=1 (NEEDS FROM TTK-ADMIN). Read-only
+ * here: Cash first, then the others in admin order.
+ */
+export async function listPaymentModes(onlyActive = true): Promise<PaymentMode[]> {
+  const modes = getState().payment_modes.filter((m) => !onlyActive || m.active);
+  return respond([...modes].sort((a, b) => Number(b.type === "cash") - Number(a.type === "cash") || a.id - b.id));
+}
+
+function findMode(id: number): PaymentMode {
+  const mode = getState().payment_modes.find((m) => m.id === id);
+  if (!mode) throw new PayrollApiError(422, "Choose how it was paid.", "payment_mode_id");
+  return mode;
+}
+
+// ----------------------------------------------------------------- today
+
+/** GET /api/attendance/today?branch_id= (NEEDS FROM TTK-ATTENDANCE). */
+export async function getTodayAttendance(branch_id: number | null = null): Promise<TodayAttendance> {
+  const statuses: Record<number, TodayStatus> = {};
+  for (const e of getState().employees) {
+    if (branch_id !== null && e.branch.id !== branch_id) continue;
+    statuses[e.id] = todayStatusFor(e.id);
+  }
+  return respond({ date: today(), statuses });
+}
+
 // -------------------------------------------------------------- employees
 
 /** GET /api/payroll/employees (filter/sort happen client-side on ~100 rows) */
 export async function listEmployees(): Promise<Employee[]> {
   return respond(getState().employees);
+}
+
+/**
+ * GET /api/payroll/employees?branch_id=&with=today,balance — the all-staff
+ * table: salary in force, today's mark and the balance due over every month.
+ */
+export async function listEmployeeRows(branch_id: number | null = null): Promise<EmployeeListRow[]> {
+  const current = getState();
+  const rows: EmployeeListRow[] = [];
+  for (const employee of current.employees) {
+    if (branch_id !== null && employee.branch.id !== branch_id) continue;
+    const structure = structureFor(current.structures, employee.id, thisMonth());
+    const ledgers = monthsKept()
+      .map((m) => ledgerFor(current, employee, m))
+      .filter((row): row is MonthLedger => row !== null);
+    rows.push({
+      employee,
+      pay_type: structure?.pay_type ?? "monthly",
+      rate: structure ? (structure.pay_type === "monthly" ? structure.gross : structure.basic) : 0,
+      today: todayStatusFor(employee.id),
+      balance_due: sumBy(ledgers, (l) => l.due),
+    });
+  }
+  return respond(rows);
 }
 
 function findEmployee(id: number): Employee {
@@ -587,20 +650,28 @@ export async function recordPayment(input: PaymentInput): Promise<PaymentResult>
   if (input.type !== "salary" && input.type !== "advance") {
     throw new PayrollApiError(422, "Choose salary or advance.", "type");
   }
-  if (input.mode !== "cash" && input.mode !== "bank") {
-    throw new PayrollApiError(422, "Choose cash or bank.", "mode");
+  const mode = findMode(input.payment_mode_id ?? CASH_MODE_ID);
+  if (!mode.active) throw new PayrollApiError(422, `${mode.name} is switched off.`, "payment_mode_id");
+  if (input.type === "salary" && !mode.use_salary) {
+    throw new PayrollApiError(422, `${mode.name} is not set up for salary payments.`, "payment_mode_id");
+  }
+  if (input.type === "advance" && !mode.use_advance) {
+    throw new PayrollApiError(422, `${mode.name} is not set up for advances.`, "payment_mode_id");
   }
   const date_bs = input.date_bs?.trim() || today().bs;
   if (!isValidBs(date_bs)) throw new PayrollApiError(422, "Enter the date as YYYY-MM-DD (BS).", "date_bs");
   if (date_bs > today().bs) throw new PayrollApiError(422, "The payment date cannot be in the future.", "date_bs");
+  const id = nextId("payment");
   const payment: Payment = {
-    id: nextId("payment"),
+    id,
+    receipt_no: receiptNo(input.type, id),
     employee_id: employee.id,
     month,
     type: input.type,
     amount,
-    mode: input.mode,
-    reference: input.mode === "bank" ? cleanOptional(input.reference) : null,
+    payment_mode_id: mode.id,
+    payment_mode: modeRef(mode),
+    reference: mode.type === "cash" ? null : cleanOptional(input.reference),
     note: cleanOptional(input.note),
     date: dateBoth(date_bs),
     recorded_by: MOCK_USER,
@@ -613,39 +684,210 @@ export async function recordPayment(input: PaymentInput): Promise<PaymentResult>
 }
 
 export interface PaymentsQuery {
-  /** null = every month kept. */
-  month: BsMonth | null;
+  /** BS dates, inclusive; null = no bound. */
+  from_bs: string | null;
+  to_bs: string | null;
   type: RegisterTypeFilter;
   employee_id?: number | null;
 }
 
-/** GET /api/payroll/payments?bs_year=&bs_month=&type=&employee_id= — newest first. */
+/**
+ * The month the register's tiles describe: the previous BS month while any
+ * employee still has something due for it, otherwise the running month.
+ */
+export function settlementMonth(current: MockState = getState()): BsMonth {
+  const previous = addMonths(thisMonth(), -1);
+  const anyDue = current.employees.some((e) => (ledgerFor(current, e, previous)?.due ?? 0) > 0);
+  return anyDue ? previous : thisMonth();
+}
+
+/** GET /api/payroll/payments?from_bs=&to_bs=&type=&employee_id= — newest first. */
 export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegister> {
   const current = getState();
+  if (query.from_bs && query.to_bs && query.from_bs > query.to_bs) {
+    throw new PayrollApiError(422, '"From" is after "To" — swap the dates.', "from_bs");
+  }
   const employeeById = new Map(current.employees.map((e) => [e.id, e]));
   const rows: RegisterRow[] = current.payments
-    .filter((p) => query.month === null || sameMonth(p.month, query.month))
+    .filter((p) => !query.from_bs || p.date.bs >= query.from_bs)
+    .filter((p) => !query.to_bs || p.date.bs <= query.to_bs)
     .filter((p) => query.type === "all" || p.type === query.type)
     .filter((p) => !query.employee_id || p.employee_id === query.employee_id)
     .map((payment) => ({ payment, employee: employeeById.get(payment.employee_id)! }))
     .filter((row) => row.employee)
     .sort((a, b) => b.payment.date.bs.localeCompare(a.payment.date.bs) || b.payment.id - a.payment.id);
-  const scopeMonth = query.month ?? thisMonth();
+  const month = settlementMonth(current);
   const ledgers = current.employees
-    .map((employee) => ledgerFor(current, employee, scopeMonth))
+    .map((employee) => ledgerFor(current, employee, month))
     .filter((row): row is MonthLedger => row !== null);
-  const inScope = current.payments.filter((p) => query.month === null || sameMonth(p.month, query.month));
+  const by_employee = ledgers.map((l) => ({
+    employee: employeeById.get(l.employee_id)!,
+    net: l.net,
+    advance_paid: l.advance_paid,
+    salary_paid: l.salary_paid,
+    paid: l.paid,
+    due: l.due,
+  }));
   return respond({
-    month: query.month,
+    from_bs: query.from_bs ?? "",
+    to_bs: query.to_bs ?? "",
     rows,
+    by_employee,
     totals: {
-      month_net: ledgers.reduce((sum, l) => sum + l.net, 0),
-      salary_paid: inScope.filter((p) => p.type === "salary").reduce((sum, p) => sum + p.amount, 0),
-      advance_paid: inScope.filter((p) => p.type === "advance").reduce((sum, p) => sum + p.amount, 0),
-      due: ledgers.reduce((sum, l) => sum + l.due, 0),
+      month,
+      staff: ledgers.length,
+      month_net: sumBy(ledgers, (l) => l.net),
+      salary_paid: sumBy(ledgers, (l) => l.salary_paid),
+      advance_paid: sumBy(ledgers, (l) => l.advance_paid),
+      due: sumBy(ledgers, (l) => l.due),
       count: rows.length,
-      amount: rows.reduce((sum, r) => sum + r.payment.amount, 0),
+      amount: sumBy(rows, (r) => r.payment.amount),
     },
+  });
+}
+
+// ----------------------------------------------------- transaction ledger
+
+/**
+ * GET /api/payroll/employees/{id}/transactions — the running ledger, oldest
+ * first: salary earned on the month's last day (today for the running
+ * month), absence and overtime on the same day, payments on their dates.
+ */
+export async function getEmployeeLedger(employee_id: number): Promise<EmployeeLedger> {
+  const current = getState();
+  const employee = findEmployee(employee_id);
+  const months = monthsKept()
+    .map((m) => ledgerFor(current, employee, m))
+    .filter((row): row is MonthLedger => row !== null)
+    .sort((a, b) => compareMonths(a.month, b.month));
+  const entries: LedgerEntry[] = [];
+  for (const l of months) {
+    const earnedOn = l.in_progress ? today() : l.ends;
+    const soFar = l.in_progress ? " · so far" : "";
+    const key = monthKey(l.month);
+    entries.push({
+      id: `${key}-salary`,
+      date: earnedOn,
+      month: l.month,
+      type: "salary",
+      details: l.pay_type === "monthly"
+        ? `Monthly salary · ${l.attendance.days_in_month} days${soFar}`
+        : `Daily wage ${formatRsPlain(l.rate)} × ${l.paid_days} days${soFar}`,
+      earned: l.gross_salary,
+      paid: 0,
+      balance: 0,
+      payment: null,
+      in_progress: l.in_progress,
+    });
+    if (l.absence_deduction > 0) {
+      const perDay = l.attendance.days_in_month ? Math.round(l.rate / l.attendance.days_in_month) : 0;
+      entries.push({
+        id: `${key}-absence`,
+        date: earnedOn,
+        month: l.month,
+        type: "absence",
+        details: `${l.attendance.absent} day(s) × Rs ${formatRsPlain(perDay)}`,
+        earned: -l.absence_deduction,
+        paid: 0,
+        balance: 0,
+        payment: null,
+        in_progress: l.in_progress,
+      });
+    }
+    if (l.overtime_pay > 0) {
+      entries.push({
+        id: `${key}-overtime`,
+        date: earnedOn,
+        month: l.month,
+        type: "overtime",
+        details: `${l.attendance.overtime_hours} h × Rs ${formatRsPlain(l.ot_rate)}`,
+        earned: l.overtime_pay,
+        paid: 0,
+        balance: 0,
+        payment: null,
+        in_progress: l.in_progress,
+      });
+    }
+    for (const p of l.payments) {
+      entries.push({
+        id: `pay-${p.id}`,
+        date: p.date,
+        month: l.month,
+        type: p.type === "advance" ? "advance" : "salary_paid",
+        details: `${p.payment_mode.name}${p.reference ? ` · ${p.reference}` : ""}${p.note ? ` · ${p.note}` : ""} · by ${p.recorded_by}`,
+        earned: 0,
+        paid: p.amount,
+        balance: 0,
+        payment: p,
+        in_progress: false,
+      });
+    }
+  }
+  // Earnings of a month come before payments made the same day; otherwise by date.
+  const order = { salary: 0, absence: 1, overtime: 2, advance: 3, salary_paid: 4 };
+  entries.sort((a, b) => a.date.bs.localeCompare(b.date.bs) || order[a.type] - order[b.type] || (a.payment?.id ?? 0) - (b.payment?.id ?? 0));
+  let balance = 0;
+  for (const entry of entries) {
+    balance += entry.earned - entry.paid;
+    entry.balance = balance;
+  }
+  const advances = entries.filter((e) => e.type === "advance");
+  const salaryPayments = entries.filter((e) => e.type === "salary_paid");
+  return respond({
+    employee_id,
+    entries,
+    totals: {
+      salary: sumBy(entries.filter((e) => e.type === "salary" || e.type === "absence"), (e) => e.earned),
+      overtime: sumBy(entries.filter((e) => e.type === "overtime"), (e) => e.earned),
+      overtime_hours: sumBy(months, (l) => l.attendance.overtime_hours),
+      months: months.length,
+      advances: sumBy(advances, (e) => e.paid),
+      advance_count: advances.length,
+      salary_payments: sumBy(salaryPayments, (e) => e.paid),
+      salary_payment_count: salaryPayments.length,
+      balance: sumBy(months, (l) => l.due),
+    },
+  });
+}
+
+function formatRsPlain(value: number): string {
+  return Math.round(value).toLocaleString("en-IN");
+}
+
+// ---------------------------------------------------------- account summary
+
+/** GET /api/payroll/employees/{id}/summary — what Give advance / Pay salary show. */
+export async function getAccountSummary(employee_id: number): Promise<AccountSummary> {
+  const current = getState();
+  const employee = findEmployee(employee_id);
+  const month = thisMonth();
+  const running = ledgerFor(current, employee, month);
+  const months = monthsKept()
+    .map((m) => ledgerFor(current, employee, m))
+    .filter((row): row is MonthLedger => row !== null);
+  const salary_month = await suggestPayMonth(employee_id);
+  const salaryRow = ledgerFor(current, employee, salary_month);
+  const recent = current.payments
+    .filter((p) => p.employee_id === employee_id)
+    .sort((a, b) => b.date.bs.localeCompare(a.date.bs) || b.id - a.id);
+  const fourMonthsAgo = addMonths(month, -3);
+  const earned = running?.net ?? 0;
+  const paid = running?.paid ?? 0;
+  return respond({
+    employee_id,
+    month,
+    earned_so_far: earned,
+    paid_this_month: paid,
+    room: Math.max(0, earned - paid),
+    salary_month,
+    salary_due: salaryRow?.due ?? 0,
+    recent,
+    advances_recent: sumBy(
+      recent.filter((p) => p.type === "advance" && compareMonths(p.month, fourMonthsAgo) >= 0),
+      (p) => p.amount,
+    ),
+    balance_due: sumBy(months, (l) => l.due),
+    overtime_hours_this_month: running?.attendance.overtime_hours ?? 0,
   });
 }
 

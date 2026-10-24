@@ -131,6 +131,18 @@
   text-align: right;
 }
 
+/* design .tbl.ctr: every column centred except the first (the salary ledger) */
+.tableCentred > thead > tr > th,
+.tableCentred > tbody > tr > td {
+  text-align: center;
+}
+
+.tableCentred > thead > tr > th:first-child,
+.tableCentred > tbody > tr > td:first-child,
+.tableCentred > tbody > tr > td[colspan] {
+  text-align: left;
+}
+
 .table tfoot th,
 .table tfoot td {
   border-top: 2px solid var(--color-input-border);
@@ -761,4 +773,387 @@
 
 .suggestUse:hover {
   background: var(--pill-ok-bg);
+}
+
+/* ---- payment modes (Paid by) */
+
+.modeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.toggleSubPlain {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.modeList {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-input-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--color-card);
+}
+
+.modeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 12px;
+  border: none;
+  border-top: 1px solid var(--color-border-soft);
+  background: var(--color-card);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.modeRow:first-child {
+  border-top: none;
+}
+
+.modeRow[aria-checked="true"] {
+  background: #f2f8f7;
+}
+
+.modeIcon {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  background: var(--pill-leave-bg);
+  color: var(--pill-leave-fg);
+}
+
+.modeIcon[data-kind="cash"] {
+  background: #e6f5f3;
+  color: var(--pill-ok-fg);
+}
+
+.modeIcon[data-kind="wallet"] {
+  background: #f3e8f7;
+  color: #5b2a73;
+}
+
+.modeIcon[data-kind="qr"] {
+  background: #fff4cc;
+  color: #7a5600;
+}
+
+.modeIcon[data-kind="cheque"] {
+  background: var(--pill-neutral-bg);
+  color: #3e4a52;
+}
+
+.modeText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.modeName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.modeDot {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--color-input-border);
+}
+
+.modeRow[aria-checked="true"] .modeDot {
+  border: 6px solid var(--color-primary);
+}
+
+.modeManage {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid var(--color-border-soft);
+  background: #f7f8f6;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+/* ---- tiles (earned / paid / room) */
+
+.tiles3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tile {
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tileLabel {
+  font-size: 11px;
+}
+
+.tileValue {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tile[data-tone="ok"] {
+  background: #e6f5f3;
+  color: var(--pill-ok-fg);
+}
+
+.tile[data-tone="advance"] {
+  background: var(--pill-leave-bg);
+  color: var(--pill-leave-fg);
+}
+
+.tile[data-tone="low"] {
+  background: #fbefe2;
+  color: var(--pill-low-fg);
+}
+
+.tile[data-tone="danger"] {
+  background: #fbe9e4;
+  color: var(--pill-danger-fg);
+}
+
+.tile[data-tone="ot"] {
+  background: #fff4cc;
+  color: #7a5600;
+}
+
+.tile[data-tone="plain"] {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.tile[data-tone="neutral"] {
+  background: var(--pill-neutral-bg);
+  color: #3e4a52;
+}
+
+/* ---- quick chips (round) */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chipSmall {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+  color: #3e4a52;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.chipSmall[aria-pressed="true"] {
+  border: 2px solid var(--color-primary);
+  background: #e6f5f3;
+  color: var(--pill-ok-fg);
+  font-weight: 700;
+}
+
+.chipSmall[aria-pressed="true"][data-tone="advance"] {
+  border-color: #2f4e8c;
+  background: var(--pill-leave-bg);
+  color: var(--pill-leave-fg);
+}
+
+.chipSmall:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---- big amount input */
+
+.amountBox {
+  min-height: 56px;
+}
+
+.amountBox input {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.amountOver {
+  border-color: #c0392b;
+  background: #fff6f3;
+}
+
+/* ---- done state */
+
+.doneBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 26px 0;
+  text-align: center;
+}
+
+.doneBadge {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #2f4e8c;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doneBadge[data-tone="salary"] {
+  background: var(--color-primary);
+}
+
+.doneTitle {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.doneAmount {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--pill-leave-fg);
+}
+
+.doneAmount[data-tone="salary"] {
+  color: var(--pill-ok-fg);
+}
+
+/* ---- recent payments list */
+
+.recentList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recentRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+}
+
+.recentRow[data-new="true"] {
+  border-color: #2f4e8c;
+}
+
+.recentTag {
+  flex: none;
+  width: 64px;
+  text-align: center;
+  padding: 3px 0;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #e6f5f3;
+  color: var(--pill-ok-fg);
+}
+
+.recentTag[data-type="advance"] {
+  background: var(--pill-leave-bg);
+  color: var(--pill-leave-fg);
+}
+
+.recentText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.recentTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.recentSub {
+  font-size: 12px;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recentAmount {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.primaryBig {
+  min-height: 48px;
+  border: none;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-primary);
+  cursor: pointer;
+}
+
+.primaryBig[data-tone="advance"] {
+  background: #2f4e8c;
+}
+
+.primaryBig:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cancelBig {
+  min-height: 48px;
+  border: 1px solid var(--color-input-border);
+  border-radius: 10px;
+  background: var(--color-card);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.warn {
+  font-size: 13px;
+  color: var(--pill-danger-fg);
 }

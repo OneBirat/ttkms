@@ -117,21 +117,51 @@ export interface MonthSummary {
   paid_days: number;
 }
 
+// ------------------------------------------------------ payment modes
+
+export type PaymentModeType = "cash" | "bank" | "wallet" | "qr" | "cheque";
+
+/**
+ * One row of GET /api/admin/payment-modes?active=1 (NEEDS FROM TTK-ADMIN,
+ * which owns the CRUD). Cash is built in (id 1) and always active; the
+ * others are admin-managed and show under "Other" when paying.
+ */
+export interface PaymentMode {
+  id: number;
+  type: PaymentModeType;
+  name: string;
+  /** "A/c ··4410", wallet number, QR label; null for cash. */
+  details: string | null;
+  use_salary: boolean;
+  use_advance: boolean;
+  active: boolean;
+}
+
+/** The mode a payment was made with, embedded on the payment row. */
+export interface PaymentModeRef {
+  id: number;
+  type: PaymentModeType;
+  name: string;
+}
+
 // ---------------------------------------------------------- payments
 
 export type PaymentType = "salary" | "advance";
-export type PaymentMode = "cash" | "bank";
 export type PaymentSource = "account" | "scan";
 
 /** One row of payroll.payments. An advance is a part-payment of that month's salary. */
 export interface Payment {
   id: number;
+  /** "ADV-0412" / "SAL-0410" (type + zero-padded id). */
+  receipt_no: string;
   employee_id: number;
   month: BsMonth;
   type: PaymentType;
   amount: number;
-  mode: PaymentMode;
-  /** Bank reference / cheque number; null for cash. */
+  /** payroll.payments.payment_mode_id (Cash = 1 by default). */
+  payment_mode_id: number;
+  payment_mode: PaymentModeRef;
+  /** Bank / cheque reference; null for cash. */
   reference: string | null;
   note: string | null;
   date: DateBoth;
@@ -223,7 +253,8 @@ export interface PaymentInput {
   bs_month: number;
   type: PaymentType;
   amount: number;
-  mode: PaymentMode;
+  /** Defaults to Cash (id 1) when omitted. */
+  payment_mode_id?: number | null;
   reference?: string | null;
   note?: string | null;
   /** BS date "YYYY-MM-DD"; defaults to today. */
@@ -293,24 +324,146 @@ export interface RegisterRow {
   employee: Employee;
 }
 
+/**
+ * Totals of the settlement month (the previous BS month while anything is
+ * still due for it, otherwise the running month), independent of the range.
+ */
 export interface RegisterTotals {
-  /** Net payroll of the selected month (all employees). */
+  month: BsMonth;
+  staff: number;
+  /** Net payroll of the settlement month (all employees). */
   month_net: number;
   salary_paid: number;
   advance_paid: number;
-  /** Still due for the selected month. */
+  /** Still due for the settlement month. */
   due: number;
+  /** Rows in the range after filters. */
   count: number;
   amount: number;
 }
 
+/** Settlement-month figures per employee (the "By employee" export sheet). */
+export interface RegisterEmployeeTotal {
+  employee: Employee;
+  net: number;
+  advance_paid: number;
+  salary_paid: number;
+  paid: number;
+  due: number;
+}
+
+/** GET /api/payroll/payments?from_bs&to_bs&type&employee_id */
 export interface PaymentsRegister {
-  month: BsMonth | null;
+  /** BS dates, inclusive. */
+  from_bs: string;
+  to_bs: string;
   rows: RegisterRow[];
   totals: RegisterTotals;
+  by_employee: RegisterEmployeeTotal[];
+}
+
+/** From/To presets of the register (BS, inclusive). */
+export type RangePreset = "this_month" | "last_month" | "last_30" | "last_3";
+
+export interface DateRange {
+  from_bs: string;
+  to_bs: string;
 }
 
 export type RegisterTypeFilter = "all" | PaymentType;
+
+// -------------------------------------------------------- today status
+
+/**
+ * Today's attendance mark per employee. NEEDS FROM TTK-ATTENDANCE:
+ * GET /api/attendance/today?branch_id= -> { date, statuses: { [employee_id]: TodayStatus } }.
+ */
+export type TodayStatus = "present" | "overtime" | "absent" | "weekly_off" | "not_marked";
+
+export interface TodayAttendance {
+  date: DateBoth;
+  statuses: Record<number, TodayStatus>;
+}
+
+/** One row of the all-staff table (GET /api/payroll/employees?branch_id=&with=today,balance). */
+export interface EmployeeListRow {
+  employee: Employee;
+  pay_type: PayType;
+  /** Monthly salary or daily wage in force this month. */
+  rate: number;
+  today: TodayStatus;
+  /** Sum of the due of every month kept. */
+  balance_due: number;
+}
+
+// ------------------------------------------------- transaction ledger
+
+export type LedgerEntryType = "salary" | "absence" | "overtime" | "advance" | "salary_paid";
+
+/**
+ * One line of the employee's running ledger (derived, never stored). Salary
+ * is earned on the last day of the BS month (today for the running month),
+ * absence reduces it, overtime adds to it; payments go out.
+ */
+export interface LedgerEntry {
+  id: string;
+  date: DateBoth;
+  month: BsMonth;
+  type: LedgerEntryType;
+  details: string;
+  /** Positive earned, negative for absence. */
+  earned: number;
+  paid: number;
+  /** Everything earned − everything paid up to this line. */
+  balance: number;
+  payment: Payment | null;
+  in_progress: boolean;
+}
+
+export interface LedgerTotals {
+  /** Salary earned after absence deductions. */
+  salary: number;
+  overtime: number;
+  overtime_hours: number;
+  months: number;
+  advances: number;
+  advance_count: number;
+  salary_payments: number;
+  salary_payment_count: number;
+  /** Balance due over every month kept. */
+  balance: number;
+}
+
+/** GET /api/payroll/employees/{id}/transactions — oldest first. */
+export interface EmployeeLedger {
+  employee_id: number;
+  entries: LedgerEntry[];
+  totals: LedgerTotals;
+}
+
+// ------------------------------------------------------ account summary
+
+/** What the Give advance / Pay salary dialogs show (GET /api/payroll/employees/{id}/summary). */
+export interface AccountSummary {
+  employee_id: number;
+  /** The running month advances are given against. */
+  month: BsMonth;
+  /** Net so far this month. */
+  earned_so_far: number;
+  paid_this_month: number;
+  /** max(0, earned_so_far − paid_this_month) */
+  room: number;
+  /** The month "Pay <month> salary" targets and what is due for it. */
+  salary_month: BsMonth;
+  salary_due: number;
+  /** Newest first, every month. */
+  recent: Payment[];
+  /** Advances paid in the last four months. */
+  advances_recent: number;
+  /** Due over every month kept. */
+  balance_due: number;
+  overtime_hours_this_month: number;
+}
 
 // ------------------------------------------------------------- photo
 

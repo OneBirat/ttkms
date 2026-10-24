@@ -10,7 +10,7 @@
 
 import DateConverter from "@remotemerge/nepali-date-converter";
 import { BS_MONTHS_EN, BS_MONTHS_NP, parseBs } from "@/lib/bsdate";
-import type { BsMonth, DateBoth } from "../types";
+import type { BsMonth, DateBoth, DateRange, RangePreset } from "../types";
 
 export { BS_MONTHS_EN, BS_MONTHS_NP };
 
@@ -238,4 +238,97 @@ export function formatMonthRange(month: BsMonth): string {
   const start = monthStart(month);
   const end = monthEnd(month);
   return `${monthName(month)} 1 – ${daysInMonth(month)}, ${month.bs_year} · ${formatAdShort(start.ad)} – ${formatAd(end.ad)}`;
+}
+
+// ---------------------------------------------------------- Devanagari
+
+const NP_DIGITS = "०१२३४५६७८९";
+
+/** 2083 -> "२०८३" (every ASCII digit swapped). */
+export function toNepaliDigits(value: number | string): string {
+  return String(value).replace(/\d/g, (d) => NP_DIGITS[Number(d)]);
+}
+
+/** "कार्तिक ४, २०८३" from "2083-07-04". */
+export function formatBsNp(bs: string): string {
+  const parts = parseBs(bs);
+  if (!parts) return bs;
+  return `${BS_MONTHS_NP[parts.month - 1]} ${toNepaliDigits(parts.day)}, ${toNepaliDigits(parts.year)}`;
+}
+
+/** "कार्तिक ४" */
+export function formatBsDayNp(bs: string): string {
+  const parts = parseBs(bs);
+  if (!parts) return bs;
+  return `${BS_MONTHS_NP[parts.month - 1]} ${toNepaliDigits(parts.day)}`;
+}
+
+/** "कार्तिक २०८३" */
+export function monthLabelNp(month: BsMonth): string {
+  return `${BS_MONTHS_NP[month.bs_month - 1]} ${toNepaliDigits(month.bs_year)}`;
+}
+
+// -------------------------------------------------------------- ranges
+
+/** BS date `days` days after `bs` (through the AD calendar). */
+export function addDaysBs(bs: string, days: number): string {
+  return dateBothFromAd(addDaysAd(bsToAd(bs), days)).bs;
+}
+
+/** ISO-shaped BS strings compare as text. */
+export function compareBs(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** The register presets, all inclusive and ending today (last month: its last day). */
+export function rangeFor(preset: RangePreset, now: Date = new Date()): DateRange {
+  const t = today(now);
+  const month = thisMonth(now);
+  switch (preset) {
+    case "this_month":
+      return { from_bs: monthStart(month).bs, to_bs: t.bs };
+    case "last_month": {
+      const previous = addMonths(month, -1);
+      return { from_bs: monthStart(previous).bs, to_bs: monthEnd(previous).bs };
+    }
+    case "last_30":
+      return { from_bs: addDaysBs(t.bs, -29), to_bs: t.bs };
+    case "last_3":
+      return { from_bs: monthStart(addMonths(month, -2)).bs, to_bs: t.bs };
+  }
+}
+
+export const RANGE_PRESETS: { value: RangePreset; label: string }[] = [
+  { value: "this_month", label: "This month" },
+  { value: "last_month", label: "Last month" },
+  { value: "last_30", label: "Last 30 days" },
+  { value: "last_3", label: "Last 3 months" },
+];
+
+/** Which preset a range equals, if any. */
+export function presetOf(range: DateRange, now: Date = new Date()): RangePreset | null {
+  for (const preset of RANGE_PRESETS) {
+    const r = rangeFor(preset.value, now);
+    if (r.from_bs === range.from_bs && r.to_bs === range.to_bs) return preset.value;
+  }
+  return null;
+}
+
+/** "17 Sep – 16 Oct 2026" */
+export function formatAdRange(fromAd: string, toAd: string): string {
+  return `${formatAdShort(fromAd)} – ${formatAd(toAd)}`;
+}
+
+/** "Ashoj 1 – Kartik 4, 2083" for a BS range (same year shown once). */
+export function formatBsRange(from_bs: string, to_bs: string): string {
+  const a = parseBs(from_bs);
+  const b = parseBs(to_bs);
+  if (!a || !b) return `${from_bs} → ${to_bs}`;
+  if (a.year === b.year && a.month === b.month) {
+    return `${BS_MONTHS_EN[a.month - 1]} ${a.day} – ${b.day}, ${a.year}`;
+  }
+  if (a.year === b.year) {
+    return `${BS_MONTHS_EN[a.month - 1]} ${a.day} – ${BS_MONTHS_EN[b.month - 1]} ${b.day}, ${a.year}`;
+  }
+  return `${formatBsLong(from_bs)} – ${formatBsLong(to_bs)}`;
 }

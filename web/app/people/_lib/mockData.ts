@@ -20,7 +20,7 @@ import {
   today,
 } from "./calendar";
 import { transliterateName } from "./devanagari";
-import { barcodeFor, employeeCode } from "./helpers";
+import { barcodeFor, employeeCode, receiptNo } from "./helpers";
 import type {
   Branch,
   BsMonth,
@@ -29,8 +29,10 @@ import type {
   MonthSummary,
   PaidBy,
   Payment,
+  PaymentMode,
   PayType,
   SalaryStructure,
+  TodayStatus,
 } from "../types";
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -57,6 +59,8 @@ export interface MockState {
   seeded_for: string;
   branches: Branch[];
   departments: Department[];
+  /** Read-only here: admin owns the CRUD (GET /api/admin/payment-modes). */
+  payment_modes: PaymentMode[];
   employees: Employee[];
   structures: SalaryStructure[];
   payments: Payment[];
@@ -68,6 +72,26 @@ export const BRANCHES: Branch[] = [
   { id: 1, name: "Main branch", is_active: true },
   { id: 2, name: "Branch 2", is_active: true },
 ];
+
+/**
+ * Sample of GET /api/admin/payment-modes (NEEDS FROM TTK-ADMIN). Cash is
+ * built in and always on; Cheque is switched off to show the filter.
+ */
+export const PAYMENT_MODES: PaymentMode[] = [
+  { id: 1, type: "cash", name: "Cash", details: null, use_salary: true, use_advance: true, active: true },
+  { id: 2, type: "bank", name: "NIC Asia Bank", details: "A/c ··4410", use_salary: true, use_advance: true, active: true },
+  { id: 3, type: "wallet", name: "eSewa", details: "98XXXXXX01", use_salary: true, use_advance: true, active: true },
+  { id: 4, type: "wallet", name: "Khalti", details: "98XXXXXX01", use_salary: false, use_advance: true, active: true },
+  { id: 5, type: "qr", name: "Fonepay QR", details: "Shop QR · NIC Asia", use_salary: true, use_advance: true, active: true },
+  { id: 6, type: "cheque", name: "Cheque", details: "NIC Asia cheque book", use_salary: true, use_advance: false, active: false },
+];
+
+export const CASH_MODE_ID = 1;
+export const BANK_MODE_ID = 2;
+
+export function modeRef(mode: PaymentMode): Payment["payment_mode"] {
+  return { id: mode.id, type: mode.type, name: mode.name };
+}
 
 export const DEPARTMENTS: Department[] = [
   { id: 1, name: "Store", is_active: true },
@@ -123,10 +147,10 @@ const SEED: Seed[] = [
 
 /** Logins for a few staff (core.users): id → username + role. */
 const LOGINS: Record<number, { username: string; role: Role }> = {
-  1: { username: "anita.g", role: "store_keeper" },
+  1: { username: "anita.g", role: "staff" },
   4: { username: "bikash.s", role: "manager" },
   16: { username: "sarita.b", role: "admin" },
-  18: { username: "binod.g", role: "store_keeper" },
+  18: { username: "binod.g", role: "staff" },
 };
 
 // ------------------------------------------------------------ attendance
@@ -159,6 +183,19 @@ export function mockAttendance(employee_id: number, month: BsMonth, now: Date = 
     weekly_off,
     paid_days: Math.max(0, upTo - absent),
   };
+}
+
+/**
+ * Today's mark for one employee, the shape GET /api/attendance/today will
+ * return per employee (NEEDS FROM TTK-ATTENDANCE). Saturday is the weekly
+ * off; otherwise a deterministic spread of P / O / A / not marked.
+ */
+export function todayStatusFor(employee_id: number, now: Date = new Date()): TodayStatus {
+  const ad = today(now).ad;
+  const [y, m, d] = ad.split("-").map(Number);
+  if (new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 6) return "weekly_off";
+  const h = (employee_id * 37 + d * 11) % 10;
+  return h < 6 ? "present" : h < 8 ? "overtime" : h < 9 ? "absent" : "not_marked";
 }
 
 // --------------------------------------------------------------- helpers
@@ -264,10 +301,12 @@ export function buildSeedState(now: Date = new Date()): MockState {
   });
 
   // Payments of past months, then the running month.
-  const addPayment = (p: Omit<Payment, "id" | "created_at" | "recorded_by" | "source">) => {
+  const addPayment = (p: Omit<Payment, "id" | "receipt_no" | "created_at" | "recorded_by" | "source">) => {
+    const payment_id = id(next, "payment");
     payments.push({
       ...p,
-      id: id(next, "payment"),
+      id: payment_id,
+      receipt_no: receiptNo(p.type, payment_id),
       recorded_by: MOCK_USER,
       source: p.type === "advance" && p.employee_id % 2 === 0 ? "scan" : "account",
       created_at: `${p.date.ad}T10:${String(10 + (p.employee_id % 45)).padStart(2, "0")}:00+05:45`,
@@ -292,13 +331,17 @@ export function buildSeedState(now: Date = new Date()): MockState {
         const due = settle(pay.net, monthPayments).due;
         const clean = Math.min(roundRs(amount), due);
         if (clean <= 0) return;
+        // Cash by default; bank salaries through NIC Asia; a few advances through eSewa.
+        const modeId = payMode === "bank" ? BANK_MODE_ID : type === "advance" && employee.id % 7 === 3 ? 3 : CASH_MODE_ID;
+        const paymentMode = PAYMENT_MODES.find((pm) => pm.id === modeId)!;
         const payment = {
           employee_id: employee.id,
           month,
           type,
           amount: clean,
-          mode: payMode,
-          reference: payMode === "bank" ? bankRef(employee.id, month) : null,
+          payment_mode_id: modeId,
+          payment_mode: modeRef(paymentMode),
+          reference: paymentMode.type === "bank" ? bankRef(employee.id, month) : null,
           note,
           date: dateBoth(bs),
         };
@@ -331,6 +374,7 @@ export function buildSeedState(now: Date = new Date()): MockState {
     seeded_for: monthKey(current),
     branches: BRANCHES.map((b) => ({ ...b })),
     departments: DEPARTMENTS.map((d) => ({ ...d })),
+    payment_modes: PAYMENT_MODES.map((m) => ({ ...m })),
     employees,
     structures,
     payments,

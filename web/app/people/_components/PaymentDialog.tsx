@@ -4,11 +4,12 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { BsDateInput } from "@/components/ui/BsDateInput";
 import { Modal } from "@/components/ui/Modal";
 import { Field, TextInput, parseAmount, splitError } from "./FormBits";
-import { currentMonth, getBalance, listMonths, recordPayment } from "../api";
+import { PaidByPicker, modesFor } from "./PaidByPicker";
+import { currentMonth, getBalance, listMonths, listPaymentModes, recordPayment } from "../api";
 import { paymentError } from "../_lib/calc";
 import { monthKey, monthLabel, parseMonthKey, sameMonth, today } from "../_lib/calendar";
-import { ADVANCE_QUICK, formatAmount, formatRs } from "../_lib/helpers";
-import type { BsMonth, Employee, PaymentMode, PaymentResult, PaymentType } from "../types";
+import { formatAmount, formatRs } from "../_lib/helpers";
+import type { BsMonth, Employee, PaymentResult, PaymentType } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import styles from "./payroll.module.css";
 
@@ -16,29 +17,33 @@ export interface PaymentDialogProps {
   open: boolean;
   employee: Employee;
   /** What opened it: sets the default type and the title. */
-  purpose: "salary" | "advance" | "record";
+  purpose: "salary" | "record";
   /** Month to start on; "Pay <month> salary" passes the suggested month. */
   month: BsMonth;
+  /** Preselect the first bank mode when the salary structure says "paid to bank". */
+  preferBank?: boolean;
+  /** Admins see "Manage payment modes". */
+  manageModes?: boolean;
   onClose: () => void;
   onSaved: (result: PaymentResult) => void;
 }
 
-type Quick = "full" | "custom" | `${number}`;
+type Quick = "full" | "custom";
 
-const TITLES = { salary: "Pay salary", advance: "Give advance", record: "Record payment" } as const;
+const TITLES = { salary: "Pay salary", record: "Record payment" } as const;
 
 /**
- * Salary | Advance payment against one month (design: AttendanceScanPay /
- * AttendanceScanSalary). Save is disabled when the amount is 0 or above the
- * balance due. Also the shape the attendance scan pop-up records through.
+ * Salary (or advance, when recording against an older month) payment against
+ * one month. Save is disabled when the amount is 0 or above the balance due.
+ * Advances for the running month have their own dialog (AdvanceDialog).
  */
-export function PaymentDialog({ open, employee, purpose, month, onClose, onSaved }: PaymentDialogProps) {
+export function PaymentDialog({ open, employee, purpose, month, preferBank = false, manageModes = false, onClose, onSaved }: PaymentDialogProps) {
   const uid = useId();
-  const [type, setType] = useState<PaymentType>(purpose === "advance" ? "advance" : "salary");
+  const [type, setType] = useState<PaymentType>("salary");
   const [key, setKey] = useState(monthKey(month));
   const [quick, setQuick] = useState<Quick | null>(null);
   const [amount, setAmount] = useState("");
-  const [mode, setMode] = useState<PaymentMode>("cash");
+  const [modeId, setModeId] = useState<number | null>(null);
   const [reference, setReference] = useState("");
   const [dateBs, setDateBs] = useState(today().bs);
   const [note, setNote] = useState("");
@@ -48,11 +53,11 @@ export function PaymentDialog({ open, employee, purpose, month, onClose, onSaved
   // Fresh form each time it opens.
   useEffect(() => {
     if (!open) return;
-    setType(purpose === "advance" ? "advance" : "salary");
+    setType("salary");
     setKey(monthKey(month));
     setQuick(null);
     setAmount("");
-    setMode("cash");
+    setModeId(null);
     setReference("");
     setDateBs(today().bs);
     setNote("");
@@ -61,25 +66,27 @@ export function PaymentDialog({ open, employee, purpose, month, onClose, onSaved
   }, [open, purpose, month]);
 
   const months = usePayroll(listMonths, []);
+  const modes = usePayroll(() => listPaymentModes(), []);
   const selectedMonth = parseMonthKey(key) ?? currentMonth();
   const balance = usePayroll(() => getBalance(employee.id, selectedMonth), [employee.id, key]);
   const due = balance.data?.due ?? 0;
   const amountNumber = parseAmount(amount);
   const typed = amount.trim() !== "";
   const problem = typed ? paymentError(amountNumber, due) : null;
-  const canSave = typed && !problem && !saving && Boolean(balance.data);
+  const allowed = modesFor(modes.data ?? [], type);
+  const defaultMode = (preferBank ? allowed.find((m) => m.type === "bank") : null) ?? allowed[0] ?? null;
+  const effectiveMode = allowed.find((m) => m.id === modeId) ?? defaultMode;
+  const canSave = typed && !problem && !saving && Boolean(balance.data) && Boolean(effectiveMode);
   const id = (name: string) => `${uid}-${name}`;
 
   const pick = (value: Quick) => {
     setQuick(value);
-    if (value === "full") setAmount(String(due));
-    else if (value === "custom") setAmount("");
-    else setAmount(value);
+    setAmount(value === "full" ? String(due) : "");
   };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!canSave) return;
+    if (!canSave || !effectiveMode) return;
     setSaving(true);
     setError(null);
     try {
@@ -89,8 +96,8 @@ export function PaymentDialog({ open, employee, purpose, month, onClose, onSaved
         bs_month: selectedMonth.bs_month,
         type,
         amount: amountNumber,
-        mode,
-        reference: mode === "bank" ? reference : null,
+        payment_mode_id: effectiveMode.id,
+        reference,
         note,
         date_bs: dateBs,
         source: "account",
@@ -103,43 +110,37 @@ export function PaymentDialog({ open, employee, purpose, month, onClose, onSaved
     }
   };
 
-  const quickOptions: { value: Quick; label: string; wide?: boolean }[] =
-    type === "salary"
-      ? [
-          { value: "full", label: `Full due · Rs ${formatAmount(due)}`, wide: true },
-          { value: "custom", label: "Custom amount", wide: true },
-        ]
-      : [...ADVANCE_QUICK.map((v) => ({ value: `${v}` as Quick, label: `Rs ${formatAmount(v)}` })), { value: "custom", label: "Custom" }];
-
-  const label = selectedMonth ? monthLabel(selectedMonth) : "";
+  const label = monthLabel(selectedMonth);
   const running = balance.data?.breakdown.in_progress;
 
   return (
-    <Modal open={open} title={TITLES[purpose]} onClose={onClose} size="sm">
+    <Modal open={open} title={purpose === "salary" ? `Pay ${label} salary` : TITLES[purpose]} onClose={onClose} size="sm">
       <form className={styles.form} onSubmit={(event) => void submit(event)} noValidate>
         <p className={styles.note} style={{ marginTop: -8 }}>
           {employee.full_name} · {employee.code}
         </p>
 
-        <div role="group" aria-label="Payment type" className={styles.toggle}>
-          {(["salary", "advance"] as PaymentType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={styles.toggleOption}
-              data-tone={t}
-              aria-pressed={type === t}
-              onClick={() => {
-                setType(t);
-                setQuick(null);
-                setAmount("");
-              }}
-            >
-              <span>{t === "salary" ? "Salary payment" : "Advance payment"}</span>
-              <span className={styles.toggleSub}>{t === "salary" ? "तलब भुक्तानी" : "पेश्की भुक्तानी"}</span>
-            </button>
-          ))}
-        </div>
+        {purpose === "record" ? (
+          <div role="group" aria-label="Payment type" className={styles.toggle}>
+            {(["salary", "advance"] as PaymentType[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={styles.toggleOption}
+                data-tone={t}
+                aria-pressed={type === t}
+                onClick={() => {
+                  setType(t);
+                  setQuick(null);
+                  setAmount("");
+                }}
+              >
+                <span>{t === "salary" ? "Salary payment" : "Advance"}</span>
+                <span className={styles.toggleSub}>{t === "salary" ? "तलब" : "पेश्की"}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <Field id={id("month")} label="For month (BS)">
           <div className={`field ${styles.selectWrap}`}>
@@ -162,41 +163,21 @@ export function PaymentDialog({ open, employee, purpose, month, onClose, onSaved
           </div>
         </Field>
 
-        <div className={styles.balance} aria-live="polite">
-          <div>
-            {label} net{running ? " so far" : ""}
-            <span className={styles.balanceValue}>{balance.data ? formatRs(balance.data.net) : "…"}</span>
+        <div className={styles.tiles3} aria-live="polite">
+          <div className={styles.tile} data-tone="ok">
+            <span className={styles.tileLabel}>{label} net{running ? " so far" : ""}</span>
+            <span className={styles.tileValue}>{balance.data ? formatRs(balance.data.net) : "…"}</span>
           </div>
-          <div>
-            Paid
-            <span className={`${styles.balanceValue} ${styles.balancePaid}`}>
-              {balance.data ? formatRs(balance.data.paid) : "…"}
-            </span>
+          <div className={styles.tile} data-tone="advance">
+            <span className={styles.tileLabel}>Already paid</span>
+            <span className={styles.tileValue}>{balance.data ? formatRs(balance.data.paid) : "…"}</span>
           </div>
-          <div>
-            Due
-            <span className={`${styles.balanceValue} ${styles.balanceDue}`}>
-              {balance.data ? formatRs(balance.data.due) : "…"}
-            </span>
+          <div className={styles.tile} data-tone="low">
+            <span className={styles.tileLabel}>Still due</span>
+            <span className={styles.tileValue}>{balance.data ? formatRs(balance.data.due) : "…"}</span>
           </div>
         </div>
         {balance.error ? <p className={styles.formError}>{payrollErrorMessage(balance.error)}</p> : null}
-
-        <div role="group" aria-label="Amount" className={styles.quick}>
-          {quickOptions.map((q) => (
-            <button
-              key={q.value}
-              type="button"
-              className={q.wide ? `${styles.quickOption} ${styles.quickWide}` : styles.quickOption}
-              data-tone={type}
-              aria-pressed={quick === q.value}
-              disabled={q.value === "full" && due <= 0}
-              onClick={() => pick(q.value)}
-            >
-              {q.label}
-            </button>
-          ))}
-        </div>
 
         <Field id={id("amount")} label="Amount" error={problem}>
           <TextInput
@@ -211,28 +192,28 @@ export function PaymentDialog({ open, employee, purpose, month, onClose, onSaved
             mono
             placeholder="Type amount"
             invalid={Boolean(problem)}
-            autoFocus={quick === "custom"}
             required
           />
         </Field>
-
-        <div role="group" aria-label="Paid by" className={styles.toggle}>
-          {(["cash", "bank"] as PaymentMode[]).map((m) => (
-            <button key={m} type="button" className={styles.toggleOption} aria-pressed={mode === m} onClick={() => setMode(m)}>
-              {m === "cash" ? "Cash" : "Bank transfer"}
-            </button>
-          ))}
+        <div role="group" aria-label="Quick amounts" className={styles.chips}>
+          <button type="button" className={styles.chipSmall} aria-pressed={quick === "full"} disabled={due <= 0} onClick={() => pick("full")}>
+            Full due · {formatAmount(due)}
+          </button>
+          <button type="button" className={styles.chipSmall} aria-pressed={quick === "custom"} onClick={() => pick("custom")}>
+            Custom
+          </button>
         </div>
-        {mode === "bank" ? (
-          <Field id={id("ref")} label="Bank reference">
-            <TextInput
-              id={id("ref")}
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="Transfer / cheque number"
-              autoComplete="off"
-            />
-          </Field>
+
+        {effectiveMode ? (
+          <PaidByPicker
+            modes={modes.data ?? []}
+            value={effectiveMode.id}
+            onChange={setModeId}
+            type={type}
+            manageHref={manageModes ? "/admin/payment-modes" : null}
+            reference={reference}
+            onReference={setReference}
+          />
         ) : null}
 
         <div className={styles.fieldset}>
