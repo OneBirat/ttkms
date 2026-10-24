@@ -371,6 +371,8 @@ export function spokenName(employee: { name: string; name_ne?: string | null }):
 type Named = { name: string; name_ne?: string | null };
 
 export const SPEECH = {
+  /** Said the moment a card is read, before any marking: just who it is. */
+  name: (e: Named): Phrase => ({ np: spokenName(e), en: e.name }),
   present: (e: Named): Phrase => ({ np: `${spokenName(e)}, हाजिर`, en: `${e.name}, present` }),
   overtime: (e: Named, hours: number): Phrase => ({
     np: `${spokenName(e)}, हाजिर, ओभरटाइम ${toDevanagariDigits(hours)} घण्टा`,

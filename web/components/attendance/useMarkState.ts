@@ -491,6 +491,8 @@ export function useMarkState(options: { phone: boolean }): MarkState {
         if (already) {
           loadBalance(found.employee.id);
           void speak(SPEECH.already(found.employee));
+        } else {
+          void speak(SPEECH.name(found.employee)); // say who it is as soon as the card is read
         }
       })
       .catch((err: unknown) => {

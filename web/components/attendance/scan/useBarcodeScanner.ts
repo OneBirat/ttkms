@@ -6,8 +6,8 @@ import { useEffect, useRef, useState } from "react";
  * Camera barcode reading with the browser's BarcodeDetector API (Chrome on
  * Android, Safari 17+). Browsers without it get the camera preview and the
  * "type ID" box only; NEEDS FROM MAIN: add @zxing/browser as the fallback
- * decoder for those (Firefox, older Safari). Staff cards carry Code 128
- * "TTK-E001".
+ * decoder for those (Firefox, older Safari). Staff cards carry "TTK-E001" as
+ * Code 128 or as a QR code; both are read.
  */
 
 interface DetectedBarcode {
@@ -29,6 +29,9 @@ declare global {
     BarcodeDetector?: BarcodeDetectorCtor;
   }
 }
+
+/** Symbologies printed on staff cards. */
+export const CARD_FORMATS = ["qr_code", "code_128"];
 
 export type ScannerStatus =
   | "idle"
@@ -127,8 +130,9 @@ export function useBarcodeScanner(active: boolean, onCode: (code: string) => voi
       }
       let detector: BarcodeDetectorLike;
       try {
-        const formats = Detector.getSupportedFormats ? await Detector.getSupportedFormats() : [];
-        detector = new Detector(formats.includes("code_128") ? { formats: ["code_128"] } : undefined);
+        const supported = Detector.getSupportedFormats ? await Detector.getSupportedFormats() : [];
+        const wanted = CARD_FORMATS.filter((f) => supported.includes(f));
+        detector = new Detector(wanted.length ? { formats: wanted } : undefined);
       } catch {
         setStatus("no-detector");
         return;

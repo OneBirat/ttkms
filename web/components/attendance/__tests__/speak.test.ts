@@ -54,6 +54,7 @@ describe("what to say", () => {
   });
   it("builds the sentences with Nepali digits and an English fallback", () => {
     const kamala = { name: "Kamala Bhandari", name_ne: "कमला भण्डारी" };
+    assert.deepEqual(SPEECH.name(kamala), { np: "कमला भण्डारी", en: "Kamala Bhandari" });
     assert.deepEqual(SPEECH.present(kamala), { np: "कमला भण्डारी, हाजिर", en: "Kamala Bhandari, present" });
     assert.equal(SPEECH.overtime(kamala, 2).np, "कमला भण्डारी, हाजिर, ओभरटाइम २ घण्टा");
     assert.equal(SPEECH.overtime(kamala, 1).en, "Kamala Bhandari, present, overtime 1 hour");
