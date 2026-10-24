@@ -13,7 +13,7 @@ ENABLED_MODULES ?= attendance,payroll,admin
 comma := ,
 MODULES := $(subst $(comma), ,$(ENABLED_MODULES))
 
-.PHONY: dev migrate test lint fmt seed create-admin web-install web-dev web-build web-lint
+.PHONY: dev migrate test lint fmt seed create-admin web-install web-dev web-build web-lint web-test
 
 dev:  ## FastAPI JSON API with reload on $APP_PORT
 	$(PY) -m uvicorn app.main:app --reload --port $(APP_PORT)
@@ -31,8 +31,11 @@ migrate:
 	  fi; \
 	done
 
+## pytest, then the web tests (web/test/README.md) when node_modules is installed.
 test:
 	$(PY) -m pytest
+	@if [ -d web/node_modules ]; then $(MAKE) web-test; \
+	 else echo "web/node_modules missing: skipping web tests (run make web-install)"; fi
 
 lint:
 	$(PY) -m ruff check .
@@ -62,3 +65,6 @@ web-build:
 
 web-lint:
 	cd web && npm run lint && npx tsc --noEmit
+
+web-test:
+	cd web && npm test

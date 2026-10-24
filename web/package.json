@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test \"lib/**/*.test.mjs\""
+    "test": "node --experimental-strip-types --import ./test/register.mjs --test \"lib/**/*.test.{ts,tsx,mjs}\" \"components/**/*.test.{ts,tsx,mjs}\""
   },
   "dependencies": {
     "@remotemerge/nepali-date-converter": "1.2.5",
