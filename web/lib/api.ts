@@ -50,14 +50,16 @@ export interface NavItem {
   label: string;
   path: string;
   icon: string;
-  /** Only sent by /api/registry; /api/core/modules items are already role-filtered. */
+  /** Only sent by /api/registry; /api/core/modules items are already filtered to the user. */
   roles?: string[];
+  /** The permission that unlocks the entry (null = none needed). Only sent by /api/registry. */
+  permission?: string | null;
 }
 
 export interface Module {
   name: string;
   title: string;
-  /** Already filtered to the current user's role; empty when nothing is allowed. */
+  /** Already filtered to the current user's permissions; empty when nothing is allowed. */
   nav: NavItem[];
   allowed: boolean;
 }

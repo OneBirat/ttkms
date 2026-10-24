@@ -71,7 +71,10 @@ class NavItemOut(BaseModel):
     label: str
     path: str
     icon: str
+    #: Role restriction on top of the permission (empty = any role).
     roles: list[str]
+    #: The permission that unlocks the entry (``None`` = none needed).
+    permission: str | None = None
 
 
 class ModuleOut(BaseModel):

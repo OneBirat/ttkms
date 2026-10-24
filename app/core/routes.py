@@ -40,21 +40,24 @@ from app.core.schemas import (
 )
 from app.core.services import company_name
 from app.db import DbSession
+from app.modules.admin.permissions import access_for_user
 
 router = APIRouter(prefix="/api", tags=["core"])
 
 
 @router.get("/core/modules", response_model=ModulesOut, responses={401: {"model": ErrorOut}})
-async def modules(request: Request, user: CurrentUser) -> ModulesOut:
-    """Enabled module names plus the sidebar sections (nav items filtered to the caller's role,
-    modules with nothing visible left out). The Next.js shell, the post-login landing page and
-    the route guard in ``web/middleware.ts`` all read this instead of hard-coding links."""
+async def modules(request: Request, user: CurrentUser, db: DbSession) -> ModulesOut:
+    """Enabled module names plus the sidebar sections (nav items filtered to the caller's
+    effective permissions, modules with nothing visible left out). The Next.js shell, the
+    post-login landing page and the route guard in ``web/middleware.ts`` all read this instead
+    of hard-coding links."""
     loaded = request.app.state.modules
+    access = await access_for_user(db, user)
     nav = []
     for module in loaded:
         items = [
             NavLinkOut(label=i.label, path=i.path, icon=i.icon)
-            for i in module.visible_nav(user.role)
+            for i in module.visible_nav(user.role, access)
         ]
         if items:
             nav.append(NavSectionOut(module=module.name, title=module.title, items=items))
@@ -62,17 +65,28 @@ async def modules(request: Request, user: CurrentUser) -> ModulesOut:
 
 
 @router.get("/registry", response_model=RegistryOut, responses={401: {"model": ErrorOut}})
-async def registry(request: Request, user: CurrentUser) -> RegistryOut:
-    """Enabled modules in sidebar order, nav items filtered to the caller's role."""
+async def registry(request: Request, user: CurrentUser, db: DbSession) -> RegistryOut:
+    """Enabled modules in sidebar order, nav items filtered to the caller's effective
+    permissions (role preset + per-user switches)."""
+    access = await access_for_user(db, user)
     modules = []
     for module in request.app.state.modules:
         nav = [
-            NavItemOut(label=i.label, path=i.path, icon=i.icon, roles=sorted(i.roles))
-            for i in module.visible_nav(user.role)
+            NavItemOut(
+                label=i.label,
+                path=i.path,
+                icon=i.icon,
+                roles=sorted(i.roles),
+                permission=i.permission,
+            )
+            for i in module.visible_nav(user.role, access)
         ]
         modules.append(
             ModuleOut(
-                name=module.name, title=module.title, nav=nav, allowed=module.allowed(user.role)
+                name=module.name,
+                title=module.title,
+                nav=nav,
+                allowed=module.allowed(user.role, access),
             )
         )
     return RegistryOut(modules=modules)

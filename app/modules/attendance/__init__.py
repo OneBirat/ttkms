@@ -17,16 +17,17 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from app.core.auth import require_role
 from app.core.modules import Module, NavItem, WidgetContext
 from app.core.schemas import ModuleStatusOut
+from app.modules.admin.permissions import require_any_access
 
-#: Who marks attendance and reads the report; staff and store keepers have no attendance screens
-#: yet, so the whole module (sidebar entries and /api/attendance/*) is limited to these roles.
-ROLES = {"admin", "manager"}
-MARKING_ROLES = ROLES
+#: Access is per user (app.modules.admin.permissions), not per role: anyone with
+#: ``mark_attendance`` (every preset, Staff included) sees the module and marks; the report needs
+#: ``view_attendance_report`` (Manager and Admin presets, or switched on for a user).
+MARK = "mark_attendance"
+REPORT = "view_attendance_report"
 
-router = APIRouter(dependencies=[Depends(require_role(*ROLES))])
+router = APIRouter(dependencies=[Depends(require_any_access(MARK, REPORT))])
 
 
 @router.get("", response_model=ModuleStatusOut, name="attendance:index")
@@ -65,14 +66,9 @@ module = Module(
     title="Attendance",
     router=router,
     nav=[
+        NavItem(label="Mark attendance", path="/attendance/mark", icon="check", permission=MARK),
         NavItem(
-            label="Mark attendance", path="/attendance/mark", icon="check", roles=set(MARKING_ROLES)
-        ),
-        NavItem(
-            label="Attendance report",
-            path="/attendance/report",
-            icon="calendar",
-            roles=set(MARKING_ROLES),
+            label="Attendance report", path="/attendance/report", icon="calendar", permission=REPORT
         ),
     ],
     dashboard_widgets=[attendance_today_widget],

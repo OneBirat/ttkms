@@ -7,10 +7,15 @@ Admins always keep ``manage_users`` so the system cannot be locked out.
 * :data:`ROLE_PRESETS` - Admin = all; Manager = mark attendance, view attendance report,
   view & edit employees; Staff = mark attendance only
 * :func:`effective_access` - preset + overrides -> ``{permission: bool}``
+* :func:`access_for_user` - the signed-in user's effective access (what the sidebar and the
+  module registry in ``app.core.routes`` filter by)
 * :func:`require_access` - FastAPI dependency: ``Depends(require_access("manage_users"))``
+  (every listed permission); :func:`require_any_access` - at least one of them
 
-Attendance and payroll should guard their endpoints with :func:`require_access` instead of
-``require_role`` (see the final report of the admin session).
+Attendance and payroll guard their endpoints and sidebar entries with these, not with roles:
+``NavItem(..., permission="mark_attendance")`` in ``app.core.modules``. This module is therefore
+imported even when the admin module is paused; the per-user overrides then do not exist and
+:func:`access_for_user` falls back to the role preset.
 
 Keep ``web/components/admin/permissions.ts`` in step with the constants here.
 """
@@ -24,6 +29,7 @@ from fastapi import Depends, HTTPException, status
 
 from app.core.auth import CurrentUser
 from app.core.models import Role, User
+from app.core.modules import is_enabled
 from app.db import DbSession
 from app.modules.admin.models import UserAccess
 
@@ -104,27 +110,44 @@ def clean_overrides(role: Role | str, requested: Mapping[str, object] | None) ->
 
 
 async def access_for_user(db, user: User) -> Access:
-    row = await db.get(UserAccess, user.id)
+    """The user's effective access. With the admin module paused there is no ``user_access``
+    table to read overrides from, so everyone gets their role preset."""
+    row = await db.get(UserAccess, user.id) if is_enabled("admin") else None
     return effective_access(user.role, row.access if row else None)
+
+
+def _check_permissions(name: str, permissions: tuple[str, ...]) -> None:
+    unknown = sorted(set(permissions) - set(PERMISSIONS))
+    if unknown:
+        raise ValueError(f"unknown permission(s): {', '.join(unknown)}")
+    if not permissions:
+        raise ValueError(f"{name}() needs at least one permission")
+
+
+def _access_dependency(name: str, permissions: tuple[str, ...], test):
+    async def dependency(user: CurrentUser, db: DbSession) -> User:
+        access = await access_for_user(db, user)
+        if not test(access.get(key) for key in permissions):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NO_ACCESS_DETAIL)
+        return user
+
+    dependency.__name__ = f"{name}_{'_'.join(permissions)}"
+    return dependency
 
 
 def require_access(*permissions: str):
     """Dependency factory: the signed-in user must hold every listed permission (403 otherwise).
     Combine with the module's own ``CurrentUser`` for endpoints that need no permission."""
-    unknown = sorted(set(permissions) - set(PERMISSIONS))
-    if unknown:
-        raise ValueError(f"unknown permission(s): {', '.join(unknown)}")
-    if not permissions:
-        raise ValueError("require_access() needs at least one permission")
+    _check_permissions("require_access", permissions)
+    return _access_dependency("require_access", permissions, all)
 
-    async def dependency(user: CurrentUser, db: DbSession) -> User:
-        access = await access_for_user(db, user)
-        if not all(access.get(key) for key in permissions):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, detail=NO_ACCESS_DETAIL)
-        return user
 
-    dependency.__name__ = f"require_access_{'_'.join(permissions)}"
-    return dependency
+def require_any_access(*permissions: str):
+    """Dependency factory: the signed-in user must hold at least one of the listed permissions
+    (403 otherwise). Use it on a module router so anyone who can see one of its sidebar entries
+    can call its shared endpoints; guard the individual endpoints with :func:`require_access`."""
+    _check_permissions("require_any_access", permissions)
+    return _access_dependency("require_any_access", permissions, any)
 
 
 ManageUsers = Annotated[User, Depends(require_access("manage_users"))]

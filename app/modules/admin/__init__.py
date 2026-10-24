@@ -1,8 +1,9 @@
 """Admin module: users & access, payment modes, barcode stickers.
 
 Routes are mounted under ``/api/admin``. Access is checked per route with
-:func:`app.modules.admin.permissions.require_access` (``manage_users`` for everything an admin
-does here); the sidebar entries are role-based because the registry only knows roles.
+:func:`app.modules.admin.permissions.require_access`: ``manage_users`` for the Users screen
+(also its sidebar entry), while payment modes and barcodes are admin-only tools without a
+per-user switch (role-restricted, entries included).
 """
 
 from __future__ import annotations
@@ -253,7 +254,7 @@ async def barcodes_pdf(
 
 
 NAV = [
-    NavItem(label="Users", path="/admin/users", icon="user", roles=set(ROLES)),
+    NavItem(label="Users", path="/admin/users", icon="user", permission="manage_users"),
     NavItem(label="Barcodes", path="/admin/barcodes", icon="barcode", roles=set(ROLES)),
     NavItem(label="Payment modes", path="/admin/payment-modes", icon="card", roles=set(ROLES)),
 ]

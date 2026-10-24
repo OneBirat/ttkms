@@ -20,11 +20,12 @@ async def test_attendance_index_still_coming_soon(client, make_user, login):
     assert module.name == "attendance"
 
 
-async def test_staff_cannot_open_the_module(client, make_user, login):
+async def test_staff_can_open_the_module(client, make_user, login):
+    """The Staff preset is ``mark_attendance`` only - enough to reach the module."""
     await make_user("clerk", role="staff")
     await login("clerk")
     response = await client.get("/api/attendance")
-    assert response.status_code == 403
+    assert response.status_code == 200
 
 
 async def test_sidebar_entries_for_managers(client, make_user, login):
@@ -39,12 +40,14 @@ async def test_sidebar_entries_for_managers(client, make_user, login):
     ]
 
 
-async def test_staff_do_not_see_marking_entries(client, make_user, login):
+async def test_staff_see_marking_but_not_the_report(client, make_user, login):
     await make_user("clerk", role="staff")
     await login("clerk")
     response = await client.get("/api/registry")
     attendance = next(m for m in response.json()["modules"] if m["name"] == "attendance")
-    assert attendance["nav"] == []
+    assert [(i["label"], i["path"]) for i in attendance["nav"]] == [
+        ("Mark attendance", "/attendance/mark")
+    ]
 
 
 async def test_dashboard_widget_is_attendance_today_only(client, make_user, login):
