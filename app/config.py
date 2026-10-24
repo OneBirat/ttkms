@@ -8,9 +8,11 @@ reads its own ``.env`` (own APP_PORT, same database).
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
+from typing import Literal
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,7 +21,24 @@ STATIC_DIR = BASE_DIR / "static"
 MEDIA_DIR = BASE_DIR / "media"
 
 PLACEHOLDER_SECRETS = frozenset({"CHANGE_ME", "change-me", "change-me-dev-only", "secret", ""})
+#: Every feature module that exists in the code base, in sidebar order.
+KNOWN_MODULES: tuple[str, ...] = ("stock", "attendance", "payroll", "admin")
+#: Modules switched on when ENABLED_MODULES is not set. "stock" is paused (see README).
+DEFAULT_ENABLED_MODULES = "attendance,payroll,admin"
 log = logging.getLogger(__name__)
+
+
+def parse_module_list(value: str) -> tuple[str, ...]:
+    """``"attendance, payroll,admin"`` -> ``("attendance", "payroll", "admin")`` (sidebar order,
+    duplicates dropped). Raises ``ValueError`` for a name that is not a known module."""
+    names = [name.strip().lower() for name in value.split(",") if name.strip()]
+    unknown = sorted(set(names) - set(KNOWN_MODULES))
+    if unknown:
+        raise ValueError(
+            f"ENABLED_MODULES contains unknown module(s) {', '.join(unknown)}; "
+            f"known modules: {', '.join(KNOWN_MODULES)}"
+        )
+    return tuple(name for name in KNOWN_MODULES if name in names)
 
 
 class Settings(BaseSettings):
@@ -30,7 +49,7 @@ class Settings(BaseSettings):
     database_url: str
     secret_key: str
     app_port: int = 8000
-    app_env: str = "dev"  # "dev" | "prod"
+    app_env: Literal["dev", "prod"] = "dev"
 
     # Session cookie (Starlette SessionMiddleware + itsdangerous)
     session_cookie: str = "ttk_session"
@@ -43,14 +62,23 @@ class Settings(BaseSettings):
     admin_password: str | None = None
 
     # The test-suite creates and migrates this database itself.
-    # Defaults to "<database>_test" on the same server.
+    # Defaults to "<database>_test_<checkout dir>" on the same server.
     test_database_url: str | None = None
 
     timezone: str = "Asia/Kathmandu"
 
+    # Comma-separated feature modules to load. A module that is not listed gets no API routes,
+    # no nav items, no dashboard widgets and no migrations - its code and tables stay untouched.
+    enabled_modules: str = DEFAULT_ENABLED_MODULES
+
     @property
     def is_prod(self) -> bool:
         return self.app_env == "prod"
+
+    @property
+    def enabled_module_names(self) -> tuple[str, ...]:
+        """Parsed every time so a test can override ``enabled_modules`` with monkeypatch."""
+        return parse_module_list(self.enabled_modules)
 
     @property
     def resolved_test_database_url(self) -> str:
@@ -58,8 +86,24 @@ class Settings(BaseSettings):
             return self.test_database_url
         from sqlalchemy.engine import make_url
 
+        # One test database per checkout, so worktrees running `make test` at the same time
+        # never reset each other's schemas: ttk_test_ttkms, ttk_test_ttk_stock, ...
+        suffix = re.sub(r"[^a-z0-9_]+", "_", BASE_DIR.name.lower()).strip("_")
         url = make_url(self.database_url)
-        return url.set(database=f"{url.database}_test").render_as_string(hide_password=False)
+        return url.set(database=f"{url.database}_test_{suffix}").render_as_string(
+            hide_password=False
+        )
+
+    @field_validator("app_env", mode="before")
+    @classmethod
+    def _normalise_env(cls, value: object) -> object:
+        return value.strip().lower() if isinstance(value, str) else value
+
+    @field_validator("enabled_modules")
+    @classmethod
+    def _check_enabled_modules(cls, value: str) -> str:
+        parse_module_list(value)  # fail at startup on a typo, not on the first request
+        return value
 
     @model_validator(mode="after")
     def _check_secret_key(self) -> Settings:

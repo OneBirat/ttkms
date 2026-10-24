@@ -38,8 +38,11 @@ CORS configuration anywhere. Rewrites are evaluated when the server starts
   (`--color-*`, `--pill-*`, `--radius-*`, `--font-ui|mono|np`), base styles and
   the shared `.card`, `.btn`, `.input`, `.label`, `.skip-link` classes.
 - `lib/api.ts`: contract types, `apiFetch<T>()`, `ApiError`, `ensureCsrf()`.
-- `lib/session.tsx`: `SessionProvider` / `useSession()` (user, modules, today,
-  logout) loaded once for the app shell.
+- `lib/session.tsx`: `SessionProvider` / `useSession()` (user, modules, enabled,
+  isEnabled, today, logout) loaded once for the app shell from `/api/core/modules`.
+- `lib/modules.ts`: pure helpers over `/api/core/modules` (`moduleForPath`,
+  `homePath`, `enabledOnly`), shared by `middleware.ts`, the login page and the
+  dashboard; unit-tested with `npm test`.
 - `lib/bsdate.ts`: BS month names, Devanagari digits, `formatBs`, `formatBsNp`
   and the `/api/bsdate/convert` helpers. `lib/bsDatepicker.ts` holds the
   optional vendor date-picker hook (off unless `NEXT_PUBLIC_BS_DATEPICKER=1`).
@@ -47,8 +50,10 @@ CORS configuration anywhere. Rewrites are evaluated when the server starts
   `ModulePlaceholder`, `icons.tsx`, `widgets/` (dashboard widgets by `kind`)
   and `ui/` (PageHeader, StatCard, Pill, DataTable, Modal, Segmented,
   BsDateInput, EmptyState, Pagination).
-- `app/`: routes. `(app)/` is the authenticated shell (dashboard, stock,
-  attendance, payroll, admin); `login/` is the sign-in page.
+- `app/`: routes. `(app)/` is the authenticated shell (dashboard, attendance,
+  payroll, admin, module-off; `stock/` stays in the tree but is paused, see the
+  root README); `login/` is the sign-in page. `middleware.ts` redirects pages of
+  a module missing from the backend's `ENABLED_MODULES` to `/module-off`.
 
 ## Worktrees
 

@@ -6,19 +6,20 @@ import pytest
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
-import app.core.models  # noqa: F401  (populates Base.metadata)
 from app.db import Base
 from migrations.env_helper import (
-    MODULES,
+    import_module_models,
     make_include_name,
     make_include_object,
     version_table_for,
 )
-from tests.conftest import alembic_config
+from tests.conftest import MIGRATED_MODULES, _ensure_database, _reset_schemas, alembic_config
 
 CORE_TABLES = {"branches", "departments", "employees", "users", "settings", "audit_log"}
 
@@ -49,6 +50,8 @@ async def _version(url: str, module: str) -> list[str]:
 
 
 async def _diffs(url: str, module: str) -> list:
+    import_module_models(module)
+
     def compare(sync_conn):
         ctx = MigrationContext.configure(
             sync_conn,
@@ -71,32 +74,42 @@ async def _diffs(url: str, module: str) -> list:
         await engine.dispose()
 
 
+def _heads(url: str, module: str) -> list[str]:
+    return list(ScriptDirectory.from_config(alembic_config(url, module)).get_heads())
+
+
 def test_core_upgrade_creates_tables_and_version_table(migrated_database):
     assert CORE_TABLES <= _run(_tables(migrated_database, "core"))
     assert version_table_for("core") in _run(_tables(migrated_database, "core"))
-    assert _run(_version(migrated_database, "core")) == ["core_0001"]
+    assert _run(_version(migrated_database, "core")) == _heads(migrated_database, "core")
 
 
 def test_models_and_migrations_do_not_drift(migrated_database):
     assert _run(_diffs(migrated_database, "core")) == []
 
 
-@pytest.mark.parametrize("module", [m for m in MODULES if m != "core"])
+@pytest.mark.parametrize("module", [m for m in MIGRATED_MODULES if m != "core"])
 def test_module_environments_are_isolated(migrated_database, module):
-    """A module with no migrations gets its own (empty) version table and must neither see nor
-    touch core tables when comparing metadata."""
-    command.upgrade(alembic_config(migrated_database, module), "head")
+    """Each enabled module owns its version table in its own schema, is at its own head (none
+    while it has no migrations), and comparing its metadata never reports core tables."""
     assert version_table_for(module) in _run(_tables(migrated_database, module))
-    assert _run(_version(migrated_database, module)) == []
+    assert _run(_version(migrated_database, module)) == _heads(migrated_database, module)
     assert _run(_diffs(migrated_database, module)) == []
-    # core untouched
     assert CORE_TABLES <= _run(_tables(migrated_database, "core"))
 
 
 def test_core_downgrade_and_upgrade_roundtrip(migrated_database):
-    cfg = alembic_config(migrated_database)
-    command.downgrade(cfg, "base")
-    assert _run(_tables(migrated_database, "core")) & CORE_TABLES == set()
+    """Runs in a throwaway database so module tables in the shared test DB (which may reference
+    core.employees) are never dropped underneath other tests."""
+    url = make_url(migrated_database)
+    scratch = url.set(database=f"{url.database}_roundtrip").render_as_string(hide_password=False)
+    _run(_ensure_database(scratch))
+    _run(_reset_schemas(scratch))
+    cfg = alembic_config(scratch)
     command.upgrade(cfg, "head")
-    assert CORE_TABLES <= _run(_tables(migrated_database, "core"))
-    assert _run(_diffs(migrated_database, "core")) == []
+    assert CORE_TABLES <= _run(_tables(scratch, "core"))
+    command.downgrade(cfg, "base")
+    assert _run(_tables(scratch, "core")) & CORE_TABLES == set()
+    command.upgrade(cfg, "head")
+    assert CORE_TABLES <= _run(_tables(scratch, "core"))
+    assert _run(_diffs(scratch, "core")) == []

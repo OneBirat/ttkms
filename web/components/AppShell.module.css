@@ -1,19 +1,27 @@
 .shell {
   display: flex;
+  flex-wrap: wrap;
   min-height: 100vh;
 }
 
-.column {
-  flex: 1 1 auto;
+.main {
+  flex: 999 1 560px;
   min-width: 0;
+  padding: 28px 32px 48px;
   display: flex;
   flex-direction: column;
+  gap: 24px;
 }
 
-.main {
-  flex: 1 1 auto;
-  padding: 24px;
+.main:focus {
   outline: none;
+}
+
+@media (max-width: 800px) {
+  .main {
+    padding: 20px 16px 40px;
+    gap: 20px;
+  }
 }
 
 .status {
@@ -35,9 +43,9 @@
 .spinner {
   width: 28px;
   height: 28px;
+  border-radius: 50%;
   border: 3px solid var(--color-border);
   border-top-color: var(--color-primary);
-  border-radius: 50%;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -49,15 +57,5 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-@media (max-width: 799px) {
-  .shell {
-    flex-direction: column;
-  }
-
-  .main {
-    padding: 16px;
   }
 }

@@ -1,0 +1,13 @@
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.np {
+  font-family: var(--font-np);
+  color: var(--color-text);
+}

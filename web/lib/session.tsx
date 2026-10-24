@@ -17,14 +17,19 @@ import {
   setCsrfToken,
   type AuthResponse,
   type Module,
-  type RegistryResponse,
+  type ModulesResponse,
   type Today,
   type User,
 } from "@/lib/api";
+import { modulesFromNav } from "@/lib/modules";
 
 export interface Session {
   user: User | null;
+  /** Sidebar sections from /api/core/modules (enabled modules only, role-filtered). */
   modules: Module[];
+  /** ENABLED_MODULES as loaded by the backend; a paused module is absent. */
+  enabled: string[];
+  isEnabled: (name: string) => boolean;
   today: Today | null;
   loading: boolean;
   /** Message when the session could not be loaded (network/server error). */
@@ -37,20 +42,21 @@ const SessionContext = createContext<Session | null>(null);
 
 async function loadSession(signal: AbortSignal) {
   const me = apiFetch<AuthResponse>("/api/auth/me", { signal });
-  // The registry and today's date are nice-to-have: the shell still renders
-  // without them.
-  const registry = apiFetch<RegistryResponse>("/api/registry", { signal }).catch(
-    () => null,
-  );
+  // The module list and today's date are nice-to-have: the shell still renders
+  // without them (an empty sidebar, no date line).
+  const modules = apiFetch<ModulesResponse>("/api/core/modules", {
+    signal,
+  }).catch(() => null);
   const today = apiFetch<Today>("/api/today", { signal }).catch(() => null);
-  const [meBody, registryBody, todayBody] = await Promise.all([
+  const [meBody, modulesBody, todayBody] = await Promise.all([
     me,
-    registry,
+    modules,
     today,
   ]);
   return {
     user: meBody.user,
-    modules: registryBody?.modules ?? [],
+    modules: modulesFromNav(modulesBody?.nav ?? []),
+    enabled: modulesBody?.enabled ?? [],
     today: todayBody,
   };
 }
@@ -63,6 +69,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
+  const [enabled, setEnabled] = useState<string[]>([]);
   const [today, setToday] = useState<Today | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +84,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (controller.signal.aborted) return;
         setUser(result.user);
         setModules(result.modules);
+        setEnabled(result.enabled);
         setToday(result.today);
         setLoading(false);
       })
@@ -105,13 +113,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setCsrfToken(null);
       setUser(null);
       setModules([]);
+      setEnabled([]);
       router.push("/login");
     }
   }, [router]);
 
+  const isEnabled = useCallback(
+    (name: string) => enabled.includes(name),
+    [enabled],
+  );
+
   const value = useMemo<Session>(
-    () => ({ user, modules, today, loading, error, refresh, logout }),
-    [user, modules, today, loading, error, refresh, logout],
+    () => ({
+      user,
+      modules,
+      enabled,
+      isEnabled,
+      today,
+      loading,
+      error,
+      refresh,
+      logout,
+    }),
+    [user, modules, enabled, isEnabled, today, loading, error, refresh, logout],
   );
 
   return (

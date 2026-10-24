@@ -11,6 +11,6 @@ from alembic import context
 from migrations.env_helper import run_module_migrations
 
 if context.config.config_file_name is not None:
-    fileConfig(context.config.config_file_name)
+    fileConfig(context.config.config_file_name, disable_existing_loggers=False)
 
 run_module_migrations("core")

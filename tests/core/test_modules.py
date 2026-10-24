@@ -1,15 +1,23 @@
 import pytest
 
 from app.core.models import Role
-from app.core.modules import MODULE_NAMES, Module, NavItem
+from app.core.modules import MODULE_NAMES, Module, NavItem, enabled_modules, is_enabled
 from app.main import MODULES
 
 pytestmark = pytest.mark.anyio
 
+TITLES = {
+    "stock": "Stock",
+    "attendance": "Attendance",
+    "payroll": "People & payroll",
+    "admin": "Admin",
+}
+
 
 def test_registry_shape():
-    assert [m.name for m in MODULES] == list(MODULE_NAMES)
-    assert [m.title for m in MODULES] == ["Stock", "Attendance", "People & payroll", "Admin"]
+    assert [m.name for m in MODULES] == [n for n in MODULE_NAMES if is_enabled(n)]
+    assert [m.name for m in MODULES] == list(enabled_modules())
+    assert [m.title for m in MODULES] == [TITLES[m.name] for m in MODULES]
     for module in MODULES:
         assert isinstance(module, Module)
         assert module.nav and all(isinstance(item, NavItem) for item in module.nav)

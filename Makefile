@@ -7,16 +7,21 @@ export
 APP_PORT ?= 8000
 WEB_PORT ?= 3000
 PY ?= .venv/bin/python
-MODULES := stock attendance payroll admin
+# Only enabled modules are migrated (ENABLED_MODULES in .env, comma-separated; same default as
+# app/config.py). A paused module's schema is never upgraded, downgraded or dropped here.
+ENABLED_MODULES ?= attendance,payroll,admin
+comma := ,
+MODULES := $(subst $(comma), ,$(ENABLED_MODULES))
 
 .PHONY: dev migrate test lint fmt seed create-admin web-install web-dev web-build web-lint
 
 dev:  ## FastAPI JSON API with reload on $APP_PORT
 	$(PY) -m uvicorn app.main:app --reload --port $(APP_PORT)
 
-## Upgrade core first, then every module that already has migration files.
+## Upgrade core first, then every *enabled* module that already has migration files.
 migrate:
 	$(PY) -m alembic -n core upgrade head
+	@echo "==> enabled modules: $(MODULES)"
 	@for m in $(MODULES); do \
 	  if ls migrations/$$m/versions/*.py >/dev/null 2>&1; then \
 	    echo "==> alembic -n $$m upgrade head"; \

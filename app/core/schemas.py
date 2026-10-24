@@ -74,6 +74,27 @@ class RegistryOut(BaseModel):
     modules: list[ModuleOut]
 
 
+class NavLinkOut(BaseModel):
+    label: str
+    path: str
+    icon: str
+
+
+class NavSectionOut(BaseModel):
+    """One sidebar section: an enabled module with the nav items the caller's role may see."""
+
+    module: str
+    title: str
+    items: list[NavLinkOut]
+
+
+class ModulesOut(BaseModel):
+    """``GET /api/core/modules``: what the frontend builds its menu and route guards from."""
+
+    enabled: list[str]
+    nav: list[NavSectionOut]
+
+
 class StatOut(BaseModel):
     label: str
     value: float | int

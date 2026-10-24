@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Attendance report PDF sample</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@500&amp;family=Noto+Sans+Devanagari:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.pg{border-collapse:collapse;table-layout:fixed;width:100%;font-size:10px}
+.pg th,.pg td{border:1px solid #D5D9D5;text-align:center;padding:0;height:19px}
+.pg thead th{background:#F1F3F0;color:#3E4A52;font-weight:600;height:30px;line-height:1.15}
+.nm{text-align:left!important;padding:0 6px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;color:#1B2328}
+.tt{font-family:'IBM Plex Mono',monospace;font-size:10px}
+</style>
+</helmet>
+<div style="width: 1123px; height: 794px; box-sizing: border-box; padding: 26px 26px 20px; background: #FFFFFF; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #1B2328; display: flex; flex-direction: column; gap: 12px">
+<header style="display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; border-bottom: 2px solid #0E6B6B; padding-bottom: 10px">
+<div style="display: flex; align-items: center; gap: 12px">
+<div style="width: 34px; height: 34px; border-radius: 7px; background: #0E6B6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">TT</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<h1 style="margin: 0; font-size: 18px; font-weight: 700">Attendance report · Ashoj 2083</h1>
+<span style="font-size: 11px; color: #4A555C">17 Sep – 16 Oct 2026 · All departments · 24 staff · 26 working days</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 10px; color: #4A555C">
+<span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 11px; color: #1B2328">मंगलबार, कार्तिक ४, २०८३</span>
+<span>Generated 20 Oct 2026, 16:20 by Admin</span>
+</div>
+</header>
+<div style="display: flex; gap: 10px">
+<div style="flex: 1; border: 1px solid #D5D9D5; border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column"><span style="font-size: 9px; color: #4A555C; text-transform: uppercase; letter-spacing: .05em">Total staff</span><span style="font-size: 15px; font-weight: 700">{{staff}}</span></div>
+<div style="flex: 1; border: 1px solid #D5D9D5; border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column"><span style="font-size: 9px; color: #4A555C; text-transform: uppercase; letter-spacing: .05em">Present per day (avg)</span><span style="font-size: 15px; font-weight: 700">{{avg}} <span style="font-size: 11px; font-weight: 500; color: #4A555C">· {{rate}}</span></span></div>
+<div style="flex: 1; border: 1px solid #D5D9D5; border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column"><span style="font-size: 9px; color: #4A555C; text-transform: uppercase; letter-spacing: .05em">Total present days</span><span style="font-size: 15px; font-weight: 700">{{present}}</span></div>
+<div style="flex: 1; border: 1px solid #D5D9D5; border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column"><span style="font-size: 9px; color: #4A555C; text-transform: uppercase; letter-spacing: .05em">Late arrivals</span><span style="font-size: 15px; font-weight: 700">{{late}}</span></div>
+<div style="flex: 1; border: 1px solid #D5D9D5; border-radius: 6px; padding: 6px 10px; display: flex; flex-direction: column"><span style="font-size: 9px; color: #4A555C; text-transform: uppercase; letter-spacing: .05em">Absent · leave days</span><span style="font-size: 15px; font-weight: 700">{{absent}} <span style="font-size: 11px; font-weight: 500; color: #4A555C">· {{leave}}</span></span></div>
+</div>
+<table class="pg">
+<colgroup><col style="width: 132px"><sc-for list="{{heads}}" as="h" hint-placeholder-count="30"><col style="width: 25px"></sc-for><col style="width: 26px"><col style="width: 26px"><col style="width: 26px"><col style="width: 26px"><col style="width: 26px"><col style="width: 36px"></colgroup>
+<thead>
+<tr>
+<th scope="col" class="nm" style="font-weight: 600">Employee</th>
+<sc-for list="{{heads}}" as="h" hint-placeholder-count="30"><th scope="col" style="{{h.style}}">{{h.n}}<br><span style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 8px; font-weight: 500">{{h.wd}}</span></th></sc-for>
+<th scope="col">P</th><th scope="col">L</th><th scope="col">H</th><th scope="col">V</th><th scope="col">A</th><th scope="col">Paid</th>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="18">
+<sc-if value="{{r.head}}" hint-placeholder-val="{{ false }}"><tr><th scope="rowgroup" colspan="37" class="nm" style="background: #F7F8F6; font-weight: 700; font-size: 10px">{{r.dept}} <span style="font-weight: 500; color: #4A555C">· {{r.count}} staff · {{r.rate}} attendance</span></th></tr></sc-if>
+<sc-if value="{{r.emp}}" hint-placeholder-val="{{ true }}"><tr><th scope="row" class="nm">{{r.name}}</th><sc-for list="{{r.cells}}" as="c" hint-placeholder-count="30"><td style="{{c.style}}">{{c.code}}</td></sc-for><td class="tt">{{r.p}}</td><td class="tt">{{r.l}}</td><td class="tt">{{r.h}}</td><td class="tt">{{r.v}}</td><td class="tt">{{r.a}}</td><td class="tt" style="font-weight: 700">{{r.paid}}</td></tr></sc-if>
+</sc-for>
+</tbody>
+<tfoot>
+<tr><th scope="row" class="nm" style="font-weight: 700; background: #F1F3F0">Staff present (all 24)</th><sc-for list="{{totals}}" as="t" hint-placeholder-count="30"><td class="tt" style="{{t.style}}">{{t.v}}</td></sc-for><td colspan="6" style="background: #F1F3F0; font-size: 9px; color: #4A555C">avg {{avg}} / day</td></tr>
+</tfoot>
+</table>
+<div style="margin-top: auto; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #4A555C; border-top: 1px solid #D5D9D5; padding-top: 6px">
+<span>P present · L late · H half day · V leave · A absent · – weekly off (Saturday). Paid = P + L + V + weekly off + ½ H.</span>
+<span>Page 1 of 2</span>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1123,"height":794}}'>
+class Component extends DCLogic {
+renderVals() {
+var fill = { P: '', L: 'background: #D7ECE9', H: 'background: #FBEBD0', V: 'background: #E1E7F3', A: 'background: #F6D9CF; font-weight: 700', W: 'background: #EEF0EC; color: #6B757B' };
+var wdShort = ['आ', 'सो', 'मं', 'बु', 'बि', 'शु', 'श'];
+var depts = [
+['Store', ['Anita Gurung', 'Ramesh K.C.', 'Dipak Adhikari', 'Kamala Bhandari', 'Nabin Poudel']],
+['Kitchen', ['Bikash Shrestha', 'Gita Magar', 'Hari Bista', 'Laxmi Karki', 'Prakash Rana']],
+['Housekeeping', ['Sita Thapa', 'Maya Tamang', 'Rita Shahi', 'Sunita B.K.', 'Bimala Oli']],
+['Front desk', ['Priya Rai', 'Suman Tamang', 'Aarati Joshi', 'Kiran Lama']],
+['Accounts', ['Rajesh Pandey', 'Sabina Khadka', 'Manoj Dahal', 'Asmita Ghimire', 'Bishal Neupane']]
+];
+var days = [];
+for (var d = 1; d <= 30; d++) days.push(d);
+var statusOf = function (ei, day) {
+if ((3 + day) % 7 === 6) return 'W';
+var h = (ei * 37 + day * 17 + ei * day * 7) % 100;
+return h < 3 ? 'A' : h < 12 ? 'L' : h < 14 ? 'H' : h < 17 ? 'V' : 'P';
+};
+var emps = [];
+depts.forEach(function (dp) { dp[1].forEach(function (n) {
+var i = emps.length;
+var c = { P: 0, L: 0, H: 0, V: 0, A: 0, W: 0 };
+var codes = days.map(function (day) { var x = statusOf(i, day); c[x]++; return x; });
+emps.push({ name: n, dept: dp[0], codes: codes, c: c, att: c.P + c.L + c.H / 2, work: 30 - c.W });
+}); });
+var rateOf = function (l) { var a = 0, w = 0; l.forEach(function (e) { a += e.att; w += e.work; }); return Math.round(a / w * 100) + '%'; };
+var rows = [];
+depts.slice(0, 3).forEach(function (dp) {
+var l = emps.filter(function (e) { return e.dept === dp[0]; });
+rows.push({ head: true, emp: false, dept: dp[0], count: l.length, rate: rateOf(l) });
+l.forEach(function (e) {
+rows.push({ head: false, emp: true, name: e.name, cells: e.codes.map(function (x) { return { code: x === 'W' ? '–' : x, style: fill[x] }; }), p: e.c.P, l: e.c.L, h: e.c.H, v: e.c.V, a: e.c.A, paid: e.c.P + e.c.L + e.c.V + e.c.W + e.c.H / 2 });
+});
+});
+var presentSum = 0, work = 0;
+var totals = days.map(function (day, di) {
+if ((3 + day) % 7 === 6) return { v: '–', style: 'background: #EEF0EC; color: #6B757B' };
+work++;
+var n = emps.filter(function (e) { var x = e.codes[di]; return x === 'P' || x === 'L' || x === 'H'; }).length;
+presentSum += n;
+return { v: n, style: 'background: #F1F3F0; font-weight: 700' + (n < emps.length * 0.8 ? '; color: #8E2F12' : '') };
+});
+var sum = function (k) { return emps.reduce(function (a, e) { return a + e.c[k]; }, 0); };
+var avg = presentSum / work;
+return {
+heads: days.map(function (day) { var w = (3 + day) % 7; return { n: day, wd: wdShort[w], style: w === 6 ? 'color: #8E2F12' : '' }; }),
+rows: rows, totals: totals,
+staff: emps.length, avg: avg.toFixed(1), rate: Math.round(avg / emps.length * 100) + '%',
+present: presentSum, late: sum('L'), absent: sum('A'), leave: sum('V')
+};
+}
+}
+</script>
+</body>
+</html>
