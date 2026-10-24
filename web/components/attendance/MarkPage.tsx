@@ -1,5 +1,9 @@
 "use client";
 
+import { ActionSheet } from "./ActionSheet";
+import { AskModal } from "./AskModal";
+import { CalendarSheet } from "./CalendarSheet";
+import { ManualDoneSheet } from "./ManualDoneSheet";
 import { MarkDesktop } from "./MarkDesktop";
 import { MarkMobile } from "./MarkMobile";
 import { OvertimeModal } from "./OvertimeModal";
@@ -24,6 +28,9 @@ export function MarkPage() {
   const rowOf = (id: number | undefined) => (id === undefined ? undefined : state.data?.rows.find((r) => r.employee.id === id));
   const otRow = rowOf(state.otModal?.employeeId);
   const savedRow = rowOf(state.saved?.employeeId);
+  const askRow = rowOf(state.ask?.employeeId);
+  const doneRow = rowOf(state.manualDone?.employeeId);
+  const actionRow = rowOf(state.action ?? undefined);
 
   return (
     <>
@@ -37,6 +44,41 @@ export function MarkPage() {
           onClose={state.savedClose}
         />
       ) : null}
+      {phone && state.calendarOpen && state.today ? (
+        <CalendarSheet
+          value={state.date}
+          today={state.today}
+          onPick={(bs) => {
+            state.setDate(bs);
+            state.setCalendarOpen(false);
+          }}
+          onToday={() => {
+            state.goToday();
+            state.setCalendarOpen(false);
+          }}
+          onClose={() => state.setCalendarOpen(false)}
+        />
+      ) : null}
+      {phone && actionRow ? (
+        <ActionSheet
+          employee={actionRow.employee}
+          current={state.draftOf(actionRow)}
+          onOvertime={() => {
+            state.closeAction();
+            state.openOvertime(actionRow.employee.id);
+          }}
+          onPayments={() => state.openPayments(actionRow.employee.id)}
+          onCalendar={() => state.openAttendanceRecord(actionRow.employee.id)}
+          onChange={(status) => {
+            state.closeAction();
+            state.askStatus(actionRow.employee.id, status);
+          }}
+          onClose={state.closeAction}
+        />
+      ) : null}
+      {phone && state.ask && askRow ? (
+        <AskModal ask={state.ask} employee={askRow.employee} onConfirm={state.askConfirm} onCancel={state.askCancel} />
+      ) : null}
       {state.otModal ? (
         <OvertimeModal
           name={otRow?.employee.name ?? ""}
@@ -45,6 +87,9 @@ export function MarkPage() {
           onCancel={state.cancelOvertime}
           onSave={state.saveOvertime}
         />
+      ) : null}
+      {phone && state.manualDone && doneRow ? (
+        <ManualDoneSheet done={state.manualDone} employee={doneRow.employee} onClose={state.manualDoneClose} />
       ) : null}
       {phone && state.scan && !isListOrigin(state.scan) ? <ScanCamera state={state} /> : null}
       {isSheetStep(state.scan?.step) ? <ScanSheet state={state} phone={phone} /> : null}
