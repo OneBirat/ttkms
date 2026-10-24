@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { encodeQr, qrPath } from "./qr";
+import { encodeQr, qrPath } from "../_lib/qr";
 
 export interface QrCodeProps {
   value: string;

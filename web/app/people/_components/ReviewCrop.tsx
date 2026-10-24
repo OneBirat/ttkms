@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type PointerEvent } from "react";
-import { DEFAULT_CROP, cropGeometry, cropToCircle, loadImage, type CropState } from "./image";
+import { DEFAULT_CROP, cropGeometry, cropToCircle, loadImage, type CropState } from "../_lib/image";
 import styles from "./photo.module.css";
 
 export interface ReviewCropProps {

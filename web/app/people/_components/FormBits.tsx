@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, SelectHTMLAttributes, InputHTMLAttributes } from "react";
+import type { ReactNode, SelectHTMLAttributes, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
 import styles from "./payroll.module.css";
 
 export interface FieldProps {
@@ -94,4 +94,24 @@ export function splitError(error: unknown): { field: string | null; message: str
 export function parseAmount(value: string): number {
   const clean = value.replace(/[^\d.]/g, "");
   return clean ? Number(clean) : Number.NaN;
+}
+
+export interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  id: string;
+  invalid?: boolean;
+}
+
+/** `.field` box around a textarea (address, notes). */
+export function TextArea({ id, invalid, className, ...rest }: TextAreaProps) {
+  return (
+    <div className={`field ${styles.textareaWrap}${invalid ? ` ${styles.fieldInvalid}` : ""}`}>
+      <textarea
+        id={id}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? `${id}-error` : undefined}
+        className={[styles.textarea, className ?? ""].join(" ").trim()}
+        {...rest}
+      />
+    </div>
+  );
 }

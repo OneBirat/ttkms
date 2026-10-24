@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { PhotoFlow } from "./PhotoFlow";
-import { resolvePhotoToken, uploadPhotoByToken } from "./api";
-import { payrollErrorMessage, usePayroll } from "./usePayroll";
+import { resolvePhotoToken, uploadPhotoByToken } from "../api";
+import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import styles from "./photo.module.css";
 
-/** /payroll/photo/[token]: mobile-first, no sidebar. */
+/** /people/photo/[token]: mobile-first, no sidebar. */
 export function PhotoCaptureScreen({ token }: { token: string }) {
   const info = usePayroll(() => resolvePhotoToken(token), [token]);
   const employee = info.data?.employee ?? null;
@@ -16,7 +16,7 @@ export function PhotoCaptureScreen({ token }: { token: string }) {
     <div className={styles.page}>
       <header className={styles.header}>
         <Link
-          href={employee ? `/payroll/employees/${employee.id}` : "/payroll/employees"}
+          href={employee ? `/people/employees/${employee.id}` : "/people/employees"}
           aria-label="Back to employee"
           className={styles.back}
         >
@@ -49,7 +49,7 @@ export function PhotoCaptureScreen({ token }: { token: string }) {
             await uploadPhotoByToken(token, dataUrl);
           }}
           onDone={() => {
-            window.location.assign(`/payroll/employees/${employee.id}`);
+            window.location.assign(`/people/employees/${employee.id}`);
           }}
         />
       )}

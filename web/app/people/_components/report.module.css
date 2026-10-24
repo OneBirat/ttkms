@@ -227,3 +227,30 @@
     display: none !important;
   }
 }
+
+/* ---- payments register */
+
+.registerControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.typeFilter {
+  display: flex;
+  gap: 6px;
+}
+
+.refText {
+  display: block;
+  font-size: 12px;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+}
+
+.cards4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}

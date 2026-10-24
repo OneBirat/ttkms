@@ -6,7 +6,7 @@ import { PayrollIcon } from "./icons";
 import { Avatar } from "./Avatar";
 import { CameraCapture } from "./CameraCapture";
 import { ReviewCrop } from "./ReviewCrop";
-import { cameraAvailable, fileToDataUrl, shrinkImage } from "./image";
+import { cameraAvailable, fileToDataUrl, shrinkImage } from "../_lib/image";
 import styles from "./photo.module.css";
 
 export type PhotoStep = "start" | "camera" | "review" | "done";

@@ -1,7 +1,8 @@
 import type { SVGProps } from "react";
 
 /* Module-local glyphs not in components/icons.tsx (camera, switch camera,
-   QR, wallet). Same 24px stroke style so they sit next to <Icon>. */
+   QR, wallet, barcode, receipt, chevrons). Same 24px stroke style so they sit
+   next to <Icon>. NEEDS FROM MAIN: fold these into the shared icon set. */
 const GLYPHS = {
   camera: (
     <>
@@ -25,6 +26,17 @@ const GLYPHS = {
       <path d="M14 14h3v3h-3zM20 14v3M17 20h4M14 20h.01" />
     </>
   ),
+  barcode: (
+    <>
+      <path d="M3 5v14M7 5v14M10 5v14M14 5v14M17 5v14M21 5v14" />
+    </>
+  ),
+  receipt: (
+    <>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+      <path d="M9 8h6M9 12h6" />
+    </>
+  ),
   wallet: (
     <>
       <rect x="2.5" y="6" width="19" height="12" rx="2" />
@@ -40,6 +52,8 @@ const GLYPHS = {
       <path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" />
     </>
   ),
+  "chevron-down": <path d="m6 9 6 6 6-6" />,
+  "chevron-up": <path d="m6 15 6-6 6 6" />,
 };
 
 export type PayrollIconName = keyof typeof GLYPHS;

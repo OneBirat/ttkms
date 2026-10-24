@@ -1,4 +1,4 @@
-import { initials } from "./helpers";
+import { initials } from "../_lib/helpers";
 import styles from "./payroll.module.css";
 
 export interface AvatarProps {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PayrollIcon } from "./icons";
-import { captureFrame } from "./image";
+import { captureFrame } from "../_lib/image";
 import styles from "./photo.module.css";
 
 export interface CameraCaptureProps {

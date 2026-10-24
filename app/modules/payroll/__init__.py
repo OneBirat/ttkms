@@ -1,7 +1,7 @@
-"""People & payroll module - placeholder.
+"""People & payroll module (sidebar section "People").
 
 The feat/payroll worktree builds this module and only touches app/modules/payroll/,
-migrations/payroll/, tests/payroll/ and its pages under web/. Put models in
+migrations/payroll/, tests/payroll/ and its pages under web/app/people/. Put models in
 app/modules/payroll/models.py (schema "payroll"), API routes on the router below (mounted at
 /api/payroll), and register dashboard widgets on the Module.
 """
@@ -27,8 +27,9 @@ module = Module(
     title="People & payroll",
     router=router,
     nav=[
-        NavItem(label="Employees", path="/payroll/employees", icon="users", roles=set(ROLES)),
-        NavItem(label="Salary report", path="/payroll/report", icon="banknote", roles=set(ROLES)),
+        NavItem(label="Employees", path="/people/employees", icon="users", roles=set(ROLES)),
+        NavItem(label="Salary report", path="/people/salary", icon="banknote", roles=set(ROLES)),
+        NavItem(label="Payments", path="/people/payments", icon="list", roles=set(ROLES)),
     ],
     dashboard_widgets=[
         coming_soon_widget("People & payroll", "Employees, salaries and monthly payroll")

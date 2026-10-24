@@ -494,3 +494,232 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- textarea */
+
+.textareaWrap {
+  height: auto;
+  min-height: 72px;
+  align-items: flex-start;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 56px;
+  resize: vertical;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+/* ---- status pills with a neutral tone (Pending) */
+
+.pillNeutral {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--pill-neutral-bg);
+  color: var(--pill-neutral-fg);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pillAdvance {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--pill-leave-bg);
+  color: var(--pill-leave-fg);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pillSalary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--pill-ok-bg);
+  color: var(--pill-ok-fg);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---- segmented toggle (Salary | Advance, Cash | Bank) */
+
+.toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.toggleOption {
+  min-height: 46px;
+  border-radius: 10px;
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 10px;
+}
+
+.toggleOption:hover {
+  background: var(--color-bg);
+}
+
+.toggleOption[aria-pressed="true"] {
+  border: 2px solid var(--color-primary);
+  background: #f2f8f7;
+  color: var(--pill-ok-fg);
+  font-weight: 600;
+}
+
+.toggleOption[aria-pressed="true"][data-tone="advance"] {
+  border-color: var(--pill-leave-fg);
+  background: var(--pill-leave-bg);
+  color: var(--pill-leave-fg);
+}
+
+.toggleSub {
+  font-family: var(--font-np);
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+/* ---- quick amounts */
+
+.quick {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quickOption {
+  min-height: 46px;
+  border-radius: 10px;
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.quickOption:hover {
+  background: var(--color-bg);
+}
+
+.quickOption[aria-pressed="true"] {
+  border: 2px solid var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.quickOption[aria-pressed="true"][data-tone="advance"] {
+  border-color: var(--pill-leave-fg);
+  background: #2f4e8c;
+}
+
+.quickWide {
+  grid-column: 1 / -1;
+}
+
+/* ---- balance strip (net / paid / due) */
+
+.balance {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  background: var(--color-bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.balanceValue {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.balancePaid {
+  color: var(--pill-ok-fg);
+}
+
+.balanceDue {
+  color: var(--pill-low-fg);
+}
+
+.bigAmount {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bigAmount input {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.toast {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--pill-ok-bg);
+  color: var(--pill-ok-fg);
+  font-size: 14px;
+}
+
+.toastError {
+  background: var(--pill-danger-bg);
+  color: var(--pill-danger-fg);
+}
+
+.linkButton {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .quick {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .balance {
+    grid-template-columns: 1fr;
+  }
+}
