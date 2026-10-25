@@ -151,6 +151,22 @@ async def logins_for(db: AsyncSession, employee_ids: list[int]) -> dict[int, Use
     return {u.employee_id: u for u in rows if u.employee_id is not None}
 
 
+_PHONE_LIKE = re.compile(r"^\+?[\d\s-]{7,}$")
+
+
+def user_label(user: User | None) -> str:
+    """How a user is named on payments ("Recorded by", "Voided by", "Printed by"): the full name,
+    else the linked employee's name, else the username - never a raw phone number ("" for none)."""
+    if user is None:
+        return ""
+    candidates = [user.full_name, user.employee.full_name if user.employee else None, user.username]
+    for name in candidates:
+        name = (name or "").strip()
+        if name and not _PHONE_LIKE.match(name) and name != user.phone:
+            return name
+    return f"User {user.id}"
+
+
 async def modes_by_id(db: AsyncSession) -> dict[int, PaymentMode]:
     return {m.id: m for m in await db.scalars(select(PaymentMode))}
 

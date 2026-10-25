@@ -98,7 +98,7 @@ async def test_void_takes_a_payment_out_of_every_total(client, db, make_user, lo
     assert voided.status_code == 200, voided.text
     body = voided.json()
     assert body["voided"] is True and body["void_reason"] == "Test entry"
-    assert body["voided_by"] == "admin" and body["receipt_no"] == wrong["receipt_no"]
+    assert body["voided_by"] == "Admin" and body["receipt_no"] == wrong["receipt_no"]
 
     after = await _balance(client, anita)
     assert (after["paid"], after["due"]) == (5000, 25000)

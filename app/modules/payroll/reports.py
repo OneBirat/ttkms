@@ -62,12 +62,12 @@ def payment_out(p: Payment, modes: dict[int, PaymentMode]) -> PaymentOut:
         note=p.note,
         date=services.date_both(p.date),
         paid_at=p.paid_at,
-        recorded_by=p.recorder.username if p.recorder else "",
+        recorded_by=services.user_label(p.recorder),
         source=p.source.value,
         created_at=p.created_at,
         voided=p.voided_at is not None,
         voided_at=p.voided_at,
-        voided_by=(p.voider.username if p.voider else "") if p.voided_at else None,
+        voided_by=services.user_label(p.voider) if p.voided_at else None,
         void_reason=p.void_reason,
     )
 
@@ -270,7 +270,7 @@ def report_file_stem(data: ReportData) -> str:
 
 
 def printed_by(user: User) -> str:
-    return user.full_name or user.username
+    return services.user_label(user)
 
 
 def sum_of(rows: Sequence[ledgers.MonthLedger], pick) -> int:

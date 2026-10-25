@@ -87,6 +87,12 @@ drop-down: the page is locked to the session `branchId` and shows the branch nam
 `waitForBranch()` until it is known); department chip counts, tiles and exports follow the branch, and the
 PDF title / file name name it. The API still answers `by_branch`; the UI does not show it.
 
+## Recorded by (2026-10-25)
+
+`Payment.recorded_by` / `voided_by` (and "Printed by" on PDFs) are display names from
+`payroll.services.user_label`: the user's full name, else the linked employee's name, else the username,
+never a raw phone number ("User N" when nothing else is left). Screens, receipts and exports print them as is.
+
 ## Payment reports (`/people/payments`, renamed from "Payments" 2026-10-25)
 
 Department chips ("All" + each department of `GET /api/core/departments` with its payment count for the
