@@ -166,11 +166,14 @@ async def live_token(db: AsyncSession, value: str) -> PhotoToken:
 
 
 async def use_token(db: AsyncSession, token: PhotoToken, raw: bytes) -> Employee:
-    employee = await db.get(Employee, token.employee_id)
-    if employee is None:
+    from app.modules.payroll.services import get_employee
+
+    try:
+        employee = await get_employee(db, token.employee_id)
+    except HTTPException:
         raise HTTPException(
             status.HTTP_410_GONE, detail="This link has expired. Ask for a new QR code."
-        )
+        ) from None
     token.used_at = datetime.now(UTC)
     await db.flush()
     return await store_photo(db, None, employee, raw)

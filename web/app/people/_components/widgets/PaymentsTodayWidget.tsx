@@ -43,7 +43,7 @@ export function readPaymentsData(data: Record<string, unknown>): PaymentsTodayWi
           payment_id: num(p.payment_id),
           employee_id: num(p.employee_id),
           name: String(p.name ?? ""),
-          type: p.type === "advance" ? "advance" : "salary",
+          type: (p.kind ?? p.type) === "advance" ? "advance" : "salary",
           amount: num(p.amount),
           mode: String(p.mode ?? ""),
           time: String(p.time ?? ""),

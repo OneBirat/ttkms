@@ -16,18 +16,20 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
+from sqlalchemy import select
 
 from app.core import bsdate
 from app.core.auth import CurrentUser
 from app.core.bsdate import BSDate
 from app.core.errors import CodedErrorOut
 from app.core.export import PDF_MEDIA_TYPE, XLSX_MEDIA_TYPE, PDFUnavailable
-from app.core.models import User
+from app.core.models import Employee, User
 from app.core.modules import Module, NavItem, WidgetContext
 from app.core.schemas import ErrorOut, ModuleStatusOut
 from app.db import DbSession
 from app.modules.admin.permissions import require_access, require_any_access
-from app.modules.payroll import exports, payments, photos, reports, services
+from app.modules.payroll import contract, exports, payments, photos, reports, services
+from app.modules.payroll.models import Payment
 from app.modules.payroll.schemas import (
     AccountSummaryOut,
     BsMonthOut,
@@ -579,50 +581,70 @@ async def photo_token_upload(token: str, db: DbSession, request: Request) -> Emp
 
 # --------------------------------------------------------------------------- widgets
 
-#: Sample payments for the "Payments today" card until ``payroll.payments`` exists: three
-#: payments, Rs 12,500 in total (one salary, two advances). Amounts in rupees; ``mode`` is the
-#: payment mode's name (``GET /api/admin/payment-modes``); ``time`` is Kathmandu wall-clock.
-SAMPLE_PAYMENTS_TODAY: list[dict[str, Any]] = [
-    {"payment_id": 1041, "employee_id": 4, "name": "Bimala Rai", "type": "salary",
-     "amount": 8000, "mode": "Cash", "time": "10:20"},
-    {"payment_id": 1042, "employee_id": 9, "name": "Hari Shrestha", "type": "advance",
-     "amount": 3000, "mode": "Cash", "time": "11:05"},
-    {"payment_id": 1043, "employee_id": 13, "name": "Sita Thapa", "type": "advance",
-     "amount": 1500, "mode": "eSewa", "time": "13:40"},
-]  # fmt: skip
+
+async def payments_today(ctx: WidgetContext) -> list[dict[str, Any]]:
+    """Today's payments (Kathmandu day) of the employees the caller may see, newest first:
+    ``{payment_id, employee_id, name, kind, amount, mode, time}``."""
+    scope = await services.scope_for(ctx.db, ctx.user, None)
+    query = (
+        select(Payment)
+        .join(Employee, Employee.id == Payment.employee_id)
+        .where(Payment.date == bsdate.today_ad())
+        .order_by(Payment.paid_at.desc(), Payment.id.desc())
+    )
+    if scope.branch_id is not None:
+        query = query.where(Employee.branch_id == scope.branch_id)
+    modes = await services.modes_by_id(ctx.db)
+    rows: list[dict[str, Any]] = []
+    for p in await ctx.db.scalars(query):
+        rows.append(
+            {
+                "payment_id": p.id,
+                "employee_id": p.employee_id,
+                "name": p.employee.full_name,
+                "kind": p.kind.value,
+                "amount": p.amount,
+                "mode": modes[p.payment_mode_id].name,
+                "time": p.paid_at.astimezone(bsdate.KATHMANDU).strftime("%H:%M"),
+            }
+        )
+    return rows
 
 
-def payments_today_data(payments: list[dict[str, Any]]) -> dict[str, Any]:
+def payments_today_data(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """``PaymentsTodayWidgetData``: today's date (both calendars), the count and totals (all /
-    salary / advance, rupees), the payments newest first, and the register link."""
+    salary / advance, rupees), the payments newest first, and the Payment reports link."""
     header = bsdate.header_date()
     return {
         "date": header.ad_date.isoformat(),
         "date_bs": header.bs_date.isoformat(),
-        "count": len(payments),
-        "total": sum(p["amount"] for p in payments),
-        "salary_total": sum(p["amount"] for p in payments if p["type"] == "salary"),
-        "advance_total": sum(p["amount"] for p in payments if p["type"] == "advance"),
-        "payments": sorted(payments, key=lambda p: p["time"], reverse=True),
+        "count": len(rows),
+        "total": sum(p["amount"] for p in rows),
+        "salary_total": sum(p["amount"] for p in rows if p["kind"] == "salary"),
+        "advance_total": sum(p["amount"] for p in rows if p["kind"] == "advance"),
+        "payments": rows,
         "payments_path": "/people/payments",
     }
 
 
 async def payments_today_widget(ctx: WidgetContext) -> dict[str, Any]:
-    """The "Payments today" card (web/app/people/_components/widgets). Sample data until the
-    payroll backend exists; the real version lists today's payments of the caller's branch(es)."""
+    """The "Payments today" card (web/app/people/_components/widgets), branch-scoped."""
     return {
         "kind": "payments_today",
         "title": "Payments today",
-        "data": payments_today_data(SAMPLE_PAYMENTS_TODAY),
+        "data": payments_today_data(await payments_today(ctx)),
     }
 
 
 async def payroll_today_counts(ctx: WidgetContext) -> dict[str, Any]:
     """Payroll's share of ``GET /api/today`` ``counts`` (``TodayCountsOut``): rupees paid today
-    and the number of payments."""
-    data = payments_today_data(SAMPLE_PAYMENTS_TODAY)
-    return {"paid_today": data["total"], "payments_today": data["count"]}
+    and the number of payments, for the caller's branch(es)."""
+    rows = await payments_today(ctx)
+    return {"paid_today": sum(p["amount"] for p in rows), "payments_today": len(rows)}
+
+
+# Attendance's scan flow and report badges reach payroll through app/contracts.py.
+contract.register()
 
 
 module = Module(

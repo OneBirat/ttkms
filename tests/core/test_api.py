@@ -6,7 +6,6 @@ from app.core import bsdate
 from app.core.models import Role
 from app.main import MODULES
 from app.modules.attendance import SAMPLE_TODAY
-from app.modules.payroll import SAMPLE_PAYMENTS_TODAY
 from tests.core.test_modules import frontend_prefix
 
 pytestmark = pytest.mark.anyio
@@ -57,12 +56,10 @@ async def test_dashboard_widgets(client, make_user, login):
     assert [w["title"] for w in widgets] == ["Attendance today", "Payments today"]
     assert all(isinstance(w["data"], dict) for w in widgets)
     payments = widgets[1]["data"]
-    assert payments["count"] == len(SAMPLE_PAYMENTS_TODAY) == 3
-    assert payments["total"] == payments["salary_total"] + payments["advance_total"] == 12500
+    # Real rows now (tests/payroll/test_contract_and_dashboard.py); a fresh database has none.
+    assert payments["count"] == 0 and payments["payments"] == []
+    assert payments["total"] == payments["salary_total"] + payments["advance_total"] == 0
     assert payments["date"] == bsdate.header_date().ad_date.isoformat()
-    assert [p["time"] for p in payments["payments"]] == sorted(
-        (p["time"] for p in SAMPLE_PAYMENTS_TODAY), reverse=True
-    )
     assert payments["payments_path"] == "/people/payments"
 
 
@@ -80,7 +77,8 @@ async def test_today_endpoint_is_public(client):
 
 
 async def test_today_counts_for_signed_in_users(client, make_user, login):
-    """The dashboard stat row: attendance's and payroll's figures merged (sample data for now)."""
+    """The dashboard stat row: attendance's sample figures and payroll's real ones (nothing paid
+    in a fresh database) merged."""
     await make_user("clerk", role=Role.staff)
     await login("clerk")
     counts = (await client.get("/api/today")).json()["counts"]
@@ -91,8 +89,8 @@ async def test_today_counts_for_signed_in_users(client, make_user, login):
         "overtime_hours": SAMPLE_TODAY["overtime_hours"],
         "absent": SAMPLE_TODAY["absent"],
         "not_marked": SAMPLE_TODAY["not_marked"],
-        "paid_today": 12500,
-        "payments_today": 3,
+        "paid_today": 0,
+        "payments_today": 0,
     }
     assert (
         counts["present"] + counts["overtime"] + counts["absent"] + counts["not_marked"]

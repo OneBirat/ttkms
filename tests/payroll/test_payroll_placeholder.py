@@ -3,7 +3,7 @@
 import pytest
 
 from app.contracts import FakeAttendanceSummary, get_attendance_summary
-from app.modules.payroll import SAMPLE_PAYMENTS_TODAY, module
+from app.modules.payroll import module
 
 pytestmark = pytest.mark.anyio
 
@@ -18,6 +18,8 @@ async def test_payroll_placeholder(client, make_user, login):
 
 
 async def test_dashboard_widget_is_payments_today(client, make_user, login):
+    """Empty database: the card is there with zeros (real rows are covered in
+    test_contract_and_dashboard.py)."""
     await make_user("admin")
     await login("admin")
     widgets = [
@@ -31,11 +33,10 @@ async def test_dashboard_widget_is_payments_today(client, make_user, login):
         "date", "date_bs", "count", "total", "salary_total", "advance_total", "payments",
         "payments_path",
     }  # fmt: skip
-    assert data["count"] == len(SAMPLE_PAYMENTS_TODAY)
-    assert {p["type"] for p in data["payments"]} <= {"salary", "advance"}
-    assert all(
-        {"payment_id", "employee_id", "name", "amount", "mode", "time"} <= set(p)
-        for p in data["payments"]
+    assert (
+        data["count"] == 0
+        and data["payments"] == []
+        and data["payments_path"] == "/people/payments"
     )
 
 
