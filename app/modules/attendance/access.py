@@ -24,6 +24,8 @@ from app.modules.admin.permissions import access_for_user, branch_for_user, requ
 MARK = "mark_attendance"
 REPORT = "view_attendance_report"
 OTHER_BRANCHES = "see_other_branches"
+#: Payroll's switch: without it attendance answers carry no payment amounts, badges or flags.
+MONEY = "salary_advances"
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,12 @@ class Scope:
 
     def allows(self, branch_id: int) -> bool:
         return self.branch_id is None or self.branch_id == branch_id
+
+
+async def sees_money(db: AsyncSession, user: User) -> bool:
+    """Payment amounts in attendance (report badges, employee month, day-list flags) are for
+    users with ``salary_advances`` only - left out server-side for everyone else."""
+    return bool((await access_for_user(db, user)).get(MONEY))
 
 
 async def scope_for(db: AsyncSession, user: User, requested: int | None) -> Scope:

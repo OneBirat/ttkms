@@ -152,15 +152,16 @@ async def report_employees(
 
 
 async def month_report(
-    db: AsyncSession, scope: Scope, bs_year: int, bs_month: int
+    db: AsyncSession, scope: Scope, bs_year: int, bs_month: int, *, money: bool = True
 ) -> schemas.MonthReport:
+    """``money`` = the caller holds salary_advances; without it no payment badges at all."""
     start, end = month_or_404(bs_year, bs_month)
     month = month_ref(bs_year, bs_month)
     branch_id = scope.branch_id
     employees = await report_employees(db, branch_id, start, end)
     ids = [e.id for e in employees]
     records = await month_records(db, start, end, ids, branch_id)
-    payments = await get_payroll_payments().for_month(bs_year, bs_month, ids)
+    payments = await get_payroll_payments().for_month(bs_year, bs_month, ids) if money else {}
     rows = []
     for e in employees:
         cells = cells_for(
@@ -189,8 +190,15 @@ async def month_report(
 
 
 async def employee_month(
-    db: AsyncSession, scope: Scope, employee_id: int, bs_year: int, bs_month: int
+    db: AsyncSession,
+    scope: Scope,
+    employee_id: int,
+    bs_year: int,
+    bs_month: int,
+    *,
+    money: bool = True,
 ) -> schemas.EmployeeMonth:
+    """Without ``money`` (salary_advances) the cells carry no amounts and ``payments`` is empty."""
     employee = await db.get(Employee, employee_id)
     if employee is None:
         raise services.not_found("No such employee.")
@@ -199,8 +207,12 @@ async def employee_month(
     start, end = month_or_404(bs_year, bs_month)
     month = month_ref(bs_year, bs_month)
     records = (await month_records(db, start, end, [employee.id], None)).get(employee.id, {})
-    payments = (await get_payroll_payments().for_month(bs_year, bs_month, [employee.id])).get(
-        employee.id, []
+    payments = (
+        (await get_payroll_payments().for_month(bs_year, bs_month, [employee.id])).get(
+            employee.id, []
+        )
+        if money
+        else []
     )
     cells = cells_for(month.days, records, payments_by_day(payments), employee.joined_ad)
     return schemas.EmployeeMonth(

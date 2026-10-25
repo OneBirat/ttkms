@@ -29,6 +29,10 @@ to the user's own branch (`admin.user_access.branch_id`) whatever the query says
 branch sees nobody. Marking someone of another branch is 403. The scan flow's payment step needs
 payroll's `salary_advances` (the UI hides it without).
 
+**Money is for `salary_advances` only (server-side):** without it the report has no payment badges,
+the employee month has no `advance` / `salary` amounts and an empty `payments`, and the day list
+rows have no `payments_today` - the Manager preset included.
+
 ## Tables (attendance_0001, runs after core → admin → payroll)
 
 ```

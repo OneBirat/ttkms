@@ -13,7 +13,14 @@ from app.core.schemas import ErrorOut, ModuleStatusOut
 from app.db import DbSession
 from app.modules.admin.permissions import require_any_access
 from app.modules.attendance import report, schemas, services
-from app.modules.attendance.access import MARK, REPORT, CanMark, CanReport, scope_for
+from app.modules.attendance.access import (
+    MARK,
+    REPORT,
+    CanMark,
+    CanReport,
+    scope_for,
+    sees_money,
+)
 
 router = APIRouter()
 
@@ -42,7 +49,9 @@ async def get_day(
     department_id: int | None = None,
 ) -> schemas.DayAttendance:
     scope = await scope_for(db, me, branch)
-    return await services.day_attendance(db, scope, date_bs, department_id)
+    return await services.day_attendance(
+        db, scope, date_bs, department_id, money=await sees_money(db, me)
+    )
 
 
 @router.post("/mark", response_model=schemas.MarkOneResponse, responses=ERRORS)
@@ -91,7 +100,7 @@ async def month_report(
     """One BS month; week and day views are sliced in the browser. ``branch`` left out = every
     branch (see_other_branches); without that permission it is always the user's own."""
     scope = await scope_for(db, me, branch)
-    return await report.month_report(db, scope, bs_year, bs_month)
+    return await report.month_report(db, scope, bs_year, bs_month, money=await sees_money(db, me))
 
 
 @router.get(
@@ -101,7 +110,9 @@ async def employee_month(
     employee_id: int, me: AnyAttendance, db: DbSession, bs_year: int, bs_month: int
 ) -> schemas.EmployeeMonth:
     scope = await scope_for(db, me, None)
-    return await report.employee_month(db, scope, employee_id, bs_year, bs_month)
+    return await report.employee_month(
+        db, scope, employee_id, bs_year, bs_month, money=await sees_money(db, me)
+    )
 
 
 @router.get("/marked-days", response_model=schemas.MarkedDays, responses=ERRORS)

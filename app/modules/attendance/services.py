@@ -460,8 +460,9 @@ async def day_rows(
 
 
 async def day_attendance(
-    db: AsyncSession, scope: Scope, date_bs: str, department_id: int | None
+    db: AsyncSession, scope: Scope, date_bs: str, department_id: int | None, *, money: bool = True
 ) -> schemas.DayAttendance:
+    """``money`` = salary_advances: only then do rows carry today's payment flags."""
     ad = parse_day(date_bs)
     check_not_future(ad)
     branch_id = await one_branch(db, scope)
@@ -471,7 +472,7 @@ async def day_attendance(
     if department_id is not None:
         rows = [(e, r) for e, r in rows if (e.department_id or 0) == department_id]
     names = await usernames(db, [r for _, r in rows if r])
-    flags = await payments_on(ad, [e.id for e, _ in rows])
+    flags = await payments_on(ad, [e.id for e, _ in rows]) if money else {}
     return schemas.DayAttendance(
         date=ad,
         date_bs=bs_of(ad),

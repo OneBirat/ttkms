@@ -69,9 +69,13 @@ def _params(month=PREVIOUS, **extra):
     return {"bs_year": month[0], "bs_month": month[1], **extra}
 
 
+#: A manager who also handles pay: payment badges are only for salary_advances.
+MONEY = {"mark_attendance": True, "view_attendance_report": True, "salary_advances": True}
+
+
 async def test_month_report_cells_totals_and_badges(client, db, login, user_in, world):
     await _seed(db, world)
-    await _as(client, login, user_in, branch=world.main)
+    await _as(client, login, user_in, branch=world.main, access=MONEY)
     response = await client.get("/api/attendance/report", params=_params())
     assert response.status_code == 200, response.text
     report = response.json()
@@ -187,7 +191,7 @@ async def test_future_months_and_running_month(client, login, user_in, world):
 
 async def test_employee_month_and_marked_days(client, db, login, user_in, world):
     await _seed(db, world)
-    await _as(client, login, user_in, branch=world.main)
+    await _as(client, login, user_in, branch=world.main, access=MONEY)
     anita = world.people["Anita"]
     month = (
         await client.get(f"/api/attendance/employees/{anita.id}/month", params=_params())
@@ -218,3 +222,46 @@ async def test_employee_month_and_marked_days(client, db, login, user_in, world)
         )
     ).json()
     assert mine["marked_days"] == [bsdate.ad_to_bs(WORKDAYS[0]).isoformat()]
+
+
+def _no_money(cells):
+    return all(c.get("advance") is None and c.get("salary") is None for c in cells)
+
+
+async def test_no_payment_info_without_salary_advances(client, db, login, user_in, world):
+    """Staff with the report switched on (and the Manager preset) see attendance only: no
+    amounts, no badges, no payments - left out on the server, not just hidden."""
+    await _seed(db, world)
+    await _as(
+        client,
+        login,
+        user_in,
+        "clerk",
+        "staff",
+        world.main,
+        {"mark_attendance": True, "view_attendance_report": True},
+    )
+    report = await client.get("/api/attendance/report", params=_params())
+    assert report.status_code == 200
+    rows = report.json()["rows"]
+    assert rows and all(_no_money(r["cells"]) for r in rows)
+    assert "1500" not in report.text and "ADV-9001" not in report.text
+    anita = world.people["Anita"]
+    month = (
+        await client.get(f"/api/attendance/employees/{anita.id}/month", params=_params())
+    ).json()
+    assert month["payments"] == [] and _no_money(month["cells"])
+    assert month["totals"]["overtime_hours"] == 8  # attendance itself is all there
+    day = (
+        await client.get(
+            "/api/attendance/day", params={"date_bs": bsdate.ad_to_bs(WORKDAYS[1]).isoformat()}
+        )
+    ).json()
+    assert all(r["payments_today"] is None for r in day["rows"])
+
+
+async def test_manager_preset_sees_no_payment_badges(client, db, login, user_in, world):
+    await _seed(db, world)
+    await _as(client, login, user_in, branch=world.main)
+    rows = (await client.get("/api/attendance/report", params=_params())).json()["rows"]
+    assert all(_no_money(r["cells"]) for r in rows)
