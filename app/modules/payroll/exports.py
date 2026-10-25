@@ -144,7 +144,7 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
     last = HEADER + max(1, len(rows))
     columns = ["Emp ID", "Name", "Department"] + (["Branch"] if all_branches else []) + [
         "Pay type", "Paid days", "Days", "Gross", "Overtime", "Absence", "Advance paid",
-        "Salary paid", "TDS", "Net", "Paid", "Due", "Status",
+        "Salary paid", "Net", "Paid", "Due", "Status",
     ]  # fmt: skip
     money_from = 3 + (1 if all_branches else 0) + 3  # 0-based index of "Gross"
     sheet_rows: list[list[Cell]] = [
@@ -173,7 +173,6 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
             num(r.pay.absence_deduction),
             num(r.settled.advance_paid),
             num(r.settled.salary_paid),
-            num(r.pay.tds),
             Styled(r.pay.net, "number_bold"),
             num(r.settled.paid),
             Styled(r.settled.due, "number_bold"),
@@ -192,7 +191,6 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
             lambda r: r.pay.absence_deduction,
             lambda r: r.settled.advance_paid,
             lambda r: r.settled.salary_paid,
-            lambda r: r.pay.tds,
             lambda r: r.pay.net,
             lambda r: r.settled.paid,
             lambda r: r.settled.due,
@@ -205,7 +203,7 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
     widths = (
         [9, 24, 14]
         + ([14] if all_branches else [])
-        + [11, 9, 7, 11, 10, 10, 12, 11, 7, 11, 11, 11, 10]
+        + [11, 9, 7, 11, 10, 10, 12, 11, 11, 11, 11, 10]
     )
     payroll = Sheet(
         name="Payroll sheet",
@@ -301,7 +299,6 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
                 num(t.absence_deduction),
                 Styled(f"{t.absent_days} absent days", "muted"),
             ],
-            ["TDS", num(t.tds), Styled("not applied yet", "muted")],
             [Styled("Net payable", "bold"), Styled(t.net, "number_bold")],
             [
                 "Advances paid",
@@ -322,8 +319,7 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
             [
                 Styled(
                     "Monthly: net = salary − salary ÷ 30 × absent days + overtime. "
-                    "Daily: wage × days present + overtime. Saturdays are paid. No SSF; TDS 0 "
-                    "for now.",
+                    "Daily: wage × days present + overtime. Saturdays are paid. No SSF.",
                     "muted",
                 )
             ],
@@ -352,7 +348,7 @@ def salary_report_pdf(data: ReportData, printed_by: str) -> bytes:
         "status_label": STATUS_LABEL,
         "legend_text": (
             "Monthly: net = salary − salary ÷ 30 × absent days + overtime · "
-            "Daily: wage × days present + overtime · Saturdays paid · no SSF · TDS 0"
+            "Daily: wage × days present + overtime · Saturdays paid · no SSF"
         ),
         "stats": [
             ("Gross", f"Rs {t.gross:,}", f"{t.staff} staff · overtime Rs {t.overtime_pay:,}"),
@@ -873,10 +869,10 @@ def payslip_pdf(employee: Employee, ledger: MonthLedgerOut, printed_by: str) -> 
         "status_label": STATUS_LABEL,
         "month_label": month_label,
         "legend_text": (
-            "Net = salary − salary ÷ 30 × absent days + overtime − TDS. Saturdays are paid. "
+            "Net = salary − salary ÷ 30 × absent days + overtime. Saturdays are paid. "
             "Advances are part of this month's salary."
             if ledger.pay_type == "monthly"
-            else "Net = wage × (present + overtime days) + overtime hours × rate − TDS. "
+            else "Net = wage × (present + overtime days) + overtime hours × rate. "
             "Advances are part of this month's salary."
         ),
     }

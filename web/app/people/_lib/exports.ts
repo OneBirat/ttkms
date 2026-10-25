@@ -52,7 +52,7 @@ export function modeLabel(payment: Payment): string {
 /** Salary report sheet (everyone in the current filter) as CSV. */
 export function payrollSheetCsv(rows: ReportRow[]): string {
   return toCsv(
-    ["Code", "Employee", "Designation", "Department", "Branch", "Pay type", "Paid days", "Days in month", "Gross", "Overtime", "Absence", "Advance paid", "TDS", "Net", "Paid", "Due", "Status"],
+    ["Code", "Employee", "Designation", "Department", "Branch", "Pay type", "Paid days", "Days in month", "Gross", "Overtime", "Absence", "Advance paid", "Net", "Paid", "Due", "Status"],
     rows.map(({ employee, ledger }) => [
       employee.code,
       employee.full_name,
@@ -66,7 +66,6 @@ export function payrollSheetCsv(rows: ReportRow[]): string {
       ledger.overtime_pay,
       ledger.absence_deduction,
       ledger.advance_paid,
-      ledger.tds,
       ledger.net,
       ledger.paid,
       ledger.due,
@@ -78,7 +77,7 @@ export function payrollSheetCsv(rows: ReportRow[]): string {
 /** One employee's salary ledger as CSV. */
 export function ledgerCsv(employee: Employee, ledgers: MonthLedger[]): string {
   return toCsv(
-    ["Month (BS)", "Pay type", "Rate", "Paid days", "Days in month", "Gross", "Overtime hours", "Overtime", "Absence", "TDS", "Net", "Paid", "Due", "Status"],
+    ["Month (BS)", "Pay type", "Rate", "Paid days", "Days in month", "Gross", "Overtime hours", "Overtime", "Absence", "Net", "Paid", "Due", "Status"],
     ledgers.map((l) => [
       monthLabel(l.month),
       payTypeLabel(l),
@@ -89,7 +88,6 @@ export function ledgerCsv(employee: Employee, ledgers: MonthLedger[]): string {
       l.attendance.overtime_hours,
       l.overtime_pay,
       l.absence_deduction,
-      l.tds,
       l.net,
       l.paid,
       l.due,
@@ -170,7 +168,6 @@ ${line("Total earnings", formatRs(l.earnings), true)}
 <h3>Deductions</h3>
 <table>
 ${line(l.pay_type === "monthly" ? `Absence ${l.attendance.absent} × ${formatRs(perDay)} per day` : "Absence", l.absence_deduction ? `− ${formatRs(l.absence_deduction)}` : "Rs 0")}
-${line("TDS", l.tds ? `− ${formatRs(l.tds)}` : "Rs 0")}
 ${line("Net salary", formatRs(l.net), true)}
 </table>
 <h3>Payments</h3>
@@ -178,8 +175,8 @@ ${line("Net salary", formatRs(l.net), true)}
 <tr class="strong"><td colspan="3">Paid ${formatRs(l.paid)} · due ${formatRs(l.due)}</td><td class="num">${escapeHtml(STATUS_LABEL[l.status])}</td></tr></table>
 <p class="note">${
     l.pay_type === "monthly"
-      ? "Net = salary − salary ÷ 30 × absent days + overtime − TDS. Saturdays are paid. Advances are part of this month's salary."
-      : "Net = wage × (present + overtime days) + overtime hours × rate − TDS. Advances are part of this month's salary."
+      ? "Net = salary − salary ÷ 30 × absent days + overtime. Saturdays are paid. Advances are part of this month's salary."
+      : "Net = wage × (present + overtime days) + overtime hours × rate. Advances are part of this month's salary."
   }</p>
 <script>window.addEventListener("load",function(){setTimeout(function(){window.print()},150)})</script>
 </body></html>`;

@@ -24,7 +24,6 @@
   <thead><tr><th class="nm">Deductions</th><th class="num">Rs</th></tr></thead>
   <tbody>
     <tr><td class="nm">{% if ledger.pay_type == "monthly" %}Absence {{ a.absent }} × Rs {{ "{:,}".format(per_day) }} per day{% else %}Absence{% endif %}</td><td class="num">{% if ledger.absence_deduction %}− {{ "{:,}".format(ledger.absence_deduction) }}{% else %}0{% endif %}</td></tr>
-    <tr><td class="nm">TDS</td><td class="num">{{ ledger.tds }}</td></tr>
     <tr><td class="nm"><b>Net salary</b></td><td class="num"><b>{{ "{:,}".format(ledger.net) }}</b></td></tr>
   </tbody>
 </table>

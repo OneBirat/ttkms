@@ -8,7 +8,7 @@ the reference for the rules; `docs/payroll-backend-plan.md` has the endpoint tab
 
 ## Business rules (decided)
 
-- No SSF anywhere. TDS is a 0 placeholder column.
+- No SSF anywhere. TDS stays in the data as 0 but is not shown anywhere in the UI or the exports (2026-10-25).
 - Monthly: `net = gross − gross ÷ 30 × absent + overtime_hours × ot_rate − tds` (a fixed 30, whatever the BS month's length).
   Saturdays (weekly off) are paid. No half days, no leave.
 - Daily: `net = wage × (present + overtime_days + Saturdays worked) + overtime_hours × ot_rate − tds`.

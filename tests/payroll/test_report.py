@@ -204,6 +204,16 @@ async def test_excel_and_pdf_exports(client, db, make_user, login):
     assert wb2["Payroll sheet"]["A1"].value.startswith(
         "TTK · Salary report · Branch 2 · Kitchen · "
     )
+    # TDS stays in the data (0) but no export shows it.
+    cells = [
+        str(c)
+        for book in (wb, wb2)
+        for sheet in book.worksheets
+        for row in sheet.iter_rows(values_only=True)
+        for c in row
+        if c is not None
+    ]
+    assert not any("TDS" in c for c in cells)
     assert [c.value for c in wb2["Payroll sheet"][4]][:4] == [
         "Emp ID",
         "Name",
@@ -252,3 +262,11 @@ async def test_excel_and_pdf_exports(client, db, make_user, login):
         landscape=True,
     )
     assert "Salary report · All branches · Store" in html and "Anita" in html and "Ramesh" in html
+
+
+def test_pdf_templates_never_show_tds():
+    from pathlib import Path
+
+    folder = Path(__file__).resolve().parents[2] / "app/modules/payroll/templates/payroll"
+    for template in folder.glob("*.html"):
+        assert "TDS" not in template.read_text() and ".tds" not in template.read_text(), template

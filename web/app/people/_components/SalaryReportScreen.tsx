@@ -98,13 +98,12 @@ export function SalaryReportScreen() {
   const paged = paginate(filteredRows, page, PAGE_SIZE);
   const deptName = department !== null ? (departments.data ?? []).find((d) => d.id === department)?.name : null;
   const scope = `${branchScope.label} · ${deptName ?? "all departments"}`;
-  const running = sameMonth(month, currentMonth());
 
   return (
     <>
       <PageHeader
         title="Salary report"
-        subtitle={`${monthLabel(month)}${running ? " (in progress)" : ""} · attendance from the attendance module · ${scope}`}
+        subtitle={`${monthLabel(month)} payroll`}
         actions={
           <div className={`${shared.row} ${styles.noPrint}`}>
             <BranchSwitcher scope={branchScope} id={branchSelectId} />
@@ -227,9 +226,6 @@ export function SalaryReportScreen() {
                       Advance paid
                     </th>
                     <th scope="col" className={shared.num}>
-                      TDS
-                    </th>
-                    <th scope="col" className={shared.num}>
                       Net
                     </th>
                     <th scope="col">Status</th>
@@ -238,7 +234,7 @@ export function SalaryReportScreen() {
                 <tbody>
                   {paged.items.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className={shared.empty}>
+                      <td colSpan={8} className={shared.empty}>
                         No employee matches.
                       </td>
                     </tr>
@@ -260,7 +256,6 @@ export function SalaryReportScreen() {
                         </td>
                         <td className={shared.num}>{formatDeduction(ledger.absence_deduction)}</td>
                         <td className={shared.num}>{formatDeduction(ledger.advance_paid)}</td>
-                        <td className={shared.num}>{formatDeduction(ledger.tds)}</td>
                         <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(ledger.net)}</td>
                         <td>
                           {ledger.status === "pending" ? (
@@ -281,7 +276,6 @@ export function SalaryReportScreen() {
                     <td className={shared.num}>{formatAmount(sum(filteredRows, "earnings"))}</td>
                     <td className={shared.num}>{formatDeduction(sum(filteredRows, "absence_deduction"))}</td>
                     <td className={shared.num}>{formatDeduction(sum(filteredRows, "advance_paid"))}</td>
-                    <td className={shared.num}>{formatDeduction(sum(filteredRows, "tds"))}</td>
                     <td className={`${shared.num} ${shared.ok}`}>{formatAmount(sum(filteredRows, "net"))}</td>
                     <td className={shared.note}>{formatRs(sum(filteredRows, "due"))} due</td>
                   </tr>
@@ -310,7 +304,7 @@ export function SalaryReportScreen() {
   );
 }
 
-function sum(rows: SalaryReport["rows"], key: "earnings" | "absence_deduction" | "advance_paid" | "tds" | "net" | "due"): number {
+function sum(rows: SalaryReport["rows"], key: "earnings" | "absence_deduction" | "advance_paid" | "net" | "due"): number {
   return rows.reduce((acc, row) => acc + row.ledger[key], 0);
 }
 
@@ -334,11 +328,6 @@ function Totals({ data }: { data: SalaryReport }) {
         <span className={styles.totalLabel}>Advances paid</span>
         <span className={styles.totalValue}>{formatRs(t.advance_paid)}</span>
         <span className={styles.totalHint}>part of salary, already paid</span>
-      </div>
-      <div className={`card ${styles.total}`}>
-        <span className={styles.totalLabel}>Tax (TDS)</span>
-        <span className={styles.totalValue}>{formatRs(t.tds)}</span>
-        <span className={styles.totalHint}>not applied yet</span>
       </div>
       <div className={`card ${styles.total} ${styles.totalNet}`}>
         <span className={styles.totalLabel}>Net payable</span>

@@ -94,9 +94,6 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
                 Absence
               </th>
               <th scope="col" className={shared.num}>
-                TDS
-              </th>
-              <th scope="col" className={shared.num}>
                 Net pay
               </th>
               <th scope="col">Status</th>
@@ -108,7 +105,7 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
           <tbody>
             {ledger.length === 0 ? (
               <tr>
-                <td colSpan={9} className={shared.empty}>
+                <td colSpan={8} className={shared.empty}>
                   No salary months yet.
                 </td>
               </tr>
@@ -131,7 +128,6 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
                       <td className={shared.num}>{formatAmount(l.gross_salary)}</td>
                       <td className={shared.num}>{formatAddition(l.overtime_pay)}</td>
                       <td className={shared.num}>{formatDeduction(l.absence_deduction)}</td>
-                      <td className={shared.num}>{formatDeduction(l.tds)}</td>
                       <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(l.net)}</td>
                       <td>
                         <StatusPill ledger={l} />
@@ -179,8 +175,8 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
         </table>
       </div>
       <span className={styles.ledgerNote}>
-        Monthly: net = salary − salary ÷ days in month × absent days + overtime − TDS; Saturdays are paid. Daily wage:
-        net = wage × days present (overtime days included) + overtime hours × rate − TDS. Advances are part of that
+        Monthly: net = salary − salary ÷ days in month × absent days + overtime; Saturdays are paid. Daily wage:
+        net = wage × days present (overtime days included) + overtime hours × rate. Advances are part of that
         month&apos;s salary. The running month shows the monthly salary in full less absences so far (daily wages count days so far). Attendance comes from the attendance module.
       </span>
       <VoidPaymentDialog payment={voiding} employeeName={employee.full_name} onClose={() => setVoiding(null)} />
@@ -288,10 +284,6 @@ function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceip
           <div className={styles.kv}>
             <span>{l.pay_type === "monthly" ? `Absence ${a.absent} × ${formatRs(perDay)}/day` : "Absence (daily wage: none)"}</span>
             <span className={shared.num}>{formatDeduction(l.absence_deduction)}</span>
-          </div>
-          <div className={styles.kv}>
-            <span>TDS</span>
-            <span className={shared.num}>{formatDeduction(l.tds)}</span>
           </div>
           <div className={`${styles.kv} ${styles.kvTotal}`}>
             <span>Net salary</span>
