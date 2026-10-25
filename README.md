@@ -111,6 +111,8 @@ curl -c jar -b jar -H "X-CSRF-Token: <token>" -H 'Content-Type: application/json
      -d '{"username":"admin","password":"...","remember":true}' localhost:8000/api/auth/login
 curl -b jar localhost:8000/api/auth/me          # {"user": {...}, "csrf_token": ...}
 curl -b jar localhost:8000/api/core/modules     # {"enabled": [...], "nav": [...]} for the sidebar
+curl -b jar localhost:8000/api/core/departments # [{id, name, employee_count, active_employee_count}];
+                                                # POST / PATCH /{id} / DELETE /{id} need manage_employees
 curl -b jar localhost:8000/api/registry         # enabled modules + nav filtered to the user's role
 curl -b jar localhost:8000/api/dashboard        # widgets: attendance_today, payments_today
 curl -b jar localhost:8000/api/today            # AD + BS date for the header; with a session also

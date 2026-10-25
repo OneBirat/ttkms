@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.core import bsdate
 from app.core.bsdate import BSDate
@@ -19,6 +19,35 @@ Tone = Literal["ok", "low", "danger", "leave", "neutral"]
 
 class ErrorOut(BaseModel):
     detail: str
+
+
+# ------------------------------------------------------------------ departments
+
+
+class DepartmentIn(BaseModel):
+    """Name of a department: trimmed, inner whitespace collapsed, 1-120 characters."""
+
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def _clean(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if not value:
+            raise ValueError("Department name is required.")
+        if len(value) > 120:
+            raise ValueError("Department name is too long (120 characters at most).")
+        return value
+
+
+class DepartmentOut(BaseModel):
+    """One row of GET /api/core/departments (web/app/people/types.ts Department)."""
+
+    id: int
+    name: str
+    #: Every employee referencing it, former staff included.
+    employee_count: int
+    active_employee_count: int
 
 
 class UserOut(BaseModel):

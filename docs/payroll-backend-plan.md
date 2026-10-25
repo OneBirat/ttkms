@@ -13,27 +13,17 @@ never exceeds the due; BS dates first; attendance only through `AttendanceSummar
 
 ## 1. Tables (schema `payroll`, Alembic env `migrations/payroll`)
 
-```
-payroll.employees
-  id              serial PK
-  code            text UNIQUE            "E-001"   via core.next_employee_code()
-  barcode         text UNIQUE            "TTK-E001" (Code 128 value; = 'TTK-' || replace(code,'-',''))
-  full_name       text NOT NULL
-  full_name_np    text NULL              Devanagari (UI suggests it locally)
-  phone           text NULL              unique among active employees (409 + field on clash)
-  phone_alt       text NULL
-  address         text NULL
-  branch_id       int NOT NULL  FK core.branches
-  department_id   int NULL      FK core.departments
-  designation     text NULL
-  active          bool NOT NULL default true
-  joined_bs       char(10) NOT NULL      "2081-04-01"
-  joined_ad       date NOT NULL
-  photo_path      text NULL              file under MEDIA_ROOT/employees/<id>.jpg (512px JPEG)
-  user_id         int NULL UNIQUE FK core.users   (app login)
-  created_at      timestamptz default now()
-  index (branch_id, active), index (department_id)
+**Employees live in `core.employees` (schema `core`, owned by `main`) - payroll has no employees
+table.** Payroll's tables are keyed on `core.employees.id`; its `/employees*` endpoints read and write
+the core row (joined with `core.branches` / `core.departments`) and add payroll's own data. Core
+already has `id`, `code` (via `core.next_employee_code()`), `full_name`, `phone`, `branch_id`,
+`department_id`, `designation`, `status` active|inactive, `photo_path`. The profile fields the UI
+needs on top (`full_name_np`, `phone_alt`, `address`, `joined_bs` / `joined_ad`, `user_id` -> the
+login, `barcode` = `'TTK-' || replace(code, '-', '')`) are added to `core.employees` by a **core
+migration on `main`** when the payroll backend is built; departments are managed through
+`/api/core/departments` (done 2026-10-25, see "Departments" below).
 
+```
 payroll.salary_history            one row per revision; the latest effective row is the structure in force
   id, employee_id FK, pay_type enum('monthly','daily'), basic int, allowances int default 0,
   ot_rate int NOT NULL (Rs per overtime hour; default basic ÷ days-in-month ÷ 8, daily: wage ÷ 8),
@@ -60,7 +50,8 @@ from the structure in force, `AttendanceSummary.for_month` and the month's payme
 `web/app/people/_lib/calc.ts` has the unit-tested formulas to port).
 
 Migrations (`migrations/payroll/versions/`):
-1. `payroll_0001_employees` — schema `payroll`, enums, `employees`, `salary_history`, `photo_tokens`.
+1. `payroll_0001_salary` — schema `payroll`, enums, `salary_history`, `photo_tokens` (employees stay in core;
+   the extra profile columns are a `core_000x` migration on `main`).
 2. `payroll_0002_payments` — `payments` with the FK to `admin.payment_modes` (depends on the admin
    migration that creates it; declare it with `depends_on`), receipt_no trigger or app-side generation.
 
@@ -112,7 +103,18 @@ branch, Staff mark attendance only). "Own branch" means managers only see employ
 | GET | /photo-tokens/{token} | → `PhotoTokenInfo`; 410 when expired; no session | public (token) |
 | POST | /photo-tokens/{token}/photo | multipart image, no session → `Employee` | public (token) |
 
-Also used by the Add-employee popup (core): `GET/POST /api/core/branches`, `GET/POST /api/core/departments`.
+Also used by the Add-employee popup (core): `GET/POST /api/core/branches` (still to build) and the
+departments API below.
+
+### Departments (core, built 2026-10-25)
+
+`/api/core/departments` on `main`: `GET` (every department A-Z with `employee_count` incl. former staff
+and `active_employee_count`; any signed-in user), `POST {name}` -> 201, `PATCH /{id} {name}`,
+`DELETE /{id}` -> 204. Writes need `manage_employees`. Names are trimmed and unique case-insensitively
+company-wide (`409 {code: "duplicate_name"}`); delete answers `409 {code: "department_in_use", count,
+inactive_count}` while any employee references it (the FK is `ON DELETE RESTRICT`); add / rename /
+delete write `core.audit_log` rows. `core.departments.is_active` is kept but ignored by the API.
+Payroll's `POST /employees` validates `department_id` against this table.
 Needed from ttk-admin: `GET /api/admin/payment-modes?active=1` → `PaymentMode[]`
 (`id, type, name, details, use_salary, use_advance, active`). Needed from ttk-attendance:
 `GET /api/attendance/today?branch_id=` → `{date, statuses}`.

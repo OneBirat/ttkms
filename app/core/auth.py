@@ -154,6 +154,16 @@ def require_role(*roles: str | Role):
     return dependency
 
 
+def require_access(*permissions: str):
+    """Dependency factory for core endpoints: the signed-in user must hold every listed
+    permission switch (403 otherwise). The admin module owns the permission catalogue, so this
+    delegates to ``app.modules.admin.permissions.require_access``; with the admin module paused
+    there is no ``user_access`` table and everyone gets their role preset."""
+    from app.modules.admin.permissions import require_access as admin_require_access
+
+    return admin_require_access(*permissions)
+
+
 @router.get("/csrf", response_model=CsrfOut)
 async def csrf(request: Request) -> CsrfOut:
     """Returns the CSRF token for this session (and starts a session if there is none)."""

@@ -19,12 +19,13 @@ endpoint it stands in for; the shapes are in `types.ts`. Backend lives in
 
 ## Tables
 
+Employees are `core.employees` (single source of truth, owned by `main`): id, code, full_name, phone,
+branch_id, department_id, designation, status active|inactive, photo_path. Payroll adds no employees
+table; the missing profile fields (full_name_np, phone_alt, address, joined_bs/joined_ad, user_id,
+barcode) are added to `core.employees` by a core migration when the payroll backend is built.
+Payroll keeps only its own tables, keyed on `core.employees.id`:
+
 ```
-payroll.employees        id, code "E-001" (core.next_employee_code()), barcode "TTK-E001" UNIQUE,
-                         full_name, full_name_np (Devanagari, nullable; the UI suggests it via
-                         _lib/devanagari.ts, local rules + name dictionary), phone, phone_alt, address, branch_id, department_id, designation,
-                         pay_type monthly|daily, amount, ot_rate, paid_by cash|bank, joined_bs, joined_ad,
-                         photo_path, active, user_id (core.users, nullable), created_at
 payroll.salary_history   id, employee_id, effective_bs, effective_ad, pay_type, basic, allowances,
                          ot_rate, paid_by, reason, created_at
 payroll.payments         id, receipt_no "ADV-0412"/"SAL-0410", employee_id, bs_year, bs_month,
@@ -69,7 +70,10 @@ summary and the month's payments (`ledgerFor` in api.ts shows the exact derivati
 | GET | /photo-tokens/{token} | → PhotoTokenInfo (no session; 410 when expired) |
 | POST | /photo-tokens/{token}/photo | multipart image, no session → Employee |
 
-Core endpoints used by the Add-employee popup: `GET/POST /api/core/branches`, `GET/POST /api/core/departments`.
+Core endpoints used by the Add-employee popup: `GET/POST /api/core/branches` (still mock) and
+`/api/core/departments` (real since 2026-10-25: `GET` with `employee_count` / `active_employee_count`,
+`POST {name}`, `PATCH /{id} {name}`, `DELETE /{id}`; writes need `manage_employees`; `409 duplicate_name`
+/ `409 department_in_use {count, inactive_count}`).
 
 ## Needs from main
 
