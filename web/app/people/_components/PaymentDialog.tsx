@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Field, TextInput, parseAmount, splitError } from "./FormBits";
 import { PaidByPicker, modesFor } from "./PaidByPicker";
 import { currentMonth, getBalance, listMonths, listPaymentModes, recordPayment } from "../api";
+import { NoSalaryNotice, isNoSalary } from "./NoSalaryNotice";
 import { paymentError } from "../_lib/calc";
 import { monthKey, monthLabel, parseMonthKey, sameMonth, today } from "../_lib/months";
 import { formatAmount, formatRs } from "../_lib/helpers";
@@ -177,7 +178,13 @@ export function PaymentDialog({ open, employee, purpose, month, preferModeId = n
             <span className={styles.tileValue}>{balance.data ? formatRs(balance.data.due) : "…"}</span>
           </div>
         </div>
-        {balance.error ? <p className={styles.formError}>{payrollErrorMessage(balance.error)}</p> : null}
+        {balance.error ? (
+          isNoSalary(balance.error) ? (
+            <NoSalaryNotice employeeId={employee.id} className={styles.formError} />
+          ) : (
+            <p className={styles.formError}>{payrollErrorMessage(balance.error)}</p>
+          )
+        ) : null}
 
         <Field id={id("amount")} label="Amount" error={problem}>
           <TextInput

@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import date
 
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -75,10 +75,25 @@ async def month_ledger_or_404(
         employee, year, month, structures, payments, saturday_rule=await ledgers.saturday_rule(db)
     )
     if ledger is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, detail="No salary for this month (before the joining date)."
-        )
+        raise no_ledger(employee, year, month)
     return ledger, structures, payments
+
+
+#: The two reasons a month has no ledger (404 ``code``): the screens offer "add the salary" only
+#: for the second.
+NO_SALARY_YET = "No salary set up yet — add it in the Salary tab."
+
+
+def no_ledger(employee: Employee, year: int, month: int) -> services.ApiError:
+    if ledgers.month_index(year, month) < ledgers.month_index(*ledgers.joined_month(employee)):
+        return services.ApiError(
+            status.HTTP_404_NOT_FOUND,
+            "No salary for this month (before the joining date).",
+            "before_joining",
+        )
+    return services.ApiError(
+        status.HTTP_404_NOT_FOUND, NO_SALARY_YET, "no_salary", employee_id=employee.id
+    )
 
 
 def balance_out(ledger: MonthLedger) -> MonthBalanceOut:

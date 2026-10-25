@@ -44,6 +44,8 @@ export interface PayFields {
   history: PaymentRecord[] | null;
   /** admin.payment_modes id: Cash unless "Other ▾" picks another active mode. */
   mode: number;
+  /** The API's error code with `error` ("no_salary" = no salary set up yet). */
+  errorCode?: string | null;
 }
 
 interface Person {
@@ -180,6 +182,12 @@ export function shiftMonthKey(key: string, delta: number): string | null {
 
 export function isNotFound(err: unknown): boolean {
   return !!err && typeof err === "object" && "status" in err && (err as { status: unknown }).status === 404;
+}
+
+function codeOf(err: unknown): string | null {
+  return err && typeof err === "object" && "code" in err && typeof (err as { code: unknown }).code === "string"
+    ? (err as { code: string }).code
+    : null;
 }
 
 function messageOf(err: unknown, fallback: string): string {
@@ -352,7 +360,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
       .catch((err: unknown) => {
         const s = state.scan;
         if (seq === loadSeq && s && (s.step === "pay" || s.step === "history")) {
-          setScan({ ...s, history: s.history ?? [], error: messageOf(err, "Could not load the balance.") });
+          setScan({ ...s, history: s.history ?? [], error: messageOf(err, "Could not load the balance."), errorCode: codeOf(err) });
         }
       });
   };

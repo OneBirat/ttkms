@@ -51,7 +51,9 @@ function notFound(): Error & { status: number } {
   return Object.assign(new Error("No employee"), { status: 404 });
 }
 
-function setup(options: { markFails?: boolean; marked?: Set<number>; canPay?: boolean; ashojDue?: boolean } = {}) {
+function setup(
+  options: { markFails?: boolean; marked?: Set<number>; canPay?: boolean; ashojDue?: boolean; balanceFails?: Error } = {},
+) {
   const clock = new FakeClock();
   const calls: string[] = [];
   const marked = options.marked ?? new Set<number>();
@@ -92,6 +94,7 @@ function setup(options: { markFails?: boolean; marked?: Set<number>; canPay?: bo
     },
     async balance(_id, kind) {
       calls.push(`balance ${kind}`);
+      if (options.balanceFails) throw options.balanceFails;
       // Salary: payroll's settlement month (Ashoj while it is still due); advance: the running month.
       if (kind === "salary" && options.ashojDue) {
         return { employee_id: 4, bs_year: 2083, bs_month: 6, month_key: "2083-06", month_label: "Ashoj 2083", earned: 24000, paid: 0, due: 24000 };
@@ -455,6 +458,20 @@ describe("scan loop", () => {
     t.flow.savePayment();
     await flush();
     assert.ok(t.calls.includes("pay advance 500 mode1 scan"), "an advance sends no for_*");
+  });
+
+  it("no salary set up yet: the pay sheet keeps payroll's code so it can offer the Salary tab", async () => {
+    const noSalary = Object.assign(new Error("No salary set up yet — add it in the Salary tab."), { status: 404, code: "no_salary" });
+    const t = setup({ marked: new Set([4]), balanceFails: noSalary });
+    t.flow.open();
+    t.flow.scan("E-004");
+    await flush();
+    t.flow.choosePayment("salary");
+    await flush();
+    const pay = t.scan() as Extract<Scan, { step: "pay" }>;
+    assert.equal(pay.step, "pay");
+    assert.equal(pay.error, "No salary set up yet — add it in the Salary tab.");
+    assert.equal(pay.errorCode, "no_salary");
   });
 
   it("without salary_advances there are no pay steps or payment record", async () => {

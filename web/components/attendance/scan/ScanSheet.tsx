@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { PaidByPicker } from "@/app/people/_components/PaidByPicker";
+import { NO_SALARY, NoSalaryNotice } from "@/app/people/_components/NoSalaryNotice";
 import { useSession } from "@/lib/session";
 import { WEEKDAYS_NE, diffDays, formatAdShort, monthLabel, monthName, parseMonthKey, toNepaliDigits } from "@/lib/bs";
 import { bsMonthDays } from "../calendar";
@@ -438,7 +439,9 @@ function Pay({ scan, state, titleId }: StepProps<"pay">) {
         onReference={() => {}}
         noReference
       />
-      {showError || scan.error ? (
+      {scan.error && scan.errorCode === NO_SALARY ? (
+        <NoSalaryNotice employeeId={scan.emp.id} className={styles.error} message={scan.error} />
+      ) : showError || scan.error ? (
         <span className={styles.error} role="alert">
           {scan.error ?? validation}
         </span>
