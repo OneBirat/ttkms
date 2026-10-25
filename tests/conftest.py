@@ -34,8 +34,12 @@ from app.db import get_db
 from app.main import app, create_app
 
 TEST_DB_URL = settings.resolved_test_database_url
-#: Alembic environments the suite migrates: core first, then every enabled module.
-MIGRATED_MODULES: tuple[str, ...] = ("core", *settings.enabled_module_names)
+#: Alembic environments the suite migrates: core first, then admin (payroll's tables reference
+#: admin.payment_modes), then every other enabled module - the same order as `make migrate`.
+MIGRATED_MODULES: tuple[str, ...] = (
+    "core",
+    *sorted(settings.enabled_module_names, key=lambda name: 0 if name == "admin" else 1),
+)
 
 assert make_url(TEST_DB_URL).database != make_url(settings.database_url).database, (
     "TEST_DATABASE_URL must not point at the main database"
