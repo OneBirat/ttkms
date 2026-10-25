@@ -1,7 +1,6 @@
 import type { AuditEntry, AuditModule } from "../types";
 
 export const MODULE_TONE: Record<AuditModule, string> = {
-  stock: "info",
   attendance: "ok",
   payroll: "pending",
   admin: "admin",

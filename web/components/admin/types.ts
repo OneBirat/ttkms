@@ -193,10 +193,9 @@ export type SettingsInput = Omit<Settings, "meta" | "company"> & {
 
 // ------------------------------------------------------------------ audit
 
-export type AuditModule = "stock" | "attendance" | "payroll" | "admin";
+export type AuditModule = "attendance" | "payroll" | "admin";
 
 export const AUDIT_MODULES: readonly { value: AuditModule; label: string }[] = [
-  { value: "stock", label: "Stock" },
   { value: "attendance", label: "Attendance" },
   { value: "payroll", label: "Payroll" },
   { value: "admin", label: "Admin" },
