@@ -61,22 +61,32 @@ summary and the month's payments (`ledgerFor` in api.ts shows the exact derivati
 | POST | /payments | PaymentInput → PaymentResult (422 + field when amount is 0 / above due / future) |
 | GET | /employees/{id}/transactions | → EmployeeLedger (running balance) |
 | GET | /employees/{id}/summary | → AccountSummary (Give advance / Pay salary) |
-| GET | /payments?from_bs&to_bs&type&employee_id&department_id&sort | → PaymentsRegister (BS date range; `department_id` scopes rows, tiles and by_employee; `sort` = date (default, newest first) \| department (A-Z) \| employee (A-Z) \| amount (high → low); `by_department` counts the whole range for the chips; 404 unknown department) |
+| GET | /payments?from_bs&to_bs&type&employee_id&branch_id&department_id&sort | → PaymentsRegister (BS date range; `branch_id` (omitted = all branches; users without `see_other_branches` are always scoped to their own branch) and `department_id` scope rows, tiles, by_employee and the `by_department` chip counts; `sort` = date (default, newest first) \| branch (A-Z) \| department (A-Z, inside each branch when all branches) \| employee (A-Z) \| amount (high → low); `by_branch` = salary / advances / total / count per branch of the range; 404 unknown branch or department) |
 | GET | /payments/{id}/receipt.pdf | → PDF |
-| GET | /payments/export.xlsx, .pdf?from_bs&to_bs&type&department_id&sort | → file: Excel sheets Payments (rows in `sort` order, Department column in the autofilter) / **By department** (department, salary, advances, total, count) / By employee / Summary / Sort & filter; PDF A4 landscape titled "Payment report · {department} · {range}", with `sort=department` grouped under department headings + a subtotal row (Salary · Advances · Total) each and the grand total last; file name `Payment_report[_{Department}]_{from}_to_{to}.{ext}` |
-| GET | /report/{YYYY-MM}?department_id | → SalaryReport |
-| GET | /report/{YYYY-MM}.xlsx, .pdf | → file |
+| GET | /payments/export.xlsx, .pdf?from_bs&to_bs&type&branch_id&department_id&sort | → file: Excel sheets Payments (rows in `sort` order, Department and Branch columns inside the autofilter) / **By branch** (branch, salary, advances, total, count; only without `branch_id`) / **By department** (department, salary, advances, total, count) / By employee / Summary / Sort & filter; PDF A4 landscape titled "Payment report · {Branch or All branches} · {Department if any} · {range}", `sort=branch` grouped per branch with a subtotal row (Salary · Advances · Total), `sort=department` grouped per department (nested inside branch headings + branch subtotals when all branches) and the grand total last; file name `Payment_report[_{Branch}][_{Department}]_{from}_to_{to}.{ext}` |
+| GET | /report/{YYYY-MM}?department_id&branch_id | → SalaryReport (`branch_id` omitted = all branches, same locking rule as the register; rows, totals, trend and `by_department` follow the branch; `by_branch` = staff / net / paid / due per branch with the department filter applied) |
+| GET | /report/{YYYY-MM}.xlsx, .pdf?department_id&branch_id | → file; with all branches a Branch column and the "By branch" summary; title "Salary report · {Branch or All branches} · {Department if any} · {month}"; file `salary-{YYYY-MM}-{branch}[-{department}]` |
 | POST | /photo-tokens | { employee_id } → PhotoToken (10 min) |
 | GET | /photo-tokens/{token} | → PhotoTokenInfo (no session; 410 when expired) |
 | POST | /photo-tokens/{token}/photo | multipart image, no session → Employee |
 
+## Branch switcher (Payment reports + Salary report, 2026-10-25)
+
+`_lib/branchScope.ts` (tested) + `useReportBranch`: with `see_other_branches` a switcher "All branches" +
+every branch (default All) in the desktop header and the phone pill; without it no switcher, the page is
+locked to the session `branchId` and shows the branch name as a label. `?branch=` sits in the URL next to
+`?dept=&sort=`; department chip counts, tiles and exports follow the branch. The Employees list keeps its
+own-branch default (`useBranchScope`).
+
 ## Payment reports (`/people/payments`, renamed from "Payments" 2026-10-25)
 
 Department chips ("All" + each department of `GET /api/core/departments` with its payment count for the
-From/To range, from `by_department`), Sort (Date · Department · Employee · Amount), `?dept=&sort=` in the
-URL, tiles scoped to the chosen department; Sort = Department groups rows under department headings with a
-subtotal each (`_lib/register.ts`: `sortRegisterRows`, `groupRowsByDepartment`, `displayRows`). Phone: the
-same chips as a slider and the sort in a bottom sheet.
+From/To range and branch, from `by_department`), Sort (Date · Branch · Department · Employee · Amount),
+`?branch=&dept=&sort=` in the URL, tiles scoped to the chosen branch + department; Sort = Branch groups rows
+per branch with a subtotal (Salary · Advances · Total); Sort = Department groups per department, nested
+inside branch headings + subtotals when All branches (`_lib/register.ts`: `sortRegisterRows`,
+`groupRowsByBranch`, `groupRowsByDepartment`, `displayRows`). Phone: the same chips as a slider and the
+sort in a bottom sheet.
 
 ## Departments (real, `main`, 2026-10-25)
 

@@ -93,12 +93,12 @@ branch, Staff mark attendance only). "Own branch" means managers only see employ
 | GET | /months | → `BsMonth[]` newest first (months with payroll data) | people.view |
 | GET | /balance?employee_id&bs_year&bs_month | → `MonthBalance` (cross-module, scan pop-up) | payments.record |
 | POST | /payments | `PaymentInput` → `PaymentResult`; 422+field: amount 0 / above due / future month / future date / mode inactive or not set up for the type | payments.record |
-| GET | /payments?from_bs&to_bs&type&employee_id | → `PaymentsRegister` (rows newest first, settlement-month totals, by_employee) | payments.view |
+| GET | /payments?from_bs&to_bs&type&employee_id&branch_id&department_id&sort | → `PaymentsRegister` (rows in `sort` order: date \| branch \| department \| employee \| amount; settlement-month totals, by_employee, by_department and by_branch scoped to `branch_id` / `department_id`; `branch_id` omitted = all branches, forced to the user's own branch without `see_other_branches`) | payments.view |
 | GET | /payments/{id}/receipt.pdf | → PDF | payments.view |
-| GET | /payments/export.xlsx?from_bs&to_bs&type&q | → Excel: sheets Payments / By employee / Summary / Sort & filter, header autofilter, SUM / SUBTOTAL formulas (layout = `registerWorkbook` in `_lib/exports.ts`, design PaymentsExportExcel) | payments.view |
-| GET | /payments/export.pdf?from_bs&to_bs&type&q | → A4 landscape PDF: tiles, rows, salary / advance / total footer, still due, signatures (`registerPdfHtml`, design PaymentsExportPdf) | payments.view |
-| GET | /report/{YYYY-MM}?department_id | → `SalaryReport` | salary.view |
-| GET | /report/{YYYY-MM}.xlsx, .pdf | → file | salary.view |
+| GET | /payments/export.xlsx?from_bs&to_bs&type&q&branch_id&department_id&sort | → Excel: sheets Payments (Department + Branch columns inside the autofilter) / By branch (all branches only) / By department / By employee / Summary / Sort & filter, SUM / SUBTOTAL formulas (layout = `registerWorkbook` in `_lib/exports.ts`, design PaymentsExportExcel) | payments.view |
+| GET | /payments/export.pdf?from_bs&to_bs&type&q&branch_id&department_id&sort | → A4 landscape PDF titled "Payment report · {Branch or All branches} · {Department if any} · {range}": tiles, rows grouped per branch / department (nested with all branches) with Salary · Advances · Total subtotals, salary / advance / total footer, still due, signatures (`registerPdfHtml`, design PaymentsExportPdf) | payments.view |
+| GET | /report/{YYYY-MM}?department_id&branch_id | → `SalaryReport` (rows, totals, trend, by_department follow the branch; by_branch = staff / net / paid / due per branch; `branch_id` omitted = all branches, forced to the user's own branch without `see_other_branches`) | salary.view |
+| GET | /report/{YYYY-MM}.xlsx, .pdf?department_id&branch_id | → file (Branch column + By branch summary with all branches; title "Salary report · {Branch or All branches} · {Department if any} · {month}") | salary.view |
 | POST | /photo-tokens | `{employee_id}` → `PhotoToken` (10 min) | people.edit |
 | GET | /photo-tokens/{token} | → `PhotoTokenInfo`; 410 when expired; no session | public (token) |
 | POST | /photo-tokens/{token}/photo | multipart image, no session → `Employee` | public (token) |
