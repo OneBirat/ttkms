@@ -12,13 +12,14 @@ from __future__ import annotations
 
 import enum
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Computed,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -155,17 +156,39 @@ employee_code_seq = Sequence("employee_code_seq", schema=SCHEMA, metadata=Base.m
 EMPLOYEE_CODE_DEFAULT_SQL = "core.next_employee_code()"
 
 
+#: The Code 128 value printed on the staff card: "TTK-E001" for code "E-001" (one format
+#: everywhere; the legacy "TTK-E-001" form is still accepted by lookups).
+BARCODE_SQL = "'TTK-' || replace(code, '-', '')"
+
+
 class Employee(Base, TimestampMixin):
     __tablename__ = "employees"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = (
+        # A phone number identifies one *active* employee; former staff may share it.
+        Index(
+            "ux_employees_active_phone",
+            "phone",
+            unique=True,
+            postgresql_where=text("status = 'active' AND phone IS NOT NULL"),
+        ),
+        {"schema": SCHEMA},
+    )
     __mapper_args__ = {"eager_defaults": True}  # fetch the DB-generated code with RETURNING
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     code: Mapped[str] = mapped_column(
         String(16), nullable=False, unique=True, server_default=text(EMPLOYEE_CODE_DEFAULT_SQL)
     )
+    barcode: Mapped[str] = mapped_column(
+        String(24), Computed(BARCODE_SQL, persisted=True), nullable=False, unique=True
+    )
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    #: Name in Devanagari (optional; payslips and the scan flow's spoken confirmation).
+    full_name_np: Mapped[str | None] = mapped_column(String(120))
     phone: Mapped[str | None] = mapped_column(String(32))
+    #: Extra contact (family member, second number).
+    phone_alt: Mapped[str | None] = mapped_column(String(32))
+    address: Mapped[str | None] = mapped_column(String(200))
     branch_id: Mapped[int] = mapped_column(
         ForeignKey("core.branches.id", ondelete="RESTRICT"), nullable=False, index=True
     )
@@ -185,6 +208,12 @@ class Employee(Base, TimestampMixin):
         server_default="active",
     )
     photo_path: Mapped[str | None] = mapped_column(String(255))
+    #: Joining date (AD); the BS twin is derived on output (docs/bs-calendar.md).
+    joined_ad: Mapped[date] = mapped_column(
+        Date, nullable=False, server_default=func.current_date()
+    )
+    #: When the employee was deactivated (status -> inactive); null while active.
+    deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     branch: Mapped[Branch] = relationship(lazy="selectin")
     department: Mapped[Department | None] = relationship(lazy="selectin")
@@ -195,7 +224,16 @@ class Employee(Base, TimestampMixin):
 
 class User(Base, TimestampMixin):
     __tablename__ = "users"
-    __table_args__ = {"schema": SCHEMA}
+    __table_args__ = (
+        # One login per employee (the employee's "login" in People).
+        Index(
+            "ux_users_employee_id",
+            "employee_id",
+            unique=True,
+            postgresql_where=text("employee_id IS NOT NULL"),
+        ),
+        {"schema": SCHEMA},
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)  # lower-cased

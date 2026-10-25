@@ -40,6 +40,46 @@ class DepartmentIn(BaseModel):
         return value
 
 
+def _clean_name(value: str, what: str) -> str:
+    value = " ".join(value.split())
+    if not value:
+        raise ValueError(f"{what} name is required.")
+    if len(value) > 120:
+        raise ValueError(f"{what} name is too long (120 characters at most).")
+    return value
+
+
+class BranchIn(BaseModel):
+    name: str
+
+    @field_validator("name")
+    @classmethod
+    def _clean(cls, value: str) -> str:
+        return _clean_name(value, "Branch")
+
+
+class BranchPatchIn(BaseModel):
+    """Rename and / or (de)activate a branch; at least one field."""
+
+    name: str | None = None
+    is_active: bool | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _clean(cls, value: str | None) -> str | None:
+        return None if value is None else _clean_name(value, "Branch")
+
+
+class BranchOut(BaseModel):
+    """One row of GET /api/core/branches (web/app/people/types.ts Branch + counts)."""
+
+    id: int
+    name: str
+    is_active: bool
+    employee_count: int
+    active_employee_count: int
+
+
 class DepartmentOut(BaseModel):
     """One row of GET /api/core/departments (web/app/people/types.ts Department)."""
 

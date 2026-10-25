@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.core import auth, departments, routes
+from app.core import auth, branches, departments, routes
 from app.core.csrf import csrf_protect
 from app.core.errors import ApiError, api_error_handler
 from app.core.modules import Module, load_modules
@@ -68,6 +68,7 @@ def create_app(modules: list[Module] | None = None) -> FastAPI:
 
     app.include_router(auth.router)
     app.include_router(routes.router)
+    app.include_router(branches.router)
     app.include_router(departments.router)
     for module in modules:
         app.include_router(module.router, prefix=f"/api/{module.name}", tags=[module.name])
