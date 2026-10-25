@@ -52,7 +52,7 @@ function notFound(): Error & { status: number } {
 }
 
 function setup(
-  options: { markFails?: boolean; marked?: Set<number>; canPay?: boolean; ashojDue?: boolean; balanceFails?: Error } = {},
+  options: { markFails?: boolean; marked?: Set<number>; canPay?: boolean; ashojDue?: boolean; balanceFails?: Error; settle?: boolean } = {},
 ) {
   const clock = new FakeClock();
   const calls: string[] = [];
@@ -131,6 +131,32 @@ function setup(
       return { payment: saved, due_after: earned - paid };
     },
   };
+  if (options.settle) {
+    // Payroll's salary due oldest first: Bhadra 3,000, Ashoj 18,053, Kartik so far 7,177.
+    const m = (month: number, label: string, net: number, paidM: number, running = false) => ({
+      month: { bs_year: 2083, bs_month: month }, label, in_progress: running, days_in_month: 31, days_counted: running ? 8 : 31,
+      absent: 0, net, paid: paidM, due: net - paidM, cleared_on: null,
+    });
+    api.salaryDues = async () => {
+      calls.push("dues");
+      return {
+        employee_id: 4,
+        months: [m(5, "Bhadra 2083", 26940, 23940), m(6, "Ashwin 2083", 26053, 8000), m(7, "Kartik 2083", 7177, 0, true)],
+        total_due: 28230, past_due: 21053, running_month: { bs_year: 2083, bs_month: 7 }, running_due: 7177,
+        today: { bs: "2083-07-08", ad: "2026-10-25" },
+      };
+    };
+    api.paySalary = async (input) => {
+      calls.push(`settle ${input.amount} mode${input.payment_mode_id} ${input.source}`);
+      const saved = record(120, "2083-07-08", "2026-10-25", "salary", input.amount, "2026-10-25T10:00:00Z");
+      return {
+        payment: saved,
+        due_after: 28230 - input.amount,
+        split: [{ label: "Bhadra 2083", amount: 3000, cleared: true }, { label: "Ashwin 2083", amount: input.amount - 3000, cleared: false }],
+        months_label: "Bhadra – Ashwin 2083",
+      };
+    };
+  }
   const sounds: string[] = [];
   const flow = createScanFlow({
     api,
@@ -458,6 +484,53 @@ describe("scan loop", () => {
     t.flow.savePayment();
     await flush();
     assert.ok(t.calls.includes("pay advance 500 mode1 scan"), "an advance sends no for_*");
+  });
+
+  it("salary with payroll's salary due: one amount, oldest month first, capped at the total", async () => {
+    const t = setup({ marked: new Set([4]), settle: true });
+    t.flow.open();
+    t.flow.scan("E-004");
+    await flush();
+    t.flow.choosePayment("salary");
+    let pay = t.scan() as Extract<Scan, { step: "pay" }>;
+    assert.equal(pay.dues, null, "loading");
+    assert.equal(amountError(pay), "Loading the salary due…");
+    await flush();
+    pay = t.scan() as Extract<Scan, { step: "pay" }>;
+    assert.ok(t.calls.includes("dues"));
+    // Default: everything due for past months.
+    assert.equal(pay.pick, "past");
+    assert.equal(amountOf(pay), 21053);
+    t.flow.setPick("full");
+    assert.equal(amountOf(t.scan() as Extract<Scan, { step: "pay" }>), 28230);
+    t.flow.setPick("custom");
+    t.flow.setAmount("28231");
+    assert.equal(
+      amountError(t.scan() as Extract<Scan, { step: "pay" }>),
+      "More than the total due (Rs 28,230). Kartik can only be paid up to what is earned so far.",
+    );
+    t.flow.savePayment();
+    await flush();
+    assert.equal(t.step(), "pay", "over the total is not sent");
+    assert.ok(!t.calls.some((c) => c.startsWith("settle")));
+    t.flow.setAmount("5000");
+    t.flow.setMode(7);
+    t.flow.savePayment();
+    await flush();
+    assert.equal(t.step(), "paid");
+    assert.ok(t.calls.includes("settle 5000 mode7 scan"), t.calls.join(" | "));
+    assert.ok(!t.calls.some((c) => c.startsWith("pay salary")), "not the one-month payment");
+    const paid = t.scan() as Extract<Scan, { step: "paid" }>;
+    assert.equal(paid.monthLabel, "Bhadra – Ashwin 2083");
+    assert.deepEqual(
+      paid.split?.map((x) => [x.label, x.amount, x.cleared]),
+      [
+        ["Bhadra 2083", 3000, true],
+        ["Ashwin 2083", 2000, false],
+      ],
+    );
+    assert.equal(paid.paid.due_after, 23230);
+    assert.ok(t.sounds.includes("paid salary 5000"));
   });
 
   it("no salary set up yet: the pay sheet keeps payroll's code so it can offer the Salary tab", async () => {

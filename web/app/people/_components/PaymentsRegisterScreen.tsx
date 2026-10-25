@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useState } from "react";
 import { BSDateRangePicker, BSDateText } from "@/components/date";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -15,6 +15,7 @@ import { formatBs, isValidBs } from "@/lib/bs";
 import { monthLabel, monthName, monthStart, rangeFor } from "../_lib/months";
 import { formatAmount, formatRs, matchesEmployee, paginate } from "../_lib/helpers";
 import { REGISTER_SORTS, displayRows, isRegisterSort } from "../_lib/register";
+import { monthsText } from "../_lib/settle";
 import type { DateRange, PaymentsRegister, RegisterSort, RegisterTypeFilter } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import type { Payment } from "../types";
@@ -65,6 +66,15 @@ export function PaymentsRegisterScreen() {
   const showVoided = params.get("voided") === "1";
   const canVoid = useCanVoid();
   const [voiding, setVoiding] = useState<{ payment: Payment; name: string } | null>(null);
+  // Salary payment groups whose per-month split is open (by the entry's payment id).
+  const [openSplits, setOpenSplits] = useState<Set<number>>(() => new Set());
+  const toggleSplit = (id: number) =>
+    setOpenSplits((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const validRange = isValidBs(from_bs) && isValidBs(to_bs);
   const rangeBad = validRange && from_bs > to_bs;
   const [ask, setAsk] = useState<Ask>(null);
@@ -331,9 +341,12 @@ export function PaymentsRegisterScreen() {
                           </tr>
                         );
                       }
-                      const { payment: p, employee } = item.row;
+                      const { payment: p, employee, split } = item.row;
+                      const multi = split && split.length > 1 ? split : null;
+                      const splitOpen = multi !== null && openSplits.has(p.id);
                       return (
-                      <tr key={p.id} className={p.voided ? shared.voidedRow : undefined}>
+                      <Fragment key={p.id}>
+                      <tr className={p.voided ? shared.voidedRow : undefined}>
                         <td>
                           <BSDateText value={p.date.bs} />
                         </td>
@@ -345,7 +358,18 @@ export function PaymentsRegisterScreen() {
                             </span>
                           </Link>
                         </td>
-                        <td>{monthLabel(p.month)}</td>
+                        <td>
+                          {multi ? (
+                            <button type="button" className={styles.splitToggle} aria-expanded={splitOpen} onClick={() => toggleSplit(p.id)}>
+                              {monthsText(multi.map((x) => x.month))} {multi[multi.length - 1].month.bs_year}
+                              <span className={styles.splitCount}>
+                                {multi.length} months {splitOpen ? "▾" : "▸"}
+                              </span>
+                            </button>
+                          ) : (
+                            monthLabel(p.month)
+                          )}
+                        </td>
                         <td>
                           <span className={p.kind === "advance" ? shared.pillAdvance : shared.pillSalary}>{p.kind === "advance" ? "Advance" : "Salary"}</span>
                         </td>
@@ -378,6 +402,21 @@ export function PaymentsRegisterScreen() {
                           ) : null}
                         </td>
                       </tr>
+                      {splitOpen && multi
+                        ? multi.map((x) => (
+                            <tr key={`split-${x.payment_id}`} className={styles.splitRow} data-voided={p.voided || undefined}>
+                              <td />
+                              <td className={shared.note}>{p.receipt_no}</td>
+                              <td>{monthLabel(x.month)}</td>
+                              <td colSpan={2} className={shared.note}>
+                                part of this payment
+                              </td>
+                              <td className={shared.num}>{formatAmount(x.amount)}</td>
+                              <td colSpan={2} />
+                            </tr>
+                          ))
+                        : null}
+                      </Fragment>
                       );
                     })
                   )}

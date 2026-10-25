@@ -46,7 +46,13 @@ from app.modules.payroll.schemas import (
     RegisterEmployeeTotalOut,
     RegisterRowOut,
     RegisterSort,
+    RegisterSplitOut,
     RegisterTotalsOut,
+    SalaryDueMonthOut,
+    SalaryDuesOut,
+    SalaryPaymentIn,
+    SalaryPaymentOut,
+    SalarySplitOut,
 )
 
 MODULE = "payroll"
@@ -164,7 +170,7 @@ async def check_mode(db: AsyncSession, mode_id: int | None, kind: str) -> Paymen
     return mode
 
 
-def resolve_day(data: PaymentIn) -> date:
+def resolve_day(data: PaymentIn | SalaryPaymentIn) -> date:
     today = bsdate.today_ad()
     if data.date_bs is not None:
         day = bsdate.bs_to_ad(data.date_bs)
@@ -249,7 +255,236 @@ async def record_payment(
     )
 
 
+# ------------------------------------------------------------------- salary settlement
+
+
+async def dues_ledgers(db: AsyncSession, employee: Employee) -> list[MonthLedger]:
+    """The months the Pay salary dialog lists, oldest first: from the oldest month of the kept
+    window with anything due to the running month (months cleared in between included). With
+    nothing due anywhere: the last completed month and the running month."""
+    structures, payments = await employee_data(db, employee)
+    kept = await ledgers.ledgers_kept(
+        employee, structures, payments, saturday_rule=await ledgers.saturday_rule(db)
+    )
+    first = next((i for i, ledger in enumerate(kept) if ledger.due > 0), None)
+    return kept[first:] if first is not None else kept[-2:]
+
+
+def due_month_out(ledger: MonthLedger) -> SalaryDueMonthOut:
+    a = ledger.attendance
+    return SalaryDueMonthOut(
+        month=month_out(ledger.year, ledger.month),
+        label=month_label(ledger.year, ledger.month),
+        in_progress=ledger.in_progress,
+        days_in_month=a.days_in_month,
+        days_counted=a.days_counted,
+        absent=a.absent,
+        net=ledger.net,
+        paid=ledger.paid,
+        due=ledger.due,
+        cleared_on=services.date_both(ledger.cleared_on) if ledger.cleared_on else None,
+    )
+
+
+async def salary_dues(db: AsyncSession, employee: Employee) -> SalaryDuesOut:
+    rows = await dues_ledgers(db, employee)
+    year, month = ledgers.current_month()
+    running = next((r for r in rows if r.in_progress), None)
+    return SalaryDuesOut(
+        employee_id=employee.id,
+        months=[due_month_out(r) for r in rows],
+        total_due=sum(r.due for r in rows),
+        past_due=sum(r.due for r in rows if not r.in_progress),
+        running_month=month_out(year, month),
+        running_due=running.due if running else 0,
+        today=services.date_both(bsdate.today_ad()),
+    )
+
+
+def allocate(
+    amount: int, dues: Sequence[tuple[tuple[int, int], int]]
+) -> list[tuple[tuple[int, int], int]]:
+    """Split ``amount`` over ``(month, due)`` pairs oldest first; months with nothing due are
+    skipped. The caller has checked ``amount <= sum(due)``."""
+    left = amount
+    out: list[tuple[tuple[int, int], int]] = []
+    for month, due in dues:
+        if left <= 0:
+            break
+        if due <= 0:
+            continue
+        part = min(left, due)
+        out.append((month, part))
+        left -= part
+    return out
+
+
+async def pay_salary(
+    db: AsyncSession, actor: User | None, employee: Employee, data: SalaryPaymentIn
+) -> SalaryPaymentOut:
+    """One amount settles the salary due oldest month first, in ONE transaction: one salary row
+    per month (for_year / for_month), all with the same receipt number and payment_group_id.
+    More than the total due is a 422 ``over_total``; the running month only takes what has been
+    earned so far (its ledger due)."""
+    if employee.status != EmployeeStatus.active:
+        raise services.invalid("This employee is no longer active.", "employee_id")
+    if data.amount <= 0:
+        raise services.invalid("Enter an amount above 0.", "amount")
+    # Serialise payments for this employee: the dues are recomputed under the lock.
+    await db.execute(select(Employee.id).where(Employee.id == employee.id).with_for_update())
+    rows = await dues_ledgers(db, employee)
+    total = sum(r.due for r in rows)
+    if data.amount > total:
+        running = next((r for r in rows if r.in_progress), None)
+        detail = f"More than the total due (Rs {total:,})."
+        if running is not None:
+            name = bsdate.bs_month_name(running.month)
+            detail += f" {name} can only be paid up to what is earned so far."
+        raise services.ApiError(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail, "over_total", field="amount", cap=total
+        )
+    mode = await check_mode(db, data.payment_mode_id, "salary")
+    day = resolve_day(data)
+    receipt_no = await next_receipt_no(db, "salary")
+    due_before = {(r.year, r.month): r.due for r in rows}
+    parts = allocate(data.amount, [((r.year, r.month), r.due) for r in rows])
+    created: list[Payment] = []
+    for (year, month), part in parts:
+        payment = Payment(
+            receipt_no=receipt_no,
+            employee_id=employee.id,
+            kind=PaymentKind.salary,
+            for_year=year,
+            for_month=month,
+            amount=part,
+            payment_mode_id=mode.id,
+            date=day,
+            reference=None if mode.type == "cash" else data.reference,
+            note=data.note,
+            source=PaymentSource(data.source),
+            recorded_by=actor.id if actor else None,
+        )
+        db.add(payment)
+        created.append(payment)
+    await db.flush()
+    group_id = created[0].id
+    for payment in created:
+        payment.payment_group_id = group_id
+    await db.flush()
+    await record_audit(
+        db,
+        module=MODULE,
+        action="pay_salary",
+        entity="payment",
+        entity_id=group_id,
+        user_id=actor.id if actor else None,
+        data={
+            "after": {
+                "receipt_no": receipt_no,
+                "employee_id": employee.id,
+                "amount": data.amount,
+                "payment_mode_id": mode.id,
+                "date": day.isoformat(),
+                "source": data.source,
+                "split": [
+                    {
+                        "payment_id": p.id,
+                        "for_year": p.for_year,
+                        "for_month": p.for_month,
+                        "amount": p.amount,
+                    }
+                    for p in created
+                ],
+            }
+        },
+    )
+    await db.commit()
+    for payment in created:
+        await db.refresh(payment)
+    after = {(r.year, r.month): r for r in await dues_ledgers(db, employee)}
+    structures, payments = await employee_data(db, employee)
+    rule = await ledgers.saturday_rule(db)
+    modes = await services.modes_by_id(db)
+    split = []
+    for payment in created:
+        key = (payment.for_year, payment.for_month)
+        ledger = after.get(key) or await ledgers.ledger_for(
+            employee, *key, structures, payments, saturday_rule=rule
+        )
+        cleared = ledger.cleared_on if ledger is not None else None
+        split.append(
+            SalarySplitOut(
+                payment_id=payment.id,
+                month=month_out(*key),
+                label=month_label(*key),
+                amount=payment.amount,
+                due_before=due_before[key],
+                due_after=ledger.due if ledger is not None else 0,
+                cleared_on=services.date_both(cleared) if cleared else None,
+            )
+        )
+    return SalaryPaymentOut(
+        receipt_no=receipt_no,
+        payment_group_id=group_id,
+        amount=data.amount,
+        payment_mode=services.mode_ref(mode),
+        date=services.date_both(day),
+        reference=created[0].reference,
+        payments=[payment_out(p, modes) for p in created],
+        split=split,
+        total_due_after=sum(r.due for r in after.values()),
+    )
+
+
+async def group_rows(db: AsyncSession, payment: Payment) -> list[Payment]:
+    """The payment's group, oldest month first (just the payment when it has none)."""
+    if payment.payment_group_id is None:
+        return [payment]
+    return list(
+        await db.scalars(
+            select(Payment)
+            .where(Payment.payment_group_id == payment.payment_group_id)
+            .order_by(Payment.for_year, Payment.for_month, Payment.id)
+        )
+    )
+
+
 # --------------------------------------------------------------------------- register
+
+
+def collapse_groups(rows: list[RegisterRowOut]) -> list[RegisterRowOut]:
+    """A salary payment group is one register entry: its first row (oldest month) carrying the
+    group's total, with the per-month split. Single payments pass through."""
+    groups: dict[int, list[RegisterRowOut]] = {}
+    for row in rows:
+        if row.payment.payment_group_id is not None:
+            groups.setdefault(row.payment.payment_group_id, []).append(row)
+    out: list[RegisterRowOut] = []
+    for row in rows:
+        group_id = row.payment.payment_group_id
+        if group_id is None:
+            out.append(row)
+            continue
+        members = groups.pop(group_id, None)
+        if members is None:  # already emitted with its first row
+            continue
+        members.sort(key=lambda r: (r.payment.for_year, r.payment.for_month, r.payment.id))
+        first = members[0]
+        out.append(
+            RegisterRowOut(
+                payment=first.payment.model_copy(
+                    update={"amount": sum(m.payment.amount for m in members)}
+                ),
+                employee=first.employee,
+                split=[
+                    RegisterSplitOut(
+                        payment_id=m.payment.id, month=m.payment.month, amount=m.payment.amount
+                    )
+                    for m in members
+                ],
+            )
+        )
+    return out
 
 
 def _sort_key(sort: RegisterSort, all_branches: bool):
@@ -342,10 +577,12 @@ async def register(
         query = query.where(Payment.employee_id == employee_id)
     if not show_voided:
         query = query.where(Payment.voided_at.is_(None))
-    listed = [
-        RegisterRowOut(payment=payment_out(p, modes), employee=emp_out[p.employee_id])
-        for p in await db.scalars(query.order_by(Payment.date, Payment.id))
-    ]
+    listed = collapse_groups(
+        [
+            RegisterRowOut(payment=payment_out(p, modes), employee=emp_out[p.employee_id])
+            for p in await db.scalars(query.order_by(Payment.date, Payment.id))
+        ]
+    )
     in_range = [r for r in listed if not r.payment.voided]
     # Chips: every department of the scope, over the whole range (not the chosen department).
     departments = list(await db.scalars(select(Department).order_by(Department.name)))
@@ -487,29 +724,33 @@ async def get_payment(db: AsyncSession, payment_id: int) -> Payment:
 
 async def void_payment(db: AsyncSession, actor: User, payment: Payment, reason: str) -> PaymentOut:
     """Void a payment for good: it stays listed (struck through) with its receipt number - which
-    is never reused - but counts for nothing from now on. A second void is a 409."""
+    is never reused - but counts for nothing from now on. A second void is a 409. Voiding any
+    row of a salary payment group voids the whole group (same reason): the receipt was one."""
     if payment.voided_at is not None:
         raise services.conflict(
             f"{payment.receipt_no} was already voided ({payment.void_reason}).",
             "payment",
             code="already_voided",
         )
-    payment.voided_at = func.now()
-    payment.voided_by = actor.id
-    payment.void_reason = reason
+    rows = [p for p in await group_rows(db, payment) if p.voided_at is None]
+    for row in rows:
+        row.voided_at = func.now()
+        row.voided_by = actor.id
+        row.void_reason = reason
     await db.flush()
-    await record_audit(
-        db,
-        module=MODULE,
-        action="void",
-        entity="payment",
-        entity_id=payment.id,
-        user_id=actor.id,
-        data={
-            "before": {"receipt_no": payment.receipt_no, "amount": payment.amount},
-            "after": {"voided": True, "reason": reason},
-        },
-    )
+    for row in rows:
+        await record_audit(
+            db,
+            module=MODULE,
+            action="void",
+            entity="payment",
+            entity_id=row.id,
+            user_id=actor.id,
+            data={
+                "before": {"receipt_no": row.receipt_no, "amount": row.amount},
+                "after": {"voided": True, "reason": reason, "group": row.payment_group_id},
+            },
+        )
     await db.commit()
     await db.refresh(payment)
     return payment_out(payment, await services.modes_by_id(db))

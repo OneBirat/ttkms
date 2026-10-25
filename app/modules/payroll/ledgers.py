@@ -93,6 +93,27 @@ class MonthLedger:
     def paid(self) -> int:
         return self.settled.paid
 
+    @property
+    def cleared_on(self) -> date | None:
+        """The day of the (non-voided) payment that brought the month's running paid total up to
+        its net pay - "Cleared Kartik 8". None while anything is due or nothing was earned; a
+        running month that earns more after being cleared is due again (None)."""
+        return cleared_on(self.net, self.payments) if self.due == 0 else None
+
+
+def cleared_on(net: int, payments: Iterable[Payment]) -> date | None:
+    """First payment day (date, then id order) on which the paid total reached ``net``."""
+    if net <= 0:
+        return None
+    total = 0
+    for p in sorted(payments, key=lambda p: (p.date, p.id)):
+        if p.voided_at is not None:
+            continue
+        total += p.amount
+        if total >= net:
+            return p.date
+    return None
+
 
 def rate_of(structure: SalaryHistory) -> int:
     return (

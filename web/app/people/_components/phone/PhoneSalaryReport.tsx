@@ -10,6 +10,7 @@ import { addMonths, compareMonths, monthEnd, monthLabel, monthStart, sameMonth }
 import { formatAmount } from "../../_lib/helpers";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import type { SalaryReport } from "../../types";
+import { monthStatusText } from "../../_lib/settle";
 import styles from "./phone.module.css";
 import shared from "../payroll.module.css";
 
@@ -105,7 +106,7 @@ export function PhoneSalaryReport() {
                   Rs {formatAmount(l.net)}
                 </span>
                 <span className={styles.pill} data-tone={l.due > 0 ? "danger" : "ok"}>
-                  {l.due > 0 ? `Due ${formatAmount(l.due)}` : "Paid"}
+                  {l.due > 0 ? `Due ${formatAmount(l.due)}` : monthStatusText(l)}
                 </span>
               </span>
             </button>

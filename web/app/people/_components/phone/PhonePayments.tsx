@@ -16,6 +16,7 @@ import { formatAmount, groupBy, initials } from "../../_lib/helpers";
 import { REGISTER_SORTS, groupRowsByDepartment, isRegisterSort, type RegisterGroup } from "../../_lib/register";
 import type { Payment, PaymentsRegister, RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
+import { monthsText } from "../../_lib/settle";
 import styles from "./phone.module.css";
 
 const CHIPS: { value: RegisterTypeFilter; label: string }[] = [
@@ -126,6 +127,7 @@ export function PhonePayments() {
           <span className={styles.rowSub} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {sort === "date" ? "" : `${p.date.bs} · `}
             {p.payment_mode.name} · {p.receipt_no}
+            {row.split && row.split.length > 1 ? ` · ${row.split.length} months` : ""}
           </span>
         </span>
         <span className={styles.txBalance}>
@@ -235,8 +237,23 @@ export function PhonePayments() {
                 <b className={`mono ${details.payment.voided ? shared.voidedAmount : ""}`}>Rs {formatAmount(details.payment.amount)}</b>
               </div>
               <span className={styles.rowSub}>
-                {details.payment.date.bs} · for {monthLabel(details.payment.month)} · {details.payment.payment_mode.name} · recorded by {details.payment.recorded_by}
+                {details.payment.date.bs} · for{" "}
+                {details.split && details.split.length > 1 ? monthsText(details.split.map((x) => x.month), monthLabel) : monthLabel(details.payment.month)} ·{" "}
+                {details.payment.payment_mode.name} · recorded by {details.payment.recorded_by}
               </span>
+              {details.split && details.split.length > 1 ? (
+                <div className={styles.recentBox} aria-label="Split by month">
+                  {details.split.map((x) => (
+                    <div key={x.payment_id} className={styles.kvLine} style={{ padding: "8px 12px", fontSize: 13 }}>
+                      <span>{monthLabel(x.month)}</span>
+                      <b className="mono">Rs {formatAmount(x.amount)}</b>
+                    </div>
+                  ))}
+                  <span className={styles.rowSub} style={{ padding: "6px 12px" }}>
+                    Applied to the oldest month first · one receipt
+                  </span>
+                </div>
+              ) : null}
               <VoidedNote payment={details.payment} />
             </div>
             <button

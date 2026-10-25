@@ -7,7 +7,8 @@
 
 import { addMonths, compareMonths, parseMonthKey } from "./months";
 import { groupByDepartment, type DepartmentGroup } from "./helpers";
-import type { BsMonth, Department, Employee, EmployeeSort, MonthLedger, Payment } from "../types";
+import { paymentEntries, type PaymentEntry } from "./settle";
+import type { BsMonth, Department, Employee, EmployeeSort, MonthLedger } from "../types";
 
 // --------------------------------------------------------------------- tabs
 
@@ -165,11 +166,14 @@ export function attendanceReportHref(employeeId: number, month: BsMonth): string
 
 // --------------------------------------------------------- last 6 payments
 
-/** The most recent non-voided payments over every month of the ledger, newest first. */
-export function lastPayments(ledger: readonly MonthLedger[], count = 6): Payment[] {
-  return ledger
+/**
+ * The most recent non-voided payments over every month of the ledger, newest first; a salary
+ * payment split over months (one receipt) is one entry.
+ */
+export function lastPayments(ledger: readonly MonthLedger[], count = 6): PaymentEntry[] {
+  const newestFirst = ledger
     .flatMap((l) => l.payments)
     .filter((p) => !p.voided)
-    .sort((a, b) => b.date.bs.localeCompare(a.date.bs) || b.id - a.id)
-    .slice(0, count);
+    .sort((a, b) => b.date.bs.localeCompare(a.date.bs) || b.id - a.id);
+  return paymentEntries(newestFirst).slice(0, count);
 }

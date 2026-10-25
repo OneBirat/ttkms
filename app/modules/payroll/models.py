@@ -111,6 +111,9 @@ class Payment(Base):
         CheckConstraint("for_month BETWEEN 1 AND 12", name="for_month_range"),
         CheckConstraint("(voided_at IS NULL) = (void_reason IS NULL)", name="void_reason"),
         Index("ix_payments_employee_month", "employee_id", "for_year", "for_month"),
+        # A salary payment group shares one receipt number, one row per month (payroll_0003).
+        Index("uq_payments_receipt_month", "receipt_no", "for_year", "for_month", unique=True),
+        Index("ix_payments_payment_group_id", "payment_group_id"),
         Index("ix_payments_date", "date"),
         Index("ix_payments_payment_mode_id", "payment_mode_id"),
         {"schema": SCHEMA},
@@ -118,7 +121,8 @@ class Payment(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     #: "SAL-0410" / "ADV-0412" from the per-kind sequences, assigned in the insert transaction.
-    receipt_no: Mapped[str] = mapped_column(String(16), nullable=False, unique=True)
+    #: The rows of one salary payment group share it (one per month).
+    receipt_no: Mapped[str] = mapped_column(String(16), nullable=False)
     employee_id: Mapped[int] = mapped_column(
         ForeignKey("core.employees.id", ondelete="RESTRICT"), nullable=False
     )
@@ -146,6 +150,9 @@ class Payment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    #: One "Pay salary" split oldest month first: every row of it carries the id of its first row.
+    #: Null for single payments (advances, the older per-month salary payments).
+    payment_group_id: Mapped[int | None] = mapped_column(Integer)
     #: Voided payments (admin only, with a reason, never undone) stay on record but count for
     #: nothing: not paid, not due, not in totals, exports or the payments-per-month contract.
     voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

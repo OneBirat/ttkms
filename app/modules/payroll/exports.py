@@ -127,6 +127,15 @@ def total(value: int, formula: str | None = None) -> Styled:
 STATUS_LABEL = {"paid": "Paid", "part_paid": "Part paid", "pending": "Pending"}
 
 
+def status_text(status: str, cleared_on: Any = None) -> str:
+    """ "Cleared Kartik 8" once the month's due reached 0 (``cleared_on`` = AD date or a
+    DateBothOut), else Part paid / Pending."""
+    day = getattr(cleared_on, "ad", cleared_on)
+    if day:
+        return f"Cleared {bsdate.format_bs(bsdate.ad_to_bs(day), '%B %-d')}"
+    return STATUS_LABEL[status]
+
+
 # ------------------------------------------------------------------------ salary report
 
 
@@ -176,7 +185,7 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
             Styled(r.pay.net, "number_bold"),
             num(r.settled.paid),
             Styled(r.settled.due, "number_bold"),
-            STATUS_LABEL[r.settled.status],
+            status_text(r.settled.status, r.cleared_on),
         ]
         sheet_rows.append(line)
     if not rows:
@@ -346,6 +355,7 @@ def salary_report_pdf(data: ReportData, printed_by: str) -> bytes:
         "rows": data.ledgers,
         "all_branches": out.branch is None,
         "status_label": STATUS_LABEL,
+        "status_text": status_text,
         "legend_text": (
             "Monthly: net = salary − salary ÷ 30 × absent days + overtime · "
             "Daily: wage × days present + overtime · Saturdays paid · no SSF"
@@ -447,6 +457,15 @@ def _branch_key(row: RegisterRowOut):
     return (row.employee.branch.id, row.employee.branch.name)
 
 
+def months_of(row: RegisterRowOut) -> str:
+    """ "Ashoj 2083", or a salary payment group's split: "Bhadra 2083 3,000 · Ashoj 2083 5,000"."""
+    if row.split and len(row.split) > 1:
+        return " · ".join(
+            f"{month_label(x.month.bs_year, x.month.bs_month)} {x.amount:,}" for x in row.split
+        )
+    return month_label(row.payment.for_year, row.payment.for_month)
+
+
 def register_sheets(data: PaymentsRegisterOut) -> list[Sheet]:
     rows = data.rows
     all_branches = data.branch is None
@@ -494,7 +513,7 @@ def register_sheets(data: PaymentsRegisterOut) -> list[Sheet]:
                 e.full_name,
                 e.department.name if e.department else "",
                 e.branch.name,
-                month_label(p.for_year, p.for_month),
+                months_of(r),
                 _kind_label(p),
                 p.payment_mode.name,
                 " · ".join(x for x in (p.reference, p.note) if x),
@@ -700,7 +719,7 @@ def register_sheets(data: PaymentsRegisterOut) -> list[Sheet]:
                 e.full_name,
                 e.department.name if e.department else "",
                 e.branch.name,
-                month_label(p.for_year, p.for_month),
+                months_of(r),
                 _kind_label(p),
                 p.payment_mode.name,
                 num(p.amount),
@@ -837,7 +856,18 @@ def register_pdf(data: PaymentsRegisterOut, printed_by: str) -> bytes:
     return to_pdf("payroll/register.html", context, landscape=True)
 
 
-def receipt_pdf(employee: Employee, payment: PaymentOut, printed_by: str) -> bytes:
+def receipt_pdf(
+    employee: Employee,
+    payment: PaymentOut,
+    printed_by: str,
+    group: Sequence[PaymentOut] | None = None,
+) -> bytes:
+    """``group`` = the rows of a salary payment group (oldest month first): one receipt for the
+    total, split by month."""
+    rows = list(group or [payment])
+    split = (
+        [(month_label(p.for_year, p.for_month), p.amount) for p in rows] if len(rows) > 1 else []
+    )
     context = {
         "title": f"{'Salary payment' if payment.kind == 'salary' else 'Advance payment'}"
         f" · {payment.receipt_no}",
@@ -845,6 +875,8 @@ def receipt_pdf(employee: Employee, payment: PaymentOut, printed_by: str) -> byt
         "printed_by": printed_by,
         "employee": employee,
         "payment": payment,
+        "amount": sum(p.amount for p in rows),
+        "split": split,
         "month": month_label(payment.for_year, payment.for_month),
         "legend_text": (
             "An advance counts as part of that month's salary; it is not recovered later."
@@ -867,6 +899,7 @@ def payslip_pdf(employee: Employee, ledger: MonthLedgerOut, printed_by: str) -> 
         "ledger": ledger,
         "per_day": per_day,
         "status_label": STATUS_LABEL,
+        "status_text": status_text,
         "month_label": month_label,
         "legend_text": (
             "Net = salary − salary ÷ 30 × absent days + overtime. Saturdays are paid. "

@@ -7,7 +7,8 @@
 import { bsToAd, formatAd, formatAdRange, formatBs, formatBsRange } from "@/lib/bs";
 import { PAY_DAYS } from "./calc";
 import { formatMonthRange, monthLabel } from "./months";
-import { STATUS_LABEL, formatAmount, formatDays, formatRs, toCsv } from "./helpers";
+import { formatAmount, formatDays, formatRs, toCsv } from "./helpers";
+import { monthStatusText } from "./settle";
 import { XLSX_MIME, buildXlsx, cellRef, type Cell, type Sheet } from "./xlsx";
 import { groupRowsByDepartment, type RegisterGroup } from "./register";
 import type { Branch, DepartmentRef, Employee, MonthLedger, Payment, PaymentsRegister, RegisterRow, ReportRow } from "../types";
@@ -69,7 +70,7 @@ export function payrollSheetCsv(rows: ReportRow[]): string {
       ledger.net,
       ledger.paid,
       ledger.due,
-      STATUS_LABEL[ledger.status],
+      monthStatusText(ledger),
     ]),
   );
 }
@@ -91,7 +92,7 @@ export function ledgerCsv(employee: Employee, ledgers: MonthLedger[]): string {
       l.net,
       l.paid,
       l.due,
-      STATUS_LABEL[l.status],
+      monthStatusText(l),
     ]),
   );
 }
@@ -172,7 +173,7 @@ ${line("Net salary", formatRs(l.net), true)}
 </table>
 <h3>Payments</h3>
 <table><tr><th>Date</th><th>Type</th><th>Paid by</th><th class="num">Amount</th></tr>${payments || '<tr><td colspan="4">No payment yet.</td></tr>'}
-<tr class="strong"><td colspan="3">Paid ${formatRs(l.paid)} · due ${formatRs(l.due)}</td><td class="num">${escapeHtml(STATUS_LABEL[l.status])}</td></tr></table>
+<tr class="strong"><td colspan="3">Paid ${formatRs(l.paid)} · due ${formatRs(l.due)}</td><td class="num">${escapeHtml(monthStatusText(l))}</td></tr></table>
 <p class="note">${
     l.pay_type === "monthly"
       ? "Net = salary − salary ÷ 30 × absent days + overtime. Saturdays are paid. Advances are part of this month's salary."

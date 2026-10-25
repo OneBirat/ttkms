@@ -6,14 +6,13 @@ import { useCallback, useId, useMemo } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
-import { Pill } from "@/components/ui/Pill";
 import { Icon } from "@/components/icons";
 import { currentMonth, getSalaryReport, listBranches, listDepartments, listMonths, salaryReportExportUrl } from "../api";
 import { BranchSwitcher } from "./BranchSwitcher";
+import { MonthStatusPill } from "./MonthStatusPill";
 import { useReportBranch, waitForBranch } from "../_lib/useBranchScope";
 import { monthKey, monthLabel, monthName, parseMonthKey, sameMonth } from "../_lib/months";
 import {
-  STATUS_LABEL,
   formatAmount,
   formatDeduction,
   formatLakh,
@@ -23,7 +22,6 @@ import {
   paginate,
   percentChange,
   sortRows,
-  statusPill,
 } from "../_lib/helpers";
 import type { ReportSort, SalaryReport } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
@@ -258,11 +256,7 @@ export function SalaryReportScreen() {
                         <td className={shared.num}>{formatDeduction(ledger.advance_paid)}</td>
                         <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(ledger.net)}</td>
                         <td>
-                          {ledger.status === "pending" ? (
-                            <span className={shared.pillNeutral}>Pending</span>
-                          ) : (
-                            <Pill status={statusPill(ledger.status)} label={STATUS_LABEL[ledger.status]} />
-                          )}
+                          <MonthStatusPill ledger={ledger} />
                         </td>
                       </tr>
                     ))

@@ -134,8 +134,8 @@ test("Last 6 payments: newest first, voided left out, across months", () => {
     { month: { bs_year: 2083, bs_month: 5 }, payments: [pay(1, "2083-05-01"), pay(2, "2083-05-09"), pay(3, "2083-06-01"), pay(4, "2083-06-01", "advance", true)] },
   ];
   const last = lastPayments(ledger);
-  assert.deepEqual(last.map((p) => p.id), [9, 7, 6, 5, 3, 2]);
-  assert.ok(last.every((p) => !p.voided));
+  assert.deepEqual(last.map((e) => e.payment.id), [9, 7, 6, 5, 3, 2]);
+  assert.ok(last.every((e) => !e.payment.voided));
   const html = renderToStaticMarkup(createElement(LastPaymentsCard, { ledger, onOpenLedger: () => {} }));
   assert.match(html, /Last 6 payments/);
   assert.match(html, /Open ledger ›/);
@@ -143,4 +143,20 @@ test("Last 6 payments: newest first, voided left out, across months", () => {
   assert.doesNotMatch(html, /ADV-10|ADV-4"/);
   assert.match(html, /for Kartik 2083 · Cash/);
   assert.match(html, />Advance</);
+});
+
+test("Last 6 payments: a salary payment split over months is one entry", () => {
+  const g = (id, m, amount) => ({ ...pay(id, "2083-07-08"), month: { bs_year: 2083, bs_month: m }, amount, payment_group_id: 20 });
+  const ledger = [
+    { month: { bs_year: 2083, bs_month: 7 }, payments: [pay(30, "2083-07-09", "advance")] },
+    { month: { bs_year: 2083, bs_month: 6 }, payments: [g(22, 6, 5000)] },
+    { month: { bs_year: 2083, bs_month: 5 }, payments: [g(20, 5, 3000), pay(4, "2083-05-02")] },
+  ];
+  const last = lastPayments(ledger);
+  assert.equal(last.length, 3);
+  assert.equal(last[1].payment.amount, 8000);
+  assert.deepEqual(last[1].months, [{ bs_year: 2083, bs_month: 5 }, { bs_year: 2083, bs_month: 6 }]);
+  assert.deepEqual(last[1].ids.sort(), [20, 22]);
+  const html = renderToStaticMarkup(createElement(LastPaymentsCard, { ledger, onOpenLedger: () => {} }));
+  assert.match(html, /for Bhadra 2083 – Ashwin 2083 · Cash/);
 });

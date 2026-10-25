@@ -66,6 +66,8 @@ summary and the month's payments (`ledgerFor` in api.ts shows the exact derivati
 | GET | /months | → BsMonth[] |
 | GET | /balance?employee_id&bs_year&bs_month | → MonthBalance (cross-module) |
 | POST | /payments | PaymentInput → PaymentResult (422 + field when amount is 0 / above due / future) |
+| GET | /employees/{id}/salary-dues | → SalaryDues: oldest month with anything due → running month (cleared months in between, with `cleared_on`), `total_due`, `past_due`, `running_due` |
+| POST | /salary-payments | SalaryPaymentInput → 201 SalaryPaymentResult: one amount split oldest month first in ONE transaction - one salary row per month, one receipt number, one `payment_group_id`; 422 `over_total` (+ `cap`) above the total due; the running month only up to earned so far |
 | GET | /employees/{id}/transactions | → EmployeeLedger (running balance) |
 | GET | /employees/{id}/summary | → AccountSummary (Give advance / Pay salary) |
 | GET | /payments?from_bs&to_bs&type&employee_id&branch_id&department_id&sort | → PaymentsRegister (BS date range; `branch_id` (omitted = all branches; users without `see_other_branches` are always scoped to their own branch) and `department_id` scope rows, tiles, by_employee and the `by_department` chip counts; `sort` = date (default, newest first) \| branch (A-Z) \| department (A-Z, inside each branch when all branches) \| employee (A-Z) \| amount (high → low); `by_branch` = salary / advances / total / count per branch of the range; 404 unknown branch or department) |
@@ -93,12 +95,30 @@ Left list = the staff of the employee's branch only ("Staff · {Branch}", own de
 dark header); « collapses it to a 72px avatar strip (tooltip "Name · E-001", current ringed, separators
 between departments, a dark one before the own department), » opens it again; remembered in
 localStorage `ttk.people.staffList.collapsed`. Tabs: Overview · Salary · Ledger · Documents. "Pay salary"
-opens the payment dialog on payroll's settlement month (`summary.salary_month`; the month can be
-changed there). Salary tab cards: **Attendance** (manage_employees or view_attendance_report) from
+opens the Pay salary dialog (see below). Salary tab cards: **Attendance** (manage_employees or view_attendance_report) from
 `GET /api/attendance/employees/{id}/month` - Sun–Sat grid, chips, ‹ › from the joining month to the
 running month, "View all ›" to `/attendance/report?employee=&bs_year=&bs_month=`; no attendance money is
 shown. **Last 6 payments** (salary_advances): newest non-voided payments from the ledger, "Open ledger ›".
 Revise salary lives in Edit profile › Salary. Rules in `_lib/account.ts` (tested).
+
+## Pay salary - one amount, oldest month first (2026-10-25)
+
+`PaySalaryDialog` (desktop, with the Give advance "Recent payments" panel) and the phone `PaySheet`'s
+Salary tab both render `SalaryPayForm`: the "Salary due · oldest first" table from `/salary-dues`, the
+amount pre-filled with `past_due` (else the total), quick amounts (All past months · Everything incl.
+{running month} · 5,000 · 10,000), the red "More than the total due…" state, the live "This payment covers"
+split, Paid by Cash | Other ▾ (+ Reference), today's BS date; then "Salary paid" with the split chips and
+"Nothing due now · all cleared {date}" / "Still due". `POST /salary-payments` does the split for real. The
+attendance scan flow's salary step uses the same two endpoints (`salaryDues` / `paySalary` deps).
+
+A group (rows sharing `payment_group_id`) is one entry everywhere a payment is listed: Payment reports
+(`RegisterRow.split`, expandable on desktop, in the details sheet on the phone), the receipt PDF (total +
+months), Recent payments and Last 6 payments (`paymentEntries`). The ledger and the per-month totals use
+the per-month rows. Voiding any row voids the whole group (same reason).
+
+Every month whose due reached 0 shows a tick + "Cleared {BS date}" (`MonthLedger.cleared_on` = the day of
+the non-voided payment that brought the paid total up to the net) instead of "Paid": salary ledger,
+Salary report (screen, PDF, Excel), payslip, phone. Rules in `_lib/settle.ts` (tested).
 
 ## Recorded by (2026-10-25)
 

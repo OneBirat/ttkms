@@ -198,6 +198,8 @@ export interface Payment {
   recorded_by: string;
   source: PaymentSource;
   created_at: string;
+  /** One "Pay salary" split oldest month first: its rows share this and the receipt number. */
+  payment_group_id?: number | null;
   /** Voided (admin, with a reason, never undone): listed struck through, counted nowhere. */
   voided?: boolean;
   voided_at?: string | null;
@@ -247,6 +249,8 @@ export interface MonthLedger {
   /** max(0, net − paid) */
   due: number;
   status: MonthStatus;
+  /** Day of the payment that brought the paid total up to the net ("Cleared Kartik 8"); null while due. */
+  cleared_on?: DateBoth | null;
   payments: Payment[];
 }
 
@@ -305,6 +309,73 @@ export interface PaymentResult {
   payment: Payment;
   /** Balance due for that month after this payment. */
   due_after: number;
+}
+
+/** One row of the Pay salary dialog's "Salary due · oldest first". */
+export interface SalaryDueMonth {
+  month: BsMonth;
+  /** "Kartik 2083" */
+  label: string;
+  in_progress: boolean;
+  days_in_month: number;
+  /** The running month: days counted so far. */
+  days_counted: number;
+  absent: number;
+  net: number;
+  /** Salary + advances paid (voided left out). */
+  paid: number;
+  due: number;
+  cleared_on: DateBoth | null;
+}
+
+/** GET /api/payroll/employees/{id}/salary-dues — oldest month with anything due → running month. */
+export interface SalaryDues {
+  employee_id: number;
+  months: SalaryDueMonth[];
+  /** Completed months + the running month up to earned so far. */
+  total_due: number;
+  /** Completed months only ("All past months"). */
+  past_due: number;
+  running_month: BsMonth;
+  running_due: number;
+  today: DateBoth;
+}
+
+/** POST /api/payroll/salary-payments — one amount, applied oldest month first. */
+export interface SalaryPaymentInput {
+  employee_id: number;
+  amount: number;
+  payment_mode_id?: number | null;
+  reference?: string | null;
+  note?: string | null;
+  /** BS "YYYY-MM-DD"; today when omitted. */
+  date_bs?: string | null;
+  source: PaymentSource;
+}
+
+export interface SalarySplit {
+  payment_id: number;
+  month: BsMonth;
+  label: string;
+  amount: number;
+  due_before: number;
+  due_after: number;
+  /** Set when this payment cleared the month. */
+  cleared_on: DateBoth | null;
+}
+
+export interface SalaryPaymentResult {
+  receipt_no: string;
+  payment_group_id: number;
+  amount: number;
+  payment_mode: PaymentModeRef;
+  date: DateBoth;
+  reference: string | null;
+  /** The per-month rows, oldest month first. */
+  payments: Payment[];
+  split: SalarySplit[];
+  /** What is still due over every month afterwards. */
+  total_due_after: number;
 }
 
 // ----------------------------------------------------------- reports
@@ -374,8 +445,11 @@ export interface SalaryReport {
 
 /** One line of the payments register. */
 export interface RegisterRow {
+  /** A salary payment group: its first row (oldest month) with amount = the group's total. */
   payment: Payment;
   employee: Employee;
+  /** The group's per-month rows, oldest month first; null/absent for a single payment. */
+  split?: { payment_id: number; month: BsMonth; amount: number }[] | null;
 }
 
 /**

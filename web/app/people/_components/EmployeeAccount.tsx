@@ -10,13 +10,14 @@ import { BarcodeDialog } from "./BarcodeDialog";
 import { EditProfileDialog } from "./EditProfileDialog";
 import { LedgerTable } from "./LedgerTable";
 import { PaymentDialog } from "./PaymentDialog";
+import { PaySalaryDialog } from "./PaySalaryDialog";
 import { PhotoDialog } from "./PhotoDialog";
 import { ReviseSalaryDialog } from "./ReviseSalaryDialog";
 import { TransactionsLedger } from "./TransactionsLedger";
 import { AttendanceCalendarCard } from "./AccountCards";
 import { LastPaymentsCard } from "./LastPaymentsCard";
 import { ACCOUNT_TABS, type AccountTab } from "../_lib/account";
-import { currentMonth, getEmployee, getLedger, getSalaryStructure, suggestPayMonth } from "../api";
+import { currentMonth, getEmployee, getLedger, getSalaryStructure } from "../api";
 import { BSDateText } from "@/components/date";
 import { formatBs } from "@/lib/bs";
 import { monthLabel, monthName } from "../_lib/months";
@@ -35,7 +36,8 @@ type Dialog =
   | { kind: "photo" }
   | { kind: "barcode" }
   | { kind: "advance" }
-  | { kind: "payment"; purpose: "salary" | "record"; month: BsMonth };
+  | { kind: "salary" }
+  | { kind: "payment"; purpose: "record"; month: BsMonth };
 
 export interface EmployeeAccountProps {
   id: number;
@@ -52,7 +54,6 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
   const employee = usePayroll(() => getEmployee(id), [id]);
   const structure = usePayroll(() => getSalaryStructure(id), [id]);
   const ledger = usePayroll(() => getLedger(id), [id]);
-  const payMonth = usePayroll(() => suggestPayMonth(id), [id]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null);
 
@@ -80,8 +81,6 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
     );
   }
 
-  // "Pay salary" opens on payroll's settlement month; the dialog lets the month be changed.
-  const month = payMonth.data ?? currentMonth();
   const meta = [person.designation, person.department?.name, person.code].filter(Boolean).join(" · ");
   const current = structure.data?.current ?? null;
 
@@ -128,7 +127,7 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
           <button type="button" className={`btn ${styles.advanceButton}`} onClick={() => setDialog({ kind: "advance" })}>
             Give advance
           </button>
-          <button type="button" className="btn btn--primary" onClick={() => setDialog({ kind: "payment", purpose: "salary", month })}>
+          <button type="button" className="btn btn--primary" onClick={() => setDialog({ kind: "salary" })}>
             Pay salary
           </button>
         </div>
@@ -199,6 +198,18 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
       <BarcodeDialog open={dialog?.kind === "barcode"} employee={person} onClose={() => setDialog(null)} />
       {dialog?.kind === "advance" ? (
         <AdvanceDialog
+          open
+          employee={person}
+          manageModes={isAdmin}
+          onClose={() => setDialog(null)}
+          onOpenLedger={() => {
+            setDialog(null);
+            onTab("ledger");
+          }}
+        />
+      ) : null}
+      {dialog?.kind === "salary" ? (
+        <PaySalaryDialog
           open
           employee={person}
           manageModes={isAdmin}

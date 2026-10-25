@@ -34,6 +34,9 @@ import type {
   SalaryReport,
   SalaryRevisionIn,
   SalaryStructure,
+  SalaryDues,
+  SalaryPaymentInput,
+  SalaryPaymentResult,
 } from "./types";
 
 export type { Role };
@@ -251,6 +254,19 @@ export async function getBalance(employee_id: number, month: BsMonth): Promise<M
 /** POST /api/payroll/payments -> 201 (422 with `field`: amount / over_room / over_due / payment_mode_id / date_bs / for_month) */
 export async function recordPayment(input: PaymentInput): Promise<PaymentResult> {
   return mutate(apiFetch<PaymentResult>("/api/payroll/payments", { method: "POST", json: input }));
+}
+
+/** GET /api/payroll/employees/{id}/salary-dues (salary_advances) */
+export async function getSalaryDues(employee_id: number): Promise<SalaryDues> {
+  return apiFetch<SalaryDues>(`/api/payroll/employees/${employee_id}/salary-dues`);
+}
+
+/**
+ * POST /api/payroll/salary-payments -> 201: the amount split oldest month first, one receipt
+ * (422 code over_total with `cap` when above the total due).
+ */
+export async function paySalary(input: SalaryPaymentInput): Promise<SalaryPaymentResult> {
+  return mutate(apiFetch<SalaryPaymentResult>("/api/payroll/salary-payments", { method: "POST", json: input }));
 }
 
 /**

@@ -1,25 +1,22 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { Pill } from "@/components/ui/Pill";
 import { PayrollIcon } from "./icons";
 import { BSDateText } from "@/components/date";
-import { formatBsShort } from "@/lib/bs";
 import { formatMonthRange, monthLabel } from "../_lib/months";
 import { payslipUrl, receiptUrl } from "../api";
 import { downloadText, ledgerCsv, modeLabel } from "../_lib/exports";
 import {
-  STATUS_LABEL,
   formatAddition,
   formatAmount,
   formatDays,
   formatDeduction,
   formatPaidDays,
   formatRs,
-  statusPill,
 } from "../_lib/helpers";
 import type { BsMonth, Employee, MonthLedger, Payment } from "../types";
 import { VoidPaymentDialog, VoidedNote, useCanVoid } from "./VoidPaymentDialog";
+import { MonthStatusPill } from "./MonthStatusPill";
 import styles from "./employees.module.css";
 import shared from "./payroll.module.css";
 
@@ -29,13 +26,7 @@ export interface LedgerTableProps {
   onRecordPayment: (month: BsMonth) => void;
 }
 
-function StatusPill({ ledger }: { ledger: MonthLedger }) {
-  if (ledger.status === "pending") return <span className={shared.pillNeutral}>Pending</span>;
-  const counted = ledger.payments.filter((p) => !p.voided);
-  const last = counted[counted.length - 1];
-  const label = ledger.status === "paid" && last ? `Paid ${formatBsShort(last.date.bs)}` : STATUS_LABEL[ledger.status];
-  return <Pill status={statusPill(ledger.status)} label={label} />;
-}
+const StatusPill = MonthStatusPill;
 
 /** Month rows; clicking one expands a detail row inside the table (no side panel). */
 export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTableProps) {

@@ -4,8 +4,10 @@
  *   camera → (code) → found | already | missing
  *   found   → Present / Overtime → done  → 3 s → camera (last = summary)
  *   already → Salary / Advance → pay → history ⇄ pay → paid → 3 s → camera
- *             (only with salary_advances: `canPay`; an advance counts for the running month,
- *              a salary for payroll's settlement month - the balance names it)
+ *             (only with salary_advances: `canPay`; an advance counts for the running month.
+ *              A salary is ONE amount over the salary due, oldest month first - api.salaryDues /
+ *              api.paySalary, payroll's POST /salary-payments; without those deps it counts for
+ *              payroll's settlement month as before)
  *   any sheet → Cancel · skip / Back → camera, nothing saved
  *
  * Timers, clock and the API are injected so the whole loop runs under
@@ -30,6 +32,8 @@ import type {
   ScanResponse,
 } from "../types";
 import { CASH_PAYMENT_MODE_ID } from "../types";
+import type { SalaryDues } from "@/app/people/types";
+import { overMessage } from "@/app/people/_lib/settle";
 
 // ------------------------------------------------------------ state
 
@@ -46,6 +50,26 @@ export interface PayFields {
   mode: number;
   /** The API's error code with `error` ("no_salary" = no salary set up yet). */
   errorCode?: string | null;
+  /**
+   * Salary with api.salaryDues: the salary due oldest month first (null while loading). The
+   * amount is capped at its total and applied oldest month first. Undefined = the older
+   * one-month payment.
+   */
+  dues?: SalaryDues | null;
+}
+
+/** One month of a saved salary payment (the paid sheet's chips). */
+export interface PaidSplit {
+  label: string;
+  amount: number;
+  cleared: boolean;
+}
+
+/** api.paySalary's answer: the one receipt (amount = the total) and its split by month. */
+export interface SalaryPaid extends PaymentResult {
+  split: PaidSplit[];
+  /** "Bhadra – Kartik 2083" */
+  months_label: string;
 }
 
 interface Person {
@@ -92,6 +116,8 @@ export type Scan =
       monthLabel: string;
       /** Paid in the month including this payment (the paid sheet's "Paid in {month}" tile). */
       monthPaid: number;
+      /** A salary settled oldest month first: one entry per month. */
+      split?: PaidSplit[];
     };
 
 export type ScanStep = Scan["step"];
@@ -125,6 +151,10 @@ export interface ScanFlowApi {
   /** Payments of that month (`monthKey` = the balance's month_key). */
   history(employeeId: number, monthKey: string): Promise<PaymentHistory>;
   pay(input: PaymentInput): Promise<PaymentResult>;
+  /** Salary due oldest month first (payroll GET /employees/{id}/salary-dues). */
+  salaryDues?(employeeId: number): Promise<SalaryDues>;
+  /** One amount over the salary due, oldest month first (payroll POST /salary-payments). */
+  paySalary?(input: { employee_id: number; amount: number; payment_mode_id: number; source: "scan" }): Promise<SalaryPaid>;
   employeeMonth(employeeId: number, monthKey: string): Promise<EmployeeMonth>;
 }
 
@@ -205,14 +235,28 @@ export function paySummary(employee: EmployeeRef, type: PaymentType, amount: num
 }
 
 /** Rupees the pay sheet is about to save: the quick pick or the custom amount. */
-export function amountOf(fields: Pick<PayFields, "pick" | "amount" | "balance">): number {
+export function amountOf(fields: Pick<PayFields, "pick" | "amount" | "balance" | "dues">): number {
+  if (fields.dues) {
+    // Settling the salary due: "past" = every completed month (else everything), "full" = all.
+    if (fields.pick === "past") return fields.dues.past_due || fields.dues.total_due;
+    if (fields.pick === "full") return fields.dues.total_due;
+  }
   if (fields.pick === "full") return fields.balance?.due ?? 0;
   if (fields.pick === null || fields.pick === "custom") return Number.parseInt(fields.amount || "0", 10) || 0;
   return Number.parseInt(fields.pick, 10) || 0;
 }
 
 /** Validation text for the pay sheet; null when the amount can be saved. */
-export function amountError(fields: Pick<PayFields, "pick" | "amount" | "balance">): string | null {
+export function amountError(fields: Pick<PayFields, "pick" | "amount" | "balance" | "dues">): string | null {
+  if (fields.dues !== undefined) {
+    const d = fields.dues;
+    if (!d) return "Loading the salary due…";
+    const amount = amountOf(fields);
+    if (fields.pick === null) return "Pick an amount.";
+    if (!Number.isFinite(amount) || amount <= 0) return d.total_due > 0 ? "Enter an amount above 0." : "Nothing is due.";
+    if (amount > d.total_due) return overMessage(d);
+    return null;
+  }
   const b = fields.balance;
   if (!b) return "Loading the balance…";
   const amount = amountOf(fields);
@@ -346,6 +390,17 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
         setScan({ ...s, ...patch });
       }
     };
+    if (kind === "salary" && deps.api.salaryDues) {
+      deps.api
+        .salaryDues(employeeId)
+        .then((dues) => apply({ dues }))
+        .catch((err: unknown) => {
+          const s = state.scan;
+          if (seq === loadSeq && s && (s.step === "pay" || s.step === "history")) {
+            setScan({ ...s, error: messageOf(err, "Could not load the salary due."), errorCode: codeOf(err) });
+          }
+        });
+    }
     deps.api
       .balance(employeeId, kind)
       .then((balance) => {
@@ -479,9 +534,45 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
       });
   };
 
+  const saveSalary = (s: Extract<Scan, { step: "pay" }>, paySalary: NonNullable<ScanFlowApi["paySalary"]>) => {
+    const amount = amountOf(s);
+    const emp = s.emp;
+    setScan({ ...s, busy: true, error: null });
+    paySalary({ employee_id: emp.id, amount, payment_mode_id: s.mode, source: "scan" })
+      .then((paid) => {
+        if (disposed) return;
+        const cur = scanIs("pay");
+        if (!cur || cur.emp.id !== emp.id) return;
+        const token = now();
+        const summary = paySummary(emp, "salary", amount);
+        set({
+          scan: { step: "paid", emp, token, summary, type: "salary", paid, monthLabel: paid.months_label, monthPaid: amount, split: paid.split },
+          count: state.count + 1,
+        });
+        safe(() => sounds.paid?.(emp, "salary", amount));
+        scheduleReturn(token, summary, autoReturnMs.paid);
+      })
+      .catch((err: unknown) => {
+        if (disposed) return;
+        const cur = scanIs("pay");
+        if (cur && cur.emp.id === emp.id) {
+          setScan({ ...cur, busy: false, error: messageOf(err, "Could not record the payment.") });
+        }
+      });
+  };
+
   const savePayment = () => {
     const s = scanIs("pay");
     if (!s || s.busy) return;
+    if (s.type === "salary" && s.dues !== undefined && deps.api.paySalary) {
+      const error = amountError(s);
+      if (error) {
+        setScan({ ...s, error });
+        return;
+      }
+      saveSalary(s, deps.api.paySalary);
+      return;
+    }
     const error = amountError(s);
     if (error || !s.balance) {
       setScan({ ...s, error: error ?? "Loading the balance…" });
@@ -644,16 +735,18 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
     choosePayment: (type) => {
       const s = scanIs("already");
       if (!s || !canPay()) return;
+      const settles = type === "salary" && Boolean(deps.api.salaryDues && deps.api.paySalary);
       setScan({
         step: "pay",
         emp: s.emp,
         code: s.code,
         current: s.current,
         type,
-        pick: type === "salary" ? "full" : null,
+        pick: type === "salary" ? (settles ? "past" : "full") : null,
         amount: "",
         balance: null,
         history: null,
+        ...(settles ? { dues: null } : {}),
         mode: CASH_PAYMENT_MODE_ID,
         busy: false,
         error: null,

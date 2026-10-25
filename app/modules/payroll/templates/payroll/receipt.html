@@ -1,11 +1,15 @@
 {% extends "print/base.html" %}
 {% block content %}
-<p class="print-intro" style="font-size: 26px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: #1B2328">Rs {{ "{:,}".format(payment.amount) }}</p>
+<p class="print-intro" style="font-size: 26px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; color: #1B2328">Rs {{ "{:,}".format(amount) }}</p>
 <table class="pg" style="width: 70%">
   <tbody>
     <tr><td class="nm">Receipt no.</td><td class="tt">{{ payment.receipt_no }}</td></tr>
     <tr><td class="nm">Employee</td><td class="nm">{{ employee.full_name }} · {{ employee.code }}{% if employee.full_name_np %} · <span lang="ne">{{ employee.full_name_np }}</span>{% endif %}</td></tr>
+    {% if split %}
+    <tr><td class="nm">For months</td><td class="nm">{% for label, part in split %}{{ label }} · Rs {{ "{:,}".format(part) }}{% if not loop.last %}<br>{% endif %}{% endfor %}<br><span style="color: #5F6B73">Applied to the oldest month first.</span></td></tr>
+    {% else %}
     <tr><td class="nm">For month</td><td class="nm">{{ month }}</td></tr>
+    {% endif %}
     <tr><td class="nm">Date</td><td class="nm">{{ payment.date.bs }} · {{ payment.date.ad }}</td></tr>
     <tr><td class="nm">Paid by</td><td class="nm">{{ payment.payment_mode.name }}{% if payment.reference %} · {{ payment.reference }}{% endif %}</td></tr>
     <tr><td class="nm">Recorded by</td><td class="nm">{{ payment.recorded_by or "system" }}{% if payment.source == "scan" %} (attendance scan){% endif %}</td></tr>

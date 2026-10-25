@@ -13,6 +13,9 @@ import { monthLabel, parseMonthKey } from "@/lib/bs";
 import { listMonths as calendarMonths, todayRef } from "./calendar";
 import { buildExportModel, type ExportContext } from "./exportModel";
 import { buildPrintDocument } from "./print";
+import type { SalaryDues, SalaryPaymentResult } from "@/app/people/types";
+import { monthsText } from "@/app/people/_lib/settle";
+import type { SalaryPaid } from "./scan/scanFlow";
 import type {
   BulkMarkRequest,
   BulkMarkResponse,
@@ -268,6 +271,32 @@ export async function getPaymentHistoryFor(employeeId: number, monthKey: string)
     }
     throw err;
   }
+}
+
+/** PAYROLL: GET /api/payroll/employees/{id}/salary-dues - the salary due, oldest month first. */
+export async function getSalaryDues(employeeId: number): Promise<SalaryDues> {
+  return apiFetch<SalaryDues>(`/api/payroll/employees/${employeeId}/salary-dues`);
+}
+
+/**
+ * PAYROLL: POST /api/payroll/salary-payments - the scan flow's salary payment: one amount applied
+ * oldest month first under one receipt (422 over_total above the total due).
+ */
+export async function paySalaryFromScan(input: {
+  employee_id: number;
+  amount: number;
+  payment_mode_id: number;
+  source: "scan";
+}): Promise<SalaryPaid> {
+  const r = await apiFetch<SalaryPaymentResult>("/api/payroll/salary-payments", { method: "POST", json: input });
+  const first = r.payments[0] as unknown as PayrollPayment;
+  const year = r.split[r.split.length - 1]?.month.bs_year;
+  return {
+    payment: { ...paymentRecord(first), amount: r.amount },
+    due_after: r.total_due_after,
+    split: r.split.map((s) => ({ label: s.label, amount: s.amount, cleared: Boolean(s.cleared_on) })),
+    months_label: `${monthsText(r.split.map((s) => s.month))}${year ? ` ${year}` : ""}`,
+  };
 }
 
 /**

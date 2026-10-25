@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "@/components/icons";
 import { BottomSheet } from "./BottomSheet";
 import { PaidByPicker, modesFor } from "../PaidByPicker";
+import { SalaryPayForm } from "../SalaryPayForm";
 import { getAccountSummary, listPaymentModes, receiptUrl, recordPayment } from "../../api";
 import { formatBs, formatBsShort } from "@/lib/bs";
 import { monthName, today } from "../../_lib/months";
@@ -24,8 +25,8 @@ export interface PaySheetProps {
 
 /**
  * Give advance / Pay salary bottom sheet (design PayrollMobile). Advances go
- * against the running month (capped at what is earned so far); salary goes
- * against the month still due. Paid by: Cash | Other ▾ (active modes).
+ * against the running month (capped at what is earned so far); salary is the
+ * shared SalaryPayForm (one amount, oldest month first). Paid by: Cash | Other ▾.
  */
 export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PaySheetProps) {
   const summary = usePayroll(() => getAccountSummary(employee.id), [employee.id]);
@@ -51,19 +52,16 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
 
   const s = summary.data;
   const isSalary = type === "salary";
-  const room = s ? (isSalary ? s.salary_due : s.room) : 0;
+  // Salary has its own form (SalaryPayForm); what follows is the advance.
+  const room = s ? s.room : 0;
   const amountNumber = amount ? Number(amount) : 0;
   const valid = Number.isInteger(amountNumber) && amountNumber > 0;
   const over = valid && amountNumber > room;
-  const allowed = modesFor(modes.data ?? [], type);
+  const allowed = modesFor(modes.data ?? [], "advance");
   const effectiveMode = allowed.find((m) => m.id === modeId) ?? allowed[0] ?? null;
   const canSave = valid && !over && !saving && Boolean(s) && Boolean(effectiveMode);
-  const month = s ? (isSalary ? s.salary_month : s.month) : null;
-  const quick: { value: number; label: string }[] = isSalary
-    ? room > 0
-      ? [{ value: room, label: `Full ${formatAmount(room)}` }]
-      : []
-    : [...ADVANCE_QUICK.filter((v) => v <= room).map((v) => ({ value: v, label: formatAmount(v) })), ...(room > 0 && !ADVANCE_QUICK.includes(room as 500) ? [{ value: room, label: `Max ${formatAmount(room)}` }] : [])];
+  const month = s ? s.month : null;
+  const quick: { value: number; label: string }[] = [...ADVANCE_QUICK.filter((v) => v <= room).map((v) => ({ value: v, label: formatAmount(v) })), ...(room > 0 && !ADVANCE_QUICK.includes(room as 500) ? [{ value: room, label: `Max ${formatAmount(room)}` }] : [])];
 
   const save = async () => {
     if (!canSave || !s || !effectiveMode || !month) return;
@@ -74,7 +72,7 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
         employee_id: employee.id,
         for_year: month.bs_year,
         for_month: month.bs_month,
-        kind: type,
+        kind: "advance",
         amount: amountNumber,
         payment_mode_id: effectiveMode.id,
         reference,
@@ -90,6 +88,26 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
   };
 
   const recent = (s?.recent ?? []).slice(0, 4);
+  const typeToggle = (
+    <div className={styles.typeToggle} role="group" aria-label="Payment type">
+      {(["advance", "salary"] as PaymentType[]).map((k) => (
+        <button
+          key={k}
+          type="button"
+          className={styles.typeOption}
+          data-type={k}
+          aria-pressed={type === k}
+          onClick={() => {
+            setType(k);
+            setAmount("");
+            setModeId(null);
+          }}
+        >
+          {k === "advance" ? "Advance" : "Salary"}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <BottomSheet open={open} label={isSalary ? "Pay salary" : "Give advance"} onClose={onClose}>
@@ -98,9 +116,9 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
           {initials(employee.full_name)}
         </span>
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-          <h2 className={styles.sheetTitle}>{isSalary ? `Pay ${month ? monthName(month) : ""} salary` : "Give advance"}</h2>
+          <h2 className={styles.sheetTitle}>{isSalary ? "Pay salary" : "Give advance"}</h2>
           <span className={styles.rowSub}>
-            {employee.full_name} · {employee.code} · {employee.department?.name ?? "—"}
+            {[employee.full_name, employee.code, employee.department?.name, employee.branch.name].filter(Boolean).join(" · ")}
           </span>
         </div>
         <span className={styles.pill} data-tone={isSalary ? "ok" : "advance"} lang="ne" style={{ fontSize: 12 }}>
@@ -108,7 +126,11 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
         </span>
       </div>
 
-      {done ? (
+      {!done || isSalary ? typeToggle : null}
+
+      {isSalary ? (
+        <SalaryPayForm key={employee.id} employee={employee} variant="phone" manageModes={isAdmin} onCancel={onClose} onDone={onClose} />
+      ) : done ? (
         <>
           <div className={shared.doneBox} style={{ padding: "18px 0" }} role="status">
             <span className={shared.doneBadge} data-tone={done.payment.kind}>
@@ -136,31 +158,13 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
         </>
       ) : (
         <>
-          <div className={styles.typeToggle} role="group" aria-label="Payment type">
-            {(["advance", "salary"] as PaymentType[]).map((k) => (
-              <button
-                key={k}
-                type="button"
-                className={styles.typeOption}
-                data-type={k}
-                aria-pressed={type === k}
-                onClick={() => {
-                  setType(k);
-                  setAmount("");
-                  setModeId(null);
-                }}
-              >
-                {k === "advance" ? "Advance" : `Salary${s ? ` (${monthName(s.salary_month)})` : ""}`}
-              </button>
-            ))}
-          </div>
           <div className={styles.tiles3}>
             <div className={shared.tile} data-tone="ok">
               <span className={shared.tileLabel} style={{ fontSize: 10 }}>
-                {isSalary ? `${month ? monthName(month) : ""} net` : `Earned · ${month ? monthName(month) : ""}`}
+                Earned · {month ? monthName(month) : ""}
               </span>
               <span className={shared.tileValue} style={{ fontSize: 14 }}>
-                {s ? formatAmount(isSalary ? s.salary_net : s.earned_so_far) : "…"}
+                {s ? formatAmount(s.earned_so_far) : "…"}
               </span>
             </div>
             <div className={shared.tile} data-tone="advance">
@@ -168,12 +172,12 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
                 Already paid
               </span>
               <span className={shared.tileValue} style={{ fontSize: 14 }}>
-                {s ? formatAmount(isSalary ? s.salary_paid : s.paid_this_month) : "…"}
+                {s ? formatAmount(s.paid_this_month) : "…"}
               </span>
             </div>
             <div className={shared.tile} data-tone="low">
               <span className={shared.tileLabel} style={{ fontSize: 10 }}>
-                {isSalary ? "Still due" : "Can give now"}
+                Can give now
               </span>
               <span className={shared.tileValue} style={{ fontSize: 14 }}>
                 {s ? formatAmount(room) : "…"}
@@ -186,18 +190,18 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
           </div>
           <div className={shared.chips}>
             {quick.map((q) => (
-              <button key={q.label} type="button" className={shared.chipSmall} data-tone={isSalary ? undefined : "advance"} aria-pressed={amountNumber === q.value} onClick={() => setAmount(String(q.value))}>
+              <button key={q.label} type="button" className={shared.chipSmall} data-tone="advance" aria-pressed={amountNumber === q.value} onClick={() => setAmount(String(q.value))}>
                 {q.label}
               </button>
             ))}
           </div>
-          {over ? <span className={shared.warn}>{isSalary ? `More than the balance due (${formatRs(room)}).` : "More than earned so far — at most " + formatRs(room) + " can be given now."}</span> : null}
+          {over ? <span className={shared.warn}>More than earned so far — at most {formatRs(room)} can be given now.</span> : null}
           {effectiveMode ? (
             <PaidByPicker
               modes={modes.data ?? []}
               value={effectiveMode.id}
               onChange={setModeId}
-              type={type}
+              type="advance"
               variant="other"
               manageHref={isAdmin ? "/admin/payment-modes" : null}
               reference={reference}
@@ -237,8 +241,8 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
               {error}
             </p>
           ) : null}
-          <button type="button" className={styles.saveBig} data-type={type} disabled={!canSave} onClick={() => void save()}>
-            {saving ? "Saving…" : valid ? (isSalary ? `Pay Rs ${formatAmount(amountNumber)} salary` : `Give Rs ${formatAmount(amountNumber)} advance`) : "Enter an amount"}
+          <button type="button" className={styles.saveBig} data-type="advance" disabled={!canSave} onClick={() => void save()}>
+            {saving ? "Saving…" : valid ? `Give Rs ${formatAmount(amountNumber)} advance` : "Enter an amount"}
           </button>
         </>
       )}

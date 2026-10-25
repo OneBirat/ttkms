@@ -17,6 +17,7 @@ import { monthLabel, monthName } from "../../_lib/months";
 import { formatAmount, formatRs } from "../../_lib/helpers";
 import type { Employee, LedgerEntry, LedgerEntryType, MonthLedger, PaymentType } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
+import { monthStatusText } from "../../_lib/settle";
 import styles from "./phone.module.css";
 import shared from "../payroll.module.css";
 
@@ -126,8 +127,8 @@ export function PhoneAccount({ id }: { id: number }) {
               <button type="button" className={styles.advanceBtn} onClick={() => setSheet({ kind: "pay", type: "advance" })}>
                 Give advance
               </button>
-              <button type="button" className={styles.salaryBtn} disabled={!s || s.salary_due <= 0} onClick={() => setSheet({ kind: "pay", type: "salary" })}>
-                {s && s.salary_due <= 0 ? `${monthName(s.salary_month)} salary paid` : "Pay salary"}
+              <button type="button" className={styles.salaryBtn} disabled={!s || s.balance_due <= 0} onClick={() => setSheet({ kind: "pay", type: "salary" })}>
+                {s && s.balance_due <= 0 ? "All salary paid" : "Pay salary"}
               </button>
             </div>
           </div>
@@ -213,7 +214,7 @@ function SalaryTab({ id }: { id: number }) {
                 </span>
               </span>
               <span className={styles.pill} data-tone={l.due === 0 ? "ok" : "danger"}>
-                {l.due === 0 ? "Paid" : "Due"}
+                {l.due === 0 ? monthStatusText(l) : "Due"}
               </span>
               <span className={styles.rowChevron} style={{ fontSize: 18 }} aria-hidden="true">
                 {on ? "▾" : "›"}

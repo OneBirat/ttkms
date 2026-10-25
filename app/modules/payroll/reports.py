@@ -65,6 +65,7 @@ def payment_out(p: Payment, modes: dict[int, PaymentMode]) -> PaymentOut:
         recorded_by=services.user_label(p.recorder),
         source=p.source.value,
         created_at=p.created_at,
+        payment_group_id=p.payment_group_id,
         voided=p.voided_at is not None,
         voided_at=p.voided_at,
         voided_by=services.user_label(p.voider) if p.voided_at else None,
@@ -101,6 +102,7 @@ def ledger_out(ledger: ledgers.MonthLedger, modes: dict[int, PaymentMode]) -> Mo
         paid=s.paid,
         due=s.due,
         status=s.status,
+        cleared_on=services.date_both(ledger.cleared_on) if ledger.cleared_on else None,
         # Voided ones are listed too (struck through), never in salary_paid / paid / due.
         payments=[
             payment_out(p, modes)

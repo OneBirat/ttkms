@@ -51,6 +51,9 @@ from app.modules.payroll.schemas import (
     PhotoTokenInfoOut,
     PhotoTokenOut,
     RegisterSort,
+    SalaryDuesOut,
+    SalaryPaymentIn,
+    SalaryPaymentOut,
     SalaryReportOut,
     SalaryRevisionIn,
     SalaryStructuresOut,
@@ -369,6 +372,28 @@ async def record_payment(me: CanPay, db: DbSession, payload: PaymentIn) -> Payme
     return await payments.record_payment(db, me, employee, payload)
 
 
+@router.get("/employees/{employee_id}/salary-dues", response_model=SalaryDuesOut, responses=ERRORS)
+async def salary_dues(employee_id: int, me: CanPay, db: DbSession) -> SalaryDuesOut:
+    """The Pay salary dialog's "Salary due · oldest first": from the oldest month with anything
+    due to the running month (capped at earned so far), with each month's cleared date."""
+    return await payments.salary_dues(db, await _visible(db, me, employee_id))
+
+
+@router.post(
+    "/salary-payments",
+    response_model=SalaryPaymentOut,
+    status_code=status.HTTP_201_CREATED,
+    responses=ERRORS,
+    name="payroll:pay_salary",
+)
+async def pay_salary(me: CanPay, db: DbSession, payload: SalaryPaymentIn) -> SalaryPaymentOut:
+    """One amount settles the salary due oldest month first (one transaction): one salary row
+    per month sharing one receipt number and payment_group_id. Above the total due is a 422
+    ``over_total`` (the running month only up to earned so far)."""
+    employee = await _visible(db, me, payload.employee_id)
+    return await payments.pay_salary(db, me, employee, payload)
+
+
 @router.get("/payments/recent", response_model=list[PaymentOut], responses=ERRORS)
 async def recent_payments(me: CanPay, db: DbSession, employee_id: int) -> list[PaymentOut]:
     """Newest first, for the advance dialog."""
@@ -445,8 +470,11 @@ async def register_pdf(
 async def receipt_pdf(payment_id: int, me: CanPay, db: DbSession) -> Response:
     payment = await payments.get_payment(db, payment_id)
     employee = await _visible(db, me, payment.employee_id)
-    out = reports.payment_out(payment, await services.modes_by_id(db))
-    pdf = _pdf_or_503(lambda: exports.receipt_pdf(employee, out, reports.printed_by(me)))
+    modes = await services.modes_by_id(db)
+    # A salary payment group is one receipt: its total, split by month.
+    group = [reports.payment_out(p, modes) for p in await payments.group_rows(db, payment)]
+    out = reports.payment_out(payment, modes)
+    pdf = _pdf_or_503(lambda: exports.receipt_pdf(employee, out, reports.printed_by(me), group))
     return _file(pdf, PDF_MEDIA_TYPE, f"receipt-{payment.receipt_no}.pdf")
 
 

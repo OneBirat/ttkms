@@ -289,6 +289,8 @@ class PaymentOut(BaseModel):
     recorded_by: str
     source: PaymentSource
     created_at: datetime
+    #: The rows of one "Pay salary" (split oldest month first) share it and the receipt number.
+    payment_group_id: int | None = None
     #: Voided payments stay listed (struck through) but count for nothing.
     voided: bool = False
     voided_at: datetime | None = None
@@ -322,6 +324,9 @@ class MonthLedgerOut(BaseModel):
     paid: int
     due: int
     status: MonthStatus
+    #: Day of the payment that brought the paid total up to the net pay ("Cleared Kartik 8");
+    #: null while anything is due or nothing was earned.
+    cleared_on: DateBothOut | None = None
     #: Oldest first.
     payments: list[PaymentOut]
 
@@ -452,6 +457,84 @@ class PaymentResultOut(BaseModel):
     due_after: int
 
 
+class SalaryDueMonthOut(BaseModel):
+    """One row of the Pay salary dialog's "Salary due · oldest first" table."""
+
+    month: BsMonthOut
+    #: "Kartik 2083"
+    label: str
+    in_progress: bool
+    days_in_month: int
+    #: The running month: days counted so far.
+    days_counted: int
+    absent: int
+    net: int
+    #: Salary + advances paid for the month (voided ones left out).
+    paid: int
+    due: int
+    cleared_on: DateBothOut | None = None
+
+
+class SalaryDuesOut(BaseModel):
+    """GET /employees/{id}/salary-dues - from the oldest month with anything due to the running
+    month (months cleared in between included), oldest first."""
+
+    employee_id: int
+    months: list[SalaryDueMonthOut]
+    #: Everything payable now: completed months + the running month up to earned so far.
+    total_due: int
+    #: Completed months only ("All past months").
+    past_due: int
+    running_month: BsMonthOut
+    running_due: int
+    today: DateBothOut
+
+
+class SalaryPaymentIn(BaseModel):
+    """POST /salary-payments - one amount, applied to the salary due oldest month first."""
+
+    employee_id: int
+    amount: int
+    #: admin.payment_modes row; null = Cash.
+    payment_mode_id: int | None = None
+    reference: str | None = Field(default=None, max_length=80)
+    note: str | None = Field(default=None, max_length=200)
+    #: Day of the payment (AD) or its BS twin; today when neither is given.
+    date: dt.date | None = None
+    date_bs: BSDate | None = None
+    source: PaymentSource = "account"
+
+    @field_validator("reference", "note")
+    @classmethod
+    def _clean_opt(cls, value: str | None) -> str | None:
+        return clean_optional(value)
+
+
+class SalarySplitOut(BaseModel):
+    payment_id: int
+    month: BsMonthOut
+    label: str
+    amount: int
+    due_before: int
+    due_after: int
+    #: Set when this payment cleared the month.
+    cleared_on: DateBothOut | None = None
+
+
+class SalaryPaymentOut(BaseModel):
+    receipt_no: str
+    payment_group_id: int
+    amount: int
+    payment_mode: PaymentModeRef
+    date: DateBothOut
+    reference: str | None
+    #: The per-month rows, oldest month first.
+    payments: list[PaymentOut]
+    split: list[SalarySplitOut]
+    #: What is still due over every month afterwards.
+    total_due_after: int
+
+
 class VoidPaymentIn(BaseModel):
     """POST /payments/{id}/void - admin only, cannot be undone."""
 
@@ -466,9 +549,20 @@ class VoidPaymentIn(BaseModel):
         return cleaned
 
 
+class RegisterSplitOut(BaseModel):
+    """One month of a salary payment group."""
+
+    payment_id: int
+    month: BsMonthOut
+    amount: int
+
+
 class RegisterRowOut(BaseModel):
+    #: For a salary payment group: its first row with ``amount`` = the group's total.
     payment: PaymentOut
     employee: EmployeeOut
+    #: The group's per-month rows, oldest month first (null for a single payment).
+    split: list[RegisterSplitOut] | None = None
 
 
 class RegisterTotalsOut(BaseModel):

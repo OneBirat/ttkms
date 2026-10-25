@@ -6,9 +6,10 @@ import { Modal } from "@/components/ui/Modal";
 import { Avatar } from "./Avatar";
 import { Field, TextInput, parseAmount, splitError } from "./FormBits";
 import { PaidByPicker, modesFor } from "./PaidByPicker";
+import { RecentPaymentsPanel } from "./RecentPaymentsPanel";
 import { getAccountSummary, listPaymentModes, receiptUrl, recordPayment } from "../api";
-import { formatBsDay, formatBsShort } from "@/lib/bs";
-import { monthLabel, monthName, today } from "../_lib/months";
+import { formatBsDay } from "@/lib/bs";
+import { monthName, today } from "../_lib/months";
 import { ADVANCE_QUICK, formatAmount, formatRs } from "../_lib/helpers";
 import type { Employee, PaymentResult } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
@@ -94,7 +95,6 @@ export function AdvanceDialog({ open, employee, manageModes = false, onClose, on
     }
   };
 
-  const recent = (s?.recent ?? []).slice(0, 6);
   const monthShort = s ? monthName(s.month) : "";
 
   return (
@@ -231,59 +231,7 @@ export function AdvanceDialog({ open, employee, manageModes = false, onClose, on
           )}
         </div>
 
-        <aside className={own.advanceSide} aria-label="Recent payments">
-          <div className={styles.between}>
-            <h3 style={{ fontSize: 15, fontWeight: 700 }}>Recent payments</h3>
-            <span className={styles.note}>last {recent.length}</span>
-          </div>
-          <div className={styles.recentList}>
-            {recent.length === 0 ? <span className={styles.note}>No payments yet.</span> : null}
-            {recent.map((p) => (
-              <div key={p.id} className={styles.recentRow} data-new={done?.payment.id === p.id}>
-                <span className={styles.recentTag} data-type={p.kind}>
-                  {p.kind === "advance" ? "Advance" : "Salary"}
-                </span>
-                <span className={styles.recentText}>
-                  <span className={styles.recentTitle}>
-                    {formatBsShort(p.date.bs)} · {monthName(p.month)}
-                  </span>
-                  <span className={styles.recentSub}>
-                    {p.payment_mode.name}
-                    {p.reference ? ` · ${p.reference}` : ""}
-                    {p.note ? ` · ${p.note}` : ""} · by {p.recorded_by}
-                  </span>
-                </span>
-                <span className={styles.recentAmount}>{formatRs(p.amount)}</span>
-              </div>
-            ))}
-          </div>
-          <div className={own.advanceTotals}>
-            <div>
-              <span className={styles.tileLabel} style={{ color: "var(--color-muted)" }}>
-                Advances · last 4 months
-              </span>
-              <span className={styles.tileValue} style={{ color: "var(--pill-leave-fg)" }}>
-                {s ? formatRs(s.advances_recent) : "…"}
-              </span>
-            </div>
-            <div>
-              <span className={styles.tileLabel} style={{ color: "var(--color-muted)" }}>
-                Balance due (all months)
-              </span>
-              <span className={styles.tileValue} style={{ color: "var(--pill-danger-fg)" }}>
-                {s ? formatRs(s.balance_due) : "…"}
-              </span>
-            </div>
-          </div>
-          <button type="button" className="btn" style={{ color: "var(--color-primary)", fontWeight: 600 }} onClick={onOpenLedger}>
-            Open full ledger ›
-          </button>
-          {s ? (
-            <span className={styles.note}>
-              Advances count toward {monthLabel(s.month)}; nothing is recovered later.
-            </span>
-          ) : null}
-        </aside>
+        <RecentPaymentsPanel summary={s ?? null} highlightIds={done ? [done.payment.id] : []} onOpenLedger={onOpenLedger} />
       </div>
     </Modal>
   );

@@ -3,6 +3,7 @@
 import { formatBs } from "@/lib/bs";
 import { lastPayments } from "../_lib/account";
 import { monthLabel } from "../_lib/months";
+import { monthsText } from "../_lib/settle";
 import { formatRs } from "../_lib/helpers";
 import type { MonthLedger } from "../types";
 import styles from "./account.module.css";
@@ -27,13 +28,13 @@ export function LastPaymentsCard({ ledger, onOpenLedger }: { ledger: MonthLedger
         </p>
       ) : (
         <ul className={styles.payList}>
-          {payments.map((p) => (
+          {payments.map(({ payment: p, months }) => (
             <li key={p.id} className={styles.payRow} data-receipt={p.receipt_no}>
               <span className={styles.payDate}>{formatBs(p.date.bs)}</span>
               <span className={styles.payWhat}>
                 <span className={p.kind === "advance" ? shared.pillAdvance : shared.pillSalary}>{p.kind === "advance" ? "Advance" : "Salary"}</span>
                 <span className={styles.payFor}>
-                  for {monthLabel(p.month)} · {p.payment_mode.name}
+                  for {monthsText(months, monthLabel)} · {p.payment_mode.name}
                 </span>
               </span>
               <span className={`${shared.num} ${shared.kvStrong} ${styles.payAmount}`}>{formatRs(p.amount)}</span>

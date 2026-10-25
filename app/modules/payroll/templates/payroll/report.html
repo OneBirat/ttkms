@@ -43,7 +43,7 @@
       <td class="num"><b>{{ "{:,}".format(r.pay.net) }}</b></td>
       <td class="num">{{ "{:,}".format(r.settled.paid) }}</td>
       <td class="num">{{ "{:,}".format(r.settled.due) }}</td>
-      <td><span class="pill pill--{{ {'paid': 'ok', 'part_paid': 'low', 'pending': 'neutral'}[r.settled.status] }}">{{ status_label[r.settled.status] }}</span></td>
+      <td><span class="pill pill--{{ {'paid': 'ok', 'part_paid': 'low', 'pending': 'neutral'}[r.settled.status] }}">{{ status_text(r.settled.status, r.cleared_on) }}</span></td>
     </tr>
     {% else %}
     <tr><td colspan="{{ 14 if all_branches else 13 }}" class="muted">Nobody on the sheet.</td></tr>

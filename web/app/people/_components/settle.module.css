@@ -1,0 +1,225 @@
+/* Pay salary (design ui-touch/EmployeesPaySalary.dc.html). */
+
+.dues {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.duesHead,
+.duesRow,
+.duesFoot {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.duesHead {
+  background: #f7f8f6;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.duesHead > :not(:first-child) {
+  text-align: right;
+}
+
+.duesRow {
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.duesMonth {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.duesLabel {
+  font-weight: 600;
+}
+
+.duesSub {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.num {
+  font-family: var(--font-mono, "IBM Plex Mono", monospace);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.due {
+  font-family: var(--font-mono, "IBM Plex Mono", monospace);
+  font-weight: 700;
+  color: #8a4205;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.due[data-cleared] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 12px;
+  color: #1e7a45;
+  white-space: normal;
+}
+
+.duesFoot {
+  grid-template-columns: 1fr auto;
+  border-top: 1px solid var(--color-border);
+  background: #fbf6ef;
+  font-weight: 700;
+}
+
+.duesFoot .num {
+  color: #8a4205;
+}
+
+.covers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f2f8f6;
+  border: 1px solid #d3e8e3;
+  font-size: 13px;
+}
+
+.coversTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0a5454;
+}
+
+.coverRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.coverPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fff1e0;
+  color: #8a4205;
+  white-space: nowrap;
+}
+
+.coverPill[data-full] {
+  background: #e3f4e8;
+  color: #1e7a45;
+}
+
+.payBy {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.payBy[data-variant="phone"] {
+  grid-template-columns: 1fr;
+}
+
+.buttons {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.doneButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 10px;
+}
+
+.doneButtons[data-variant="phone"] {
+  grid-template-columns: 1fr 1fr;
+}
+
+.doneButtons[data-variant="phone"] > :last-child {
+  grid-column: 1 / -1;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #fff1e0;
+  color: #8a4205;
+}
+
+.chip[data-cleared] {
+  background: #e3f4e8;
+  color: #1e7a45;
+}
+
+.after {
+  font-size: 13px;
+  color: #8a4205;
+}
+
+.after[data-clear] {
+  font-weight: 600;
+  color: #1e9e4a;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.headName {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .payBy {
+    grid-template-columns: 1fr;
+  }
+
+  .duesHead,
+  .duesRow {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1fr);
+    padding: 8px 10px;
+  }
+}

@@ -250,6 +250,7 @@ async def test_excel_and_pdf_exports(client, db, make_user, login):
         rows=data.ledgers,
         all_branches=True,
         status_label=exports.STATUS_LABEL,
+        status_text=exports.status_text,
         stats=[],
         month_np="",
         company="TTK",

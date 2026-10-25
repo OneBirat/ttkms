@@ -14,6 +14,7 @@ import { useDialog } from "../useDialog";
 import type { MarkState } from "../useMarkState";
 import { useSecondsLeft } from "./useCountdown";
 import { AUTO_RETURN, amountError, amountOf, type Scan } from "./scanFlow";
+import { allocate } from "@/app/people/_lib/settle";
 import styles from "./scan.module.css";
 
 /** Quick overtime picks; anything longer goes through "Custom hours (4–12 h)". */
@@ -354,13 +355,25 @@ function Pay({ scan, state, titleId }: StepProps<"pay">) {
   const amount = amountOf(scan);
   const validation = amountError(scan);
   const showError = scan.pick !== null && (scan.pick !== "custom" || scan.amount !== "") && validation !== null;
-  const ok = validation === null && !!b;
-  const quick: [string, string][] = salary
+  // Salary: one amount over the salary due, oldest month first (scan.dues from payroll).
+  const settles = salary && scan.dues !== undefined;
+  const dues = scan.dues ?? null;
+  const ok = validation === null && (settles ? !!dues : !!b);
+  const quick: [string, string][] = settles
     ? [
-        ["full", `Full due · ${b ? formatRs(b.due) : "…"}`],
+        ...(dues && dues.past_due > 0 && dues.past_due !== dues.total_due
+          ? ([["past", `All past months · ${formatRs(dues.past_due)}`]] as [string, string][])
+          : []),
+        ["full", dues ? `Everything incl. ${monthName(dues.running_month.bs_month)} · ${formatRs(dues.total_due)}` : "Everything due · …"],
         ["custom", "Custom amount"],
       ]
-    : ADVANCE_QUICK;
+    : salary
+      ? [
+          ["full", `Full due · ${b ? formatRs(b.due) : "…"}`],
+          ["custom", "Custom amount"],
+        ]
+      : ADVANCE_QUICK;
+  const covers = settles && dues && ok ? allocate(amount, dues.months) : [];
   const month = b?.month_label ?? "this month";
   return (
     <>
@@ -380,7 +393,7 @@ function Pay({ scan, state, titleId }: StepProps<"pay">) {
             {typeNp(scan.type)}
           </span>
         </span>
-        <span className={styles.payBandMonth}>{salary && b ? `Salary for ${month}` : month}</span>
+        <span className={styles.payBandMonth}>{settles ? "Oldest month first" : salary && b ? `Salary for ${month}` : month}</span>
       </div>
       <div className={styles.personText}>
         <h2 id={titleId} className={styles.personName}>
@@ -390,7 +403,31 @@ function Pay({ scan, state, titleId }: StepProps<"pay">) {
           {scan.emp.code} · {scan.emp.department_name} · {scan.emp.branch_name}
         </span>
       </div>
-      {salary && b ? (
+      {settles ? (
+        <div className={styles.breakdown} aria-label="Salary due · oldest first">
+          {!dues ? (
+            <div>
+              <span>Loading the salary due…</span>
+            </div>
+          ) : (
+            dues.months
+              .filter((m) => m.due > 0)
+              .map((m) => (
+                <div key={m.label}>
+                  <span>
+                    {m.label}
+                    {m.in_progress ? " · so far" : ""}
+                  </span>
+                  <span className="mono">{formatRs(m.due)}</span>
+                </div>
+              ))
+          )}
+          <div className={styles.breakdownDue}>
+            <span>Total due</span>
+            <span className="mono">{dues ? formatRs(dues.total_due) : "…"}</span>
+          </div>
+        </div>
+      ) : salary && b ? (
         <div className={styles.breakdown}>
           <div>
             <span>{month.split(" ")[0]} net salary</span>
@@ -426,6 +463,21 @@ function Pay({ scan, state, titleId }: StepProps<"pay">) {
         <div className={`${styles.amountBox} ${scan.amount && !ok ? styles.amountBoxBad : ""}`}>
           <span className={styles.amountRs}>Rs</span>
           <CustomAmountInput value={scan.amount} onChange={flow.setAmount} />
+        </div>
+      ) : null}
+      {covers.length > 0 ? (
+        <div className={styles.breakdown} aria-label="This payment covers">
+          {covers.map((a) => (
+            <div key={a.month.label} className={a.full ? styles.breakdownPaid : undefined}>
+              <span>
+                {a.month.label} · {a.full ? "cleared" : `${formatRs(a.due - a.amount)} left`}
+              </span>
+              <span className="mono">{formatRs(a.amount)}</span>
+            </div>
+          ))}
+          <div>
+            <span>Applied to the oldest month first · one receipt</span>
+          </div>
         </div>
       ) : null}
       <PaidByPicker
@@ -966,15 +1018,35 @@ function Paid({ scan, state, titleId, phone }: StepProps<"paid"> & { phone: bool
           <span>Paid now</span>
           <b>{formatRs(scan.paid.payment.amount)}</b>
         </div>
-        <div className={styles.paidTile}>
-          <span>Paid in {monthShort}</span>
-          <b>{formatRs(scan.monthPaid)}</b>
-        </div>
+        {scan.split ? (
+          <div className={styles.paidTile}>
+            <span>Months</span>
+            <b>{scan.split.length}</b>
+          </div>
+        ) : (
+          <div className={styles.paidTile}>
+            <span>Paid in {monthShort}</span>
+            <b>{formatRs(scan.monthPaid)}</b>
+          </div>
+        )}
         <div className={`${styles.paidTile} ${styles.paidTileDue}`}>
           <span>Still due</span>
           <b>{formatRs(scan.paid.due_after)}</b>
         </div>
       </div>
+      {scan.split ? (
+        <div className={styles.breakdown} aria-label="Split by month">
+          {scan.split.map((x) => (
+            <div key={x.label} className={x.cleared ? styles.breakdownPaid : undefined}>
+              <span>
+                {x.label}
+                {x.cleared ? " · cleared" : ""}
+              </span>
+              <span className="mono">{formatRs(x.amount)}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className={styles.receipt}>
         Receipt no. <span className="mono">{scan.paid.payment.receipt_no}</span>
       </div>

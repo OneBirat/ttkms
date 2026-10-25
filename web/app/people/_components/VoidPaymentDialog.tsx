@@ -72,6 +72,11 @@ export function VoidPaymentDialog({ payment, employeeName, onClose, onVoided }: 
           The payment stays in the lists, struck through, and keeps its receipt number — but it no longer counts as paid,
           so the balance due goes back up. This cannot be undone.
         </p>
+        {payment.payment_group_id ? (
+          <p className={shared.warn} style={{ fontSize: 13 }}>
+            This salary payment was split over several months under one receipt: every month of {payment.receipt_no} is voided.
+          </p>
+        ) : null}
         <Field id={`${id}-reason`} label="Reason (required)">
           <TextInput
             id={`${id}-reason`}

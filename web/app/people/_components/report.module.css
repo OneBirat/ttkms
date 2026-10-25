@@ -451,3 +451,36 @@
   font-size: 13px;
   padding: 0 8px;
 }
+
+/* A salary payment split over months (one receipt): the toggle and its per-month rows. */
+.splitToggle {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.splitCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.splitRow td {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  background: #f7f8f6;
+  font-size: 13px;
+}
+
+.splitRow[data-voided] td {
+  text-decoration: line-through;
+  color: var(--color-muted);
+}

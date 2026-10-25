@@ -12,7 +12,9 @@ import {
   getMarkedDays,
   getMonthBalance,
   getPaymentHistoryFor,
+  getSalaryDues,
   getSalaryMonthKey,
+  paySalaryFromScan,
   getToday,
   lookupCode,
   markOne,
@@ -648,6 +650,9 @@ export function useMarkState(options: { phone: boolean }): MarkState {
         balance: async (id, kind) => getMonthBalance(id, kind === "salary" ? await getSalaryMonthKey(id) : currentMonthKey),
         history: (id, monthKey) => getPaymentHistoryFor(id, monthKey),
         pay: recordPayment,
+        // Salary: one amount over the salary due, oldest month first (payroll /salary-payments).
+        salaryDues: getSalaryDues,
+        paySalary: paySalaryFromScan,
         employeeMonth: getEmployeeMonth,
       },
       currentDraft: (emp, todayRecord) =>

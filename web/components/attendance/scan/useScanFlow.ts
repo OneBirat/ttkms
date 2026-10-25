@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { createScanFlow, type ScanFlow, type ScanFlowDeps, type ScanFlowState } from "./scanFlow";
+import { createScanFlow, type ScanFlow, type ScanFlowApi, type ScanFlowDeps, type ScanFlowState } from "./scanFlow";
 
 const EMPTY: ScanFlowState = { scan: null, count: 0 };
 
@@ -24,6 +24,13 @@ export function useScanFlow(deps: ScanFlowDeps, options: { trapBack?: boolean } 
         balance: (id, kind) => depsRef.current.api.balance(id, kind),
         history: (id, monthKey) => depsRef.current.api.history(id, monthKey),
         pay: (input) => depsRef.current.api.pay(input),
+        // Optional: present only when the screen settles salary oldest month first.
+        ...(deps.api.salaryDues && deps.api.paySalary
+          ? {
+              salaryDues: (id: number) => depsRef.current.api.salaryDues!(id),
+              paySalary: (input: Parameters<NonNullable<ScanFlowApi["paySalary"]>>[0]) => depsRef.current.api.paySalary!(input),
+            }
+          : {}),
         employeeMonth: (id, monthKey) => depsRef.current.api.employeeMonth(id, monthKey),
       },
       currentDraft: (emp, today) => depsRef.current.currentDraft(emp, today),
