@@ -128,3 +128,44 @@ async def test_scan_payment_goes_through_the_payroll_contract(db, world):
     assert sorted((p.kind.value, p.for_month, p.source.value) for p in rows) == sorted(
         [("advance", today.month, "scan"), ("salary", previous[1], "scan")]
     )
+
+
+async def test_scan_advance_over_http_needs_no_for_month(client, db, login, user_in, world):
+    """The scan sheet posts an advance without for_*: payroll counts it for the BS month of the
+    payment date (today). Salary goes with the explicit settlement month; for_* come in pairs."""
+    anita = world.people["Anita"]
+    await _salary(db, anita)
+    h = await _as(client, login, user_in, "chief", "admin")
+    today = bsdate.today_bs()
+    advance = await client.post(
+        "/api/payroll/payments",
+        json={"employee_id": anita.id, "kind": "advance", "amount": 200, "source": "scan"},
+        headers=h,
+    )
+    assert advance.status_code == 201, advance.text
+    body = advance.json()["payment"]
+    assert (body["for_year"], body["for_month"]) == (today.year, today.month)
+    assert body["payment_mode"]["id"] == 1 and body["source"] == "scan"
+    half = await client.post(
+        "/api/payroll/payments",
+        json={"employee_id": anita.id, "kind": "advance", "amount": 200, "for_year": today.year},
+        headers=h,
+    )
+    assert half.status_code == 422
+    summary = (await client.get(f"/api/payroll/employees/{anita.id}/summary")).json()
+    salary_month = (summary["salary_month"]["bs_year"], summary["salary_month"]["bs_month"])
+    assert salary_month == bsdate.shift_month(today.year, today.month, -1)  # last month still due
+    salary = await client.post(
+        "/api/payroll/payments",
+        json={
+            "employee_id": anita.id,
+            "kind": "salary",
+            "amount": 1000,
+            "for_year": salary_month[0],
+            "for_month": salary_month[1],
+            "source": "scan",
+        },
+        headers=h,
+    )
+    assert salary.status_code == 201, salary.text
+    assert salary.json()["payment"]["for_month"] == salary_month[1]

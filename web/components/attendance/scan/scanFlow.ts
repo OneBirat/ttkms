@@ -4,6 +4,8 @@
  *   camera → (code) → found | already | missing
  *   found   → Present / Overtime → done  → 3 s → camera (last = summary)
  *   already → Salary / Advance → pay → history ⇄ pay → paid → 3 s → camera
+ *             (only with salary_advances: `canPay`; an advance counts for the running month,
+ *              a salary for payroll's settlement month - the balance names it)
  *   any sheet → Cancel · skip / Back → camera, nothing saved
  *
  * Timers, clock and the API are injected so the whole loop runs under
@@ -40,6 +42,8 @@ export interface PayFields {
   amount: string;
   balance: MonthBalance | null;
   history: PaymentRecord[] | null;
+  /** admin.payment_modes id: Cash unless "Other ▾" picks another active mode. */
+  mode: number;
 }
 
 interface Person {
@@ -114,8 +118,10 @@ export function isSheetStep(step: ScanStep | undefined): boolean {
 export interface ScanFlowApi {
   lookup(code: string): Promise<LookupResponse>;
   mark(request: ScanRequest): Promise<ScanResponse>;
-  balance(employeeId: number): Promise<MonthBalance>;
-  history(employeeId: number): Promise<PaymentHistory>;
+  /** The month a payment of `kind` counts for: advance = the running month, salary = payroll's settlement month. */
+  balance(employeeId: number, kind: PaymentType): Promise<MonthBalance>;
+  /** Payments of that month (`monthKey` = the balance's month_key). */
+  history(employeeId: number, monthKey: string): Promise<PaymentHistory>;
   pay(input: PaymentInput): Promise<PaymentResult>;
   employeeMonth(employeeId: number, monthKey: string): Promise<EmployeeMonth>;
 }
@@ -138,6 +144,8 @@ export interface ScanFlowDeps {
   /** Called after a successful attendance save so the list behind the scanner updates. */
   onMarked?(result: ScanResponse): void;
   monthKey(): string;
+  /** False without salary_advances: no pay steps, no payment record (default true). */
+  canPay?: () => boolean;
   sounds?: ScanFlowSounds;
   now?: () => number;
   setTimeout?: (fn: () => void, ms: number) => unknown;
@@ -227,6 +235,8 @@ export interface ScanFlow {
   payBack(): void;
   setPick(key: string): void;
   setAmount(text: string): void;
+  /** Paid by: a payment_mode_id (Cash | Other ▾). */
+  setMode(id: number): void;
   savePayment(): void;
   openHistory(): void;
   historyBack(): void;
@@ -258,6 +268,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
   const autoReturnMs: AutoReturn = { ...AUTO_RETURN, ...deps.autoReturnMs };
   const repeatIgnoreMs = deps.repeatIgnoreMs ?? REPEAT_IGNORE_MS;
   const sounds = deps.sounds ?? {};
+  const canPay = () => (deps.canPay ? deps.canPay() : true);
 
   let state: ScanFlowState = { scan: null, count: 0 };
   const listeners = new Set<() => void>();
@@ -318,7 +329,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
 
   // ---- loading the month figures for the pay / history sheets
 
-  const loadPayData = (employeeId: number) => {
+  const loadPayData = (employeeId: number, kind: PaymentType) => {
     const seq = ++loadSeq;
     const apply = (patch: Partial<PayFields>) => {
       if (seq !== loadSeq || disposed) return;
@@ -328,18 +339,22 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
       }
     };
     deps.api
-      .balance(employeeId)
-      .then((balance) => apply({ balance }))
+      .balance(employeeId, kind)
+      .then((balance) => {
+        apply({ balance });
+        return deps.api
+          .history(employeeId, balance.month_key)
+          .then((h) =>
+            apply(h.month_key === balance.month_key ? { history: h.payments, balance: balanceFromHistory(h) } : { history: h.payments }),
+          )
+          .catch(() => apply({ history: [] }));
+      })
       .catch((err: unknown) => {
         const s = state.scan;
         if (seq === loadSeq && s && (s.step === "pay" || s.step === "history")) {
-          setScan({ ...s, error: messageOf(err, "Could not load the balance.") });
+          setScan({ ...s, history: s.history ?? [], error: messageOf(err, "Could not load the balance.") });
         }
       });
-    deps.api
-      .history(employeeId)
-      .then((h) => apply({ history: h.payments, balance: { ...balanceFromHistory(h) } }))
-      .catch(() => apply({ history: [] }));
   };
 
   const loadRecord = (employeeId: number, monthKey: string) => {
@@ -428,7 +443,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
     setScan({ ...s, busy: true, error: null });
     const emp = s.emp;
     deps.api
-      .mark({ code: s.code, action, ot_hours: action === "overtime" ? hours : 0 })
+      .mark({ employee_id: emp.id, code: s.code, action, ot_hours: action === "overtime" ? hours : 0 })
       .then((result) => {
         if (disposed) return;
         try {
@@ -469,10 +484,12 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
     const type = s.type;
     const monthLabel = s.balance.month_label;
     const monthPaid = s.balance.paid + amount;
+    // Today's payment (the server defaults the date). An advance counts for the running month
+    // (no for_*); a salary for the month the balance was loaded for (payroll's settlement month).
+    const forMonth = type === "salary" ? { for_year: s.balance.bs_year, for_month: s.balance.bs_month } : {};
     setScan({ ...s, busy: true, error: null });
     deps.api
-      // Today's payment, against today's month (the server defaults the date); always Cash from the scanner.
-      .pay({ employee_id: emp.id, kind: type, amount, payment_mode_id: CASH_PAYMENT_MODE_ID, source: "scan" })
+      .pay({ employee_id: emp.id, kind: type, amount, payment_mode_id: s.mode, source: "scan", ...forMonth })
       .then((paid) => {
         if (disposed) return;
         const cur = scanIs("pay");
@@ -552,6 +569,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
     amount: "",
     balance: null as MonthBalance | null,
     history: null as PaymentRecord[] | null,
+    mode: CASH_PAYMENT_MODE_ID,
     busy: false,
     error: null as string | null,
   });
@@ -617,7 +635,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
     },
     choosePayment: (type) => {
       const s = scanIs("already");
-      if (!s) return;
+      if (!s || !canPay()) return;
       setScan({
         step: "pay",
         emp: s.emp,
@@ -628,10 +646,11 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
         amount: "",
         balance: null,
         history: null,
+        mode: CASH_PAYMENT_MODE_ID,
         busy: false,
         error: null,
       });
-      loadPayData(s.emp.id);
+      loadPayData(s.emp.id, type);
     },
     payBack: () => {
       const s = scanIs("pay");
@@ -645,19 +664,23 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
       const s = scanIs("pay");
       if (s) setScan({ ...s, amount: text.replace(/[^0-9]/g, "").slice(0, 9), error: null });
     },
+    setMode: (id) => {
+      const s = scanIs("pay");
+      if (s) setScan({ ...s, mode: id, error: null });
+    },
     savePayment,
     openHistory: () => {
       const s = scanIs("pay");
       if (!s) return;
       setScan({ ...s, step: "history", from: "pay", error: null });
-      loadPayData(s.emp.id); // a payment saved in this session shows at the top
+      loadPayData(s.emp.id, s.type); // a payment saved in this session shows at the top
     },
     historyBack,
     openPaymentRecord: () => {
       const s = scanIs("already");
-      if (!s) return;
+      if (!s || !canPay()) return;
       setScan({ ...emptyPay(s.emp, s.code, s.current, "advance"), step: "history", from: "already" });
-      loadPayData(s.emp.id);
+      loadPayData(s.emp.id, "advance");
     },
     openAttendanceRecord: () => {
       const s = scanIs("already");
@@ -665,9 +688,10 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
       openRecord(s.emp, s.code, s.current, deps.monthKey(), "already");
     },
     openHistoryFor: (employee, current) => {
+      if (!canPay()) return;
       clearTimer();
       setScan({ ...emptyPay(employee, employee.code, current, "advance"), step: "history", from: "list" });
-      loadPayData(employee.id);
+      loadPayData(employee.id, "advance");
     },
     openRecordFor: (employee, current, monthKey) => {
       clearTimer();

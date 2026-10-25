@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { scanMark } from "../api";
+import { scanMark } from "../mock/mockApi";
 import {
   SPEECH,
   VOICES_TIMEOUT_MS,
@@ -233,7 +233,7 @@ describe("scan still saves when speech fails", () => {
   it("the scan → save chain resolves around a failing speak()", async () => {
     installSynth({ voices: [{ lang: "ne-NP", name: "Nepali" }], speakThrows: true });
     let saved = false;
-    await scanMark({ code: "E-005", action: "present", ot_hours: 0 })
+    await scanMark({ employee_id: 5, code: "E-005", action: "present", ot_hours: 0 })
       .then((result) => {
         saved = result.record.status === "P";
         void speak(SPEECH.present());

@@ -1,9 +1,9 @@
 /**
- * Attendance module contract: the shapes `web/components/attendance/api.ts`
- * returns today from mock data and the FastAPI endpoints under
- * /api/attendance will return once the UI is signed off. Keep the two in sync;
- * the endpoint for each shape is noted next to it and in
- * app/modules/attendance/API_NOTES.md.
+ * Attendance module contract: the shapes the FastAPI endpoints under
+ * /api/attendance return (app/modules/attendance/schemas.py, same field names)
+ * and `web/components/attendance/api.ts` passes on. The node tests run on the
+ * twin in `mock/mockApi.ts`. The endpoint for each shape is noted next to it and
+ * in app/modules/attendance/API_NOTES.md.
  *
  * Dates: every record carries the BS date ("YYYY-MM-DD", Bikram Sambat) first
  * and the AD date second. The UI converts with web/components/attendance/bsdate.ts
@@ -38,6 +38,10 @@ export interface EmployeeRef {
   branch_name: string;
   department_id: number;
   department_name: string;
+  /** Code 128 value on the staff card, "TTK-E004" (server only). */
+  barcode?: string;
+  /** False for former staff (they still appear in past reports). */
+  active?: boolean;
 }
 
 export interface BranchRef {
@@ -126,7 +130,7 @@ export interface AttendanceRecord {
   note: string;
   /** Username of the person who last marked the row. */
   marked_by: string;
-  marked_via: "manual" | "scan";
+  marked_via: "manual" | "scan" | "bulk";
   /** ISO timestamp. */
   updated_at: string;
 }
@@ -135,6 +139,8 @@ export interface AttendanceRecord {
 export interface MarkRow {
   employee: EmployeeRef;
   record: AttendanceRecord | null;
+  /** Rupees paid that day (payroll contract); null / absent when nothing was paid. */
+  payments_today?: { advance: number; salary: number } | null;
 }
 
 /**
@@ -189,6 +195,17 @@ export interface MarkOneResponse {
   previous: CellStatus;
 }
 
+/** DELETE /api/attendance/mark?employee_id=&date_bs= – "Clear mark", back to not marked. */
+export interface ClearMarkResponse {
+  date: string;
+  date_bs: string;
+  employee_id: number;
+  /** What the day showed before ("N" when there was nothing to clear). */
+  previous: CellStatus;
+  /** "W" on the weekly off, else "N". */
+  now: "W" | "N";
+}
+
 /**
  * POST /api/attendance/bulk-mark – marks Present, in one transaction, only the
  * employees of the scope that have no record for the day yet. Either a list of
@@ -219,7 +236,10 @@ export interface LookupResponse {
 
 /** POST /api/attendance/scan – marks today immediately (marked_via "scan"). */
 export interface ScanRequest {
-  code: string;
+  /** From the lookup (payroll's by-barcode resolves the sticker). */
+  employee_id: number;
+  /** The code as scanned (kept for the sheets; the server goes by employee_id). */
+  code?: string;
   action: "present" | "overtime";
   /** Required with "overtime". */
   ot_hours: number;
@@ -258,6 +278,9 @@ export interface AttendanceTotals {
   attended: number;
   /** present + overtime_days + weekly_off. Absent is unpaid. */
   paid_days: number;
+  /** Saturdays marked P / O (already counted in present / overtime_days above). Server only. */
+  saturday_days_worked?: number;
+  saturday_ot_hours?: number;
 }
 
 export interface ReportRow {
@@ -278,6 +301,12 @@ export interface MonthReport {
   rows: ReportRow[];
   /** ISO timestamp of when the data was produced. */
   generated_at: string;
+  /** The branch reported on (null = every branch). Server only. */
+  branch_id?: number | null;
+  /** Staff present (P or O) per day, in `month.days` order. Server only. */
+  staff_present?: number[];
+  /** Today's AD date. Server only. */
+  today?: string;
 }
 
 /** A week of the month, sliced client-side from the report. */

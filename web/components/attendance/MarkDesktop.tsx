@@ -77,7 +77,16 @@ export function MarkDesktop({ state }: { state: MarkState }) {
         subtitle="Pick a branch, narrow down and mark. Each mark is saved as soon as you confirm it."
         actions={
           <div className={styles.dateCol}>
-            <BSDate label="Date" name="date" value={state.date} align="right" noFutureDays onChange={(bs) => state.setDate(bs)} />
+            <BSDate
+              label="Date"
+              name="date"
+              value={state.date}
+              align="right"
+              noFutureDays
+              markedDays={state.markedDays}
+              markedLabel="attendance marked"
+              onChange={(bs) => state.setDate(bs)}
+            />
           </div>
         }
       />

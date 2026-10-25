@@ -21,14 +21,15 @@ export function useScanFlow(deps: ScanFlowDeps, options: { trapBack?: boolean } 
       api: {
         lookup: (code) => depsRef.current.api.lookup(code),
         mark: (req) => depsRef.current.api.mark(req),
-        balance: (id) => depsRef.current.api.balance(id),
-        history: (id) => depsRef.current.api.history(id),
+        balance: (id, kind) => depsRef.current.api.balance(id, kind),
+        history: (id, monthKey) => depsRef.current.api.history(id, monthKey),
         pay: (input) => depsRef.current.api.pay(input),
         employeeMonth: (id, monthKey) => depsRef.current.api.employeeMonth(id, monthKey),
       },
       currentDraft: (emp, today) => depsRef.current.currentDraft(emp, today),
       onMarked: (result) => depsRef.current.onMarked?.(result),
       monthKey: () => depsRef.current.monthKey(),
+      canPay: () => depsRef.current.canPay?.() ?? true,
       sounds: {
         read: () => depsRef.current.sounds?.read?.(),
         name: (e) => depsRef.current.sounds?.name?.(e),

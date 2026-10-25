@@ -14,13 +14,15 @@ export interface SavedModalProps {
   employee: EmployeeRef;
   onEdit: () => void;
   onChange: (status: MarkStatus) => void;
+  /** "Clear mark" (asks first): back to not marked. */
+  onClear: () => void;
   onClose: () => void;
 }
 
 const NP: Record<MarkStatus, string> = { P: "हाजिर", O: "ओभरटाइम", A: "अनुपस्थित" };
 
 /** Desktop: "Saved as Present / Absent" after a click, with Edit → change to P / O / A. */
-export function SavedModal({ saved, employee, onEdit, onChange, onClose }: SavedModalProps) {
+export function SavedModal({ saved, employee, onEdit, onChange, onClear, onClose }: SavedModalProps) {
   const titleId = useId();
   const dialog = useDialog(onClose);
   const label = saved.status === "O" ? `Overtime · ${saved.hours} h` : statusLabel(saved.status);
@@ -77,6 +79,9 @@ export function SavedModal({ saved, employee, onEdit, onChange, onClose }: Saved
                   {statusLabel(status)}
                 </button>
               ))}
+              <button type="button" className={styles.cfmOpt} onClick={onClear}>
+                Clear mark
+              </button>
             </div>
           </div>
         ) : null}

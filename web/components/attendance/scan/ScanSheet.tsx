@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { PaidByPicker } from "@/app/people/_components/PaidByPicker";
+import { useSession } from "@/lib/session";
 import { WEEKDAYS_NE, diffDays, formatAdShort, monthLabel, monthName, parseMonthKey, toNepaliDigits } from "@/lib/bs";
 import { bsMonthDays } from "../calendar";
 import { CheckIcon } from "../icons";
@@ -282,10 +284,12 @@ function Already({ scan, state, titleId }: StepProps<"already">) {
       </div>
       <Person scan={scan} titleId={titleId} size={60} />
       <div className={styles.recBtns}>
-        <button type="button" className={styles.recBtn} onClick={flow.openPaymentRecord}>
-          <SalaryIcon size={18} />
-          Payment record
-        </button>
+        {state.canPay ? (
+          <button type="button" className={styles.recBtn} onClick={flow.openPaymentRecord}>
+            <SalaryIcon size={18} />
+            Payment record
+          </button>
+        ) : null}
         <button type="button" className={styles.recBtn} onClick={flow.openAttendanceRecord}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3" y="4" width="18" height="17" rx="2" />
@@ -294,30 +298,34 @@ function Already({ scan, state, titleId }: StepProps<"already">) {
           Attendance record
         </button>
       </div>
-      <span className={styles.question}>What do you want to record?</span>
-      <div className={styles.twoBig}>
-        <button
-          type="button"
-          className={`${styles.big} ${styles.bigPresent} ${styles.bigPay}`}
-          onClick={() => flow.choosePayment("salary")}
-          data-autofocus=""
-        >
-          <span className={styles.bigLabel}>Salary payment</span>
-          <span className={styles.bigNp} lang="ne">
-            तलब भुक्तानी
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`${styles.big} ${styles.bigOt} ${styles.bigPay}`}
-          onClick={() => flow.choosePayment("advance")}
-        >
-          <span className={styles.bigLabel}>Advance payment</span>
-          <span className={styles.bigNp} lang="ne">
-            पेश्की भुक्तानी
-          </span>
-        </button>
-      </div>
+      {state.canPay ? (
+        <>
+          <span className={styles.question}>What do you want to record?</span>
+          <div className={styles.twoBig}>
+            <button
+              type="button"
+              className={`${styles.big} ${styles.bigPresent} ${styles.bigPay}`}
+              onClick={() => flow.choosePayment("salary")}
+              data-autofocus=""
+            >
+              <span className={styles.bigLabel}>Salary payment</span>
+              <span className={styles.bigNp} lang="ne">
+                तलब भुक्तानी
+              </span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.big} ${styles.bigOt} ${styles.bigPay}`}
+              onClick={() => flow.choosePayment("advance")}
+            >
+              <span className={styles.bigLabel}>Advance payment</span>
+              <span className={styles.bigNp} lang="ne">
+                पेश्की भुक्तानी
+              </span>
+            </button>
+          </div>
+        </>
+      ) : null}
       <button type="button" className={styles.changeLink} onClick={flow.changeAttendance}>
         Change today&apos;s attendance instead
       </button>
@@ -338,6 +346,7 @@ function typeNp(type: PaymentType): string {
 
 function Pay({ scan, state, titleId }: StepProps<"pay">) {
   const flow = state.flow;
+  const { user } = useSession();
   const b = scan.balance;
   const salary = scan.type === "salary";
   const typeLabel = salary ? "Salary payment" : "Advance payment";
@@ -370,7 +379,7 @@ function Pay({ scan, state, titleId }: StepProps<"pay">) {
             {typeNp(scan.type)}
           </span>
         </span>
-        <span className={styles.payBandMonth}>{month}</span>
+        <span className={styles.payBandMonth}>{salary && b ? `Salary for ${month}` : month}</span>
       </div>
       <div className={styles.personText}>
         <h2 id={titleId} className={styles.personName}>
@@ -418,6 +427,17 @@ function Pay({ scan, state, titleId }: StepProps<"pay">) {
           <CustomAmountInput value={scan.amount} onChange={flow.setAmount} />
         </div>
       ) : null}
+      <PaidByPicker
+        modes={state.paymentModes}
+        value={scan.mode}
+        onChange={flow.setMode}
+        type={scan.type}
+        variant="other"
+        manageHref={user?.role === "admin" ? "/admin/payment-modes" : null}
+        reference=""
+        onReference={() => {}}
+        noReference
+      />
       {showError || scan.error ? (
         <span className={styles.error} role="alert">
           {scan.error ?? validation}

@@ -2,6 +2,7 @@
 
 import { ActionSheet } from "./ActionSheet";
 import { AskModal } from "./AskModal";
+import { ClearMarkModal } from "./ClearMarkModal";
 import { ManualDoneSheet } from "./ManualDoneSheet";
 import { MarkDesktop } from "./MarkDesktop";
 import { MarkMobile } from "./MarkMobile";
@@ -31,6 +32,7 @@ export function MarkPage() {
   const askRow = rowOf(state.ask?.employeeId);
   const doneRow = rowOf(state.manualDone?.employeeId);
   const actionRow = rowOf(state.action ?? undefined);
+  const clearRow = rowOf(state.clearAsk?.employeeId);
 
   return (
     <>
@@ -41,6 +43,7 @@ export function MarkPage() {
           employee={savedRow.employee}
           onEdit={state.savedEdit}
           onChange={state.savedChange}
+          onClear={() => state.askClear(state.saved!.employeeId)}
           onClose={state.savedClose}
         />
       ) : null}
@@ -49,6 +52,8 @@ export function MarkPage() {
           open
           value={state.date}
           noFutureDays
+          markedDays={state.markedDays}
+          markedLabel="attendance marked"
           title="Choose date"
           onChange={(bs) => {
             state.setDate(bs);
@@ -71,11 +76,22 @@ export function MarkPage() {
             state.closeAction();
             state.askStatus(actionRow.employee.id, status);
           }}
+          onClear={() => state.askClear(actionRow.employee.id)}
+          canPay={state.canPay}
           onClose={state.closeAction}
         />
       ) : null}
       {phone && state.ask && askRow ? (
         <AskModal ask={state.ask} employee={askRow.employee} onConfirm={state.askConfirm} onCancel={state.askCancel} />
+      ) : null}
+      {state.clearAsk && clearRow ? (
+        <ClearMarkModal
+          ask={state.clearAsk}
+          employee={clearRow.employee}
+          weeklyOff={state.data?.day.is_weekly_off ?? false}
+          onConfirm={state.clearConfirm}
+          onCancel={state.clearCancel}
+        />
       ) : null}
       {state.otModal ? (
         <OvertimeModal

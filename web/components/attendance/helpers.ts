@@ -131,7 +131,7 @@ export function sumTotals(rows: readonly ReportRow[]): AttendanceTotals {
   const sum = emptyTotals();
   for (const row of rows) {
     for (const key of Object.keys(sum) as (keyof AttendanceTotals)[]) {
-      sum[key] += row.totals[key];
+      sum[key] = (sum[key] ?? 0) + (row.totals[key] ?? 0);
     }
   }
   return sum;

@@ -6,9 +6,10 @@ import datetime as dt
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.contracts import TodayStatus
+from app.core import bsdate
 from app.core.bsdate import BSDate
 from app.core.models import Role
 
@@ -405,9 +406,11 @@ class MonthBalanceOut(BaseModel):
 class PaymentIn(BaseModel):
     employee_id: int
     kind: PaymentKind
-    #: The BS month the payment counts for - explicit, always.
-    for_year: int
-    for_month: int = Field(ge=1, le=12)
+    #: The BS month the payment counts for. The account screens always send it; left out (the
+    #: attendance scan flow's advances) it is the BS month of the payment date, as in
+    #: app/contracts.py ``resolve_payment_month``. Both or neither.
+    for_year: int | None = None
+    for_month: int | None = Field(default=None, ge=1, le=12)
     amount: int
     #: admin.payment_modes row; null = Cash.
     payment_mode_id: int | None = None
@@ -422,6 +425,19 @@ class PaymentIn(BaseModel):
     @classmethod
     def _clean_opt(cls, value: str | None) -> str | None:
         return clean_optional(value)
+
+    @model_validator(mode="after")
+    def _month_of_the_date(self) -> PaymentIn:
+        if (self.for_year is None) != (self.for_month is None):
+            raise ValueError("for_year and for_month go together")
+        if self.for_year is None:
+            bs = (
+                self.date_bs
+                if self.date_bs is not None
+                else bsdate.ad_to_bs(self.date or bsdate.today_ad())
+            )
+            self.for_year, self.for_month = bs.year, bs.month
+        return self
 
 
 class PaymentResultOut(BaseModel):

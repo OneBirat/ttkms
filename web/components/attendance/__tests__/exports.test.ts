@@ -14,7 +14,7 @@ import {
   recordPayment,
   saveDay,
   scanMark,
-} from "../api";
+} from "../mock/mockApi";
 import { buildExportModel } from "../exportModel";
 import { buildPrintDocument, paginateLines, saturdaySpans } from "../print";
 import { buildReportWorkbook, columnName, crc32, workbookToBytes } from "../xlsx";
@@ -202,7 +202,7 @@ describe("mock API rules", () => {
     await assert.rejects(lookupCode("TTK-X917"), (e: unknown) => e instanceof AttendanceApiError && e.status === 404);
   });
   it("scan marks today at once", async () => {
-    const r = await scanMark({ code: "E-011", action: "overtime", ot_hours: 2 });
+    const r = await scanMark({ employee_id: 11, code: "E-011", action: "overtime", ot_hours: 2 });
     assert.equal(r.record.status, "O");
     assert.equal(r.record.ot_hours, 2);
     assert.equal(r.record.marked_via, "scan");

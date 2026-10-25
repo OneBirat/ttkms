@@ -51,7 +51,7 @@ function notFound(): Error & { status: number } {
   return Object.assign(new Error("No employee"), { status: 404 });
 }
 
-function setup(options: { markFails?: boolean; marked?: Set<number> } = {}) {
+function setup(options: { markFails?: boolean; marked?: Set<number>; canPay?: boolean; ashojDue?: boolean } = {}) {
   const clock = new FakeClock();
   const calls: string[] = [];
   const marked = options.marked ?? new Set<number>();
@@ -84,18 +84,25 @@ function setup(options: { markFails?: boolean; marked?: Set<number> } = {}) {
       if (options.markFails) throw new Error("Server busy");
       const status = req.action === "overtime" ? "O" : "P";
       const result: ScanResponse = {
-        employee: req.code.includes("011") ? laxmi : kamala,
+        employee: req.employee_id === laxmi.id ? laxmi : kamala,
         record: { employee_id: 4, date_bs: "2083-07-07", date_ad: "2026-10-24", status, ot_hours: req.ot_hours, note: "", marked_by: "admin", marked_via: "scan", updated_at: "" },
       };
       marked.add(result.employee.id);
       return result;
     },
-    async balance() {
-      calls.push("balance");
+    async balance(_id, kind) {
+      calls.push(`balance ${kind}`);
+      // Salary: payroll's settlement month (Ashoj while it is still due); advance: the running month.
+      if (kind === "salary" && options.ashojDue) {
+        return { employee_id: 4, bs_year: 2083, bs_month: 6, month_key: "2083-06", month_label: "Ashoj 2083", earned: 24000, paid: 0, due: 24000 };
+      }
       return { employee_id: 4, bs_year: 2083, bs_month: 7, month_key: "2083-07", month_label: "Kartik 2083", earned, paid, due: earned - paid };
     },
-    async history() {
-      calls.push("history");
+    async history(_id, monthKey) {
+      calls.push(`history ${monthKey}`);
+      if (monthKey === "2083-06") {
+        return { employee_id: 4, month_key: "2083-06", month_label: "Ashoj 2083", payments: [], totals: { earned: 24000, paid: 0, due: 24000 } };
+      }
       return history();
     },
     async employeeMonth(employeeId, monthKey) {
@@ -109,7 +116,12 @@ function setup(options: { markFails?: boolean; marked?: Set<number> } = {}) {
       };
     },
     async pay(input) {
-      calls.push(`pay ${input.kind} ${input.amount} mode${input.payment_mode_id ?? 1} ${input.source}`);
+      const forMonth = input.for_year != null ? ` for ${input.for_year}-${input.for_month}` : "";
+      calls.push(`pay ${input.kind} ${input.amount} mode${input.payment_mode_id ?? 1} ${input.source}${forMonth}`);
+      if (input.for_month != null && input.for_month !== 7) {
+        const other = { ...record(98, "2083-07-07", "2026-10-24", input.kind, input.amount, "2026-10-30T10:00:00Z"), for_month: input.for_month };
+        return { payment: other, due_after: 0 };
+      }
       paid += input.amount;
       const saved = { ...record(99, "2083-07-07", "2026-10-24", input.kind, input.amount, "2026-10-30T10:00:00Z"), source: input.source };
       payments = [saved, ...payments];
@@ -121,6 +133,7 @@ function setup(options: { markFails?: boolean; marked?: Set<number> } = {}) {
     api,
     currentDraft: (emp) => (marked.has(emp.id) ? { status: "P", ot_hours: 0, note: "" } : { status: null, ot_hours: 0, note: "" }),
     monthKey: () => "2083-07",
+    canPay: () => options.canPay ?? true,
     now: () => clock.now,
     setTimeout: clock.setTimeout,
     clearTimeout: clock.clearTimeout,
@@ -414,6 +427,48 @@ describe("scan loop", () => {
     assert.equal(t.flow.back(), true);
     assert.equal(t.step(), "already");
     assert.equal(shiftMonthKey("2083-01", -1), "2082-12");
+  });
+
+  it("salary counts for payroll's settlement month, advance for the running month; Paid by is sent", async () => {
+    const t = setup({ marked: new Set([4]), ashojDue: true });
+    t.flow.open();
+    t.flow.scan("E-004");
+    await flush();
+    t.flow.choosePayment("salary");
+    await flush();
+    const pay = t.scan() as Extract<Scan, { step: "pay" }>;
+    assert.equal(pay.balance?.month_label, "Ashoj 2083");
+    assert.equal(pay.mode, 1);
+    assert.ok(t.calls.includes("balance salary") && t.calls.includes("history 2083-06"));
+    t.flow.setMode(7);
+    t.flow.savePayment(); // pick "full" is the default for salary
+    await flush();
+    assert.equal(t.step(), "paid");
+    assert.ok(t.calls.includes("pay salary 24000 mode7 scan for 2083-6"), t.calls.join(" | "));
+    assert.equal((t.scan() as Extract<Scan, { step: "paid" }>).monthLabel, "Ashoj 2083");
+    await t.clock.advance(AUTO_RETURN_MS + 4000);
+    t.flow.scan("E-004");
+    await flush();
+    t.flow.choosePayment("advance");
+    await flush();
+    t.flow.setPick("500");
+    t.flow.savePayment();
+    await flush();
+    assert.ok(t.calls.includes("pay advance 500 mode1 scan"), "an advance sends no for_*");
+  });
+
+  it("without salary_advances there are no pay steps or payment record", async () => {
+    const t = setup({ marked: new Set([4]), canPay: false });
+    t.flow.open();
+    t.flow.scan("E-004");
+    await flush();
+    assert.equal(t.step(), "already");
+    t.flow.choosePayment("salary");
+    t.flow.openPaymentRecord();
+    assert.equal(t.step(), "already");
+    t.flow.openHistoryFor(kamala, { status: "P", ot_hours: 0, note: "" });
+    assert.equal(t.step(), "already");
+    assert.ok(!t.calls.some((c) => c.startsWith("balance") || c.startsWith("history")));
   });
 
   it("history and record opened from the list close on Back", async () => {

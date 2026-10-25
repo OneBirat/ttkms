@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { getDay, getReport } from "../api";
+import { getDay, getReport } from "../mock/mockApi";
 import { loadDepartments } from "../departments";
 import { DEPARTMENTS, EMPLOYEES, departmentRefs } from "../mock/employees";
 

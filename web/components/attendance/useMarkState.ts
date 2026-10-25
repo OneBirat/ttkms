@@ -2,12 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "@/lib/session";
+import { listPaymentModes } from "@/app/people/api";
+import type { PaymentMode } from "@/app/people/types";
 import {
   bulkMarkPresent,
+  clearMark,
   getDay,
   getEmployeeMonth,
+  getMarkedDays,
   getMonthBalance,
   getPaymentHistoryFor,
+  getSalaryMonthKey,
   getToday,
   lookupCode,
   markOne,
@@ -92,6 +97,12 @@ export interface ManualDone {
   token: number;
 }
 
+/** "Clear mark?" before the record is removed (both layouts). */
+export interface ClearConfirm {
+  employeeId: number;
+  previous: CellStatus;
+}
+
 export interface BulkMessage {
   text: string;
   names: string[];
@@ -113,6 +124,8 @@ export interface MarkState {
   isPast: boolean;
   calendarOpen: boolean;
   setCalendarOpen: (open: boolean) => void;
+  /** BS dates of the shown month and the one before with any mark in the branch (date picker dots). */
+  markedDays: string[];
   branchId: number;
   setBranch: (id: number) => void;
   departmentId: number | null;
@@ -162,6 +175,11 @@ export interface MarkState {
   setOvertimeHours: (hours: number) => void;
   cancelOvertime: () => void;
   saveOvertime: () => void;
+  // clear mark (phone ⋮ sheet, desktop saved pop-up), with a confirm
+  clearAsk: ClearConfirm | null;
+  askClear: (employeeId: number) => void;
+  clearConfirm: () => void;
+  clearCancel: () => void;
   // phone action sheet
   action: number | null;
   openAction: (employeeId: number) => void;
@@ -176,6 +194,10 @@ export interface MarkState {
   bulkMessage: BulkMessage | null;
   closeBulkMessage: () => void;
   // scan flow (scan/scanFlow.ts)
+  /** salary_advances: the scan flow's Salary / Advance steps and "View payments". */
+  canPay: boolean;
+  /** Active payment modes for "Paid by" (Cash | Other ▾); loaded only with canPay. */
+  paymentModes: PaymentMode[];
   scan: Scan | null;
   scanCount: number;
   flow: ScanFlow;
@@ -190,6 +212,24 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const { phone } = options;
   const { branchId: homeBranch, can } = useSession();
   const canPickBranch = can("see_other_branches");
+  const canPay = can("salary_advances");
+  const canPayRef = useRef(canPay);
+  canPayRef.current = canPay;
+  const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
+  useEffect(() => {
+    if (!canPay) return;
+    let cancelled = false;
+    listPaymentModes()
+      .then((modes) => {
+        if (!cancelled) setPaymentModes(modes);
+      })
+      .catch(() => {
+        // Cash still works without the list (the picker then offers Cash only).
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canPay]);
 
   const [today, setToday] = useState<TodayRef | null>(null);
   const [date, setDateRaw] = useState("");
@@ -215,6 +255,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const [selected, setSelectedRaw] = useState<ReadonlySet<number>>(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState<BulkMessage | null>(null);
+  const [clearAsk, setClearAsk] = useState<ClearConfirm | null>(null);
 
   // Default date = today (BS).
   useEffect(() => {
@@ -252,6 +293,24 @@ export function useMarkState(options: { phone: boolean }): MarkState {
       cancelled = true;
     };
   }, [date, branchId]);
+
+  // Date-picker dots: days with any mark, for the date's month and the month before.
+  const [markedDays, setMarkedDays] = useState<string[]>([]);
+  const monthOfDate = isValidBs(date) ? date.slice(0, 7) : "";
+  useEffect(() => {
+    if (!monthOfDate) return;
+    let cancelled = false;
+    const [y, m] = monthOfDate.split("-").map(Number);
+    const previous = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+    Promise.all([monthOfDate, previous].map((key) => getMarkedDays(key, { branchId }).catch(() => [] as string[])))
+      .then((lists) => {
+        if (!cancelled) setMarkedDays(lists.flat());
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [monthOfDate, branchId]);
 
   const rowsById = useMemo(() => {
     const map = new Map<number, MarkRow>();
@@ -367,6 +426,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
           ot_hours: status === "O" ? clampHours(hours) : 0,
         });
         applyRecords([result.record]);
+        setMarkedDays((days) => (days.includes(result.record.date_bs) ? days : [...days, result.record.date_bs]));
         setSelectedRaw((s) => {
           if (!s.has(employeeId)) return s;
           const next = new Set(s);
@@ -487,6 +547,41 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     });
   };
 
+  // ---- clear mark: back to not marked (weekly off on a Saturday)
+
+  const askClear = (employeeId: number) => {
+    const row = rowsRef.current.get(employeeId);
+    if (!row || !row.record) return;
+    setAction(null);
+    setSaved(null);
+    setClearAsk({ employeeId, previous: recordStatus(row.record) });
+  };
+  const clearConfirm = () => {
+    if (!clearAsk || !data) return;
+    const { employeeId } = clearAsk;
+    const dateBs = data.day.bs_date;
+    setClearAsk(null);
+    setPending((p) => new Set(p).add(employeeId));
+    setError(null);
+    clearMark(employeeId, dateBs)
+      .then(() => {
+        setData((current) =>
+          current && current.day.bs_date === dateBs
+            ? { ...current, rows: current.rows.map((row) => (row.employee.id === employeeId ? { ...row, record: null } : row)) }
+            : current,
+        );
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not clear the mark. Try again."))
+      .finally(() =>
+        setPending((p) => {
+          const next = new Set(p);
+          next.delete(employeeId);
+          return next;
+        }),
+      );
+  };
+  const clearCancel = () => setClearAsk(null);
+
   // ---- bulk (desktop, "Not marked" filter)
 
   const toggleSelected = (employeeId: number) =>
@@ -549,8 +644,9 @@ export function useMarkState(options: { phone: boolean }): MarkState {
       api: {
         lookup: lookupCode,
         mark: scanMark,
-        balance: (id) => getMonthBalance(id, currentMonthKey),
-        history: (id) => getPaymentHistoryFor(id, currentMonthKey),
+        // Advance: the running month. Salary: payroll's settlement month (previous month while it is still due).
+        balance: async (id, kind) => getMonthBalance(id, kind === "salary" ? await getSalaryMonthKey(id) : currentMonthKey),
+        history: (id, monthKey) => getPaymentHistoryFor(id, monthKey),
         pay: recordPayment,
         employeeMonth: getEmployeeMonth,
       },
@@ -562,6 +658,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
         }
       },
       monthKey: () => currentMonthKey,
+      canPay: () => canPayRef.current,
       sounds: {
         read: () => beep("ok"),
         name: (e) => say(SPEECH.name(e)),
@@ -604,6 +701,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     isPast,
     calendarOpen,
     setCalendarOpen,
+    markedDays,
     branchId,
     setBranch,
     departmentId,
@@ -647,6 +745,10 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     setOvertimeHours,
     cancelOvertime,
     saveOvertime,
+    clearAsk,
+    askClear,
+    clearConfirm,
+    clearCancel,
     action,
     openAction: (id) => setAction(id),
     closeAction: () => setAction(null),
@@ -658,6 +760,8 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     markDepartment,
     bulkMessage,
     closeBulkMessage: () => setBulkMessage(null),
+    canPay,
+    paymentModes,
     scan: scanState.scan,
     scanCount: scanState.count,
     flow,

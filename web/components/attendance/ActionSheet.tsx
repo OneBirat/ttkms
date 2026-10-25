@@ -13,11 +13,15 @@ export interface ActionSheetProps {
   onPayments: () => void;
   onCalendar: () => void;
   onChange: (status: "P" | "A") => void;
+  /** "Clear mark" (asks first); only offered when the day is marked. */
+  onClear: () => void;
+  /** Without salary_advances there is no "View payments". */
+  canPay: boolean;
   onClose: () => void;
 }
 
-/** Phone ⋮ menu: Add overtime · View payments · View attendance calendar · Change status. */
-export function ActionSheet({ employee, current, onOvertime, onPayments, onCalendar, onChange, onClose }: ActionSheetProps) {
+/** Phone ⋮ menu: Add overtime · View payments · View attendance calendar · Change status · Clear mark. */
+export function ActionSheet({ employee, current, onOvertime, onPayments, onCalendar, onChange, onClear, canPay, onClose }: ActionSheetProps) {
   const titleId = useId();
   const dialog = useDialog(onClose);
   const status = current.status ?? "N";
@@ -63,16 +67,18 @@ export function ActionSheet({ employee, current, onOvertime, onPayments, onCalen
               ›
             </span>
           </button>
-          <button type="button" className={styles.actItem} onClick={onPayments}>
-            <span className={`${styles.actIcon} ${styles.actIconPay}`}>₨</span>
-            <span className={styles.actItemText}>
-              <span className={styles.actItemTitle}>View payments</span>
-              <span className={styles.actItemSub}>Advances &amp; salary this month</span>
-            </span>
-            <span aria-hidden="true" className={styles.actChevron}>
-              ›
-            </span>
-          </button>
+          {canPay ? (
+            <button type="button" className={styles.actItem} onClick={onPayments}>
+              <span className={`${styles.actIcon} ${styles.actIconPay}`}>₨</span>
+              <span className={styles.actItemText}>
+                <span className={styles.actItemTitle}>View payments</span>
+                <span className={styles.actItemSub}>Advances &amp; salary this month</span>
+              </span>
+              <span aria-hidden="true" className={styles.actChevron}>
+                ›
+              </span>
+            </button>
+          ) : null}
           <button type="button" className={styles.actItem} onClick={onCalendar}>
             <span className={`${styles.actIcon} ${styles.actIconCal}`}>▦</span>
             <span className={styles.actItemText}>
@@ -93,6 +99,11 @@ export function ActionSheet({ employee, current, onOvertime, onPayments, onCalen
                 {k === "P" ? "✓ Present" : "✕ Absent"}
               </button>
             ))}
+          {status !== "N" ? (
+            <button type="button" className={styles.actChangeBtn} data-status="N" onClick={onClear}>
+              Clear mark
+            </button>
+          ) : null}
         </div>
         <button type="button" className={styles.secondaryBtn} onClick={onClose}>
           Close
