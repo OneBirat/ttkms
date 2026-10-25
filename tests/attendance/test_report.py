@@ -265,3 +265,23 @@ async def test_manager_preset_sees_no_payment_badges(client, db, login, user_in,
     await _as(client, login, user_in, branch=world.main)
     rows = (await client.get("/api/attendance/report", params=_params())).json()["rows"]
     assert all(_no_money(r["cells"]) for r in rows)
+
+
+async def test_employee_month_for_the_account_card_with_manage_employees_only(
+    client, db, login, user_in, world
+):
+    """The employee account's Attendance card: manage_employees alone may read the employee month
+    (no money without salary_advances); the month report itself still needs its permission."""
+    await _seed(db, world)
+    only = {"mark_attendance": False, "view_attendance_report": False, "manage_employees": True}
+    await _as(client, login, user_in, "hr", "staff", world.main, only)
+    anita = world.people["Anita"]
+    month = await client.get(f"/api/attendance/employees/{anita.id}/month", params=_params())
+    assert month.status_code == 200, month.text
+    body = month.json()
+    assert body["totals"]["absent"] == 1 and body["payments"] == [] and _no_money(body["cells"])
+    assert (await client.get("/api/attendance/report", params=_params())).status_code == 403
+    other = world.people["Mina"]
+    assert (
+        await client.get(f"/api/attendance/employees/{other.id}/month", params=_params())
+    ).status_code == 403

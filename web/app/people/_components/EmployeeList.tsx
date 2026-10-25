@@ -1,16 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useMemo } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import { Avatar } from "./Avatar";
-import { departmentCounts, groupByDepartment, matchesEmployee } from "../_lib/helpers";
+import { departmentCounts, matchesEmployee } from "../_lib/helpers";
+import { readCollapsed, staffGroups, writeCollapsed } from "../_lib/account";
 import type { Department, Employee, EmployeeSort } from "../types";
 import styles from "./employees.module.css";
 import shared from "./payroll.module.css";
 
 export interface EmployeeListProps {
+  /** Staff of one branch (the open employee's). */
   employees: Employee[];
+  /** "Staff · {Branch}" in the header. */
+  branchName: string;
   departments: Department[];
   selectedId: number | null;
   /** The open employee's department: listed first with a dark header. */
@@ -29,9 +33,14 @@ const SORTS: { value: EmployeeSort; label: string }[] = [
   { value: "designation", label: "Sort: Designation" },
 ];
 
-/** Search + department dropdown + sort, employees grouped by department. */
+/**
+ * The staff of the open employee's branch: search + department dropdown + sort, grouped by
+ * department (own department first, dark header). « collapses it to a strip of round avatars in the
+ * same order; the choice is remembered in localStorage.
+ */
 export function EmployeeList({
   employees,
+  branchName,
   departments,
   selectedId,
   ownDepartmentId = null,
@@ -53,16 +62,61 @@ export function EmployeeList({
       ),
     [employees, department, query],
   );
-  const groups = useMemo(() => {
-    const all = groupByDepartment(filtered, departments, sort);
-    if (ownDepartmentId === null) return all;
-    const own = all.filter((g) => g.department?.id === ownDepartmentId);
-    return [...own, ...all.filter((g) => g.department?.id !== ownDepartmentId)];
-  }, [filtered, departments, sort, ownDepartmentId]);
+  const groups = useMemo(() => staffGroups(filtered, departments, sort, ownDepartmentId), [filtered, departments, sort, ownDepartmentId]);
   const deptName = department === "all" ? "All departments" : departments.find((d) => d.id === department)?.name ?? "Department";
+  // Read after mount (no localStorage on the server render).
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => setCollapsed(readCollapsed()), []);
+  const toggle = (next: boolean) => {
+    setCollapsed(next);
+    writeCollapsed(next);
+  };
+
+  if (collapsed) {
+    return (
+      <aside aria-label={`Staff · ${branchName}`} className={`card ${styles.listStrip}`} data-testid="staff-strip">
+        <button type="button" className={styles.listToggle} aria-label="Expand the staff list" title="Expand" onClick={() => toggle(false)}>
+          »
+        </button>
+        <div className={styles.stripScroll} role="list">
+          {groups.map((group, index) => {
+            const own = group.department !== null && group.department.id === ownDepartmentId;
+            return (
+              <div key={group.department?.id ?? "none"} role="presentation" className={styles.stripGroup}>
+                {own || index > 0 ? <span className={own ? styles.stripRuleOwn : styles.stripRule} aria-hidden="true" /> : null}
+                {group.employees.map((employee) => {
+                  const selected = employee.id === selectedId;
+                  const label = `${employee.full_name} · ${employee.code}`;
+                  return (
+                    <Link
+                      key={employee.id}
+                      role="listitem"
+                      href={`/people/employees/${employee.id}`}
+                      className={styles.stripEmp}
+                      aria-current={selected ? "true" : undefined}
+                      aria-label={label}
+                      title={label}
+                    >
+                      <Avatar name={employee.full_name} photoUrl={employee.photo_url} size={40} tone={selected ? "selected" : "default"} />
+                    </Link>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </aside>
+    );
+  }
 
   return (
-    <aside aria-label="Employee list" className={`card ${styles.list}`}>
+    <aside aria-label={`Staff · ${branchName}`} className={`card ${styles.list}`}>
+      <div className={styles.listHead}>
+        <h2 className={styles.listTitle}>Staff · {branchName}</h2>
+        <button type="button" className={styles.listToggle} aria-label="Collapse the staff list" title="Collapse" onClick={() => toggle(true)}>
+          «
+        </button>
+      </div>
       <label htmlFor={searchId} className={shared.srOnly}>
         Search employees
       </label>

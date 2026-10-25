@@ -8,6 +8,7 @@
 import { apiFetch, type Role } from "@/lib/api";
 import { thisMonth } from "./_lib/months";
 import { monthKey, parseMonthKey } from "./_lib/months";
+import type { EmployeeMonth as AttendanceEmployeeMonth } from "@/components/attendance/types";
 import type {
   AccountSummary,
   Branch,
@@ -199,6 +200,13 @@ export interface EmployeeMonthAttendance {
 export async function getAttendance(employee_id: number, month: BsMonth): Promise<EmployeeMonthAttendance> {
   return apiFetch<EmployeeMonthAttendance>(
     `/api/payroll/employees/${employee_id}/attendance${qs({ bs_year: month.bs_year, bs_month: month.bs_month })}`,
+  );
+}
+
+/** GET /api/attendance/employees/{id}/month?bs_year=&bs_month= (the attendance module's employee month). */
+export async function getAttendanceMonth(employee_id: number, month: BsMonth): Promise<AttendanceEmployeeMonth> {
+  return apiFetch<AttendanceEmployeeMonth>(
+    `/api/attendance/employees/${employee_id}/month${qs({ bs_year: month.bs_year, bs_month: month.bs_month })}`,
   );
 }
 

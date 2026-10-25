@@ -23,6 +23,8 @@ from app.modules.admin.permissions import access_for_user, branch_for_user, requ
 
 MARK = "mark_attendance"
 REPORT = "view_attendance_report"
+# Payroll's permission: the employee account shows the employee month (Attendance card).
+EMPLOYEES = "manage_employees"
 OTHER_BRANCHES = "see_other_branches"
 #: Payroll's switch: without it attendance answers carry no payment amounts, badges or flags.
 MONEY = "salary_advances"

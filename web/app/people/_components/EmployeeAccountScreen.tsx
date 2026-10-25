@@ -10,11 +10,12 @@ import { EmployeeList } from "./EmployeeList";
 import { listDepartments, listEmployees } from "../api";
 import type { EmployeeSort } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
+import { branchStaff } from "../_lib/account";
 import styles from "./employees.module.css";
 
 /**
- * /people/employees/[id]: "‹ All employees", the left list (the employee's
- * own department first) and the account. `?dept=` (id or name, e.g. from a
+ * /people/employees/[id]: "‹ All employees", the left list (the staff of the employee's branch,
+ * own department first; collapsible to an avatar strip) and the account. `?dept=` (id or name, e.g. from a
  * double-click on the attendance sheet) preselects the department filter;
  * `?tab=` picks the section.
  */
@@ -53,6 +54,7 @@ export function EmployeeAccountScreen({ id }: { id: number }) {
 
   const list = employees.data ?? [];
   const person = list.find((e) => e.id === id) ?? null;
+  const staff = person ? branchStaff(list, person.branch.id) : [];
 
   return (
     <>
@@ -77,7 +79,8 @@ export function EmployeeAccountScreen({ id }: { id: number }) {
       ) : (
         <div className={styles.layout}>
           <EmployeeList
-            employees={list}
+            employees={staff}
+            branchName={person?.branch.name ?? ""}
             departments={departments.data ?? []}
             selectedId={person?.id ?? null}
             ownDepartmentId={person?.department?.id ?? null}

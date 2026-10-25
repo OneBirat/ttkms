@@ -5,19 +5,29 @@ import { BSDate } from "@/components/date";
 import { Modal } from "@/components/ui/Modal";
 import { Field, SelectInput, TextArea, TextInput, splitError } from "./FormBits";
 import { NepaliNameField } from "./NepaliNameField";
-import { listBranches, listDepartments, updateEmployee } from "../api";
-import type { Employee } from "../types";
+import { listBranches, listDepartments, updateEmployee, type SalaryStructureOut } from "../api";
+import { formatBs } from "@/lib/bs";
+import { formatRs } from "../_lib/helpers";
+import type { Employee, SalaryStructure } from "../types";
 import { usePayroll } from "../_lib/usePayroll";
 import styles from "./payroll.module.css";
 
 export interface EditProfileDialogProps {
   open: boolean;
   employee: Employee;
+  /** Current salary + history for the "Salary" section (null while loading). */
+  salary?: SalaryStructureOut | null;
+  /** Opens the Revise salary dialog (in place of this one). */
+  onRevise?: () => void;
   onClose: () => void;
   onSaved: (employee: Employee) => void;
 }
 
-export function EditProfileDialog({ open, employee, onClose, onSaved }: EditProfileDialogProps) {
+function amountOf(s: SalaryStructure): string {
+  return `${formatRs(s.pay_type === "daily" ? s.basic : s.gross)} / ${s.pay_type === "daily" ? "day" : "month"}`;
+}
+
+export function EditProfileDialog({ open, employee, salary = null, onRevise, onClose, onSaved }: EditProfileDialogProps) {
   const uid = useId();
   const branches = usePayroll(listBranches, []);
   const departments = usePayroll(listDepartments, []);
@@ -133,6 +143,8 @@ export function EditProfileDialog({ open, employee, onClose, onSaved }: EditProf
           </label>
         </div>
 
+        {onRevise ? <SalarySection salary={salary} onRevise={onRevise} /> : null}
+
         {formError ? (
           <p className={styles.formError} role="alert">
             {formError}
@@ -149,5 +161,48 @@ export function EditProfileDialog({ open, employee, onClose, onSaved }: EditProf
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** "Salary": what is in force, the OT rate, every effective-from step, and Revise. */
+function SalarySection({ salary, onRevise }: { salary: SalaryStructureOut | null; onRevise: () => void }) {
+  const current = salary?.current ?? null;
+  const history = salary?.history ?? [];
+  return (
+    <section aria-labelledby="edit-salary-h" className={styles.salarySection} data-testid="edit-salary">
+      <div className={styles.salaryHead}>
+        <h3 id="edit-salary-h" className={styles.salaryTitle}>
+          Salary
+        </h3>
+        <button type="button" className="btn btn--sm" onClick={onRevise}>
+          Revise
+        </button>
+      </div>
+      {salary === null ? (
+        <p className={styles.note}>Loading…</p>
+      ) : current ? (
+        <>
+          <div className={styles.salaryNow}>
+            <span>
+              {current.pay_type === "daily" ? "Daily wage" : "Monthly salary"} <b>{amountOf(current)}</b>
+            </span>
+            <span>
+              OT rate <b>{formatRs(current.ot_rate)} / h</b>
+            </span>
+          </div>
+          <ul className={styles.salaryHistory} aria-label="Salary history">
+            {history.map((s) => (
+              <li key={s.id}>
+                <span>From {formatBs(s.effective_from.bs)}</span>
+                <span className="mono">{amountOf(s)}</span>
+                <span className={styles.note}>{s.reason ?? ""}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className={styles.note}>No salary set up yet.</p>
+      )}
+    </section>
   );
 }

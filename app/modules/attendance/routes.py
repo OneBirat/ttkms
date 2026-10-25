@@ -14,6 +14,7 @@ from app.db import DbSession
 from app.modules.admin.permissions import require_any_access
 from app.modules.attendance import report, schemas, services
 from app.modules.attendance.access import (
+    EMPLOYEES,
     MARK,
     REPORT,
     CanMark,
@@ -25,6 +26,8 @@ from app.modules.attendance.access import (
 router = APIRouter()
 
 AnyAttendance = Annotated[User, Depends(require_any_access(MARK, REPORT))]
+# The employee month is also the account page's Attendance card (manage_employees).
+MonthReader = Annotated[User, Depends(require_any_access(MARK, REPORT, EMPLOYEES))]
 ERRORS: dict[int | str, dict[str, Any]] = {
     403: {"model": ErrorOut},
     404: {"model": ErrorOut},
@@ -107,7 +110,7 @@ async def month_report(
     "/employees/{employee_id}/month", response_model=schemas.EmployeeMonth, responses=ERRORS
 )
 async def employee_month(
-    employee_id: int, me: AnyAttendance, db: DbSession, bs_year: int, bs_month: int
+    employee_id: int, me: MonthReader, db: DbSession, bs_year: int, bs_month: int
 ) -> schemas.EmployeeMonth:
     scope = await scope_for(db, me, None)
     return await report.employee_month(

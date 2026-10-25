@@ -87,6 +87,19 @@ drop-down: the page is locked to the session `branchId` and shows the branch nam
 `waitForBranch()` until it is known); department chip counts, tiles and exports follow the branch, and the
 PDF title / file name name it. The API still answers `by_branch`; the UI does not show it.
 
+## Employee account (`/people/employees/[id]`, 2026-10-25)
+
+Left list = the staff of the employee's branch only ("Staff · {Branch}", own department first with the
+dark header); « collapses it to a 72px avatar strip (tooltip "Name · E-001", current ringed, separators
+between departments, a dark one before the own department), » opens it again; remembered in
+localStorage `ttk.people.staffList.collapsed`. Tabs: Overview · Salary · Ledger · Documents. "Pay salary"
+opens the payment dialog on payroll's settlement month (`summary.salary_month`; the month can be
+changed there). Salary tab cards: **Attendance** (manage_employees or view_attendance_report) from
+`GET /api/attendance/employees/{id}/month` - Sun–Sat grid, chips, ‹ › from the joining month to the
+running month, "View all ›" to `/attendance/report?employee=&bs_year=&bs_month=`; no attendance money is
+shown. **Last 6 payments** (salary_advances): newest non-voided payments from the ledger, "Open ledger ›".
+Revise salary lives in Edit profile › Salary. Rules in `_lib/account.ts` (tested).
+
 ## Recorded by (2026-10-25)
 
 `Payment.recorded_by` / `voided_by` (and "Printed by" on PDFs) are display names from

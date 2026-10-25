@@ -1,0 +1,232 @@
+/* Employee account, Salary tab: Attendance calendar card + Last 6 payments card. */
+
+.calCard {
+  flex: 1.4 1 420px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.calHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.calNav {
+  display: flex;
+  gap: 6px;
+}
+
+.calNavBtn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-input-border);
+  border-radius: 8px;
+  background: var(--color-card);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.calNavBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.calChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calChip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.calChip[data-mark="P"],
+.calMark[data-mark="P"] {
+  background: #e6f5f3;
+  color: #0a5454;
+}
+
+.calChip[data-mark="O"],
+.calMark[data-mark="O"] {
+  background: #fff4cc;
+  color: #7a5600;
+}
+
+.calChip[data-mark="A"],
+.calMark[data-mark="A"] {
+  background: #fbe9e4;
+  color: #8e2f12;
+}
+
+.calChip[data-mark="W"],
+.calMark[data-mark="W"] {
+  background: #eceeeb;
+  color: #b3261e;
+}
+
+.cal {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 3px;
+  table-layout: fixed;
+}
+
+.cal th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-align: center;
+  padding-bottom: 2px;
+}
+
+.cal th.calSat {
+  color: #b3261e;
+}
+
+.cal td {
+  padding: 0;
+  vertical-align: top;
+}
+
+.calDay {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 46px;
+  padding: 3px 4px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 6px;
+}
+
+.calDay[data-today="true"] {
+  border: 2px solid var(--color-primary);
+  padding: 2px 3px;
+}
+
+.calNums {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.calBs {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.calDay[data-sat="true"] .calBs {
+  color: #b3261e;
+}
+
+.calAd {
+  font-size: 9.5px;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.calMark {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.calFoot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.calLink {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.calLink:hover {
+  text-decoration: underline;
+}
+
+.payCard {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.payList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.payRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "date amount" "what amount";
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 3px;
+  padding: 9px 0;
+  border-top: 1px solid var(--color-border-soft);
+  font-size: 14px;
+}
+
+.payRow:first-child {
+  border-top: 0;
+}
+
+.payDate {
+  grid-area: date;
+  font-size: 13px;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.payWhat {
+  grid-area: what;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.payAmount {
+  grid-area: amount;
+}
+
+.payFor {
+  font-size: 13px;
+  color: #3e4a52;
+}

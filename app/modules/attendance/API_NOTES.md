@@ -24,7 +24,8 @@ branch scope), `services.py` (marking rules), `report.py` (report, employee mont
 
 `mark_attendance` – day list, mark / change / clear, bulk, scan, lookup, marked-day dots, employee month.
 `view_attendance_report` – the month report (Staff get 403 unless it is switched on for them).
-The employee month (phone calendar) takes either. Without `see_other_branches` every call is scoped
+The employee month (phone calendar) takes either, or payroll's `manage_employees` (the employee
+account's Attendance card). Without `see_other_branches` every call is scoped
 to the user's own branch (`admin.user_access.branch_id`) whatever the query says; a user without a
 branch sees nobody. Marking someone of another branch is 403. The scan flow's payment step needs
 payroll's `salary_advances` (the UI hides it without).
@@ -70,7 +71,7 @@ Every response carries the AD `date` and the BS `date_bs` (records: `date_ad` / 
 | POST | `/bulk-mark` | `{date_bs, branch_id, employee_ids? \| department_id?}` | `{marked: [{employee_id, name}], skipped, records}` – Present only for the still unmarked, one `INSERT … ON CONFLICT DO NOTHING` | mark |
 | GET | `/lookup?employee_id=` | after payroll's `GET /api/payroll/employees/by-barcode/{code}` (TTK-E001, legacy TTK-E-001, E-001, 1) | `{code, employee, today: record \| null}` | mark |
 | POST | `/scan` | `{employee_id, action: present\|overtime, ot_hours}` | `{employee, record, previous}` – today, source scan | mark |
-| GET | `/employees/{id}/month?bs_year=&bs_month=` | | `EmployeeMonth`: cells (P/O/A/W/N + advance / salary paid that day), totals, payments newest first | mark or report |
+| GET | `/employees/{id}/month?bs_year=&bs_month=` | | `EmployeeMonth`: cells (P/O/A/W/N + advance / salary paid that day), totals, payments newest first | mark, report or manage_employees |
 | GET | `/marked-days?bs_year=&bs_month=&branch=\|employee_id=` | | `{marked_days: [BS dates]}` – BSDatePicker dots | mark or report |
 | GET | `/report?bs_year=&bs_month=&branch=` | branch left out = every branch (see_other_branches) | `MonthReport`: month with days, rows (cells + totals incl. `saturday_days_worked` / `saturday_ot_hours`), `staff_present` per day, payment badges from `PayrollPayments.for_month`, `branch_id`, `today` | report |
 

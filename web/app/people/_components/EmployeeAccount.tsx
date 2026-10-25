@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pill } from "@/components/ui/Pill";
@@ -14,30 +13,21 @@ import { PaymentDialog } from "./PaymentDialog";
 import { PhotoDialog } from "./PhotoDialog";
 import { ReviseSalaryDialog } from "./ReviseSalaryDialog";
 import { TransactionsLedger } from "./TransactionsLedger";
-import { currentMonth, getAttendance, getEmployee, getLedger, getSalaryStructure, suggestPayMonth } from "../api";
+import { AttendanceCalendarCard } from "./AccountCards";
+import { LastPaymentsCard } from "./LastPaymentsCard";
+import { ACCOUNT_TABS, type AccountTab } from "../_lib/account";
+import { currentMonth, getEmployee, getLedger, getSalaryStructure, suggestPayMonth } from "../api";
 import { BSDateText } from "@/components/date";
 import { formatBs } from "@/lib/bs";
-import { monthLabel, monthName, sameMonth } from "../_lib/months";
-import { formatAmount, formatDays, formatRs } from "../_lib/helpers";
+import { monthLabel, monthName } from "../_lib/months";
+import { formatDays, formatRs } from "../_lib/helpers";
 import { PayrollIcon } from "./icons";
-import type { BsMonth, Employee, MonthLedger, Payment, SalaryStructure } from "../types";
+import type { BsMonth, Employee, MonthLedger, SalaryStructure } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import styles from "./employees.module.css";
 import shared from "./payroll.module.css";
 
-export type AccountTab = "overview" | "salary" | "ledger" | "attendance" | "documents";
-
-export const ACCOUNT_TABS: { value: AccountTab; label: string }[] = [
-  { value: "overview", label: "Overview" },
-  { value: "salary", label: "Salary" },
-  { value: "ledger", label: "Ledger" },
-  { value: "attendance", label: "Attendance" },
-  { value: "documents", label: "Documents" },
-];
-
-export function isAccountTab(value: string | null): value is AccountTab {
-  return ACCOUNT_TABS.some((t) => t.value === value);
-}
+export { ACCOUNT_TABS, isAccountTab, type AccountTab } from "../_lib/account";
 
 type Dialog =
   | { kind: "edit" }
@@ -53,10 +43,12 @@ export interface EmployeeAccountProps {
   onTab: (tab: AccountTab) => void;
 }
 
-/** One employee's account: profile card, tabs, salary / ledger / attendance. */
+/** One employee's account: profile card, tabs, salary (attendance calendar + last payments) / ledger. */
 export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
-  const { user } = useSession();
+  const { user, can } = useSession();
   const isAdmin = user?.role === "admin";
+  const canMoney = can("salary_advances");
+  const canAttendance = can("manage_employees") || can("view_attendance_report");
   const employee = usePayroll(() => getEmployee(id), [id]);
   const structure = usePayroll(() => getSalaryStructure(id), [id]);
   const ledger = usePayroll(() => getLedger(id), [id]);
@@ -88,9 +80,8 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
     );
   }
 
+  // "Pay salary" opens on payroll's settlement month; the dialog lets the month be changed.
   const month = payMonth.data ?? currentMonth();
-  const monthRow = ledger.data?.find((l) => sameMonth(l.month, month)) ?? null;
-  const salaryDue = monthRow ? monthRow.due : 0;
   const meta = [person.designation, person.department?.name, person.code].filter(Boolean).join(" · ");
   const current = structure.data?.current ?? null;
 
@@ -137,15 +128,9 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
           <button type="button" className={`btn ${styles.advanceButton}`} onClick={() => setDialog({ kind: "advance" })}>
             Give advance
           </button>
-          {salaryDue > 0 ? (
-            <button type="button" className="btn btn--primary" onClick={() => setDialog({ kind: "payment", purpose: "salary", month })}>
-              Pay {monthName(month)} salary
-            </button>
-          ) : (
-            <button type="button" className="btn btn--primary" disabled title={`Nothing due for ${monthLabel(month)}`}>
-              {monthName(month)} salary paid
-            </button>
-          )}
+          <button type="button" className="btn btn--primary" onClick={() => setDialog({ kind: "payment", purpose: "salary", month })}>
+            Pay salary
+          </button>
         </div>
       </section>
 
@@ -165,10 +150,12 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
 
       {tab === "salary" ? (
         <>
-          <div className={styles.twoCards}>
-            <SalaryStructureCard structure={current} onRevise={() => setDialog({ kind: "revise" })} />
-            <AdvancesCard ledger={ledger.data ?? []} onGiveAdvance={() => setDialog({ kind: "advance" })} />
-          </div>
+          {canAttendance || canMoney ? (
+            <div className={styles.twoCards}>
+              {canAttendance ? <AttendanceCalendarCard key={person.id} employee={person} structure={current} /> : null}
+              {canMoney ? <LastPaymentsCard ledger={ledger.data ?? []} onOpenLedger={() => onTab("ledger")} /> : null}
+            </div>
+          ) : null}
           <LedgerTable
             employee={person}
             ledger={ledger.data ?? []}
@@ -181,8 +168,6 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
 
       {tab === "overview" ? <OverviewTab employee={person} structure={current} ledger={ledger.data ?? []} /> : null}
 
-      {tab === "attendance" ? <AttendanceTab employee={person} /> : null}
-
       {tab === "documents" ? (
         <div className={`card ${styles.placeholder}`}>
           Documents — not designed yet. Contracts, citizenship copies and certificates will be kept here.
@@ -192,6 +177,8 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
       <EditProfileDialog
         open={dialog?.kind === "edit"}
         employee={person}
+        salary={structure.data ?? null}
+        onRevise={() => setDialog({ kind: "revise" })}
         onClose={() => setDialog(null)}
         onSaved={() => {
           setDialog(null);
@@ -302,144 +289,5 @@ function OverviewTab({ employee: e, structure, ledger }: { employee: Employee; s
         ) : null}
       </section>
     </div>
-  );
-}
-
-function AttendanceTab({ employee }: { employee: Employee }) {
-  const month = currentMonth();
-  const attendance = usePayroll(() => getAttendance(employee.id, month), [employee.id]);
-  const a = attendance.data?.summary;
-  return (
-    <section aria-label="Attendance this month" className={`card ${styles.structure}`}>
-      <div className={shared.between} style={{ paddingBottom: 6 }}>
-        <h3 className={shared.cardTitle}>Attendance · {monthLabel(month)}</h3>
-        <Link href="/attendance/report" className="btn btn--sm">
-          Attendance report
-        </Link>
-      </div>
-      {a ? (
-        <div className={styles.attGrid}>
-          {[
-            ["Days so far", `${a.present + a.absent + a.weekly_off} / ${a.days_in_month}`, ""],
-            ["Present", formatDays(a.present), "days marked P"],
-            ["Overtime", `${a.overtime_days} d · ${a.overtime_hours} h`, "paid per hour"],
-            ["Absent", String(a.absent), "unpaid days"],
-            ["Weekly off", String(a.weekly_off), "Saturdays, paid"],
-            ["Paid days", formatDays(a.paid_days), ""],
-          ].map(([k, v, hint]) => (
-            <div key={k} className={`card ${styles.attCard}`}>
-              <span className={styles.attLabel}>{k}</span>
-              <span className={styles.attValue}>{v}</span>
-              {hint ? <span className={styles.attHint}>{hint}</span> : null}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className={shared.muted}>Loading…</p>
-      )}
-      <span className={shared.note}>
-        Marks come from the attendance module (P present, O overtime, A absent; Saturday is the weekly off). The day-by-day
-        calendar is not designed yet.
-      </span>
-    </section>
-  );
-}
-
-function SalaryStructureCard({ structure, onRevise }: { structure: SalaryStructure | null; onRevise: () => void }) {
-  return (
-    <section aria-labelledby="struct-h" className={`card ${styles.structure}`}>
-      <div className={shared.between} style={{ paddingBottom: 6 }}>
-        <h3 id="struct-h" className={shared.cardTitle}>
-          Salary structure
-        </h3>
-        <button type="button" className="btn btn--ghost" onClick={onRevise}>
-          Revise
-        </button>
-      </div>
-      {structure ? (
-        <>
-          <div className={styles.structureGrid}>
-            <div className={shared.kv}>
-              <span>{structure.pay_type === "monthly" ? "Basic salary" : "Daily wage"}</span>
-              <span className={shared.num}>
-                {formatAmount(structure.basic)}
-                {structure.pay_type === "daily" ? " / day" : ""}
-              </span>
-            </div>
-            <div className={shared.kv}>
-              <span>Allowances</span>
-              <span className={shared.num}>{formatAmount(structure.allowances)}</span>
-            </div>
-            <div className={shared.kv}>
-              <span className={shared.kvStrong}>Gross</span>
-              <span className={`${shared.num} ${shared.kvStrong}`}>
-                {formatRs(structure.gross)}
-                {structure.pay_type === "daily" ? " / day" : " / month"}
-              </span>
-            </div>
-            <div className={shared.kv}>
-              <span>Pay type</span>
-              <span>{structure.pay_type === "monthly" ? "Monthly salary" : "Daily wage"}</span>
-            </div>
-            <div className={shared.kv}>
-              <span>Overtime rate</span>
-              <span className={shared.num}>{formatRs(structure.ot_rate)} / hour</span>
-            </div>
-            <div className={shared.kv}>
-              <span>Paid by</span>
-              <span>{structure.default_payment_mode.name}</span>
-            </div>
-          </div>
-          <div className={`${shared.kv} ${shared.kvMuted}`}>
-            <span>
-              Effective from <BSDateText value={structure.effective_from.bs} inline />
-              {structure.previous_gross !== null ? ` · previous ${formatRs(structure.previous_gross)}` : ""}
-              {structure.reason ? ` · ${structure.reason}` : ""}
-            </span>
-          </div>
-        </>
-      ) : (
-        <p className={shared.muted}>No salary structure yet.</p>
-      )}
-    </section>
-  );
-}
-
-function AdvancesCard({ ledger, onGiveAdvance }: { ledger: MonthLedger[]; onGiveAdvance: () => void }) {
-  const advances: { payment: Payment; month: BsMonth }[] = ledger
-    .flatMap((l) => l.payments.filter((p) => p.kind === "advance").map((payment) => ({ payment, month: l.month })))
-    .sort((a, b) => b.payment.date.bs.localeCompare(a.payment.date.bs) || b.payment.id - a.payment.id)
-    .slice(0, 8);
-  return (
-    <section aria-labelledby="adv-h" className={`card ${styles.advances}`}>
-      <div className={shared.between}>
-        <h3 id="adv-h" className={shared.cardTitle}>
-          Advances
-        </h3>
-        <button type="button" className="btn btn--ghost" onClick={onGiveAdvance}>
-          Give advance
-        </button>
-      </div>
-      <span className={shared.note} style={{ fontSize: 13, lineHeight: 1.5 }}>
-        An advance is part of that month&apos;s salary paid early. It shows as a payment in the ledger and reduces the
-        balance due — nothing is carried to later months.
-      </span>
-      <div style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-        {advances.length === 0 ? (
-          <p className={shared.muted} style={{ fontSize: 13 }}>
-            No advances given.
-          </p>
-        ) : (
-          advances.map(({ payment, month }) => (
-            <div key={payment.id} className={shared.kv}>
-              <span>
-                {formatBs(payment.date.bs)} · {monthName(month)} advance ({payment.payment_mode.name.toLowerCase()})
-              </span>
-              <span className={shared.num}>{formatRs(payment.amount)}</span>
-            </div>
-          ))
-        )}
-      </div>
-    </section>
   );
 }

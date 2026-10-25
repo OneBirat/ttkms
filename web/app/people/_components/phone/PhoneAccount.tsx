@@ -127,7 +127,7 @@ export function PhoneAccount({ id }: { id: number }) {
                 Give advance
               </button>
               <button type="button" className={styles.salaryBtn} disabled={!s || s.salary_due <= 0} onClick={() => setSheet({ kind: "pay", type: "salary" })}>
-                {s && s.salary_due <= 0 ? `${monthName(s.salary_month)} salary paid` : `Pay ${s ? monthName(s.salary_month) : ""} salary`}
+                {s && s.salary_due <= 0 ? `${monthName(s.salary_month)} salary paid` : "Pay salary"}
               </button>
             </div>
           </div>
@@ -149,7 +149,7 @@ export function PhoneAccount({ id }: { id: number }) {
               Give advance
             </button>
             <button type="button" className={styles.sheetAction} data-tone="ok" onClick={() => setSheet({ kind: "pay", type: "salary" })}>
-              Pay {s ? monthName(s.salary_month) : ""} salary
+              Pay salary
             </button>
             <button
               type="button"

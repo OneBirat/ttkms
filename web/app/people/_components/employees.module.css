@@ -1156,3 +1156,100 @@
     white-space: normal;
   }
 }
+
+/* account side list: header, « » toggle, collapsed avatar strip */
+
+.listHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.listTitle {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listToggle {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-input-border);
+  border-radius: 8px;
+  background: var(--color-card);
+  color: var(--color-text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.listToggle:hover {
+  background: #f1f4f2;
+}
+
+.listStrip {
+  flex: 0 0 72px;
+  width: 72px;
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  position: sticky;
+  top: 16px;
+}
+
+.stripScroll {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  width: 100%;
+}
+
+.stripGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.stripRule {
+  display: block;
+  width: 40px;
+  height: 1px;
+  margin: 6px 0 2px;
+  background: var(--color-border);
+}
+
+.stripRuleOwn {
+  display: block;
+  width: 48px;
+  height: 2px;
+  margin: 0 0 4px;
+  border-radius: 1px;
+  background: var(--color-sidebar);
+}
+
+.stripEmp {
+  display: inline-flex;
+  text-decoration: none;
+  border-radius: 50%;
+  padding: 2px;
+  border: 2px solid transparent;
+}
+
+.stripEmp[aria-current="true"] {
+  border-color: var(--color-primary);
+}
+
+.stripEmp:hover {
+  background: #f1f4f2;
+}
