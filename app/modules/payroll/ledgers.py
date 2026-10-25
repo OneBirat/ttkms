@@ -11,14 +11,24 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.contracts import MonthSummary, get_attendance_summary
+from app.contracts import SATURDAY_WORK_RULE_KEY, MonthSummary, get_attendance_summary
 from app.core import bsdate
 from app.core.models import Employee
+from app.core.services import get_setting
 from app.modules.payroll import rules
 from app.modules.payroll.models import Payment, SalaryHistory
 
 #: The running month and the five before it: the window the account screens and "balance due" use.
 MONTHS_KEPT = 6
+
+#: core.settings key (admin Settings > Payroll). PENDING BUSINESS DECISION - see rules.py.
+SATURDAY_RULE_KEY = SATURDAY_WORK_RULE_KEY
+
+
+async def saturday_rule(db: AsyncSession) -> rules.SaturdayRule:
+    """How Saturday work is paid to monthly staff (unknown values fall back to the default)."""
+    value = await get_setting(db, SATURDAY_RULE_KEY, rules.DEFAULT_SATURDAY_RULE)
+    return value if value in rules.SATURDAY_RULES else rules.DEFAULT_SATURDAY_RULE
 
 
 def current_month() -> tuple[int, int]:
@@ -96,8 +106,11 @@ async def ledger_for(
     month: int,
     structures: Sequence[SalaryHistory],
     payments: Iterable[Payment],
+    *,
+    saturday_rule: rules.SaturdayRule,
 ) -> MonthLedger | None:
-    """None before the joining month or while the employee has no salary row yet."""
+    """None before the joining month or while the employee has no salary row yet. The running
+    month is "so far" (salary prorated by the days counted, rules.monthly_pay)."""
     if month_index(year, month) < month_index(*joined_month(employee)):
         return None
     structure = structure_for(structures, year, month)
@@ -106,7 +119,15 @@ async def ledger_for(
     attendance = await get_attendance_summary().for_month(employee.id, year, month)
     pay_type = structure.pay_type.value
     rate = rate_of(structure)
-    pay = rules.pay_for(pay_type, rate, structure.ot_rate, attendance)
+    in_progress = (year, month) == current_month()
+    pay = rules.pay_for(
+        pay_type,
+        rate,
+        structure.ot_rate,
+        attendance,
+        so_far=in_progress,
+        saturday_rule=saturday_rule,
+    )
     month_payments = sorted(
         (p for p in payments if p.for_year == year and p.for_month == month),
         key=lambda p: (p.date, p.id),
@@ -119,7 +140,7 @@ async def ledger_for(
         month=month,
         starts=starts,
         ends=ends,
-        in_progress=(year, month) == current_month(),
+        in_progress=in_progress,
         structure=structure,
         rate=rate,
         attendance=attendance,
@@ -165,19 +186,30 @@ async def load_payments(
 
 
 async def ledgers_kept(
-    employee: Employee, structures: Sequence[SalaryHistory], payments: Iterable[Payment]
+    employee: Employee,
+    structures: Sequence[SalaryHistory],
+    payments: Iterable[Payment],
+    *,
+    saturday_rule: rules.SaturdayRule,
 ) -> list[MonthLedger]:
     """Oldest first, from the joining month, within the kept window."""
     payments = list(payments)
     out: list[MonthLedger] = []
     for year, month in months_kept():
-        ledger = await ledger_for(employee, year, month, structures, payments)
+        ledger = await ledger_for(
+            employee, year, month, structures, payments, saturday_rule=saturday_rule
+        )
         if ledger is not None:
             out.append(ledger)
     return out
 
 
 async def balance_due(
-    employee: Employee, structures: Sequence[SalaryHistory], payments: Iterable[Payment]
+    employee: Employee,
+    structures: Sequence[SalaryHistory],
+    payments: Iterable[Payment],
+    *,
+    saturday_rule: rules.SaturdayRule,
 ) -> int:
-    return sum(ledger.due for ledger in await ledgers_kept(employee, structures, payments))
+    kept = await ledgers_kept(employee, structures, payments, saturday_rule=saturday_rule)
+    return sum(ledger.due for ledger in kept)

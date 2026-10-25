@@ -9,7 +9,7 @@ must be active and allowed for the kind.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date
 
 from fastapi import HTTPException, status
@@ -67,7 +67,9 @@ async def month_ledger_or_404(
     db: AsyncSession, employee: Employee, year: int, month: int
 ) -> tuple[MonthLedger, list, list]:
     structures, payments = await employee_data(db, employee)
-    ledger = await ledgers.ledger_for(employee, year, month, structures, payments)
+    ledger = await ledgers.ledger_for(
+        employee, year, month, structures, payments, saturday_rule=await ledgers.saturday_rule(db)
+    )
     if ledger is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail="No salary for this month (before the joining date)."
@@ -90,6 +92,7 @@ def balance_out(ledger: MonthLedger) -> MonthBalanceOut:
             "gross_salary": ledger.pay.gross_salary,
             "overtime_pay": ledger.pay.overtime_pay,
             "absence_deduction": ledger.pay.absence_deduction,
+            "saturday_pay": ledger.pay.saturday_pay,
             "tds": ledger.pay.tds,
             "salary_paid": ledger.settled.salary_paid,
             "advance_paid": ledger.settled.advance_paid,
@@ -374,15 +377,26 @@ async def register(
     all_payments = await ledgers.load_payments(db, ids)
     year, month = ledgers.current_month()
     previous = bsdate.shift_month(year, month, -1)
+    rule = await ledgers.saturday_rule(db)
     prev_ledgers = [
-        await ledgers.ledger_for(e, *previous, structures.get(e.id, []), all_payments.get(e.id, []))
+        await ledgers.ledger_for(
+            e,
+            *previous,
+            structures.get(e.id, []),
+            all_payments.get(e.id, []),
+            saturday_rule=rule,
+        )
         for e in scoped
         if e.status == EmployeeStatus.active
     ]
     settle_month = await settlement_month(prev_ledgers)
     month_ledgers = [
         await ledgers.ledger_for(
-            e, *settle_month, structures.get(e.id, []), all_payments.get(e.id, [])
+            e,
+            *settle_month,
+            structures.get(e.id, []),
+            all_payments.get(e.id, []),
+            saturday_rule=rule,
         )
         for e in scoped
         if e.status == EmployeeStatus.active
@@ -450,7 +464,9 @@ async def get_payment(db: AsyncSession, payment_id: int) -> Payment:
 async def month_ledgers(db: AsyncSession, employee: Employee) -> list[MonthLedgerOut]:
     structures, payments = await employee_data(db, employee)
     modes = await services.modes_by_id(db)
-    rows = await ledgers.ledgers_kept(employee, structures, payments)
+    rows = await ledgers.ledgers_kept(
+        employee, structures, payments, saturday_rule=await ledgers.saturday_rule(db)
+    )
     return [ledger_out(ledger, modes) for ledger in reversed(rows)]
 
 
@@ -466,15 +482,7 @@ async def attendance_month(employee: Employee, year: int, month: int) -> Employe
     return EmployeeMonthAttendanceOut(
         employee_id=employee.id,
         month=month_out(year, month),
-        summary=MonthSummaryOut(
-            days_in_month=s.days_in_month,
-            present=s.present,
-            overtime_days=s.overtime_days,
-            overtime_hours=s.overtime_hours,
-            absent=s.absent,
-            weekly_off=s.weekly_off,
-            paid_days=s.paid_days,
-        ),
+        summary=MonthSummaryOut(**asdict(s)),
     )
 
 
@@ -485,7 +493,9 @@ def _rs(value: int) -> str:
 async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOut:
     structures, payments = await employee_data(db, employee)
     modes = await services.modes_by_id(db)
-    months = await ledgers.ledgers_kept(employee, structures, payments)
+    months = await ledgers.ledgers_kept(
+        employee, structures, payments, saturday_rule=await ledgers.saturday_rule(db)
+    )
     today = bsdate.today_ad()
     entries: list[LedgerEntryOut] = []
     for ledger in months:
@@ -501,7 +511,17 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
                 month=m,
                 type="salary",
                 details=(
-                    f"Monthly salary · {ledger.attendance.days_in_month} days{so_far}"
+                    (
+                        f"Monthly salary · {min(ledger.attendance.days_counted, rules.PAY_DAYS)}"
+                        f" of {rules.PAY_DAYS} days{so_far}"
+                        if ledger.in_progress
+                        else f"Monthly salary · {ledger.attendance.days_in_month} days"
+                    )
+                    + (
+                        f" · incl. {ledger.attendance.saturday_days_worked} Saturday(s) worked"
+                        if ledger.pay.saturday_pay
+                        else ""
+                    )
                     if pay_type == "monthly"
                     else f"Daily wage {_rs(ledger.rate)} × {ledger.pay.paid_days} days{so_far}"
                 ),
@@ -529,15 +549,15 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
                 )
             )
         if ledger.pay.overtime_pay > 0:
+            hours = ledger.attendance.overtime_hours + ledger.attendance.saturday_ot_hours
+            details = f"{hours} h × Rs {_rs(ledger.structure.ot_rate)}"
             entries.append(
                 LedgerEntryOut(
                     id=f"{key}-overtime",
                     date=services.date_both(earned_on),
                     month=m,
                     type="overtime",
-                    details=(
-                        f"{ledger.attendance.overtime_hours} h × Rs {_rs(ledger.structure.ot_rate)}"
-                    ),
+                    details=details,
                     earned=ledger.pay.overtime_pay,
                     paid=0,
                     balance=0,
@@ -581,7 +601,10 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
         totals=LedgerTotalsOut(
             salary=sum(e.earned for e in entries if e.type in ("salary", "absence")),
             overtime=sum(e.earned for e in entries if e.type == "overtime"),
-            overtime_hours=sum(ledger.attendance.overtime_hours for ledger in months),
+            overtime_hours=sum(
+                ledger.attendance.overtime_hours + ledger.attendance.saturday_ot_hours
+                for ledger in months
+            ),
             months=len(months),
             advances=sum(e.paid for e in advances),
             advance_count=len(advances),
@@ -596,10 +619,13 @@ async def account_summary(db: AsyncSession, employee: Employee) -> AccountSummar
     structures, payments = await employee_data(db, employee)
     modes = await services.modes_by_id(db)
     year, month = ledgers.current_month()
-    running = await ledgers.ledger_for(employee, year, month, structures, payments)
-    months = await ledgers.ledgers_kept(employee, structures, payments)
+    rule = await ledgers.saturday_rule(db)
+    running = await ledgers.ledger_for(
+        employee, year, month, structures, payments, saturday_rule=rule
+    )
+    months = await ledgers.ledgers_kept(employee, structures, payments, saturday_rule=rule)
     previous = bsdate.shift_month(year, month, -1)
-    prev = await ledgers.ledger_for(employee, *previous, structures, payments)
+    prev = await ledgers.ledger_for(employee, *previous, structures, payments, saturday_rule=rule)
     salary_month = previous if prev is not None and prev.due > 0 else (year, month)
     salary_row = prev if salary_month == previous else running
     recent = sorted(payments, key=lambda p: (p.date, p.id), reverse=True)
@@ -624,7 +650,11 @@ async def account_summary(db: AsyncSession, employee: Employee) -> AccountSummar
             and ledgers.month_index(p.for_year, p.for_month) >= four_ago
         ),
         balance_due=sum(ledger.due for ledger in months),
-        overtime_hours_this_month=running.attendance.overtime_hours if running else 0,
+        overtime_hours_this_month=(
+            running.attendance.overtime_hours + running.attendance.saturday_ot_hours
+            if running
+            else 0
+        ),
     )
 
 

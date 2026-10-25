@@ -127,7 +127,15 @@ export interface MonthSummary {
   weekly_off: number;
   /** Monthly: days_in_month − absent. Daily: present + overtime_days. */
   paid_days: number;
+  /** Days the figures cover: the whole month when past, today's BS day for the running month. */
+  days_counted?: number;
+  /** Saturdays marked P or O - never inside present / overtime_days (app/contracts.py). */
+  saturday_days_worked?: number;
+  saturday_ot_hours?: number;
 }
+
+/** payroll.saturday_work_rule - PENDING BUSINESS DECISION (admin Settings › Payroll). */
+export type SaturdayWorkRule = "overtime_only" | "extra_day";
 
 // ------------------------------------------------------ payment modes
 

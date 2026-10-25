@@ -36,6 +36,8 @@ from app.modules.admin.schemas import (
     PaymentModeActiveIn,
     PaymentModeIn,
     PaymentModeOut,
+    PayrollSettingsIn,
+    PayrollSettingsOut,
     PermissionGroupOut,
     PermissionOut,
     PermissionsOut,
@@ -188,6 +190,24 @@ async def set_payment_mode_active(
     mode = await services.get_mode_or_404(db, mode_id)
     mode = await services.set_payment_mode_active(db, me, mode, payload.active)
     return services.mode_out(mode, await services.payment_counts(db))
+
+
+# ----------------------------------------------------------------------------- settings
+
+
+@router.get("/settings/payroll", response_model=PayrollSettingsOut, name="admin:payroll_settings")
+async def payroll_settings(me: AdminOnly, db: DbSession) -> PayrollSettingsOut:
+    """The server-side payroll settings (the rest of the Settings page is not stored yet)."""
+    return await services.payroll_settings(db)
+
+
+@router.put(
+    "/settings/payroll", response_model=PayrollSettingsOut, name="admin:update_payroll_settings"
+)
+async def update_payroll_settings(
+    me: AdminOnly, db: DbSession, payload: PayrollSettingsIn
+) -> PayrollSettingsOut:
+    return await services.update_payroll_settings(db, me, payload)
 
 
 # ----------------------------------------------------------------------------- barcodes

@@ -5,7 +5,12 @@
  * - Monthly: net = salary − (salary ÷ 30 × absent days) + overtime − TDS - a fixed 30,
  *   whatever the BS month's real length.
  *   Saturdays (weekly off) are paid. No half days, no leave.
- * - Daily:   net = wage × (present + overtime days) + overtime − TDS.
+ * - Running month ("earned so far"): salary × min(days_counted, 30) ÷ 30, then absences and
+ *   overtime so far as above. Past months are never prorated.
+ * - Saturday work (PENDING DECISION, payroll.saturday_work_rule): monthly staff get the hours
+ *   ("overtime_only") or also salary ÷ 30 per Saturday worked ("extra_day", inside gross).
+ *   Daily staff always get the day's wage plus the hours.
+ * - Daily:   net = wage × (present + overtime days + Saturdays worked) + overtime − TDS.
  * - Overtime: whole hours; amount = hours × hourly rate. The rate is per
  *   employee, default salary ÷ 30 ÷ 8 - always 30, whatever the BS month's
  *   length (daily: wage ÷ 8); editable on every salary revision.
@@ -16,7 +21,7 @@
  * Attendance comes ONLY from the AttendanceSummary contract (MonthSummary).
  */
 
-import type { MonthStatus, MonthSummary, Payment, PayType } from "../types";
+import type { MonthStatus, MonthSummary, Payment, PayType, SaturdayWorkRule } from "../types";
 
 /** Whole rupees, half up. */
 export function roundRs(value: number): number {
@@ -45,32 +50,44 @@ export interface PayResult {
   absence_deduction: number;
   tds: number;
   net: number;
+  /** Monthly with "extra_day": salary ÷ 30 × Saturdays worked, already inside gross_salary. */
+  saturday_pay: number;
 }
 
-/** Monthly salary: full salary, minus salary ÷ 30 × absent days, plus overtime. */
-export function monthlyPay(salary: number, ot_rate: number, s: MonthSummary): PayResult {
-  const days = s.days_in_month;
+export interface PayOptions {
+  /** The running month: prorate the salary by days_counted (capped at 30). */
+  so_far?: boolean;
+  saturday_rule?: SaturdayWorkRule;
+}
+
+/** Monthly salary: full salary (prorated so far), minus salary ÷ 30 × absent days, plus overtime. */
+export function monthlyPay(salary: number, ot_rate: number, s: MonthSummary, options: PayOptions = {}): PayResult {
+  const counted = s.days_counted ?? s.days_in_month;
   const perDay = salary / PAY_DAYS;
-  const absence = Math.min(roundRs(perDay * Math.max(0, s.absent)), roundRs(salary));
-  const overtime = overtimePay(s.overtime_hours, ot_rate);
-  const gross_salary = roundRs(salary);
+  const base = roundRs(options.so_far ? (salary * Math.min(Math.max(0, counted), PAY_DAYS)) / PAY_DAYS : salary);
+  const absence = Math.min(roundRs(perDay * Math.max(0, s.absent)), base);
+  const overtime = overtimePay(s.overtime_hours + (s.saturday_ot_hours ?? 0), ot_rate);
+  const saturday_pay =
+    options.saturday_rule === "extra_day" ? roundRs(perDay * Math.max(0, s.saturday_days_worked ?? 0)) : 0;
+  const gross_salary = base + saturday_pay;
   const tds = 0; // placeholder: tax rules are out of scope for now
   return {
-    paid_days: Math.max(0, days - s.absent),
+    paid_days: Math.max(0, (options.so_far ? counted : s.days_in_month) - s.absent),
     gross_salary,
     overtime_pay: overtime,
     earnings: gross_salary + overtime,
     absence_deduction: absence,
     tds,
     net: roundRs(gross_salary - absence + overtime - tds),
+    saturday_pay,
   };
 }
 
-/** Daily wage: wage × (present + overtime days) plus overtime hours; nothing to deduct. */
+/** Daily wage: wage × (present + overtime days + Saturdays worked) plus overtime hours; nothing to deduct. */
 export function dailyPay(wage: number, ot_rate: number, s: MonthSummary): PayResult {
-  const worked = Math.max(0, s.present) + Math.max(0, s.overtime_days);
+  const worked = Math.max(0, s.present) + Math.max(0, s.overtime_days) + Math.max(0, s.saturday_days_worked ?? 0);
   const gross_salary = roundRs(wage * worked);
-  const overtime = overtimePay(s.overtime_hours, ot_rate);
+  const overtime = overtimePay(s.overtime_hours + (s.saturday_ot_hours ?? 0), ot_rate);
   const tds = 0;
   return {
     paid_days: worked,
@@ -80,11 +97,12 @@ export function dailyPay(wage: number, ot_rate: number, s: MonthSummary): PayRes
     absence_deduction: 0,
     tds,
     net: roundRs(gross_salary + overtime - tds),
+    saturday_pay: 0,
   };
 }
 
-export function payFor(pay_type: PayType, rate: number, ot_rate: number, s: MonthSummary): PayResult {
-  return pay_type === "monthly" ? monthlyPay(rate, ot_rate, s) : dailyPay(rate, ot_rate, s);
+export function payFor(pay_type: PayType, rate: number, ot_rate: number, s: MonthSummary, options: PayOptions = {}): PayResult {
+  return pay_type === "monthly" ? monthlyPay(rate, ot_rate, s, options) : dailyPay(rate, ot_rate, s);
 }
 
 export interface PaidResult {

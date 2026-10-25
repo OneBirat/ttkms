@@ -108,3 +108,71 @@ def test_settle_and_status():
     # Overpayment never shows a negative due.
     assert settle(20000, [("salary", 25000)]).due == 0
     assert month_status(0, 0) == "paid"
+
+
+def _sat(days=30, counted=None, absent=0, ot_hours=0, sat_days=0, sat_hours=0):
+    return MonthSummary(
+        days_in_month=days,
+        present=20,
+        overtime_days=0,
+        overtime_hours=ot_hours,
+        absent=absent,
+        weekly_off=4,
+        paid_days=24,
+        days_counted=days if counted is None else counted,
+        saturday_days_worked=sat_days,
+        saturday_ot_hours=sat_hours,
+    )
+
+
+def test_running_month_is_prorated_by_days_counted_capped_at_30():
+    """Option B (decided 2026-10-25): salary x min(days_counted, 30) / 30 - absences so far x
+    salary / 30 + overtime so far. Past months are never prorated."""
+    so_far = monthly_pay(30000, 125, _sat(counted=10, absent=1, ot_hours=2), so_far=True)
+    assert (so_far.gross_salary, so_far.absence_deduction, so_far.overtime_pay) == (
+        10000,
+        1000,
+        250,
+    )
+    assert so_far.net == 9250 and so_far.paid_days == 9
+    late = monthly_pay(30000, 125, _sat(days=32, counted=32), so_far=True)
+    assert late.gross_salary == 30000  # min(32, 30) / 30
+    short = monthly_pay(30000, 125, _sat(days=29, counted=29), so_far=True)
+    assert short.gross_salary == 29000  # until the month closes
+    closed = monthly_pay(30000, 125, _sat(days=29, counted=29))
+    assert closed.gross_salary == 30000
+    first_day = monthly_pay(30000, 125, _sat(counted=1, absent=1), so_far=True)
+    assert first_day.net == 0  # an absence never takes the month below zero
+
+
+def test_saturday_work_overtime_only_pays_the_hours():
+    s = _sat(sat_days=2, sat_hours=6, ot_hours=3)
+    pay = monthly_pay(30000, 125, s, saturday_rule="overtime_only")
+    assert pay.overtime_pay == 9 * 125 and pay.saturday_pay == 0
+    assert pay.net == 30000 + 1125
+
+
+def test_saturday_work_extra_day_also_pays_salary_over_30():
+    s = _sat(sat_days=2, sat_hours=6, ot_hours=3)
+    pay = monthly_pay(30000, 125, s, saturday_rule="extra_day")
+    assert pay.saturday_pay == 2000 and pay.gross_salary == 32000
+    assert pay.net == 30000 + 2000 + 1125
+    assert pay.gross_salary - pay.absence_deduction + pay.overtime_pay == pay.net
+
+
+def test_daily_staff_get_the_wage_for_saturday_work_whatever_the_rule():
+    s = MonthSummary(
+        days_in_month=30,
+        present=10,
+        overtime_days=1,
+        overtime_hours=2,
+        absent=0,
+        weekly_off=4,
+        paid_days=15,
+        days_counted=30,
+        saturday_days_worked=1,
+        saturday_ot_hours=3,
+    )
+    for rule in ("overtime_only", "extra_day"):
+        pay = pay_for("daily", 800, 100, s, saturday_rule=rule)
+        assert pay.gross_salary == 800 * 12 and pay.overtime_pay == 500

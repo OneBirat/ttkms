@@ -136,3 +136,28 @@ test("popup examples match the rule text", () => {
   assert.equal(monthlyExample(30000), 28000);
   assert.equal(dailyExample(650), 16900);
 });
+
+test("running month is prorated: salary × min(days_counted, 30) ÷ 30 (twin of rules.py)", () => {
+  const soFar = monthlyPay(30000, 125, summary({ days_counted: 10, absent: 1, overtime_hours: 2 }), { so_far: true });
+  assert.equal(soFar.gross_salary, 10000);
+  assert.equal(soFar.absence_deduction, 1000);
+  assert.equal(soFar.net, 9250);
+  assert.equal(monthlyPay(30000, 125, summary({ days_in_month: 32, days_counted: 32 }), { so_far: true }).gross_salary, 30000);
+  assert.equal(monthlyPay(30000, 125, summary({ days_in_month: 29, days_counted: 29 }), { so_far: true }).gross_salary, 29000);
+  assert.equal(monthlyPay(30000, 125, summary({ days_in_month: 29, days_counted: 29 })).gross_salary, 30000);
+});
+
+test("Saturday work: overtime_only pays the hours, extra_day also salary ÷ 30; daily always the wage", () => {
+  const s = summary({ overtime_hours: 3, saturday_days_worked: 2, saturday_ot_hours: 6 });
+  const only = monthlyPay(30000, 125, s, { saturday_rule: "overtime_only" });
+  assert.equal(only.overtime_pay, 9 * 125);
+  assert.equal(only.net, 31125);
+  const extra = monthlyPay(30000, 125, s, { saturday_rule: "extra_day" });
+  assert.equal(extra.saturday_pay, 2000);
+  assert.equal(extra.net, 33125);
+  for (const rule of ["overtime_only", "extra_day"]) {
+    const daily = payFor("daily", 800, 100, summary({ present: 10, saturday_days_worked: 1, saturday_ot_hours: 3 }), { saturday_rule: rule });
+    assert.equal(daily.gross_salary, 800 * 11);
+    assert.equal(daily.overtime_pay, 300);
+  }
+});

@@ -16,6 +16,7 @@ import {
   WEEKDAYS,
   type PaidBy,
   type Rounding,
+  type SaturdayWorkRule,
   type Settings,
   type SettingsGroup,
   type SettingsInput,
@@ -30,6 +31,12 @@ import { Toast, useToast } from "../components/Toast";
 import { Toggle } from "../components/Toggle";
 import { useLoader } from "../components/useLoader";
 import styles from "../components/admin.module.css";
+
+/** payroll.saturday_work_rule - pending business decision (app/contracts.py). */
+const SATURDAY_RULES: { value: SaturdayWorkRule; title: string; text: string }[] = [
+  { value: "overtime_only", title: "Overtime hours only", text: "Pay only the hours worked on the Saturday" },
+  { value: "extra_day", title: "Extra day", text: "Also pay salary ÷ 30 for the Saturday" },
+];
 
 const TITLE = "Settings";
 const SUBTITLE = "Company details and the defaults the other modules start from.";
@@ -429,6 +436,28 @@ function SettingsScreen() {
                 </Select>
               )}
             </Field>
+            <div className={styles.field}>
+              <span className={styles.fieldLabel} id="saturday-label">
+                Saturday work (monthly staff)
+              </span>
+              <div className={styles.radioCards} role="group" aria-labelledby="saturday-label">
+                {SATURDAY_RULES.map(({ value, title, text }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={styles.radioCard}
+                    aria-pressed={form.payroll.saturday_work_rule === value}
+                    onClick={() => patch("payroll", { saturday_work_rule: value })}
+                  >
+                    <strong>{title}</strong>
+                    <span>{text}</span>
+                  </button>
+                ))}
+              </div>
+              <span className={styles.fieldHint}>
+                Pending decision. Daily-wage staff always get the day&apos;s wage plus the hours.
+              </span>
+            </div>
           </SettingsCard>
 
           <SettingsCard

@@ -21,10 +21,15 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.contracts import (
+    DEFAULT_SATURDAY_WORK_RULE,
+    SATURDAY_WORK_RULE_KEY,
+    SATURDAY_WORK_RULES,
+)
 from app.core import bsdate
 from app.core.auth import hash_password
 from app.core.models import Branch, Employee, EmployeeStatus, Role, User
-from app.core.services import norm_sql, record_audit
+from app.core.services import get_setting, norm_sql, record_audit, set_setting
 from app.modules.admin.models import PaymentMode, UserAccess
 from app.modules.admin.permissions import clean_overrides, effective_access, is_custom
 from app.modules.admin.schemas import (
@@ -34,6 +39,8 @@ from app.modules.admin.schemas import (
     EmployeeRefOut,
     PaymentModeIn,
     PaymentModeOut,
+    PayrollSettingsIn,
+    PayrollSettingsOut,
     UserIn,
     UserOptionsOut,
 )
@@ -571,3 +578,35 @@ async def employees_by_ids(db: AsyncSession, ids: Sequence[int]) -> list[Employe
     rows = (await db.execute(select(Employee).where(Employee.id.in_(list(ids))))).scalars().all()
     by_id = {e.id: e for e in rows}
     return [by_id[i] for i in ids if i in by_id]
+
+
+# ----------------------------------------------------------------------------- settings
+
+
+async def payroll_settings(db: AsyncSession) -> PayrollSettingsOut:
+    rule = await get_setting(db, SATURDAY_WORK_RULE_KEY, DEFAULT_SATURDAY_WORK_RULE)
+    if rule not in SATURDAY_WORK_RULES:
+        rule = DEFAULT_SATURDAY_WORK_RULE
+    return PayrollSettingsOut(saturday_work_rule=rule)
+
+
+async def update_payroll_settings(
+    db: AsyncSession, actor: User, payload: PayrollSettingsIn
+) -> PayrollSettingsOut:
+    before = await payroll_settings(db)
+    if payload.saturday_work_rule != before.saturday_work_rule:
+        await set_setting(db, SATURDAY_WORK_RULE_KEY, payload.saturday_work_rule)
+        await record_audit(
+            db,
+            module="admin",
+            action="settings.update",
+            entity="setting",
+            entity_id=SATURDAY_WORK_RULE_KEY,
+            user_id=actor.id,
+            data={
+                "before": before.saturday_work_rule,
+                "after": payload.saturday_work_rule,
+            },
+        )
+        await db.commit()
+    return PayrollSettingsOut(saturday_work_rule=payload.saturday_work_rule)

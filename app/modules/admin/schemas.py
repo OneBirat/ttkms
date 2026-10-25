@@ -8,6 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.contracts import SaturdayWorkRule
 from app.core.models import PHONE_RE, Role, normalize_phone
 
 _WS = re.compile(r"\s+")
@@ -208,3 +209,18 @@ class BarcodesOut(BaseModel):
     employees: list[BarcodeEmployeeOut]
     sizes: list[StickerSizeOut]
     pdf_available: bool
+
+
+# -------------------------------------------------------------------------- settings
+
+
+class PayrollSettingsOut(BaseModel):
+    """The payroll settings kept on the server (admin Settings > Payroll)."""
+
+    #: PENDING BUSINESS DECISION - how Saturday work is paid to monthly staff.
+    saturday_work_rule: SaturdayWorkRule
+    pending_decision: bool = True
+
+
+class PayrollSettingsIn(BaseModel):
+    saturday_work_rule: SaturdayWorkRule

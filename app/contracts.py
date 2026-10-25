@@ -51,6 +51,16 @@ class MonthSummary:
     saturday_ot_hours: int = 0
 
 
+#: How payroll pays Saturday work to monthly staff - a core.settings key set on admin Settings.
+#: PENDING BUSINESS DECISION: "overtime_only" (default) pays only the overtime hours worked on
+#: the Saturday; "extra_day" also pays salary / 30 for the day. Daily staff always get the day's
+#: wage plus the hours.
+SaturdayWorkRule = Literal["overtime_only", "extra_day"]
+SATURDAY_WORK_RULE_KEY = "payroll.saturday_work_rule"
+SATURDAY_WORK_RULES: tuple[SaturdayWorkRule, ...] = ("overtime_only", "extra_day")
+DEFAULT_SATURDAY_WORK_RULE: SaturdayWorkRule = "overtime_only"
+
+
 #: One employee's mark for one day, as the People list shows it ("Today" column).
 TodayStatus = Literal["present", "overtime", "absent", "weekly_off", "not_marked"]
 

@@ -253,6 +253,8 @@ class PhotoTokenInfoOut(BaseModel):
 
 
 class MonthSummaryOut(BaseModel):
+    """app/contracts.py MonthSummary."""
+
     days_in_month: int
     present: int
     overtime_days: int
@@ -260,6 +262,10 @@ class MonthSummaryOut(BaseModel):
     absent: int
     weekly_off: int
     paid_days: int
+    #: Whole month for a past month, today's BS day for the running month.
+    days_counted: int
+    saturday_days_worked: int = 0
+    saturday_ot_hours: int = 0
 
 
 class PaymentOut(BaseModel):
@@ -302,6 +308,8 @@ class MonthLedgerOut(BaseModel):
     absence_deduction: int
     tds: int
     net: int
+    #: Monthly staff with payroll.saturday_work_rule = extra_day: salary / 30 per Saturday worked.
+    saturday_pay: int = 0
     salary_paid: int
     advance_paid: int
     paid: int

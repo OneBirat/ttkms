@@ -13,7 +13,7 @@ export const SETTINGS_DEFAULTS: SettingsInput = {
     half_day_note:
       "Arriving after 12:00 or leaving before 14:00 counts as a half day (½ day pay).",
   },
-  payroll: { pay_day: 1, default_paid_by: "cash", rounding: "nearest_rupee" },
+  payroll: { pay_day: 1, default_paid_by: "cash", rounding: "nearest_rupee", saturday_work_rule: "overtime_only" },
   display: { show_ad_dates: true, nepali_digits: false },
 };
 

@@ -4,7 +4,7 @@ department / per branch summaries and the net-payroll trend. Scoped server-side.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -82,13 +82,7 @@ def ledger_out(ledger: ledgers.MonthLedger, modes: dict[int, PaymentMode]) -> Mo
         rate=ledger.rate,
         ot_rate=ledger.structure.ot_rate,
         attendance=MonthSummaryOut(
-            days_in_month=a.days_in_month,
-            present=a.present,
-            overtime_days=a.overtime_days,
-            overtime_hours=a.overtime_hours,
-            absent=a.absent,
-            weekly_off=a.weekly_off,
-            paid_days=a.paid_days,
+            **asdict(a),
         ),
         paid_days=pay.paid_days,
         gross_salary=pay.gross_salary,
@@ -97,6 +91,7 @@ def ledger_out(ledger: ledgers.MonthLedger, modes: dict[int, PaymentMode]) -> Mo
         absence_deduction=pay.absence_deduction,
         tds=pay.tds,
         net=pay.net,
+        saturday_pay=pay.saturday_pay,
         salary_paid=s.salary_paid,
         advance_paid=s.advance_paid,
         paid=s.paid,
@@ -114,7 +109,9 @@ def totals_for(rows: Iterable[ledgers.MonthLedger]) -> ReportTotalsOut:
         absence_deduction=sum(r.pay.absence_deduction for r in rows),
         absent_days=sum(r.attendance.absent for r in rows),
         overtime_pay=sum(r.pay.overtime_pay for r in rows),
-        overtime_hours=sum(r.attendance.overtime_hours for r in rows),
+        overtime_hours=sum(
+            r.attendance.overtime_hours + r.attendance.saturday_ot_hours for r in rows
+        ),
         advance_paid=sum(r.settled.advance_paid for r in rows),
         salary_paid=sum(r.settled.salary_paid for r in rows),
         tds=sum(r.pay.tds for r in rows),
@@ -167,6 +164,7 @@ async def salary_report(
     payments = await ledgers.load_payments(db, ids)
     modes = await services.modes_by_id(db)
     logins = await services.logins_for(db, ids)
+    rule = await ledgers.saturday_rule(db)
 
     # Active staff, plus former staff who still have a payment for that month.
     def on_sheet(e: Employee) -> bool:
@@ -179,7 +177,7 @@ async def salary_report(
         if not on_sheet(e):
             continue
         ledger = await ledgers.ledger_for(
-            e, year, month, structures.get(e.id, []), payments.get(e.id, [])
+            e, year, month, structures.get(e.id, []), payments.get(e.id, []), saturday_rule=rule
         )
         if ledger is not None:
             all_rows.append(ledger)
@@ -218,7 +216,7 @@ async def salary_report(
             if not on_sheet(e) and e.status != EmployeeStatus.active:
                 continue
             ledger = await ledgers.ledger_for(
-                e, ty, tm, structures.get(e.id, []), payments.get(e.id, [])
+                e, ty, tm, structures.get(e.id, []), payments.get(e.id, []), saturday_rule=rule
             )
             net += ledger.net if ledger else 0
         trend.append(MonthNetTotalOut(month=BsMonthOut(bs_year=ty, bs_month=tm), net=net))

@@ -203,10 +203,11 @@ async def seed_demo(db: AsyncSession, actor: User | None = None) -> dict[str, in
     pay_day = bsdate.bs_to_ad(bsdate.BSDate(year, month, 3))
     if pay_day > bsdate.today_ad():
         pay_day = bsdate.today_ad()
+    rule = await ledgers.saturday_rule(db)
     for index, employee in new_employees:
         await db.refresh(employee)
         structures = (await ledgers.load_structures(db, [employee.id])).get(employee.id, [])
-        ledger = await ledgers.ledger_for(employee, *previous, structures, [])
+        ledger = await ledgers.ledger_for(employee, *previous, structures, [], saturday_rule=rule)
         mode_id = structures[-1].default_payment_mode_id or cash_id
         if ledger is not None and ledger.due > 0 and index % 3 != 2:
             amount = ledger.due if index % 3 == 0 else rules.round_rs(ledger.due * 0.6)
@@ -234,6 +235,7 @@ async def seed_demo(db: AsyncSession, actor: User | None = None) -> dict[str, in
                 month,
                 structures,
                 (await ledgers.load_payments(db, [employee.id])).get(employee.id, []),
+                saturday_rule=rule,
             )
             if running is not None and running.due >= 500:
                 await payments.record_payment(

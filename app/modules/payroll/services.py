@@ -229,6 +229,7 @@ async def list_rows(
     payments = await ledgers.load_payments(db, ids, ledgers.months_kept()) if scope.money else {}
     rows: list[EmployeeListRowOut] = []
     year, month = ledgers.current_month()
+    rule = await ledgers.saturday_rule(db)
     for employee in employees:
         pay_type = rate = due = None
         if scope.money:
@@ -237,7 +238,10 @@ async def list_rows(
                 pay_type = structure.pay_type.value
                 rate = ledgers.rate_of(structure)
             due = await ledgers.balance_due(
-                employee, structures.get(employee.id, []), payments.get(employee.id, [])
+                employee,
+                structures.get(employee.id, []),
+                payments.get(employee.id, []),
+                saturday_rule=rule,
             )
         rows.append(
             EmployeeListRowOut(

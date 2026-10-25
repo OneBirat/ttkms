@@ -151,11 +151,16 @@ export interface AttendanceSettings {
   half_day_note: string;
 }
 
+/** payroll.saturday_work_rule - PENDING BUSINESS DECISION; the only payroll setting stored on the server. */
+export type SaturdayWorkRule = "overtime_only" | "extra_day";
+
 export interface PayrollSettings {
   /** BS day of month, 1–32. */
   pay_day: number;
   default_paid_by: PaidBy;
   rounding: Rounding;
+  /** How monthly staff are paid for Saturday work (GET/PUT /api/admin/settings/payroll). */
+  saturday_work_rule: SaturdayWorkRule;
 }
 
 export interface DisplaySettings {

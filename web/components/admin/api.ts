@@ -27,6 +27,7 @@ import type {
   Department,
   OrgKind,
   Page,
+  SaturdayWorkRule,
   Settings,
   SettingsInput,
 } from "./types";
@@ -164,7 +165,15 @@ export async function setOrgActive(
 
 // -------------------------------------------------------------- settings
 
+/** The one setting kept on the server so far: GET/PUT /api/admin/settings/payroll (admin only). */
+interface PayrollSettingsOut {
+  saturday_work_rule: SaturdayWorkRule;
+  pending_decision: boolean;
+}
+
 export async function getSettings(): Promise<Settings> {
+  const server = await apiFetch<PayrollSettingsOut>("/api/admin/settings/payroll");
+  state.settings.payroll = { ...state.settings.payroll, saturday_work_rule: server.saturday_work_rule };
   return respond(state.settings);
 }
 
@@ -185,6 +194,12 @@ export async function updateSettings(input: SettingsInput): Promise<Settings> {
   if (firstError) fail(422, firstError);
   const current = settingsInputOf(state.settings);
   const groups = changedGroups(current, input);
+  if (input.payroll.saturday_work_rule !== current.payroll.saturday_work_rule) {
+    await apiFetch<PayrollSettingsOut>("/api/admin/settings/payroll", {
+      method: "PUT",
+      json: { saturday_work_rule: input.payroll.saturday_work_rule },
+    });
+  }
   const when = nowIso();
   for (const group of groups) {
     recordAudit(
