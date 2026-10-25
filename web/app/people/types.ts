@@ -359,14 +359,33 @@ export interface RegisterEmployeeTotal {
   due: number;
 }
 
-/** GET /api/payroll/payments?from_bs&to_bs&type&employee_id */
+/** Payments of the range per department (the chips and the "By department" export sheet). */
+export interface RegisterDepartmentTotal {
+  /** null = employees without a department. */
+  department: Department | null;
+  count: number;
+  salary: number;
+  advances: number;
+  total: number;
+}
+
+/** Date = newest first (default) · Department A-Z · Employee A-Z · Amount high to low. */
+export type RegisterSort = "date" | "department" | "employee" | "amount";
+
+/** GET /api/payroll/payments?from_bs&to_bs&type&employee_id&department_id&sort */
 export interface PaymentsRegister {
   /** BS dates, inclusive. */
   from_bs: string;
   to_bs: string;
+  /** The chosen department (rows, totals and by_employee are scoped to it); null = all. */
+  department: Department | null;
+  sort: RegisterSort;
+  /** In `sort` order. */
   rows: RegisterRow[];
   totals: RegisterTotals;
   by_employee: RegisterEmployeeTotal[];
+  /** Over the whole range and type filter, every department, so the chips keep their counts. */
+  by_department: RegisterDepartmentTotal[];
 }
 
 /** From/To presets of the register (BS, inclusive). */

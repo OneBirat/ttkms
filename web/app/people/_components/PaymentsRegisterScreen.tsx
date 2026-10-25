@@ -9,12 +9,13 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Icon } from "@/components/icons";
 import { useSession } from "@/lib/session";
-import { currentMonth, listPayments } from "../api";
+import { currentMonth, listDepartments, listPayments } from "../api";
 import { formatBs, isValidBs } from "@/lib/bs";
 import { monthLabel, monthName, monthStart, rangeFor } from "../_lib/months";
 import { downloadRegisterXlsx, printReceipt, printRegisterPdf, registerFileName, type RegisterExportInput } from "../_lib/exports";
 import { formatAmount, formatRs, matchesEmployee, paginate } from "../_lib/helpers";
-import type { DateRange, RegisterTypeFilter } from "../types";
+import { REGISTER_SORTS, displayRows, isRegisterSort } from "../_lib/register";
+import type { DateRange, RegisterSort, RegisterTypeFilter } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import styles from "./report.module.css";
 import shared from "./payroll.module.css";
@@ -34,8 +35,10 @@ type Ask = { ext: "xlsx" | "pdf" } | null;
 
 /**
  * /people/payments "Payment reports" (design Payments.dc.html): every salary and advance
- * payment in a BS date range. Excel and PDF download exactly that range; a
- * range reaching into a previous month asks first.
+ * payment in a BS date range, filtered by department (chips) and sorted (Date / Department /
+ * Employee / Amount; Department groups the rows with a subtotal each). ?dept=&sort= live in
+ * the URL. Excel and PDF download exactly that range, department and sort; a range reaching
+ * into a previous month asks first.
  */
 export function PaymentsRegisterScreen() {
   const router = useRouter();
@@ -50,6 +53,9 @@ export function PaymentsRegisterScreen() {
   const range: DateRange = { from_bs, to_bs };
   const type: RegisterTypeFilter = isType(params.get("type")) ? (params.get("type") as RegisterTypeFilter) : "all";
   const query = params.get("q") ?? "";
+  const deptParam = Number(params.get("dept") ?? "0");
+  const departmentId: number | null = Number.isInteger(deptParam) && deptParam > 0 ? deptParam : null;
+  const sort: RegisterSort = isRegisterSort(params.get("sort")) ? (params.get("sort") as RegisterSort) : "date";
   const page = Math.max(1, Number(params.get("page") ?? "1") || 1);
   const validRange = isValidBs(from_bs) && isValidBs(to_bs);
   const rangeBad = validRange && from_bs > to_bs;
@@ -84,14 +90,29 @@ export function PaymentsRegisterScreen() {
   };
   const setRange = (r: DateRange) => setParams({ from: r.from_bs, to: r.to_bs });
 
+  const departments = usePayroll(listDepartments, []);
   const register = usePayroll(
-    () => listPayments({ from_bs: validRange && !rangeBad ? from_bs : null, to_bs: validRange && !rangeBad ? to_bs : null, type }),
-    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type],
+    () =>
+      listPayments({
+        from_bs: validRange && !rangeBad ? from_bs : null,
+        to_bs: validRange && !rangeBad ? to_bs : null,
+        type,
+        department_id: departmentId,
+        sort,
+      }),
+    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, departmentId, sort],
   );
   const data = register.data;
   const rows = useMemo(() => (data ? data.rows.filter((r) => matchesEmployee(r.employee, query)) : []), [data, query]);
-  const paged = paginate(rows, page, PAGE_SIZE);
+  // Grouping (sort = Department) adds heading and subtotal lines; pages count those so a subtotal stays with its group.
+  const shown = useMemo(() => displayRows(rows, sort), [rows, sort]);
+  const paged = paginate(shown, page, PAGE_SIZE);
   const total = rows.reduce((sum, r) => sum + r.payment.amount, 0);
+  const totalSalary = rows.filter((r) => r.payment.type === "salary").reduce((sum, r) => sum + r.payment.amount, 0);
+  // Chips: every department with its payment count in the range (whichever department is chosen).
+  const countOf = (id: number | null) => data?.by_department.find((d) => (d.department?.id ?? null) === id)?.count ?? 0;
+  const allCount = data?.by_department.reduce((sum, d) => sum + d.count, 0) ?? 0;
+  const deptName = data?.department?.name ?? null;
   const rangeText = `${from_bs} → ${to_bs}`;
   const monthStartBs = monthStart(currentMonth()).bs;
   const previousMonth = from_bs < monthStartBs;
@@ -113,11 +134,13 @@ export function PaymentsRegisterScreen() {
     if (!input) return;
     setAsk(null);
     if (r.from_bs !== from_bs || r.to_bs !== to_bs) setRange(r);
+    const dept = input.register.department;
+    const scope = `${r.from_bs} → ${r.to_bs}${dept ? ` · ${dept.name}` : ""}`;
     if (ext === "xlsx") {
       downloadRegisterXlsx(input);
-      setToast(`${registerFileName(r.from_bs, r.to_bs, "xlsx")} downloaded · ${r.from_bs} → ${r.to_bs}`);
+      setToast(`${registerFileName(r.from_bs, r.to_bs, "xlsx", dept)} downloaded · ${scope}`);
     } else if (printRegisterPdf(input)) {
-      setToast(`${registerFileName(r.from_bs, r.to_bs, "pdf")} opened for printing · ${r.from_bs} → ${r.to_bs}`);
+      setToast(`${registerFileName(r.from_bs, r.to_bs, "pdf", dept)} opened for printing · ${scope}`);
     } else {
       setToast("The browser blocked the print window. Allow pop-ups for this site and try again.");
     }
@@ -146,7 +169,8 @@ export function PaymentsRegisterScreen() {
               </button>
             </div>
             <span className={shared.note}>
-              Downloads the date range in the register: <b>{rangeText}</b>
+              Downloads the report as shown: <b>{rangeText}</b>
+              {deptName ? <b> · {deptName}</b> : null} · sorted by {REGISTER_SORTS.find((s) => s.value === sort)?.label.toLowerCase()}
             </span>
           </div>
         }
@@ -168,7 +192,9 @@ export function PaymentsRegisterScreen() {
             <div className={`card ${styles.total}`}>
               <span className={styles.totalLabel}>{monthName(settle)} net payroll</span>
               <span className={styles.totalValue}>{formatRs(data.totals.month_net)}</span>
-              <span className={styles.totalHint}>{data.totals.staff} staff</span>
+              <span className={styles.totalHint}>
+                {data.totals.staff} staff{deptName ? ` · ${deptName}` : ""}
+              </span>
             </div>
             <div className={`card ${styles.total}`}>
               <span className={styles.totalLabel}>Salary paid</span>
@@ -209,6 +235,28 @@ export function PaymentsRegisterScreen() {
                   </button>
                 ))}
               </div>
+              <label className={styles.sortField}>
+                Sort
+                <select value={sort} onChange={(event) => setParams({ sort: event.target.value === "date" ? null : event.target.value })}>
+                  {REGISTER_SORTS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.value === "date" ? "Date (newest first)" : s.value === "amount" ? "Amount (high → low)" : s.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div role="group" aria-label="Department" className={styles.chips} style={{ padding: "0 10px" }}>
+              <button type="button" className={styles.presetChip} aria-pressed={departmentId === null} onClick={() => setParams({ dept: null })}>
+                All <b>{allCount}</b>
+              </button>
+              {(departments.data ?? []).map((d) => (
+                <button key={d.id} type="button" className={styles.presetChip} aria-pressed={departmentId === d.id} onClick={() => setParams({ dept: String(d.id) })}>
+                  {d.name} <b>{countOf(d.id)}</b>
+                </button>
+              ))}
+              {countOf(null) > 0 ? <span className={shared.note}>+ {countOf(null)} without a department</span> : null}
             </div>
 
             <div className={styles.rangeRow}>
@@ -217,6 +265,7 @@ export function PaymentsRegisterScreen() {
               {!validRange ? <span className={shared.warn}>Pick both dates.</span> : null}
               <span className={shared.note} style={{ marginLeft: "auto" }}>
                 {rows.length} payments · {rangeText}
+                {deptName ? ` · ${deptName}` : ""}
               </span>
             </div>
 
@@ -247,7 +296,31 @@ export function PaymentsRegisterScreen() {
                       </td>
                     </tr>
                   ) : (
-                    paged.items.map(({ payment: p, employee }) => (
+                    paged.items.map((item) => {
+                      if (item.kind === "group") {
+                        const g = item.group;
+                        return (
+                          <tr key={`g-${g.department?.id ?? "none"}`} className={styles.groupRow}>
+                            <th scope="rowgroup" colSpan={8}>
+                              {g.department?.name ?? "No department"} · {g.rows.length} payment{g.rows.length === 1 ? "" : "s"}
+                            </th>
+                          </tr>
+                        );
+                      }
+                      if (item.kind === "subtotal") {
+                        const g = item.group;
+                        return (
+                          <tr key={`s-${g.department?.id ?? "none"}`} className={styles.subtotalRow}>
+                            <th scope="row" colSpan={5} style={{ textAlign: "left" }}>
+                              Subtotal · {g.department?.name ?? "No department"} · Salary {formatAmount(g.salary)} · Advances {formatAmount(g.advances)}
+                            </th>
+                            <td className={shared.num}>{formatAmount(g.total)}</td>
+                            <td colSpan={2} />
+                          </tr>
+                        );
+                      }
+                      const { payment: p, employee } = item.row;
+                      return (
                       <tr key={p.id}>
                         <td>
                           <BSDateText value={p.date.bs} />
@@ -287,13 +360,15 @@ export function PaymentsRegisterScreen() {
                           </button>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
                 <tfoot>
                   <tr>
                     <th scope="row" colSpan={5} style={{ textAlign: "left" }}>
                       Total · {rows.length} payment{rows.length === 1 ? "" : "s"}
+                      {deptName ? ` · ${deptName}` : ""} · Salary {formatAmount(totalSalary)} · Advances {formatAmount(total - totalSalary)}
                     </th>
                     <td className={`${shared.num} ${shared.ok}`}>{formatAmount(total)}</td>
                     <td colSpan={2} />
@@ -307,7 +382,7 @@ export function PaymentsRegisterScreen() {
                   page={paged.page}
                   pages={paged.pages}
                   hrefFor={hrefFor}
-                  summary={`Showing ${(paged.page - 1) * PAGE_SIZE + 1}–${Math.min(paged.page * PAGE_SIZE, rows.length)} of ${rows.length}`}
+                  summary={`Showing ${(paged.page - 1) * PAGE_SIZE + 1}–${Math.min(paged.page * PAGE_SIZE, shown.length)} of ${shown.length} lines · ${rows.length} payments`}
                 />
               </div>
             ) : null}
@@ -327,7 +402,7 @@ export function PaymentsRegisterScreen() {
                   Previous month in range
                 </h2>
                 <span className={shared.note} style={{ fontSize: 13 }}>
-                  {registerFileName(from_bs, to_bs, ask.ext)}
+                  {registerFileName(from_bs, to_bs, ask.ext, data?.department ?? null)}
                 </span>
               </div>
             </div>

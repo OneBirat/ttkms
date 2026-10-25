@@ -414,3 +414,40 @@
   font-size: 18px;
   cursor: pointer;
 }
+
+/* ---- Payment reports: department grouping (sort = Department) ---- */
+
+.groupRow th {
+  text-align: left;
+  background: var(--color-border-soft);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 10px;
+}
+
+.subtotalRow td,
+.subtotalRow th {
+  background: #f6f8f6;
+  font-weight: 600;
+  color: #3e4a52;
+  font-size: 13px;
+}
+
+.sortField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #3e4a52;
+}
+
+.sortField select {
+  min-height: 36px;
+  border: 1px solid var(--color-input-border);
+  border-radius: 8px;
+  background: var(--color-card);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 8px;
+}

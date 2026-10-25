@@ -61,14 +61,22 @@ summary and the month's payments (`ledgerFor` in api.ts shows the exact derivati
 | POST | /payments | PaymentInput → PaymentResult (422 + field when amount is 0 / above due / future) |
 | GET | /employees/{id}/transactions | → EmployeeLedger (running balance) |
 | GET | /employees/{id}/summary | → AccountSummary (Give advance / Pay salary) |
-| GET | /payments?from_bs&to_bs&type&employee_id | → PaymentsRegister (BS date range, settlement-month totals) |
+| GET | /payments?from_bs&to_bs&type&employee_id&department_id&sort | → PaymentsRegister (BS date range; `department_id` scopes rows, tiles and by_employee; `sort` = date (default, newest first) \| department (A-Z) \| employee (A-Z) \| amount (high → low); `by_department` counts the whole range for the chips; 404 unknown department) |
 | GET | /payments/{id}/receipt.pdf | → PDF |
-| GET | /payments/export.xlsx, .pdf?from_bs&to_bs&type | → file (4-sheet workbook / A4 landscape) |
+| GET | /payments/export.xlsx, .pdf?from_bs&to_bs&type&department_id&sort | → file: Excel sheets Payments (rows in `sort` order, Department column in the autofilter) / **By department** (department, salary, advances, total, count) / By employee / Summary / Sort & filter; PDF A4 landscape titled "Payment report · {department} · {range}", with `sort=department` grouped under department headings + a subtotal row (Salary · Advances · Total) each and the grand total last; file name `Payment_report[_{Department}]_{from}_to_{to}.{ext}` |
 | GET | /report/{YYYY-MM}?department_id | → SalaryReport |
 | GET | /report/{YYYY-MM}.xlsx, .pdf | → file |
 | POST | /photo-tokens | { employee_id } → PhotoToken (10 min) |
 | GET | /photo-tokens/{token} | → PhotoTokenInfo (no session; 410 when expired) |
 | POST | /photo-tokens/{token}/photo | multipart image, no session → Employee |
+
+## Payment reports (`/people/payments`, renamed from "Payments" 2026-10-25)
+
+Department chips ("All" + each department of `GET /api/core/departments` with its payment count for the
+From/To range, from `by_department`), Sort (Date · Department · Employee · Amount), `?dept=&sort=` in the
+URL, tiles scoped to the chosen department; Sort = Department groups rows under department headings with a
+subtotal each (`_lib/register.ts`: `sortRegisterRows`, `groupRowsByDepartment`, `displayRows`). Phone: the
+same chips as a slider and the sort in a bottom sheet.
 
 ## Departments (real, `main`, 2026-10-25)
 

@@ -15,6 +15,7 @@ import { dailyPay, defaultOtRate, monthlyPay, paymentError, settle } from "./_li
 import { isValidBs } from "@/lib/bs";
 import { addMonths, compareMonths, dateBoth, daysInMonth, monthEnd, monthKey, monthLabel, monthStart, parseMonthKey, sameMonth, thisMonth, today } from "./_lib/months";
 import { barcodeFor, employeeCode, normalizeName, normalizePhone, receiptNo, sumBy, totalsFor } from "./_lib/helpers";
+import { groupTotals, sortRegisterRows } from "./_lib/register";
 import {
   CASH_MODE_ID,
   MOCK_USER,
@@ -48,6 +49,8 @@ import type {
   PaymentMode,
   PaymentResult,
   PaymentsRegister,
+  RegisterDepartmentTotal,
+  RegisterSort,
   PhotoToken,
   PhotoTokenInfo,
   RegisterRow,
@@ -703,6 +706,10 @@ export interface PaymentsQuery {
   to_bs: string | null;
   type: RegisterTypeFilter;
   employee_id?: number | null;
+  /** Only payments of employees in this department; the tiles follow it too. */
+  department_id?: number | null;
+  /** Row order; "date" (newest first) when omitted. */
+  sort?: RegisterSort;
 }
 
 /**
@@ -721,17 +728,32 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
   if (query.from_bs && query.to_bs && query.from_bs > query.to_bs) {
     throw new PayrollApiError(422, '"From" is after "To" — swap the dates.', "from_bs");
   }
+  const sort: RegisterSort = query.sort ?? "date";
+  const department = query.department_id ? (current.departments.find((d) => d.id === query.department_id) ?? null) : null;
+  if (query.department_id && !department) throw new PayrollApiError(404, "No such department.", "department_id");
   const employeeById = new Map(current.employees.map((e) => [e.id, e]));
-  const rows: RegisterRow[] = current.payments
+  const inRange: RegisterRow[] = current.payments
     .filter((p) => !query.from_bs || p.date.bs >= query.from_bs)
     .filter((p) => !query.to_bs || p.date.bs <= query.to_bs)
     .filter((p) => query.type === "all" || p.type === query.type)
     .filter((p) => !query.employee_id || p.employee_id === query.employee_id)
     .map((payment) => ({ payment, employee: employeeById.get(payment.employee_id)! }))
-    .filter((row) => row.employee)
-    .sort((a, b) => b.payment.date.bs.localeCompare(a.payment.date.bs) || b.payment.id - a.payment.id);
+    .filter((row) => row.employee);
+  // by_department covers the whole range so the chips keep their counts whichever one is chosen.
+  const by_department: RegisterDepartmentTotal[] = [...current.departments.map((d): Department | null => d), null]
+    .map((dept) => {
+      const mine = inRange.filter((r) => (r.employee.department?.id ?? null) === (dept?.id ?? null));
+      return { department: dept, count: mine.length, ...groupTotals(mine) };
+    })
+    .filter((d) => d.department !== null || d.count > 0);
+  const rows = sortRegisterRows(
+    department ? inRange.filter((r) => r.employee.department?.id === department.id) : inRange,
+    sort,
+  );
   const month = settlementMonth(current);
+  // Tiles and "By employee" follow the chosen department.
   const ledgers = current.employees
+    .filter((employee) => !department || employee.department?.id === department.id)
     .map((employee) => ledgerFor(current, employee, month))
     .filter((row): row is MonthLedger => row !== null);
   const by_employee = ledgers.map((l) => ({
@@ -745,8 +767,11 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
   return respond({
     from_bs: query.from_bs ?? "",
     to_bs: query.to_bs ?? "",
+    department,
+    sort,
     rows,
     by_employee,
+    by_department,
     totals: {
       month,
       staff: ledgers.length,
