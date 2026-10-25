@@ -371,8 +371,17 @@ export interface RegisterDepartmentTotal {
   total: number;
 }
 
-/** Date = newest first (default) · Department A-Z · Employee A-Z · Amount high to low. */
-export type RegisterSort = "date" | "department" | "employee" | "amount";
+/** Date = newest first (default) · Branch A-Z · Department A-Z · Employee A-Z · Amount high to low. */
+export type RegisterSort = "date" | "branch" | "department" | "employee" | "amount";
+
+/** Payments of the range per branch (the "By branch" export sheet, All branches only). */
+export interface RegisterBranchTotal {
+  branch: Branch;
+  count: number;
+  salary: number;
+  advances: number;
+  total: number;
+}
 
 /** GET /api/payroll/payments?from_bs&to_bs&type&employee_id&department_id&sort */
 export interface PaymentsRegister {
@@ -390,6 +399,8 @@ export interface PaymentsRegister {
   by_employee: RegisterEmployeeTotal[];
   /** Over the whole range, type filter and chosen branch (not the department), so the chips keep their counts. */
   by_department: RegisterDepartmentTotal[];
+  /** Over the whole range and type filter, every branch (the "By branch" sheet); one entry when a branch is chosen. */
+  by_branch: RegisterBranchTotal[];
 }
 
 /** From/To presets of the register (BS, inclusive). */

@@ -451,3 +451,20 @@
   font-size: 13px;
   padding: 0 8px;
 }
+
+.branchRow th {
+  text-align: left;
+  background: var(--color-sidebar-active);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 9px 10px;
+  letter-spacing: 0.01em;
+}
+
+.branchSubtotalRow td,
+.branchSubtotalRow th {
+  background: var(--color-border-soft);
+  color: var(--color-primary);
+  font-weight: 700;
+}

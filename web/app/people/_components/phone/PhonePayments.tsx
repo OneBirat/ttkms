@@ -10,7 +10,7 @@ import { listBranches } from "../../api";
 import { formatBsDay } from "@/lib/bs";
 import { rangeFor, today } from "../../_lib/months";
 import { formatAmount, groupBy, initials } from "../../_lib/helpers";
-import { REGISTER_SORTS, groupRowsByDepartment, isRegisterSort } from "../../_lib/register";
+import { REGISTER_SORTS, groupRowsByBranch, groupRowsByDepartment, isRegisterSort, type RegisterGroup } from "../../_lib/register";
 import type { RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import styles from "./phone.module.css";
@@ -23,7 +23,8 @@ const CHIPS: { value: RegisterTypeFilter; label: string }[] = [
 
 const SORT_HINT: Record<RegisterSort, string> = {
   date: "Newest first, grouped by day",
-  department: "A–Z, grouped with a subtotal each",
+  branch: "A–Z, grouped with a subtotal each",
+  department: "A–Z, grouped with a subtotal each (inside each branch when all are shown)",
   employee: "Name A–Z",
   amount: "Highest first",
 };
@@ -99,33 +100,41 @@ export function PhonePayments() {
           </span>
         </span>
         <span className={styles.txBalance}>
-          {e.department?.name ?? "No department"} · recorded by {p.recorded_by}
+          {e.department?.name ?? "No department"}
+          {data && !data.branch ? ` · ${e.branch.name}` : ""} · recorded by {p.recorded_by}
         </span>
       </span>
     </div>
   );
 
-  // Date: one card per day. Department: one card per department with a subtotal. Employee / Amount: one flat card.
-  const sections =
-    sort === "date"
-      ? groupBy(rows, (r) => r.payment.date.bs).map((d) => ({
-          key: d.key,
-          title: dayLabel(d.key),
-          lang: "ne" as const,
-          rows: d.items,
-          subtotal: null as null | { salary: number; advances: number; total: number },
-        }))
-      : sort === "department"
-        ? groupRowsByDepartment(rows).map((g) => ({
-            key: `d-${g.department?.id ?? "none"}`,
-            title: `${g.department?.name ?? "No department"} · ${g.rows.length}`,
-            lang: undefined,
-            rows: g.rows,
-            subtotal: { salary: g.salary, advances: g.advances, total: g.total },
-          }))
-        : rows.length
-          ? [{ key: "all", title: sort === "employee" ? "By employee, A–Z" : "By amount, highest first", lang: undefined, rows, subtotal: null }]
-          : [];
+  // Date: one card per day. Branch / Department: one card per group with a subtotal (Department nests
+  // inside branch headings when all branches are shown). Employee / Amount: one flat card.
+  type Subtotal = null | { salary: number; advances: number; total: number };
+  type Section = { key: string; title: string; lang?: "ne"; rows: RegisterRow[]; subtotal: Subtotal; heading?: string; headingTotal?: number };
+  const departmentSection = (g: RegisterGroup, prefix = ""): Section => ({
+    key: `${prefix}d-${g.department?.id ?? "none"}`,
+    title: `${g.department?.name ?? "No department"} · ${g.rows.length}`,
+    rows: g.rows,
+    subtotal: { salary: g.salary, advances: g.advances, total: g.total },
+  });
+  let sections: Section[];
+  if (sort === "date") {
+    sections = groupBy(rows, (r) => r.payment.date.bs).map((d) => ({ key: d.key, title: dayLabel(d.key), lang: "ne" as const, rows: d.items, subtotal: null }));
+  } else if (sort === "branch") {
+    sections = groupRowsByBranch(rows).map((g) => ({ key: `b-${g.branch.id}`, title: `${g.branch.name} · ${g.rows.length}`, rows: g.rows, subtotal: { salary: g.salary, advances: g.advances, total: g.total } }));
+  } else if (sort === "department" && data && !data.branch) {
+    sections = groupRowsByBranch(rows, true).flatMap((g) =>
+      (g.departments ?? []).map((d, i) => ({
+        ...departmentSection(d, `b${g.branch.id}-`),
+        heading: i === 0 ? `${g.branch.name} · ${g.rows.length}` : undefined,
+        headingTotal: i === 0 ? g.total : undefined,
+      })),
+    );
+  } else if (sort === "department") {
+    sections = groupRowsByDepartment(rows).map((g) => departmentSection(g));
+  } else {
+    sections = rows.length ? [{ key: "all", title: sort === "employee" ? "By employee, A–Z" : "By amount, highest first", rows, subtotal: null }] : [];
+  }
 
   return (
     <PhoneFrame
@@ -157,6 +166,14 @@ export function PhonePayments() {
       {!data && !register.error ? <p className={styles.empty}>Loading…</p> : null}
       {sections.map((section) => (
         <div key={section.key}>
+          {section.heading ? (
+            <div className={styles.dayHead} style={{ marginTop: 14 }}>
+              <span className={styles.groupTitle} style={{ fontWeight: 700 }}>
+                {section.heading}
+              </span>
+              <b className="mono">Rs {formatAmount(section.headingTotal ?? 0)}</b>
+            </div>
+          ) : null}
           <div className={styles.dayHead}>
             <span className={styles.groupTitle} lang={section.lang}>
               {section.title}

@@ -111,7 +111,7 @@ export function PaymentsRegisterScreen() {
   const data = register.data;
   const rows = useMemo(() => (data ? data.rows.filter((r) => matchesEmployee(r.employee, query)) : []), [data, query]);
   // Grouping (sort = Department) adds heading and subtotal lines; pages count those so a subtotal stays with its group.
-  const shown = useMemo(() => displayRows(rows, sort), [rows, sort]);
+  const shown = useMemo(() => displayRows(rows, sort, (data?.branch ?? null) === null), [rows, sort, data?.branch]);
   const paged = paginate(shown, page, PAGE_SIZE);
   const total = rows.reduce((sum, r) => sum + r.payment.amount, 0);
   const totalSalary = rows.filter((r) => r.payment.type === "salary").reduce((sum, r) => sum + r.payment.amount, 0);
@@ -248,7 +248,7 @@ export function PaymentsRegisterScreen() {
                 <select value={sort} onChange={(event) => setParams({ sort: event.target.value === "date" ? null : event.target.value })}>
                   {REGISTER_SORTS.map((s) => (
                     <option key={s.value} value={s.value}>
-                      {s.value === "date" ? "Date (newest first)" : s.value === "amount" ? "Amount (high → low)" : s.label}
+                      {s.value === "date" ? "Date (newest first)" : s.value === "amount" ? "Amount (high → low)" : s.value === "department" && !data?.branch ? "Department (within branch)" : s.label}
                     </option>
                   ))}
                 </select>
@@ -305,6 +305,28 @@ export function PaymentsRegisterScreen() {
                     </tr>
                   ) : (
                     paged.items.map((item) => {
+                      if (item.kind === "branch") {
+                        const g = item.group;
+                        return (
+                          <tr key={`b-${g.branch.id}`} className={styles.branchRow}>
+                            <th scope="rowgroup" colSpan={8}>
+                              {g.branch.name} · {g.rows.length} payment{g.rows.length === 1 ? "" : "s"}
+                            </th>
+                          </tr>
+                        );
+                      }
+                      if (item.kind === "branchSubtotal") {
+                        const g = item.group;
+                        return (
+                          <tr key={`bs-${g.branch.id}`} className={`${styles.subtotalRow} ${styles.branchSubtotalRow}`}>
+                            <th scope="row" colSpan={5} style={{ textAlign: "left" }}>
+                              Subtotal · {g.branch.name} · Salary {formatAmount(g.salary)} · Advances {formatAmount(g.advances)}
+                            </th>
+                            <td className={shared.num}>{formatAmount(g.total)}</td>
+                            <td colSpan={2} />
+                          </tr>
+                        );
+                      }
                       if (item.kind === "group") {
                         const g = item.group;
                         return (
@@ -338,6 +360,7 @@ export function PaymentsRegisterScreen() {
                             <span className={styles.empName}>{employee.full_name}</span>
                             <span className={styles.empSub}>
                               {employee.code} · {employee.department?.name ?? "—"}
+                              {!data.branch ? ` · ${employee.branch.name}` : ""}
                             </span>
                           </Link>
                         </td>

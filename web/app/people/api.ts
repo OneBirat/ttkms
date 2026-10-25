@@ -49,6 +49,7 @@ import type {
   PaymentMode,
   PaymentResult,
   PaymentsRegister,
+  RegisterBranchTotal,
   RegisterDepartmentTotal,
   RegisterSort,
   PhotoToken,
@@ -736,14 +737,15 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
   const department = query.department_id ? (current.departments.find((d) => d.id === query.department_id) ?? null) : null;
   if (query.department_id && !department) throw new PayrollApiError(404, "No such department.", "department_id");
   const employeeById = new Map(current.employees.map((e) => [e.id, e]));
-  const inRange: RegisterRow[] = current.payments
+  let inRange: RegisterRow[] = current.payments
     .filter((p) => !query.from_bs || p.date.bs >= query.from_bs)
     .filter((p) => !query.to_bs || p.date.bs <= query.to_bs)
     .filter((p) => query.type === "all" || p.type === query.type)
     .filter((p) => !query.employee_id || p.employee_id === query.employee_id)
     .map((payment) => ({ payment, employee: employeeById.get(payment.employee_id)! }))
-    .filter((row) => row.employee)
-    .filter((row) => !branch || row.employee.branch.id === branch.id);
+    .filter((row) => row.employee);
+  const unscoped = inRange;
+  inRange = inRange.filter((row) => !branch || row.employee.branch.id === branch.id);
   // by_department covers the whole range (within the chosen branch) so the chips keep their counts whichever one is chosen.
   const by_department: RegisterDepartmentTotal[] = [...current.departments.map((d): Department | null => d), null]
     .map((dept) => {
@@ -754,7 +756,17 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
   const rows = sortRegisterRows(
     department ? inRange.filter((r) => r.employee.department?.id === department.id) : inRange,
     sort,
+    branch === null,
   );
+  // by_branch covers every branch of the range (type filter applied), for the "By branch" sheet.
+  const by_branch: RegisterBranchTotal[] = [...current.branches]
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id)
+    .filter((b) => !branch || b.id === branch.id)
+    .map((b) => {
+      const mine = unscoped.filter((r) => r.employee.branch.id === b.id);
+      return { branch: b, count: mine.length, ...groupTotals(mine) };
+    })
+    .filter((b) => b.count > 0);
   const month = settlementMonth(current);
   // Tiles and "By employee" follow the chosen branch and department.
   const ledgers = current.employees
@@ -779,6 +791,7 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
     rows,
     by_employee,
     by_department,
+    by_branch,
     totals: {
       month,
       staff: ledgers.length,
