@@ -518,7 +518,7 @@ function History({ scan, state, titleId }: StepProps<"history">) {
           {(rows ?? []).map((p) => (
             <li key={p.payment_id} className={styles.histRow}>
               <span className={styles.histDate} aria-hidden="true">
-                <span className={styles.histMon}>{monthName(p.bs_month)}</span>
+                <span className={styles.histMon}>{monthName(Number(p.date_bs.slice(5, 7)))}</span>
                 <span className={styles.histDay}>{Number(p.date_bs.slice(8, 10))}</span>
               </span>
               <span className={styles.histText}>

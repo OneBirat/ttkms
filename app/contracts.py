@@ -126,8 +126,10 @@ class MonthBalance:
 
 @dataclass
 class PaymentInput:
-    """A salary or advance payment to record. The payment belongs to the BS month of its date;
-    ``date`` (AD) or ``date_bs`` may be given, both default to today in Kathmandu."""
+    """A salary or advance payment to record. ``date`` (AD) or ``date_bs`` may be given, both
+    default to today in Kathmandu. The payment counts against the BS month ``for_year`` /
+    ``for_month``; left out, that is the month of the payment date (what the scan flow does).
+    Payroll sends it explicitly: Ashoj's salary paid on Kartik 2 counts for Ashoj."""
 
     employee_id: int
     kind: PaymentKind
@@ -136,6 +138,8 @@ class PaymentInput:
     payment_mode_id: int = CASH_PAYMENT_MODE_ID
     date: dt.date | None = None
     date_bs: str | None = None
+    for_year: int | None = None
+    for_month: int | None = None
     note: str = ""
     #: Where it was recorded: the attendance scan flow or payroll's account screen.
     source: PaymentSource = "scan"
@@ -149,8 +153,9 @@ class PaymentRecord:
     #: "ADV-0412" / "SAL-0410" (payroll's receipt numbering).
     receipt_no: str
     employee_id: int
-    bs_year: int
-    bs_month: int
+    #: The BS month the payment counts against (not necessarily the month of ``date``).
+    for_year: int
+    for_month: int
     kind: PaymentKind
     amount: int
     payment_mode_id: int
@@ -189,10 +194,11 @@ class PayrollPayments(Protocol):
     ) -> PaymentResult: ...
 
     async def for_month(
-        self, bs_year: int, bs_month: int, employee_ids: Iterable[int] | None = None
+        self, for_year: int, for_month: int, employee_ids: Iterable[int] | None = None
     ) -> dict[int, list[PaymentRecord]]:
-        """Payments of the month per employee (oldest first), for the report badges. ``None``
-        means every employee; employees without payments are left out of the dict."""
+        """Payments counting for the month (``for_year`` / ``for_month``) per employee, oldest
+        first, for the report badges. ``None`` means every employee; employees without payments
+        are left out of the dict."""
         ...
 
 
@@ -205,6 +211,18 @@ def resolve_payment_date(payment: PaymentInput) -> tuple[dt.date, str]:
         return bs.to_ad(), bs.isoformat()
     ad = payment.date or bsdate.today_ad()
     return ad, bsdate.ad_to_bs(ad).isoformat()
+
+
+def resolve_payment_month(payment: PaymentInput, date_bs: str) -> tuple[int, int]:
+    """``(for_year, for_month)``: the explicit pair, else the BS month of the payment date.
+    Giving only one of the two is a ``ValueError``."""
+    if (payment.for_year is None) != (payment.for_month is None):
+        raise ValueError("for_year and for_month go together")
+    if payment.for_year is not None and payment.for_month is not None:
+        if not 1 <= payment.for_month <= 12:
+            raise ValueError(f"for_month must be 1-12, got {payment.for_month}")
+        return payment.for_year, payment.for_month
+    return int(date_bs[:4]), int(date_bs[5:7])
 
 
 def month_key(bs_year: int, bs_month: int) -> str:
@@ -250,14 +268,16 @@ class FakePayrollPayments:
     def _base_paid(employee_id: int, earned: int) -> int:
         return min((0, 5000, 8000)[(employee_id - 1) % 3], earned)
 
-    def _seeded(self, employee_id: int, bs_year: int, bs_month: int) -> list[PaymentRecord]:
+    def _seeded(self, employee_id: int, for_year: int, for_month: int) -> list[PaymentRecord]:
         from app.core import bsdate
 
         earned = self.earned_of(employee_id)
         rows = _FAKE_HISTORY.get(self._base_paid(employee_id, earned), ())
         out: list[PaymentRecord] = []
         for index, (day, kind, amount, note) in enumerate(rows):
-            bs = bsdate.BSDate(bs_year, bs_month, min(day, bsdate.days_in_month(bs_year, bs_month)))
+            bs = bsdate.BSDate(
+                for_year, for_month, min(day, bsdate.days_in_month(for_year, for_month))
+            )
             ad = bs.to_ad()
             payment_id = employee_id * 100 + index + 1
             out.append(
@@ -265,8 +285,8 @@ class FakePayrollPayments:
                     payment_id=payment_id,
                     receipt_no=_receipt_no(kind, payment_id),
                     employee_id=employee_id,
-                    bs_year=bs_year,
-                    bs_month=bs_month,
+                    for_year=for_year,
+                    for_month=for_month,
                     kind=kind,
                     amount=amount,
                     payment_mode_id=CASH_PAYMENT_MODE_ID,
@@ -280,20 +300,20 @@ class FakePayrollPayments:
             )
         return out
 
-    def _payments(self, employee_id: int, bs_year: int, bs_month: int) -> list[PaymentRecord]:
-        return self._seeded(employee_id, bs_year, bs_month) + self._recorded.get(
-            (employee_id, bs_year, bs_month), []
+    def _payments(self, employee_id: int, for_year: int, for_month: int) -> list[PaymentRecord]:
+        return self._seeded(employee_id, for_year, for_month) + self._recorded.get(
+            (employee_id, for_year, for_month), []
         )
 
-    async def balance(self, employee_id: int, bs_year: int, bs_month: int) -> MonthBalance:
+    async def balance(self, employee_id: int, for_year: int, for_month: int) -> MonthBalance:
         earned = self.earned_of(employee_id)
-        paid = sum(p.amount for p in self._payments(employee_id, bs_year, bs_month))
+        paid = sum(p.amount for p in self._payments(employee_id, for_year, for_month))
         return MonthBalance(
             employee_id=employee_id,
-            bs_year=bs_year,
-            bs_month=bs_month,
-            month_key=month_key(bs_year, bs_month),
-            month_label=month_label(bs_year, bs_month),
+            bs_year=for_year,
+            bs_month=for_month,
+            month_key=month_key(for_year, for_month),
+            month_label=month_label(for_year, for_month),
             earned=earned,
             paid=paid,
             due=max(0, earned - paid),
@@ -303,8 +323,8 @@ class FakePayrollPayments:
         if not isinstance(payment.amount, int) or payment.amount <= 0:
             raise PaymentRejected("amount", "Enter an amount above 0.")
         ad, bs_iso = resolve_payment_date(payment)
-        bs_year, bs_month = int(bs_iso[:4]), int(bs_iso[5:7])
-        before = await self.balance(payment.employee_id, bs_year, bs_month)
+        for_year, for_month = resolve_payment_month(payment, bs_iso)
+        before = await self.balance(payment.employee_id, for_year, for_month)
         if payment.amount > before.due:
             raise PaymentRejected(
                 "over_due", f"More than the balance due for {before.month_label}."
@@ -314,8 +334,8 @@ class FakePayrollPayments:
             payment_id=self._next_id,
             receipt_no=_receipt_no(payment.kind, self._next_id),
             employee_id=payment.employee_id,
-            bs_year=bs_year,
-            bs_month=bs_month,
+            for_year=for_year,
+            for_month=for_month,
             kind=payment.kind,
             amount=payment.amount,
             payment_mode_id=payment.payment_mode_id,
@@ -328,20 +348,20 @@ class FakePayrollPayments:
             source=payment.source,
             recorded_at=dt.datetime.now(dt.UTC),
         )
-        self._recorded.setdefault((payment.employee_id, bs_year, bs_month), []).append(record)
+        self._recorded.setdefault((payment.employee_id, for_year, for_month), []).append(record)
         return PaymentResult(payment=record, due_after=before.due - payment.amount)
 
     async def for_month(
-        self, bs_year: int, bs_month: int, employee_ids: Iterable[int] | None = None
+        self, for_year: int, for_month: int, employee_ids: Iterable[int] | None = None
     ) -> dict[int, list[PaymentRecord]]:
         if employee_ids is None:
             # The fake knows no employee list: it can only answer for those asked about or paid.
             employee_ids = sorted(
-                {key[0] for key in self._recorded if key[1:] == (bs_year, bs_month)}
+                {key[0] for key in self._recorded if key[1:] == (for_year, for_month)}
             )
         out: dict[int, list[PaymentRecord]] = {}
         for employee_id in employee_ids:
-            payments = self._payments(employee_id, bs_year, bs_month)
+            payments = self._payments(employee_id, for_year, for_month)
             if payments:
                 out[employee_id] = sorted(payments, key=lambda p: (p.date, p.payment_id))
         return out

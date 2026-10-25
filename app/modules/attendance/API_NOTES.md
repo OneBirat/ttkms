@@ -79,14 +79,16 @@ calls `get_payroll_payments().for_month(bs_year, bs_month, employee_ids)` in-pro
 | Method | Path | Request | Response |
 |---|---|---|---|
 | GET | `/api/payroll/balance?employee_id=&bs_year=&bs_month=` | | `MonthBalance {employee_id, bs_year, bs_month, month_key, month_label, earned, paid, due}` (`PayrollPayments.balance`) |
-| POST | `/api/payroll/payments` | `PaymentInput {employee_id, kind: salary\|advance, amount, payment_mode_id (default Cash = 1), date_bs? (today), note?, source: "scan"}` – the payment belongs to the BS month of its date | `PaymentResult {payment: PaymentRecord, due_after}`; 422 `{code: amount\|over_due\|unknown_employee\|payment_mode, detail}` (`PaymentRejected`) |
+| POST | `/api/payroll/payments` | `PaymentInput {employee_id, kind: salary\|advance, amount, payment_mode_id (default Cash = 1), date_bs? (today), for_year? / for_month? (the BS month it counts for; default = the month of the date), note?, source: "scan"}` | `PaymentResult {payment: PaymentRecord, due_after}`; 422 `{code: amount\|over_due\|unknown_employee\|payment_mode, detail}` (`PaymentRejected`) |
 | GET | `/api/payroll/payments?employee_id=&bs_year=&bs_month=` | | `PaymentHistory {employee_id, month_key, month_label, payments: PaymentRecord[] (newest first), totals: {earned, paid, due}}` – the scan flow's "Paid in {month}" card, the History sheet and the day-detail pop-up |
 
-`PaymentRecord {payment_id, receipt_no "ADV-0412"/"SAL-0410", employee_id, bs_year, bs_month, kind,
-amount, payment_mode_id, payment_mode, date, date_bs, note, source, recorded_at}`. The scan flow
-always sends `payment_mode_id: 1` (Cash; the Cash / Bank toggle was removed from the sheet) and no
-date, so the payment lands on today's month. The paid sheet prints `receipt_no` as the receipt
-number.
+`PaymentRecord {payment_id, receipt_no "ADV-0412"/"SAL-0410", employee_id, for_year, for_month, kind,
+amount, payment_mode_id, payment_mode, date, date_bs, note, source, recorded_at}`; the month lookup
+(`for_month(for_year, for_month, employee_ids)`) and the report badges go by `for_year` /
+`for_month`, not by the payment date. The scan flow always sends `payment_mode_id: 1` (Cash; the
+Cash / Bank toggle was removed from the sheet), no date and no `for_*`, so the payment counts for
+today's month; payroll's account screen sends `for_*` explicitly (Ashoj's salary paid on Kartik 2
+counts for Ashoj). The paid sheet prints `receipt_no` as the receipt number.
 
 ## AttendanceSummary (app/contracts.py) – shape change (applied on main 2026-10-25)
 

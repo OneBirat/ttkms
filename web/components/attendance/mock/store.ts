@@ -148,8 +148,8 @@ function seededPayments(employeeId: number, monthKey: string, earned: number): P
       payment_id: id,
       receipt_no: receiptNo(kind, id),
       employee_id: employeeId,
-      bs_year: year,
-      bs_month: month,
+      for_year: year,
+      for_month: month,
       kind,
       amount,
       payment_mode_id: CASH_PAYMENT_MODE_ID,
@@ -201,7 +201,7 @@ export function getPaymentHistory(employeeId: number, monthKey: string, monthLab
   };
 }
 
-/** Records a payment against the month of `dateBs` (already validated by api.ts). */
+/** Records a payment counting for `monthKey` (for_year / for_month, already resolved by api.ts). */
 export function addPayment(input: PaymentInput, dateBs: string, monthKey: string, monthLabel: string): PaymentResult {
   const k = `${input.employee_id}:${monthKey}`;
   const [year, month] = monthKey.split("-").map(Number);
@@ -211,8 +211,8 @@ export function addPayment(input: PaymentInput, dateBs: string, monthKey: string
     payment_id: id,
     receipt_no: receiptNo(input.kind, id),
     employee_id: input.employee_id,
-    bs_year: year,
-    bs_month: month,
+    for_year: year,
+    for_month: month,
     kind: input.kind,
     amount: input.amount,
     payment_mode_id: modeId,

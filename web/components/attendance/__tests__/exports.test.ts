@@ -217,7 +217,18 @@ describe("mock API rules", () => {
     assert.equal(paid.due_after, before.due - 1500);
     assert.equal(paid.payment.receipt_no, `ADV-${String(paid.payment.payment_id).padStart(4, "0")}`);
     assert.deepEqual([paid.payment.kind, paid.payment.payment_mode_id, paid.payment.payment_mode], ["advance", 1, "Cash"]);
-    assert.deepEqual([paid.payment.date_bs, paid.payment.date, paid.payment.bs_month], ["2083-07-07", "2026-10-24", 7]);
+    assert.deepEqual([paid.payment.date_bs, paid.payment.date, paid.payment.for_month], ["2083-07-07", "2026-10-24", 7]);
+    // Payroll pays Ashoj's salary on Kartik 2: it counts for Ashoj, not Kartik.
+    const ashojBefore = await getMonthBalance(4, "2083-06");
+    const ashoj = await recordPayment({ employee_id: 4, kind: "salary", amount: 700, date_bs: "2083-07-02", for_year: 2083, for_month: 6, source: "account" });
+    assert.deepEqual([ashoj.payment.for_year, ashoj.payment.for_month, ashoj.payment.date_bs], [2083, 6, "2083-07-02"]);
+    assert.equal((await getMonthBalance(4, "2083-06")).paid, ashojBefore.paid + 700);
+    assert.ok((await getPaymentHistoryFor(4, "2083-06")).payments.some((p) => p.payment_id === ashoj.payment.payment_id));
+    assert.ok(!(await getPaymentHistoryFor(4, "2083-07")).payments.some((p) => p.payment_id === ashoj.payment.payment_id));
+    await assert.rejects(
+      recordPayment({ employee_id: 4, kind: "salary", amount: 1, for_year: 2083, source: "scan" }),
+      (e: unknown) => e instanceof AttendanceApiError && e.status === 422,
+    );
     const after = await getMonthBalance(4, "2083-07");
     assert.equal(after.paid, before.paid + 1500);
     const history = await getPaymentHistoryFor(4, "2083-07");

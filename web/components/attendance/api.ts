@@ -311,8 +311,9 @@ export async function getPaymentHistoryFor(employeeId: number, monthKey: string)
 
 /**
  * PAYROLL: POST /api/payroll/payments  body PaymentInput -> PaymentResult
- * (422 when amount is 0 or above the balance due). The payment belongs to the
- * BS month of `date_bs` (today when omitted) - app/contracts.py PaymentInput.
+ * (422 when amount is 0 or above the balance due). The payment counts for
+ * `for_year` / `for_month`, else the BS month of `date_bs` (today when omitted)
+ * - app/contracts.py PaymentInput.
  */
 export async function recordPayment(input: PaymentInput): Promise<PaymentResult> {
   await wait();
@@ -321,7 +322,13 @@ export async function recordPayment(input: PaymentInput): Promise<PaymentResult>
   }
   const dateBs = input.date_bs ?? todayBs();
   if (!isValidBs(dateBs)) throw new AttendanceApiError(422, `${dateBs} is not a valid BS date.`);
-  const monthKey = dateBs.slice(0, 7);
+  if ((input.for_year == null) !== (input.for_month == null)) {
+    throw new AttendanceApiError(422, "for_year and for_month go together.");
+  }
+  const monthKey =
+    input.for_year != null && input.for_month != null
+      ? `${input.for_year}-${String(input.for_month).padStart(2, "0")}`
+      : dateBs.slice(0, 7);
   const label = labelOf(monthKey);
   const balance = getBalance(input.employee_id, monthKey, label);
   if (!Number.isInteger(input.amount) || input.amount <= 0) {

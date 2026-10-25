@@ -346,7 +346,10 @@ export interface MonthBalance {
   due: number;
 }
 
-/** POST /api/payroll/payments body. The payment belongs to the BS month of its date (today when omitted). */
+/**
+ * POST /api/payroll/payments body. The payment counts for the BS month `for_year` / `for_month`;
+ * omitted (the scan flow), that is the month of the payment date (today when omitted too).
+ */
 export interface PaymentInput {
   employee_id: number;
   kind: PaymentKind;
@@ -356,6 +359,9 @@ export interface PaymentInput {
   payment_mode_id?: number;
   /** BS date "YYYY-MM-DD"; today when omitted. */
   date_bs?: string | null;
+  /** The BS month the payment is for; both or neither. */
+  for_year?: number | null;
+  for_month?: number | null;
   note?: string;
   /** Where it was recorded; attendance always sends "scan". */
   source: PaymentSource;
@@ -367,8 +373,9 @@ export interface PaymentRecord {
   /** "ADV-0412" / "SAL-0410" - the receipt number payroll prints. */
   receipt_no: string;
   employee_id: number;
-  bs_year: number;
-  bs_month: number;
+  /** The BS month the payment counts for (not necessarily the month of `date`). */
+  for_year: number;
+  for_month: number;
   kind: PaymentKind;
   amount: number;
   payment_mode_id: number;

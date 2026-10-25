@@ -57,7 +57,7 @@ function setup(options: { markFails?: boolean; marked?: Set<number> } = {}) {
   const marked = options.marked ?? new Set<number>();
   const record = (id: number, dateBs: string, date: string, kind: PaymentRecord["kind"], amount: number, recordedAt: string): PaymentRecord => ({
     payment_id: id, receipt_no: `${kind === "advance" ? "ADV" : "SAL"}-${String(id).padStart(4, "0")}`, employee_id: 4,
-    bs_year: 2083, bs_month: 7, kind, amount, payment_mode_id: 1, payment_mode: "Cash", date, date_bs: dateBs, note: "Cash",
+    for_year: 2083, for_month: 7, kind, amount, payment_mode_id: 1, payment_mode: "Cash", date, date_bs: dateBs, note: "Cash",
     source: "account", recorded_at: recordedAt,
   });
   let payments: PaymentRecord[] = [

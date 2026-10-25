@@ -75,6 +75,7 @@ from app.contracts import (  # noqa: E402
     register_payroll_payments,
     reset_payroll_payments,
     resolve_payment_date,
+    resolve_payment_month,
 )
 
 
@@ -108,7 +109,7 @@ async def test_fake_record_reduces_due_and_shows_in_the_month_lookup():
     assert result.due_after == before.due - 1500
     assert result.payment.receipt_no == f"ADV-{result.payment.payment_id:04d}"
     assert result.payment.payment_mode_id == CASH_PAYMENT_MODE_ID
-    assert (result.payment.bs_year, result.payment.bs_month) == (2083, 7)
+    assert (result.payment.for_year, result.payment.for_month) == (2083, 7)
     assert result.payment.date.isoformat() == "2026-10-24"
     assert result.payment.source == "scan"
     after = await fake.balance(4, 2083, 7)
@@ -170,7 +171,7 @@ async def test_payroll_registry_returns_fake_until_payroll_registers():
             raise PaymentRejected("unknown_employee", "No such employee.")
 
         async def for_month(
-            self, bs_year: int, bs_month: int, employee_ids=None
+            self, for_year: int, for_month: int, employee_ids=None
         ) -> dict[int, list[PaymentRecord]]:
             return {}
 
@@ -183,3 +184,45 @@ async def test_payroll_registry_returns_fake_until_payroll_registers():
     finally:
         reset_payroll_payments()
     assert isinstance(contracts.get_payroll_payments(), FakePayrollPayments)
+
+
+async def test_payment_counts_for_the_month_it_is_for_not_the_month_it_is_paid_in():
+    """Ashoj's salary paid on Kartik 2 counts for Ashoj (2083-06), not Kartik."""
+    fake = FakePayrollPayments()
+    ashoj = await fake.balance(4, 2083, 6)
+    kartik = await fake.balance(4, 2083, 7)
+    result = await fake.record(
+        PaymentInput(
+            employee_id=4,
+            kind="salary",
+            amount=1000,
+            date_bs="2083-07-02",
+            for_year=2083,
+            for_month=6,
+            source="account",
+        )
+    )
+    assert (result.payment.for_year, result.payment.for_month) == (2083, 6)
+    assert result.payment.date_bs == "2083-07-02"
+    assert result.due_after == ashoj.due - 1000
+    assert (await fake.balance(4, 2083, 6)).paid == ashoj.paid + 1000
+    assert (await fake.balance(4, 2083, 7)) == kartik
+    assert result.payment in (await fake.for_month(2083, 6, [4]))[4]
+    assert result.payment not in (await fake.for_month(2083, 7, [4])).get(4, [])
+    # Without for_year / for_month the month of the date is used.
+    scan = await fake.record(
+        PaymentInput(employee_id=4, kind="advance", amount=500, date_bs="2083-07-02")
+    )
+    assert (scan.payment.for_year, scan.payment.for_month) == (2083, 7)
+
+
+def test_for_month_pair_is_validated():
+    base = dict(employee_id=1, kind="advance", amount=1)
+    assert resolve_payment_month(PaymentInput(**base), "2083-07-02") == (2083, 7)
+    assert resolve_payment_month(
+        PaymentInput(**base, for_year=2083, for_month=6), "2083-07-02"
+    ) == (2083, 6)
+    with pytest.raises(ValueError):
+        resolve_payment_month(PaymentInput(**base, for_year=2083), "2083-07-02")
+    with pytest.raises(ValueError):
+        resolve_payment_month(PaymentInput(**base, for_year=2083, for_month=13), "2083-07-02")
