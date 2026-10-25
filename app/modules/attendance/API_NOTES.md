@@ -36,6 +36,11 @@ The step-by-step backend plan (table, migration, permissions, order of work) is 
 | GET | `/status?date_bs=&employee_ids=1,2,3` | `date_bs` defaults to today | `[{employee_id, status: P\|O\|A\|W\|N, ot_hours}]` – today's status for payroll's screens (also exposed in-process through `AttendanceSummary`) | any signed-in user of attendance or payroll |
 | GET | `/api/today` (core) | | `TodayRef` once the BS table is on the server; the UI converts locally meanwhile | — |
 
+Departments (`DayAttendance.departments`, `MonthReport.departments`) are **core's**: the UI already
+reads `GET /api/core/departments` (2026-10-25, `web/components/attendance/departments.ts`) and joins
+the headcount on `department_id`; the backend does the same join on `core.departments` /
+`core.employees`. Employees stay mock until the attendance backend.
+
 `PUT /day` (save a whole day at once) is no longer called by the UI; keep it out of the backend
 pass unless payroll asks for it. Months for the report ‹ › navigation are computed in the browser
 (current + 2 previous); no endpoint.

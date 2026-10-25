@@ -89,10 +89,17 @@ export function branchRefs(): BranchRef[] {
   }));
 }
 
-/** Departments with headcount, optionally restricted to one branch. */
-export function departmentRefs(branchId: number | null = null): DepartmentRef[] {
-  return DEPARTMENTS.map((d) => ({
-    ...d,
+/**
+ * Departments with headcount, optionally restricted to one branch. `departments` is the real
+ * core list (departments.ts); the headcount joins the mock employees on department_id.
+ */
+export function departmentRefs(
+  branchId: number | null = null,
+  departments: readonly { id: number; name: string }[] = DEPARTMENTS,
+): DepartmentRef[] {
+  return departments.map((d) => ({
+    id: d.id,
+    name: d.name,
     headcount: EMPLOYEES.filter(
       (e) => e.department_id === d.id && (branchId === null || e.branch_id === branchId),
     ).length,

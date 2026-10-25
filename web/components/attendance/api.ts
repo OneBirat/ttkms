@@ -13,6 +13,7 @@
 
 import { isValidBs, monthLabel, parseMonthKey, todayBs } from "@/lib/bs";
 import { dayFromBs, findMonth, listMonths as calendarMonths, todayRef } from "./calendar";
+import { loadDepartments } from "./departments";
 import { buildExportModel, type ExportContext } from "./exportModel";
 import { computeTotals, findByCode } from "./helpers";
 import { EMPLOYEES, branchRefs, departmentRefs } from "./mock/employees";
@@ -93,7 +94,7 @@ export async function getDay(dateBs: string, branchId: number): Promise<DayAtten
     day,
     settings: MOCK_SETTINGS,
     branches: branchRefs(),
-    departments: departmentRefs(branchId),
+    departments: departmentRefs(branchId, await loadDepartments()), // real core departments
     rows,
   };
 }
@@ -232,7 +233,7 @@ export async function getReport(monthKey: string, branchId: number | null = null
     month,
     settings: MOCK_SETTINGS,
     branches: branchRefs(),
-    departments: departmentRefs(branchId),
+    departments: departmentRefs(branchId, await loadDepartments()), // real core departments
     rows,
     generated_at: new Date().toISOString(),
   };
