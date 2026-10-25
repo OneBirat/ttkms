@@ -305,9 +305,13 @@ function LedgerTab({ id }: { id: number }) {
                   <span className={styles.txText}>
                     <span className={styles.txLine}>
                       <span className={styles.txLabel}>{TX_LABEL[e.type]}</span>
-                      <span className={styles.txAmount} style={{ color: e.earned > 0 ? "var(--pill-ok-fg)" : "var(--pill-danger-fg)" }}>
-                        {e.earned ? `${e.earned < 0 ? "−" : "+"}Rs ${formatAmount(Math.abs(e.earned))}` : `−Rs ${formatAmount(e.paid)}`}
-                      </span>
+                      {e.voided && e.payment ? (
+                        <span className={`${styles.txAmount} ${shared.voidedAmount}`}>−Rs {formatAmount(e.payment.amount)}</span>
+                      ) : (
+                        <span className={styles.txAmount} style={{ color: e.earned > 0 ? "var(--pill-ok-fg)" : "var(--pill-danger-fg)" }}>
+                          {e.earned ? `${e.earned < 0 ? "−" : "+"}Rs ${formatAmount(Math.abs(e.earned))}` : `−Rs ${formatAmount(e.paid)}`}
+                        </span>
+                      )}
                     </span>
                     <span className={styles.txLine}>
                       <span className={styles.txWhen}>

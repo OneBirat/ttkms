@@ -194,6 +194,8 @@ interface PayrollPayment {
   date: { bs: string; ad: string };
   paid_at: string;
   source: "scan" | "account";
+  /** Voided payments count for nothing; the scan sheets leave them out. */
+  voided?: boolean;
 }
 
 function paymentRecord(p: PayrollPayment): PaymentRecord {
@@ -256,7 +258,7 @@ export async function getPaymentHistoryFor(employeeId: number, monthKey: string)
       employee_id: employeeId,
       month_key: monthKey,
       month_label: label,
-      payments: ledger.payments.map(paymentRecord).reverse(),
+      payments: ledger.payments.filter((p) => !p.voided).map(paymentRecord).reverse(),
       totals: { earned: ledger.net, paid: ledger.paid, due: ledger.due },
     };
   } catch (err) {

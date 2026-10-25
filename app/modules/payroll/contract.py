@@ -121,7 +121,11 @@ class PayrollPaymentsService:
         async with session() as db:
             query = (
                 select(Payment)
-                .where(Payment.for_year == for_year, Payment.for_month == for_month)
+                .where(
+                    Payment.for_year == for_year,
+                    Payment.for_month == for_month,
+                    Payment.voided_at.is_(None),  # a voided payment counts for nothing
+                )
                 .order_by(Payment.date, Payment.id)
             )
             if employee_ids is not None:

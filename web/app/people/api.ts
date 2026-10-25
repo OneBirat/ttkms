@@ -21,6 +21,7 @@ import type {
   MonthBalance,
   MonthLedger,
   MonthSummary,
+  Payment,
   PaymentInput,
   PaymentMode,
   PaymentResult,
@@ -244,6 +245,14 @@ export async function recordPayment(input: PaymentInput): Promise<PaymentResult>
   return mutate(apiFetch<PaymentResult>("/api/payroll/payments", { method: "POST", json: input }));
 }
 
+/**
+ * POST /api/payroll/payments/{id}/void {reason} - admins only, cannot be undone. The payment stays
+ * listed (struck through, "Voided — reason") and keeps its receipt number, but counts for nothing.
+ */
+export async function voidPayment(payment_id: number, reason: string): Promise<Payment> {
+  return mutate(apiFetch<Payment>(`/api/payroll/payments/${payment_id}/void`, { method: "POST", json: { reason } }));
+}
+
 export interface PaymentsQuery {
   /** BS dates, inclusive; null = no bound. */
   from_bs: string | null;
@@ -255,9 +264,11 @@ export interface PaymentsQuery {
   department_id?: number | null;
   /** Row order; "date" (newest first) when omitted. */
   sort?: RegisterSort;
+  /** List voided payments too (struck through). The screen only; exports never include them. */
+  show_voided?: boolean;
 }
 
-function registerQuery(query: PaymentsQuery): string {
+function registerQuery(query: PaymentsQuery, forExport = false): string {
   return qs({
     from: query.from_bs,
     to: query.to_bs,
@@ -266,6 +277,7 @@ function registerQuery(query: PaymentsQuery): string {
     branch_id: query.branch_id,
     department_id: query.department_id,
     sort: query.sort,
+    show_voided: !forExport && query.show_voided ? "true" : null,
   });
 }
 
@@ -276,7 +288,7 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
 
 /** URL of the register's Excel / PDF file for the same filters (opened by the browser). */
 export function registerExportUrl(query: PaymentsQuery, ext: "xlsx" | "pdf"): string {
-  return `/api/payroll/payments/export.${ext}${registerQuery(query)}`;
+  return `/api/payroll/payments/export.${ext}${registerQuery(query, true)}`;
 }
 
 /** URL of a payment's receipt PDF. */

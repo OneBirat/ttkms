@@ -5,13 +5,16 @@ import { useCallback, useMemo, useState } from "react";
 import { BottomSheet } from "./BottomSheet";
 import { PhoneFrame } from "./PhoneFrame";
 import { useReportBranch } from "../../_lib/useBranchScope";
-import { listDepartments, listPayments } from "../../api";
+import { listDepartments, listPayments, receiptUrl } from "../../api";
+import { VoidPaymentDialog, VoidedNote, useCanVoid } from "../VoidPaymentDialog";
+import { monthLabel } from "../../_lib/months";
+import shared from "../payroll.module.css";
 import { listBranches } from "../../api";
 import { formatBsDay } from "@/lib/bs";
 import { rangeFor, today } from "../../_lib/months";
 import { formatAmount, groupBy, initials } from "../../_lib/helpers";
 import { REGISTER_SORTS, groupRowsByBranch, groupRowsByDepartment, isRegisterSort, type RegisterGroup } from "../../_lib/register";
-import type { RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
+import type { Payment, RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import styles from "./phone.module.css";
 
@@ -45,6 +48,10 @@ export function PhonePayments() {
   const deptParam = Number(params.get("dept") ?? "0");
   const departmentId: number | null = Number.isInteger(deptParam) && deptParam > 0 ? deptParam : null;
   const sort: RegisterSort = isRegisterSort(params.get("sort")) ? (params.get("sort") as RegisterSort) : "date";
+  const showVoided = params.get("voided") === "1";
+  const canVoid = useCanVoid();
+  const [details, setDetails] = useState<RegisterRow | null>(null);
+  const [voiding, setVoiding] = useState<Payment | null>(null);
   const setParams = useCallback(
     (changes: Record<string, string | null>) => {
       const next = new URLSearchParams(params.toString());
@@ -61,8 +68,8 @@ export function PhonePayments() {
   const range = useMemo(() => rangeFor("last_3"), []);
   const branchScope = useReportBranch(branches.data ?? []);
   const register = usePayroll(
-    () => listPayments({ ...range, type, branch_id: branchScope.branchId, department_id: departmentId, sort }),
-    [type, branchScope.branchId, departmentId, sort],
+    () => listPayments({ ...range, type, branch_id: branchScope.branchId, department_id: departmentId, sort, show_voided: showVoided }),
+    [type, branchScope.branchId, departmentId, sort, showVoided],
   );
   const picker = branchScope.picker;
   const data = register.data;
@@ -76,17 +83,37 @@ export function PhonePayments() {
   const countOf = (id: number | null) => data?.by_department.find((d) => (d.department?.id ?? null) === id)?.count ?? 0;
   const allCount = data?.by_department.reduce((sum, d) => sum + d.count, 0) ?? 0;
   const sortLabel = REGISTER_SORTS.find((s) => s.value === sort)?.label ?? "Date";
-  const sum = (list: RegisterRow[]) => list.reduce((s, r) => s + r.payment.amount, 0);
+  // Voided payments (shown with "Show voided") are listed struck through and never summed.
+  const sum = (list: RegisterRow[]) => list.reduce((s, r) => s + (r.payment.voided ? 0 : r.payment.amount), 0);
+  const countedRows = rows.filter((r) => !r.payment.voided);
 
-  const payRow = ({ payment: p, employee: e }: RegisterRow) => (
-    <div key={p.id} className={styles.payRow}>
+  const payRow = (row: RegisterRow) => {
+    const { payment: p, employee: e } = row;
+    return (
+    <div
+      key={p.id}
+      className={`${styles.payRow} ${p.voided ? shared.voidedRow : ""}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Payment details ${p.receipt_no}`}
+      onClick={() => setDetails(row)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setDetails(row);
+        }
+      }}
+    >
       <span className={styles.payAvatar} data-type={p.kind}>
         {initials(e.full_name)}
       </span>
       <span className={styles.txText}>
         <span className={styles.txLine}>
           <span className={styles.rowName}>{e.full_name}</span>
-          <span className={styles.txAmount} style={{ color: p.kind === "advance" ? "var(--pill-leave-fg)" : "var(--pill-ok-fg)" }}>
+          <span
+            className={`${styles.txAmount} ${p.voided ? shared.voidedAmount : ""}`}
+            style={{ color: p.voided ? undefined : p.kind === "advance" ? "var(--pill-leave-fg)" : "var(--pill-ok-fg)" }}
+          >
             Rs {formatAmount(p.amount)}
           </span>
         </span>
@@ -103,9 +130,11 @@ export function PhonePayments() {
           {e.department?.name ?? "No department"}
           {data && !data.branch ? ` · ${e.branch.name}` : ""} · recorded by {p.recorded_by}
         </span>
+        <VoidedNote payment={p} />
       </span>
     </div>
-  );
+    );
+  };
 
   // Date: one card per day. Branch / Department: one card per group with a subtotal (Department nests
   // inside branch headings when all branches are shown). Employee / Amount: one flat card.
@@ -150,6 +179,9 @@ export function PhonePayments() {
         ))}
         <button type="button" className={styles.chip} onClick={() => setSortOpen(true)} aria-haspopup="dialog" aria-label={`Sort: ${sortLabel}`}>
           Sort · {sortLabel} ▾
+        </button>
+        <button type="button" className={styles.chip} aria-pressed={showVoided} onClick={() => setParams({ voided: showVoided ? null : "1" })}>
+          Show voided
         </button>
       </div>
       <div className={styles.chips} role="group" aria-label="Department">
@@ -198,13 +230,61 @@ export function PhonePayments() {
       {data && rows.length > 0 ? (
         <div className={styles.kvTotal} style={{ margin: "12px 16px 0" }}>
           <span>
-            Total · {rows.length} payment{rows.length === 1 ? "" : "s"}
+            Total · {countedRows.length} payment{countedRows.length === 1 ? "" : "s"}
             {data.department ? ` · ${data.department.name}` : ""}
           </span>
           <b className="mono">Rs {formatAmount(sum(rows))}</b>
         </div>
       ) : null}
       {data && rows.length === 0 ? <p className={styles.empty}>No payments in the last three months{data.department ? ` for ${data.department.name}` : ""}.</p> : null}
+
+      <BottomSheet open={details !== null} label="Payment details" onClose={() => setDetails(null)}>
+        {details ? (
+          <>
+            <div className={styles.sheetHeader}>
+              <h2 className={styles.sheetTitle}>
+                {details.payment.receipt_no} · {details.payment.kind === "advance" ? "Advance" : "Salary"}
+              </h2>
+            </div>
+            <div style={{ padding: "0 16px 8px", display: "flex", flexDirection: "column", gap: 6, fontSize: 14 }}>
+              <div className={styles.kvLine}>
+                <span>{details.employee.full_name}</span>
+                <b className={`mono ${details.payment.voided ? shared.voidedAmount : ""}`}>Rs {formatAmount(details.payment.amount)}</b>
+              </div>
+              <span className={styles.rowSub}>
+                {details.payment.date.bs} · for {monthLabel(details.payment.month)} · {details.payment.payment_mode.name} · recorded by {details.payment.recorded_by}
+              </span>
+              <VoidedNote payment={details.payment} />
+            </div>
+            <button
+              type="button"
+              className={styles.sheetAction}
+              onClick={() => {
+                window.open(receiptUrl(details.payment.id), "_blank", "noopener");
+              }}
+            >
+              Receipt PDF
+            </button>
+            {canVoid && !details.payment.voided ? (
+              <button
+                type="button"
+                className={styles.sheetAction}
+                data-tone="danger"
+                onClick={() => {
+                  setVoiding(details.payment);
+                  setDetails(null);
+                }}
+              >
+                Void payment
+              </button>
+            ) : null}
+            <button type="button" className={styles.sheetCancel} onClick={() => setDetails(null)}>
+              Close
+            </button>
+          </>
+        ) : null}
+      </BottomSheet>
+      <VoidPaymentDialog payment={voiding} onClose={() => setVoiding(null)} />
 
       <BottomSheet open={sortOpen} label="Sort payments" onClose={() => setSortOpen(false)}>
         <div className={styles.sheetHeader}>

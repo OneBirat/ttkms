@@ -17,6 +17,8 @@ import { formatAmount, formatRs, matchesEmployee, paginate } from "../_lib/helpe
 import { REGISTER_SORTS, displayRows, isRegisterSort } from "../_lib/register";
 import type { DateRange, RegisterSort, RegisterTypeFilter } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
+import type { Payment } from "../types";
+import { VoidPaymentDialog, VoidedNote, useCanVoid } from "./VoidPaymentDialog";
 import styles from "./report.module.css";
 import shared from "./payroll.module.css";
 
@@ -59,6 +61,10 @@ export function PaymentsRegisterScreen() {
   const departmentId: number | null = Number.isInteger(deptParam) && deptParam > 0 ? deptParam : null;
   const sort: RegisterSort = isRegisterSort(params.get("sort")) ? (params.get("sort") as RegisterSort) : "date";
   const page = Math.max(1, Number(params.get("page") ?? "1") || 1);
+  // "Show voided" (off by default): voided payments listed struck through, never in a total.
+  const showVoided = params.get("voided") === "1";
+  const canVoid = useCanVoid();
+  const [voiding, setVoiding] = useState<{ payment: Payment; name: string } | null>(null);
   const validRange = isValidBs(from_bs) && isValidBs(to_bs);
   const rangeBad = validRange && from_bs > to_bs;
   const [ask, setAsk] = useState<Ask>(null);
@@ -102,16 +108,18 @@ export function PaymentsRegisterScreen() {
         branch_id: branchScope.branchId,
         department_id: departmentId,
         sort,
+        show_voided: showVoided,
       }),
-    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, branchScope.branchId, departmentId, sort],
+    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, branchScope.branchId, departmentId, sort, showVoided],
   );
   const data = register.data;
   const rows = useMemo(() => (data ? data.rows.filter((r) => matchesEmployee(r.employee, query)) : []), [data, query]);
   // Grouping (sort = Department) adds heading and subtotal lines; pages count those so a subtotal stays with its group.
   const shown = useMemo(() => displayRows(rows, sort, (data?.branch ?? null) === null), [rows, sort, data?.branch]);
   const paged = paginate(shown, page, PAGE_SIZE);
-  const total = rows.reduce((sum, r) => sum + r.payment.amount, 0);
-  const totalSalary = rows.filter((r) => r.payment.kind === "salary").reduce((sum, r) => sum + r.payment.amount, 0);
+  const counted = rows.filter((r) => !r.payment.voided);
+  const total = counted.reduce((sum, r) => sum + r.payment.amount, 0);
+  const totalSalary = counted.filter((r) => r.payment.kind === "salary").reduce((sum, r) => sum + r.payment.amount, 0);
   // Chips: every department with its payment count in the range (whichever department is chosen).
   const countOf = (id: number | null) => data?.by_department.find((d) => (d.department?.id ?? null) === id)?.count ?? 0;
   const allCount = data?.by_department.reduce((sum, d) => sum + d.count, 0) ?? 0;
@@ -218,8 +226,12 @@ export function PaymentsRegisterScreen() {
           <section aria-labelledby="reg-h" className={`card ${styles.sheet}`}>
             <div className={styles.sheetHead}>
               <h2 id="reg-h" className={shared.cardTitle} style={{ marginRight: "auto" }}>
-                Payment register · {rows.length}
+                Payment register · {counted.length}
               </h2>
+              <label className={shared.note} style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+                <input type="checkbox" checked={showVoided} onChange={(event) => setParams({ voided: event.target.checked ? "1" : null })} />
+                Show voided
+              </label>
               <label htmlFor={searchId} className={shared.srOnly}>
                 Search employee
               </label>
@@ -262,7 +274,7 @@ export function PaymentsRegisterScreen() {
               {rangeBad ? <span className={shared.warn}>&quot;From&quot; is after &quot;To&quot; — swap the dates.</span> : null}
               {!validRange ? <span className={shared.warn}>Pick both dates.</span> : null}
               <span className={shared.note} style={{ marginLeft: "auto" }}>
-                {rows.length} payments · {rangeText}
+                {counted.length} payments · {rangeText}
                 {deptName ? ` · ${deptName}` : ""}
               </span>
             </div>
@@ -341,7 +353,7 @@ export function PaymentsRegisterScreen() {
                       }
                       const { payment: p, employee } = item.row;
                       return (
-                      <tr key={p.id}>
+                      <tr key={p.id} className={p.voided ? shared.voidedRow : undefined}>
                         <td>
                           <BSDateText value={p.date.bs} />
                         </td>
@@ -361,8 +373,9 @@ export function PaymentsRegisterScreen() {
                         <td>
                           {p.payment_mode.name}
                           {p.reference || p.note ? <span className={styles.refText}>{[p.reference, p.note].filter(Boolean).join(" · ")}</span> : null}
+                          <VoidedNote payment={p} />
                         </td>
-                        <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(p.amount)}</td>
+                        <td className={`${shared.num} ${shared.kvStrong} ${p.voided ? shared.voidedAmount : ""}`}>{formatAmount(p.amount)}</td>
                         <td style={{ color: "#3e4a52" }}>
                           {p.recorded_by}
                           {p.source === "scan" ? <span className={shared.note}> · scan</span> : null}
@@ -379,6 +392,11 @@ export function PaymentsRegisterScreen() {
                           >
                             Receipt
                           </button>
+                          {canVoid && !p.voided ? (
+                            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setVoiding({ payment: p, name: employee.full_name })}>
+                              Void
+                            </button>
+                          ) : null}
                         </td>
                       </tr>
                       );
@@ -388,7 +406,7 @@ export function PaymentsRegisterScreen() {
                 <tfoot>
                   <tr>
                     <th scope="row" colSpan={5} style={{ textAlign: "left" }}>
-                      Total · {rows.length} payment{rows.length === 1 ? "" : "s"}
+                      Total · {counted.length} payment{counted.length === 1 ? "" : "s"}
                       {deptName ? ` · ${deptName}` : ""} · Salary {formatAmount(totalSalary)} · Advances {formatAmount(total - totalSalary)}
                     </th>
                     <td className={`${shared.num} ${shared.ok}`}>{formatAmount(total)}</td>
@@ -403,7 +421,7 @@ export function PaymentsRegisterScreen() {
                   page={paged.page}
                   pages={paged.pages}
                   hrefFor={hrefFor}
-                  summary={`Showing ${(paged.page - 1) * PAGE_SIZE + 1}–${Math.min(paged.page * PAGE_SIZE, shown.length)} of ${shown.length} lines · ${rows.length} payments`}
+                  summary={`Showing ${(paged.page - 1) * PAGE_SIZE + 1}–${Math.min(paged.page * PAGE_SIZE, shown.length)} of ${shown.length} lines · ${counted.length} payments`}
                 />
               </div>
             ) : null}
@@ -446,6 +464,13 @@ export function PaymentsRegisterScreen() {
           </div>
         </div>
       ) : null}
+
+      <VoidPaymentDialog
+        payment={voiding?.payment ?? null}
+        employeeName={voiding?.name}
+        onClose={() => setVoiding(null)}
+        onVoided={(p) => setToast(`${p.receipt_no} voided — it no longer counts as paid`)}
+      />
 
       {toast ? (
         <div role="status" className={styles.toastDark}>

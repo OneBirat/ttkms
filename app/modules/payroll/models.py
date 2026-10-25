@@ -109,6 +109,7 @@ class Payment(Base):
     __table_args__ = (
         CheckConstraint("amount > 0", name="amount_positive"),
         CheckConstraint("for_month BETWEEN 1 AND 12", name="for_month_range"),
+        CheckConstraint("(voided_at IS NULL) = (void_reason IS NULL)", name="void_reason"),
         Index("ix_payments_employee_month", "employee_id", "for_year", "for_month"),
         Index("ix_payments_date", "date"),
         Index("ix_payments_payment_mode_id", "payment_mode_id"),
@@ -145,9 +146,19 @@ class Payment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    #: Voided payments (admin only, with a reason, never undone) stay on record but count for
+    #: nothing: not paid, not due, not in totals, exports or the payments-per-month contract.
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    voided_by: Mapped[int | None] = mapped_column(ForeignKey("core.users.id", ondelete="SET NULL"))
+    void_reason: Mapped[str | None] = mapped_column(String(200))
 
     employee: Mapped[Employee] = relationship(lazy="selectin")
-    recorder: Mapped[User | None] = relationship(lazy="selectin")
+    recorder: Mapped[User | None] = relationship(lazy="selectin", foreign_keys=[recorded_by])
+    voider: Mapped[User | None] = relationship(lazy="selectin", foreign_keys=[voided_by])
+
+    @property
+    def voided(self) -> bool:
+        return self.voided_at is not None
 
     def __repr__(self) -> str:  # pragma: no cover
         return (

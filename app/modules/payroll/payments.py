@@ -13,7 +13,7 @@ from dataclasses import asdict, dataclass
 from datetime import date
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contracts import get_attendance_summary
@@ -57,16 +57,20 @@ def month_out(year: int, month: int) -> BsMonthOut:
     return BsMonthOut(bs_year=year, bs_month=month)
 
 
-async def employee_data(db: AsyncSession, employee: Employee):
+async def employee_data(db: AsyncSession, employee: Employee, *, include_voided: bool = False):
+    """Salary rows and payments; voided payments only for the screens that list them (the
+    ledgers leave them out of every sum)."""
     structures = (await ledgers.load_structures(db, [employee.id])).get(employee.id, [])
-    payments = (await ledgers.load_payments(db, [employee.id])).get(employee.id, [])
+    payments = (await ledgers.load_payments(db, [employee.id], include_voided=include_voided)).get(
+        employee.id, []
+    )
     return structures, payments
 
 
 async def month_ledger_or_404(
     db: AsyncSession, employee: Employee, year: int, month: int
 ) -> tuple[MonthLedger, list, list]:
-    structures, payments = await employee_data(db, employee)
+    structures, payments = await employee_data(db, employee, include_voided=True)
     ledger = await ledgers.ledger_for(
         employee, year, month, structures, payments, saturday_rule=await ledgers.saturday_rule(db)
     )
@@ -290,7 +294,10 @@ async def register(
     employee_id: int | None,
     department_id: int | None,
     sort: RegisterSort,
+    show_voided: bool = False,
 ) -> PaymentsRegisterOut:
+    """Voided payments are rows only with ``show_voided`` (the screen's toggle; exports never
+    ask) and are left out of every chip, tile and total either way."""
     start = bsdate.bs_to_ad(from_bs) if from_bs else None
     end = bsdate.bs_to_ad(to_bs) if to_bs else None
     if start and end and start > end:
@@ -318,10 +325,13 @@ async def register(
         query = query.where(Payment.kind == PaymentKind(kind))
     if employee_id:
         query = query.where(Payment.employee_id == employee_id)
-    in_range = [
+    if not show_voided:
+        query = query.where(Payment.voided_at.is_(None))
+    listed = [
         RegisterRowOut(payment=payment_out(p, modes), employee=emp_out[p.employee_id])
         for p in await db.scalars(query.order_by(Payment.date, Payment.id))
     ]
+    in_range = [r for r in listed if not r.payment.voided]
     # Chips: every department of the scope, over the whole range (not the chosen department).
     departments = list(await db.scalars(select(Department).order_by(Department.name)))
     by_department = []
@@ -362,13 +372,14 @@ async def register(
                 total=total,
             )
         )
-    rows = [
-        r
-        for r in in_range
-        if department is None
-        or (r.employee.department and r.employee.department.id == department.id)
-    ]
-    rows = sort_rows(rows, sort, branch is None)
+
+    def in_department(r: RegisterRowOut) -> bool:
+        return department is None or bool(
+            r.employee.department and r.employee.department.id == department.id
+        )
+
+    rows = [r for r in in_range if in_department(r)]
+    shown = sort_rows([r for r in listed if in_department(r)], sort, branch is None)
 
     # Tiles and By employee: the settlement month, for the scoped (branch + department) staff.
     scoped = [e for e in employees if department is None or e.department_id == department.id]
@@ -421,7 +432,8 @@ async def register(
         else None,
         department=DepartmentRef(id=department.id, name=department.name) if department else None,
         sort=sort,
-        rows=rows,
+        show_voided=show_voided,
+        rows=shown,
         totals=RegisterTotalsOut(
             month=month_out(*settle_month),
             staff=len(month_ledgers),
@@ -444,7 +456,7 @@ async def recent_payments(
     modes = await services.modes_by_id(db)
     rows = await db.scalars(
         select(Payment)
-        .where(Payment.employee_id == employee.id)
+        .where(Payment.employee_id == employee.id, Payment.voided_at.is_(None))
         .order_by(Payment.date.desc(), Payment.id.desc())
         .limit(limit)
     )
@@ -458,11 +470,41 @@ async def get_payment(db: AsyncSession, payment_id: int) -> Payment:
     return payment
 
 
+async def void_payment(db: AsyncSession, actor: User, payment: Payment, reason: str) -> PaymentOut:
+    """Void a payment for good: it stays listed (struck through) with its receipt number - which
+    is never reused - but counts for nothing from now on. A second void is a 409."""
+    if payment.voided_at is not None:
+        raise services.conflict(
+            f"{payment.receipt_no} was already voided ({payment.void_reason}).",
+            "payment",
+            code="already_voided",
+        )
+    payment.voided_at = func.now()
+    payment.voided_by = actor.id
+    payment.void_reason = reason
+    await db.flush()
+    await record_audit(
+        db,
+        module=MODULE,
+        action="void",
+        entity="payment",
+        entity_id=payment.id,
+        user_id=actor.id,
+        data={
+            "before": {"receipt_no": payment.receipt_no, "amount": payment.amount},
+            "after": {"voided": True, "reason": reason},
+        },
+    )
+    await db.commit()
+    await db.refresh(payment)
+    return payment_out(payment, await services.modes_by_id(db))
+
+
 # ------------------------------------------------------------------------------ account
 
 
 async def month_ledgers(db: AsyncSession, employee: Employee) -> list[MonthLedgerOut]:
-    structures, payments = await employee_data(db, employee)
+    structures, payments = await employee_data(db, employee, include_voided=True)
     modes = await services.modes_by_id(db)
     rows = await ledgers.ledgers_kept(
         employee, structures, payments, saturday_rule=await ledgers.saturday_rule(db)
@@ -491,7 +533,7 @@ def _rs(value: int) -> str:
 
 
 async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOut:
-    structures, payments = await employee_data(db, employee)
+    structures, payments = await employee_data(db, employee, include_voided=True)
     modes = await services.modes_by_id(db)
     months = await ledgers.ledgers_kept(
         employee, structures, payments, saturday_rule=await ledgers.saturday_rule(db)
@@ -565,7 +607,7 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
                     in_progress=ledger.in_progress,
                 )
             )
-        for p in ledger.payments:
+        for p in [*ledger.payments, *ledger.voided]:
             out = payment_out(p, modes)
             details = out.payment_mode.name
             if out.reference:
@@ -573,6 +615,8 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
             if out.note:
                 details += f" · {out.note}"
             details += f" · by {out.recorded_by or 'system'}"
+            if out.voided:
+                details = f"Voided — {out.void_reason} · {details}"
             entries.append(
                 LedgerEntryOut(
                     id=f"pay-{p.id}",
@@ -581,10 +625,11 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
                     type="advance" if p.kind == PaymentKind.advance else "salary_paid",
                     details=details,
                     earned=0,
-                    paid=p.amount,
+                    paid=0 if out.voided else p.amount,
                     balance=0,
                     payment=out,
                     in_progress=False,
+                    voided=out.voided,
                 )
             )
     order = {"salary": 0, "absence": 1, "overtime": 2, "advance": 3, "salary_paid": 4}
@@ -593,8 +638,8 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
     for entry in entries:
         running += entry.earned - entry.paid
         entry.balance = running
-    advances = [e for e in entries if e.type == "advance"]
-    salary_payments = [e for e in entries if e.type == "salary_paid"]
+    advances = [e for e in entries if e.type == "advance" and not e.voided]
+    salary_payments = [e for e in entries if e.type == "salary_paid" and not e.voided]
     return EmployeeLedgerOut(
         employee_id=employee.id,
         entries=entries,

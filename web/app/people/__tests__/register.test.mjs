@@ -153,3 +153,14 @@ test("branch grouping: Sort = Branch subtotals add up; All branches + Department
   const one = await api.listPayments({ ...range, type: "all", branch_id: 1, sort: "department" });
   assert.ok(displayRows(one.rows, "department", false).every((d) => d.kind !== "branch"));
 });
+
+test("voided payments are listed but never summed (group totals)", async () => {
+  const { rows } = await api.listPayments({ ...range, type: "all" });
+  const [first, ...rest] = rows.slice(0, 3);
+  const before = groupTotals([first, ...rest]);
+  const voided = { ...first, payment: { ...first.payment, voided: true, void_reason: "Test entry" } };
+  const after = groupTotals([voided, ...rest]);
+  assert.equal(after.total, before.total - first.payment.amount);
+  const groups = groupRowsByDepartment(sortRegisterRows([voided, ...rest], "department"));
+  assert.equal(groups.reduce((s, g) => s + g.total, 0), after.total);
+});

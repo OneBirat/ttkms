@@ -154,7 +154,7 @@ export function TransactionsLedger({ employee }: { employee: Employee }) {
                 </tr>
               ) : (
                 shown.map((e) => (
-                  <tr key={e.id} className={e.paid > 0 ? styles.txPaidRow : undefined}>
+                  <tr key={e.id} className={e.voided ? shared.voidedRow : e.paid > 0 ? styles.txPaidRow : undefined}>
                     <td>
                       <BSDateText value={e.date.bs} />
                       {e.in_progress ? <span className={shared.note}> · so far</span> : null}
@@ -167,7 +167,15 @@ export function TransactionsLedger({ employee }: { employee: Employee }) {
                     </td>
                     <td style={{ whiteSpace: "normal", color: "#3e4a52" }}>{e.details}</td>
                     <td className={`${shared.num} ${shared.ok}`}>{e.earned ? `${e.earned < 0 ? "−" : "+"}${formatAmount(Math.abs(e.earned))}` : ""}</td>
-                    <td className={`${shared.num} ${shared.danger}`}>{e.paid ? `−${formatAmount(e.paid)}` : ""}</td>
+                    <td className={`${shared.num} ${shared.danger}`}>
+                      {e.voided && e.payment ? (
+                        <span className={shared.voidedAmount}>−{formatAmount(e.payment.amount)}</span>
+                      ) : e.paid ? (
+                        `−${formatAmount(e.paid)}`
+                      ) : (
+                        ""
+                      )}
+                    </td>
                     <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(e.balance)}</td>
                   </tr>
                 ))

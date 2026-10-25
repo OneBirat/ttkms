@@ -76,8 +76,10 @@ class MonthLedger:
     attendance: MonthSummary
     pay: rules.PayResult
     settled: rules.Settled
-    #: Oldest first.
+    #: Oldest first; voided payments are never in here (they count for nothing).
     payments: list[Payment]
+    #: Voided payments of the month, oldest first - shown struck through, never summed.
+    voided: list[Payment]
 
     @property
     def net(self) -> int:
@@ -128,10 +130,11 @@ async def ledger_for(
         so_far=in_progress,
         saturday_rule=saturday_rule,
     )
-    month_payments = sorted(
+    of_month = sorted(
         (p for p in payments if p.for_year == year and p.for_month == month),
         key=lambda p: (p.date, p.id),
     )
+    month_payments = [p for p in of_month if p.voided_at is None]
     settled = rules.settle(pay.net, [(p.kind.value, p.amount) for p in month_payments])
     starts, ends = bsdate.bs_month_range(year, month)
     return MonthLedger(
@@ -147,6 +150,7 @@ async def ledger_for(
         pay=pay,
         settled=settled,
         payments=month_payments,
+        voided=[p for p in of_month if p.voided_at is not None],
     )
 
 
@@ -168,13 +172,21 @@ async def load_structures(
 
 
 async def load_payments(
-    db: AsyncSession, employee_ids: Iterable[int], months: Sequence[tuple[int, int]] | None = None
+    db: AsyncSession,
+    employee_ids: Iterable[int],
+    months: Sequence[tuple[int, int]] | None = None,
+    *,
+    include_voided: bool = False,
 ) -> dict[int, list[Payment]]:
+    """Payments per employee, oldest first. Voided ones only with ``include_voided`` (the
+    ledger screens show them struck through; every sum leaves them out either way)."""
     ids = list(employee_ids)
     out: dict[int, list[Payment]] = defaultdict(list)
     if not ids:
         return out
     query = select(Payment).where(Payment.employee_id.in_(ids)).order_by(Payment.date, Payment.id)
+    if not include_voided:
+        query = query.where(Payment.voided_at.is_(None))
     if months:
         years = {y for y, _ in months}
         query = query.where(Payment.for_year.in_(years))

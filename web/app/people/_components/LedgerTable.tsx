@@ -19,6 +19,7 @@ import {
   statusPill,
 } from "../_lib/helpers";
 import type { BsMonth, Employee, MonthLedger, Payment } from "../types";
+import { VoidPaymentDialog, VoidedNote, useCanVoid } from "./VoidPaymentDialog";
 import styles from "./employees.module.css";
 import shared from "./payroll.module.css";
 
@@ -30,7 +31,8 @@ export interface LedgerTableProps {
 
 function StatusPill({ ledger }: { ledger: MonthLedger }) {
   if (ledger.status === "pending") return <span className={shared.pillNeutral}>Pending</span>;
-  const last = ledger.payments[ledger.payments.length - 1];
+  const counted = ledger.payments.filter((p) => !p.voided);
+  const last = counted[counted.length - 1];
   const label = ledger.status === "paid" && last ? `Paid ${formatBsShort(last.date.bs)}` : STATUS_LABEL[ledger.status];
   return <Pill status={statusPill(ledger.status)} label={label} />;
 }
@@ -38,6 +40,8 @@ function StatusPill({ ledger }: { ledger: MonthLedger }) {
 /** Month rows; clicking one expands a detail row inside the table (no side panel). */
 export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTableProps) {
   const [open, setOpen] = useState<string | null>(null);
+  const [voiding, setVoiding] = useState<Payment | null>(null);
+  const canVoid = useCanVoid();
   const key = (l: MonthLedger) => `${l.month.bs_year}-${l.month.bs_month}`;
   const blocked = () => window.alert("The browser blocked the print window. Allow pop-ups for this site and try again.");
   // The header's "Payslip PDF" prints the latest completed month.
@@ -162,6 +166,7 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
                             onReceipt={(payment) => {
                               if (!window.open(receiptUrl(payment.id), "_blank", "noopener")) blocked();
                             }}
+                            onVoid={canVoid ? setVoiding : undefined}
                           />
                         </td>
                       </tr>
@@ -178,6 +183,7 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
         net = wage × days present (overtime days included) + overtime hours × rate − TDS. Advances are part of that
         month&apos;s salary. The running month shows the monthly salary in full less absences so far (daily wages count days so far). Attendance comes from the attendance module.
       </span>
+      <VoidPaymentDialog payment={voiding} employeeName={employee.full_name} onClose={() => setVoiding(null)} />
     </section>
   );
 }
@@ -189,9 +195,12 @@ interface LedgerDetailProps {
   onRecordPayment: () => void;
   onPayslip: () => void;
   onReceipt: (payment: Payment) => void;
+  /** Admins: "Void payment" on each payment row. */
+  onVoid?: (payment: Payment) => void;
 }
 
-function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceipt }: LedgerDetailProps) {
+function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceipt, onVoid }: LedgerDetailProps) {
+  const countedPayments = l.payments.filter((p) => !p.voided).length;
   const perDay = l.attendance.days_in_month ? l.rate / l.attendance.days_in_month : 0;
   const a = l.attendance;
   return (
@@ -297,7 +306,7 @@ function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceip
             Payments
           </span>
           <span className={styles.paymentsTotal}>
-            Total paid {formatRs(l.paid)} · {l.payments.length} payment{l.payments.length === 1 ? "" : "s"}
+            Total paid {formatRs(l.paid)} · {countedPayments} payment{countedPayments === 1 ? "" : "s"}
           </span>
         </div>
         <div className={shared.tableWrap}>
@@ -325,7 +334,7 @@ function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceip
                 </tr>
               ) : (
                 l.payments.map((p) => (
-                  <tr key={p.id}>
+                  <tr key={p.id} className={p.voided ? shared.voidedRow : undefined}>
                     <td>
                       <BSDateText value={p.date.bs} inline />
                     </td>
@@ -337,16 +346,22 @@ function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceip
                     <td style={{ whiteSpace: "normal" }}>
                       {p.note ?? (p.kind === "advance" ? "Part of this month's salary" : "—")}
                       {p.source === "scan" ? <span className={shared.note}> · from attendance scan</span> : null}
+                      <VoidedNote payment={p} />
                     </td>
                     <td>
                       {modeLabel(p)}
                       <span className={shared.note}> · {p.recorded_by}</span>
                     </td>
-                    <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(p.amount)}</td>
+                    <td className={`${shared.num} ${shared.kvStrong} ${p.voided ? shared.voidedAmount : ""}`}>{formatAmount(p.amount)}</td>
                     <td>
                       <button type="button" className="btn btn--ghost btn--sm" onClick={() => onReceipt(p)}>
                         Receipt
                       </button>
+                      {onVoid && !p.voided ? (
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={() => onVoid(p)}>
+                          Void
+                        </button>
+                      ) : null}
                     </td>
                   </tr>
                 ))

@@ -145,6 +145,7 @@ export function payslipHtml(employee: Employee, l: MonthLedger): string {
       ? `Monthly salary ${formatRs(l.rate)} · overtime ${formatRs(l.ot_rate)}/h`
       : `Daily wage ${formatRs(l.rate)} × ${formatDays(l.paid_days)} days · overtime ${formatRs(l.ot_rate)}/h`;
   const payments = l.payments
+    .filter((p) => !p.voided) // printed payslips skip voided payments
     .map((p) => `<tr><td>${escapeHtml(formatBs(p.date.bs))}</td><td>${p.kind === "salary" ? "Salary" : "Advance"}</td><td>${escapeHtml(modeLabel(p))}</td><td class="num">${escapeHtml(formatRs(p.amount))}</td></tr>`)
     .join("");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Payslip ${escapeHtml(employee.code)} ${escapeHtml(monthLabel(l.month))}</title>

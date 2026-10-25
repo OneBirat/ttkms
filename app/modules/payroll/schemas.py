@@ -289,6 +289,12 @@ class PaymentOut(BaseModel):
     recorded_by: str
     source: PaymentSource
     created_at: datetime
+    #: Voided payments stay listed (struck through) but count for nothing.
+    voided: bool = False
+    voided_at: datetime | None = None
+    #: Username of the admin who voided it.
+    voided_by: str | None = None
+    void_reason: str | None = None
 
 
 class MonthLedgerOut(BaseModel):
@@ -446,6 +452,20 @@ class PaymentResultOut(BaseModel):
     due_after: int
 
 
+class VoidPaymentIn(BaseModel):
+    """POST /payments/{id}/void - admin only, cannot be undone."""
+
+    reason: str = Field(max_length=200)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        cleaned = clean_text(value)
+        if not cleaned:
+            raise ValueError("Give a reason for voiding the payment.")
+        return cleaned
+
+
 class RegisterRowOut(BaseModel):
     payment: PaymentOut
     employee: EmployeeOut
@@ -499,6 +519,8 @@ class PaymentsRegisterOut(BaseModel):
     branch: BranchRef | None
     department: DepartmentRef | None
     sort: RegisterSort
+    #: Voided payments are listed (struck through) only when asked for; never in any total.
+    show_voided: bool = False
     rows: list[RegisterRowOut]
     totals: RegisterTotalsOut
     by_employee: list[RegisterEmployeeTotalOut]
@@ -525,6 +547,9 @@ class LedgerEntryOut(BaseModel):
     balance: int
     payment: PaymentOut | None
     in_progress: bool
+    #: A voided payment: listed struck through with "Voided — reason"; ``paid`` is 0 so the
+    #: running balance and the totals ignore it (the amount is on ``payment``).
+    voided: bool = False
 
 
 class LedgerTotalsOut(BaseModel):

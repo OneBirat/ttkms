@@ -1157,3 +1157,30 @@
   font-size: 13px;
   color: var(--pill-danger-fg);
 }
+
+/* Voided payments: listed, struck through, counted nowhere. */
+.voidedRow td,
+.voidedRow th {
+  color: var(--color-text-muted, #6b7780);
+}
+
+.voidedAmount {
+  text-decoration: line-through;
+}
+
+.voidedNote {
+  display: block;
+  color: var(--pill-danger-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dangerBtn {
+  background: var(--pill-danger-fg);
+  border-color: var(--pill-danger-fg);
+  color: #fff;
+}
+
+.dangerBtn:disabled {
+  opacity: 0.55;
+}

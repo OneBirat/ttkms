@@ -20,6 +20,14 @@ Added 25 Oct 2026 with the attendance backend:
   (default: monthly staff get only the Saturday overtime hours) | `extra_day` (also salary ÷ 30 per
   Saturday worked, inside gross). Daily staff always get the wage + hours. Set on admin Settings ›
   Payroll (`/api/admin/settings/payroll`); see `app/modules/attendance/API_NOTES.md`.
+- **Void, never delete** (payroll_0002: `voided_at`, `voided_by`, `void_reason`):
+  `POST /payments/{id}/void {reason}` - admin role only, reason required, audit-logged (`void`),
+  cannot be undone, a second void is 409 `already_voided`. A voided payment keeps its receipt number
+  (never reused) and stays listed - struck through with "Voided — reason" in the month ledger,
+  transactions and Payment reports (`show_voided=1`, the "Show voided" toggle, off by default) - but
+  counts for nothing: not in paid / due / balances / room / tiles / totals / exports / the
+  payments-per-month contract / "Payments today". UI: "Void" on a payment row (desktop register and
+  ledger detail) and "Void payment" in the phone payment details sheet, with a reason dialog.
 - `POST /payments`: `for_year` / `for_month` may be left out (both or neither) and then default to the
   BS month of the payment date - the attendance scan flow's advances do that.
 

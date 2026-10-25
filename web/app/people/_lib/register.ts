@@ -73,6 +73,7 @@ export function groupTotals(rows: readonly RegisterRow[]): { salary: number; adv
   let salary = 0;
   let advances = 0;
   for (const r of rows) {
+    if (r.payment.voided) continue; // listed struck through, counted nowhere
     if (r.payment.kind === "salary") salary += r.payment.amount;
     else advances += r.payment.amount;
   }

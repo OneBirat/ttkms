@@ -198,6 +198,12 @@ export interface Payment {
   recorded_by: string;
   source: PaymentSource;
   created_at: string;
+  /** Voided (admin, with a reason, never undone): listed struck through, counted nowhere. */
+  voided?: boolean;
+  voided_at?: string | null;
+  /** Username of the admin who voided it. */
+  voided_by?: string | null;
+  void_reason?: string | null;
 }
 
 /** Paid = due 0 · Part paid = something paid, something due · Pending = nothing paid. */
@@ -432,6 +438,8 @@ export interface PaymentsRegister {
   /** The chosen department (rows, totals and by_employee are scoped to it); null = all. */
   department: DepartmentRef | null;
   sort: RegisterSort;
+  /** Voided payments are in `rows` only when asked for ("Show voided"); never in a total. */
+  show_voided?: boolean;
   /** In `sort` order. */
   rows: RegisterRow[];
   totals: RegisterTotals;
@@ -499,6 +507,8 @@ export interface LedgerEntry {
   balance: number;
   payment: Payment | null;
   in_progress: boolean;
+  /** A voided payment: struck through, `paid` is 0 (the amount is on `payment`). */
+  voided?: boolean;
 }
 
 export interface LedgerTotals {

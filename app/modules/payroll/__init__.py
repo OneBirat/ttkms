@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 
 from app.core import bsdate
-from app.core.auth import CurrentUser
+from app.core.auth import CurrentUser, require_role
 from app.core.bsdate import BSDate
 from app.core.errors import CodedErrorOut
 from app.core.export import PDF_MEDIA_TYPE, XLSX_MEDIA_TYPE, PDFUnavailable
@@ -54,6 +54,7 @@ from app.modules.payroll.schemas import (
     SalaryReportOut,
     SalaryRevisionIn,
     SalaryStructuresOut,
+    VoidPaymentIn,
 )
 
 EMPLOYEES = "manage_employees"
@@ -65,6 +66,7 @@ router = APIRouter()
 
 CanManage = Annotated[User, Depends(require_access(EMPLOYEES))]
 CanPay = Annotated[User, Depends(require_access(SALARY))]
+AdminOnly = Annotated[User, Depends(require_role("admin"))]
 AnyAccess = Annotated[User, Depends(require_any_access(EMPLOYEES, SALARY))]
 ERRORS: dict[int | str, dict[str, Any]] = {
     403: {"model": ErrorOut},
@@ -373,7 +375,9 @@ async def recent_payments(me: CanPay, db: DbSession, employee_id: int) -> list[P
     return await payments.recent_payments(db, await _visible(db, me, employee_id))
 
 
-async def _register(db, me, branch_id, from_, to, type_, employee_id, department_id, sort):
+async def _register(
+    db, me, branch_id, from_, to, type_, employee_id, department_id, sort, show_voided=False
+):
     scope = await services.scope_for(db, me, branch_id)
     from_bs = BSDate.parse(from_) if from_ else None
     to_bs = BSDate.parse(to) if to else None
@@ -386,6 +390,7 @@ async def _register(db, me, branch_id, from_, to, type_, employee_id, department
         employee_id=employee_id,
         department_id=department_id,
         sort=sort,
+        show_voided=show_voided,
     )
 
 
@@ -458,12 +463,33 @@ async def register(
     sort: RegisterSort = "date",
     from_: str | None = Query(default=None, alias="from"),
     to: str | None = None,
+    show_voided: bool = False,
 ) -> PaymentsRegisterOut:
     """Payments in a BS date range (``from`` / ``to``, inclusive), scoped to the caller's branch
     unless they hold ``see_other_branches``; ``sort`` = date (newest first) | branch |
     department | employee | amount. Group headings and subtotals are the client's: with all
-    branches and ``sort=department`` the rows come branch → department → newest first."""
-    return await _register(db, me, branch_id, from_, to, type, employee_id, department_id, sort)
+    branches and ``sort=department`` the rows come branch → department → newest first.
+    ``show_voided=1`` also lists voided payments (struck through; never in a total); the
+    exports never include them."""
+    return await _register(
+        db, me, branch_id, from_, to, type, employee_id, department_id, sort, show_voided
+    )
+
+
+@router.post(
+    "/payments/{payment_id}/void",
+    response_model=PaymentOut,
+    responses={**ERRORS, 409: {"model": CodedErrorOut}},
+    name="payroll:void_payment",
+)
+async def void_payment(
+    payment_id: int, me: AdminOnly, db: DbSession, payload: VoidPaymentIn
+) -> PaymentOut:
+    """Admins only, with a reason; cannot be undone. The payment stays listed (struck through)
+    and keeps its receipt number but counts for nothing: not paid, not due, not in any total,
+    export or payments-per-month figure."""
+    payment = await payments.get_payment(db, payment_id)
+    return await payments.void_payment(db, me, payment, payload.reason)
 
 
 # ------------------------------------------------------------------------------- photos
@@ -589,7 +615,7 @@ async def payments_today(ctx: WidgetContext) -> list[dict[str, Any]]:
     query = (
         select(Payment)
         .join(Employee, Employee.id == Payment.employee_id)
-        .where(Payment.date == bsdate.today_ad())
+        .where(Payment.date == bsdate.today_ad(), Payment.voided_at.is_(None))
         .order_by(Payment.paid_at.desc(), Payment.id.desc())
     )
     if scope.branch_id is not None:
