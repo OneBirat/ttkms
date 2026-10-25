@@ -9,6 +9,12 @@ is rolled back, so tests never see each other's rows.
 
 ``ENABLED_MODULES`` is pinned to the default set in ``tests/__init__.py``; use ``client_for`` to
 test the app with another module set.
+
+"Today" is frozen for the whole run (``bsdate.utc_now``, the one clock behind every today_ad /
+today_bs, attendance's day and payroll's running month), before any test module computes its
+date constants. ``TTK_TEST_TODAY`` picks the day: ``day15`` (default, Kartik 15, 2083), ``day1``
+(Kartik 1) or ``last32`` (Asar 32 - the last day of a 32-day month). ``make test`` runs the
+payroll and attendance tests on all three.
 """
 
 from __future__ import annotations
@@ -16,8 +22,10 @@ from __future__ import annotations
 import asyncio
 import importlib
 import importlib.util
+import os
 from collections.abc import AsyncIterator, Callable, Coroutine, Iterator
 from contextlib import asynccontextmanager, contextmanager
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -30,10 +38,21 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.config import BASE_DIR, settings
+from app.core import bsdate
 from app.core.auth import hash_password
 from app.core.models import Role, User
 from app.db import get_db
 from app.main import app, create_app
+
+#: Mid-morning in Kathmandu (UTC+5:45) on each test day.
+TEST_DAYS: dict[str, datetime] = {
+    "day1": datetime(2026, 10, 18, 4, 0, tzinfo=UTC),  # Kartik 1, 2083
+    "day15": datetime(2026, 11, 1, 4, 0, tzinfo=UTC),  # Kartik 15, 2083
+    "last32": datetime(2026, 7, 16, 4, 0, tzinfo=UTC),  # Asar 32, 2083 (32-day month)
+}
+TEST_DAY = os.environ.get("TTK_TEST_TODAY", "day15")
+FROZEN_NOW = TEST_DAYS[TEST_DAY]
+bsdate.utc_now = lambda: FROZEN_NOW  # before the test modules import their TODAY constants
 
 TEST_DB_URL = settings.resolved_test_database_url
 #: Alembic environments the suite migrates: core first, then admin (payroll's tables reference

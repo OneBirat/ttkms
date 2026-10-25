@@ -88,7 +88,8 @@ def _payload(branch, department, **extra):
         "designation": "Store keeper",
         "pay_type": "monthly",
         "amount": 22000,
-        "joined_bs": "2083-07-01",
+        # Asar 1, 2083: in the past on every frozen test day (tests/conftest.py).
+        "joined_bs": "2083-03-01",
     }
     base.update(extra)
     return base
@@ -161,7 +162,7 @@ async def test_create_employee_with_login_and_salary(client, db, make_user, logi
         and e["phone"] == "9841203311"
         and e["full_name_np"] == "अनिता गुरुङ"
     )
-    assert e["joined"] == {"bs": "2083-07-01", "ad": "2026-10-18"}
+    assert e["joined"] == {"bs": "2083-03-01", "ad": "2026-06-15"}
     assert e["branch"]["name"] == "Main branch" and e["department"] == {
         "id": store.id,
         "name": "Store",
@@ -184,7 +185,7 @@ async def test_create_employee_with_login_and_salary(client, db, make_user, logi
     )  # 22000 / 30 / 8
     assert salary["current"]["default_payment_mode"]["name"] == "Cash"
     assert (
-        salary["current"]["effective_from"]["bs"] == "2083-07-01"
+        salary["current"]["effective_from"]["bs"] == "2083-03-01"
         and salary["current"]["previous_gross"] is None
     )
     audit = (await db.execute(select(AuditLog).where(AuditLog.module == "payroll"))).scalars().all()

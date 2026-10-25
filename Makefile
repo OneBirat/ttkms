@@ -34,9 +34,12 @@ migrate:
 	  fi; \
 	done
 
-## pytest, then the web tests (web/test/README.md) when node_modules is installed.
+## pytest (frozen "today" = Kartik 15, 2083), the payroll and attendance tests again on Kartik 1
+## and on Asar 32 (last day of a 32-day month), then the web tests when node_modules is installed.
 test:
 	$(PY) -m pytest
+	TTK_TEST_TODAY=day1 $(PY) -m pytest -q tests/payroll tests/attendance
+	TTK_TEST_TODAY=last32 $(PY) -m pytest -q tests/payroll tests/attendance
 	@if [ -d web/node_modules ]; then $(MAKE) web-test; \
 	 else echo "web/node_modules missing: skipping web tests (run make web-install)"; fi
 

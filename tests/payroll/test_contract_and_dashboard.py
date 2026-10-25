@@ -25,7 +25,8 @@ async def _setup(db):
     db.add_all([main, second, store])
     await db.flush()
     people = {}
-    for name, branch, amount in [("Anita", main, 22000), ("Mina", second, 24000)]:
+    # One day's pay (Kartik 1: salary / 30) still covers the advances below.
+    for name, branch, amount in [("Anita", main, 220000), ("Mina", second, 240000)]:
         e = Employee(
             full_name=name, branch_id=branch.id, department_id=store.id, joined_ad=date(2026, 1, 1)
         )

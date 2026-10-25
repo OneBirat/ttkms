@@ -26,7 +26,7 @@ async def _setup(db):
     await db.flush()
     people = []
     for name, branch, dept, pay, amount in [
-        ("Anita", main, store, "monthly", 22000),
+        ("Anita", main, store, "monthly", 220000),
         ("Bikash", main, kitchen, "monthly", 32000),
         ("Ramesh", second, store, "daily", 650),
         ("Mina", second, kitchen, "monthly", 24000),
@@ -90,7 +90,7 @@ async def test_report_rows_totals_and_summaries(client, db, make_user, login):
     ]
     anita = body["rows"][0]["ledger"]
     assert (
-        anita["pay_type"] == "monthly" and anita["rate"] == 22000 and anita["in_progress"] is True
+        anita["pay_type"] == "monthly" and anita["rate"] == 220000 and anita["in_progress"] is True
     )
     assert (
         anita["advance_paid"] == 2000

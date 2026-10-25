@@ -270,10 +270,17 @@ def ad_to_bs(ad: date | datetime) -> BSDate:
 # ----------------------------------------------------------------------------------------- time
 
 
+def utc_now() -> datetime:
+    """The current instant, UTC - the one clock behind every "today" (``today_ad``,
+    ``today_bs``, attendance's day, payroll's running month). The test-suite freezes it
+    (tests/conftest.py, ``TTK_TEST_TODAY``)."""
+    return datetime.now(UTC)
+
+
 def now_kathmandu(now: datetime | None = None) -> datetime:
     """The current (or given) instant as an aware datetime in Asia/Kathmandu."""
     if now is None:
-        now = datetime.now(UTC)
+        now = utc_now()
     elif now.tzinfo is None:
         now = now.replace(tzinfo=UTC)
     return now.astimezone(KATHMANDU)

@@ -33,10 +33,10 @@ async def _setup(db):
     await db.flush()
     people = {}
     for name, branch, dept, pay, amount in [
-        ("Anita", main, store, "monthly", 22000),
-        ("Bikash", main, kitchen, "monthly", 32000),
+        ("Anita", main, store, "monthly", 220000),
+        ("Bikash", main, kitchen, "monthly", 320000),
         ("Ramesh", second, store, "daily", 650),
-        ("Mina", second, kitchen, "monthly", 24000),
+        ("Mina", second, kitchen, "monthly", 240000),
     ]:
         e = Employee(
             full_name=name, branch_id=branch.id, department_id=dept.id, joined_ad=date(2026, 1, 1)
@@ -163,8 +163,9 @@ async def test_salary_caps_and_for_month_vs_payment_date(client, db, make_user, 
     )
     future = await _post(client, headers, _pay(mina, "salary", 100, NEXT))
     assert future.status_code == 422 and future.json()["field"] == "for_month"
-    # Previous month's salary paid on the 2nd of this month counts for the previous month.
-    paid_on = bsdate.BSDate(CURRENT[0], CURRENT[1], 2)
+    # Previous month's salary paid this month (today - on Kartik 1 that is the 1st) counts for
+    # the previous month.
+    paid_on = TODAY
     part = await _post(
         client,
         headers,
@@ -422,8 +423,13 @@ async def test_register_filters_sorts_and_grouped_totals(client, db, make_user, 
     narrow = (
         await client.get(f"/api/payroll/payments?from={first_of_month}&to={first_of_month}")
     ).json()
-    assert [r["payment"]["receipt_no"] for r in narrow["rows"]] == [made[0]["receipt_no"]]
-    bad = await client.get(f"/api/payroll/payments?from={TODAY.isoformat()}&to={first_of_month}")
+    on_the_first = [m["receipt_no"] for m in made if m["date"]["bs"] == first_of_month]
+    assert sorted(r["payment"]["receipt_no"] for r in narrow["rows"]) == sorted(on_the_first)
+    assert made[0]["receipt_no"] in on_the_first
+    if TODAY.day > 1:
+        assert on_the_first == [made[0]["receipt_no"]]
+    last_month = bsdate.BSDate(PREVIOUS[0], PREVIOUS[1], 1).isoformat()
+    bad = await client.get(f"/api/payroll/payments?from={first_of_month}&to={last_month}")
     assert bad.status_code == 422 and bad.json()["field"] == "from"
     recent = (
         await client.get(f"/api/payroll/payments/recent?employee_id={people['Mina'].id}")

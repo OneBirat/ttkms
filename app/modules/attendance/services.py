@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
@@ -34,8 +34,9 @@ SETTINGS = schemas.AttendanceSettings(weekly_off=WEEKLY_OFF)
 
 
 def now() -> datetime:
-    """The current instant (tests replace this to sit on either side of Kathmandu midnight)."""
-    return datetime.now(UTC)
+    """The current instant (``bsdate.utc_now``; tests also replace this to sit on either side
+    of Kathmandu midnight)."""
+    return bsdate.utc_now()
 
 
 def today() -> date:
