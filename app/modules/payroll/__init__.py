@@ -14,7 +14,8 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import FileResponse
 
 from app.core import bsdate
 from app.core.auth import CurrentUser
@@ -26,7 +27,7 @@ from app.core.modules import Module, NavItem, WidgetContext
 from app.core.schemas import ErrorOut, ModuleStatusOut
 from app.db import DbSession
 from app.modules.admin.permissions import require_access, require_any_access
-from app.modules.payroll import exports, payments, reports, services
+from app.modules.payroll import exports, payments, photos, reports, services
 from app.modules.payroll.schemas import (
     AccountSummaryOut,
     BsMonthOut,
@@ -44,6 +45,9 @@ from app.modules.payroll.schemas import (
     PaymentOut,
     PaymentResultOut,
     PaymentsRegisterOut,
+    PhotoTokenIn,
+    PhotoTokenInfoOut,
+    PhotoTokenOut,
     RegisterSort,
     SalaryReportOut,
     SalaryRevisionIn,
@@ -53,10 +57,13 @@ from app.modules.payroll.schemas import (
 EMPLOYEES = "manage_employees"
 SALARY = "salary_advances"
 
-router = APIRouter(dependencies=[Depends(require_any_access(EMPLOYEES, SALARY))])
+# Every route names its own guard (CanManage / CanPay / AnyAccess, CurrentUser for the barcode
+# lookup); the phone photo-token routes are public by design.
+router = APIRouter()
 
 CanManage = Annotated[User, Depends(require_access(EMPLOYEES))]
 CanPay = Annotated[User, Depends(require_access(SALARY))]
+AnyAccess = Annotated[User, Depends(require_any_access(EMPLOYEES, SALARY))]
 ERRORS: dict[int | str, dict[str, Any]] = {
     403: {"model": ErrorOut},
     404: {"model": ErrorOut},
@@ -66,7 +73,7 @@ ERRORS: dict[int | str, dict[str, Any]] = {
 
 
 @router.get("", response_model=ModuleStatusOut, name="payroll:index")
-async def index() -> ModuleStatusOut:
+async def index(me: AnyAccess) -> ModuleStatusOut:
     return ModuleStatusOut(module="payroll", title="People & payroll", status="ready")
 
 
@@ -259,8 +266,6 @@ async def salary_report(
 
 
 # ------------------------------------------------------------------------------ account
-
-AnyAccess = Annotated[User, Depends(require_any_access(EMPLOYEES, SALARY))]
 
 
 async def _visible(db, me: User, employee_id: int):
@@ -457,6 +462,119 @@ async def register(
     department | employee | amount. Group headings and subtotals are the client's: with all
     branches and ``sort=department`` the rows come branch → department → newest first."""
     return await _register(db, me, branch_id, from_, to, type, employee_id, department_id, sort)
+
+
+# ------------------------------------------------------------------------------- photos
+
+
+async def _photo_bytes(request: Request) -> bytes:
+    """Multipart ``image`` (or ``photo_data_url`` form field) or JSON ``{photo_data_url}``."""
+    content_type = request.headers.get("content-type", "")
+    if content_type.startswith("multipart/form-data"):
+        form = await request.form()
+        upload = form.get("image")
+        if upload is not None and hasattr(upload, "read"):
+            raw = await upload.read()
+            if len(raw) > photos.MAX_BYTES:
+                raise photos.invalid("The photo is larger than 5 MB.")
+            return raw
+        data_url = form.get("photo_data_url")
+        if isinstance(data_url, str):
+            return photos.decode_data_url(data_url)
+        raise photos.invalid("Send the photo as the 'image' file or as photo_data_url.")
+    body = await request.json()
+    data_url = body.get("photo_data_url") if isinstance(body, dict) else None
+    if not isinstance(data_url, str):
+        raise photos.invalid("Send the photo as photo_data_url.", "photo_data_url")
+    return photos.decode_data_url(data_url)
+
+
+@router.get(
+    "/employees/{employee_id}/photo",
+    responses={404: {"model": ErrorOut}},
+    response_class=Response,
+    name="payroll:employee_photo",
+)
+async def employee_photo(employee_id: int, me: AnyAccess, db: DbSession) -> Response:
+    """The stored JPEG (600 px), for signed-in users who may see the employee."""
+    employee = await _visible(db, me, employee_id)
+    return FileResponse(photos.photo_path_or_404(employee), media_type="image/jpeg")
+
+
+@router.put("/employees/{employee_id}/photo", response_model=EmployeeOut, responses=ERRORS)
+async def set_employee_photo(
+    employee_id: int, me: CanManage, db: DbSession, request: Request
+) -> EmployeeOut:
+    """Replace the photo: multipart ``image`` (JPEG / PNG / WebP, 5 MB at most) or a data URL;
+    stored as a 600 px JPEG under the media directory."""
+    employee = await _visible(db, me, employee_id)
+    raw = await _photo_bytes(request)
+    employee = await photos.store_photo(db, me, employee, raw)
+    logins = await services.logins_for(db, [employee.id])
+    return services.employee_out(employee, logins.get(employee.id))
+
+
+@router.delete("/employees/{employee_id}/photo", response_model=EmployeeOut, responses=ERRORS)
+async def remove_employee_photo(employee_id: int, me: CanManage, db: DbSession) -> EmployeeOut:
+    employee = await _visible(db, me, employee_id)
+    employee = await photos.remove_photo(db, me, employee)
+    logins = await services.logins_for(db, [employee.id])
+    return services.employee_out(employee, logins.get(employee.id))
+
+
+@router.post(
+    "/photo-tokens",
+    response_model=PhotoTokenOut,
+    status_code=status.HTTP_201_CREATED,
+    responses=ERRORS,
+    name="payroll:create_photo_token",
+)
+async def create_photo_token(
+    me: CanManage, db: DbSession, payload: PhotoTokenIn, request: Request
+) -> PhotoTokenOut:
+    """A single-use link (15 minutes) the QR code encodes so a phone can take the photo."""
+    employee = await _visible(db, me, payload.employee_id)
+    origin = payload.origin or request.headers.get("origin") or str(request.base_url).rstrip("/")
+    token = await photos.create_token(db, me, employee, origin)
+    return PhotoTokenOut(
+        token=token.token,
+        employee_id=employee.id,
+        url=photos.token_url(origin, token.token),
+        expires_at=token.expires_at,
+    )
+
+
+# Token routes: no session - the phone opens the QR link without signing in.
+
+
+@router.get(
+    "/photo-tokens/{token}",
+    response_model=PhotoTokenInfoOut,
+    responses={410: {"model": ErrorOut}},
+    name="payroll:photo_token",
+)
+async def photo_token_info(token: str, db: DbSession) -> PhotoTokenInfoOut:
+    row = await photos.live_token(db, token)
+    employee = await services.get_employee(db, row.employee_id)
+    logins = await services.logins_for(db, [employee.id])
+    return PhotoTokenInfoOut(
+        employee=services.employee_out(employee, logins.get(employee.id)), expires_at=row.expires_at
+    )
+
+
+@router.post(
+    "/photo-tokens/{token}/photo",
+    response_model=EmployeeOut,
+    responses={410: {"model": ErrorOut}, 422: {"model": CodedErrorOut}},
+    name="payroll:photo_token_upload",
+)
+async def photo_token_upload(token: str, db: DbSession, request: Request) -> EmployeeOut:
+    """Stores the photo and burns the token (single use)."""
+    row = await photos.live_token(db, token)
+    raw = await _photo_bytes(request)
+    employee = await photos.use_token(db, row, raw)
+    logins = await services.logins_for(db, [employee.id])
+    return services.employee_out(employee, logins.get(employee.id))
 
 
 # --------------------------------------------------------------------------- widgets

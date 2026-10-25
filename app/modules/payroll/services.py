@@ -163,7 +163,11 @@ def mode_ref(mode: PaymentMode) -> PaymentModeRef:
 
 
 async def get_employee(db: AsyncSession, employee_id: int) -> Employee:
-    employee = await db.get(Employee, employee_id)
+    # A SELECT (not identity-map get) so branch / department are loaded even for an object the
+    # session already holds from an add() without a refresh.
+    employee = await db.scalar(
+        select(Employee).where(Employee.id == employee_id).execution_options(populate_existing=True)
+    )
     if employee is None:
         raise not_found("No such employee.")
     return employee
@@ -393,6 +397,11 @@ async def create_employee(
         )
     await db.flush()
     await _audit(db, actor, "create", "employee", employee.id, None, snapshot(employee))
+    if data.photo_data_url:
+        from app.modules.payroll import photos
+
+        await db.flush()
+        await photos.store_photo(db, actor, employee, photos.decode_data_url(data.photo_data_url))
     await db.commit()
     await db.refresh(employee)
     return employee, login, temporary

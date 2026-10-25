@@ -68,6 +68,10 @@ class Settings(BaseSettings):
 
     timezone: str = "Asia/Kathmandu"
 
+    # Uploaded files (employee photos) live outside the web root and are served through
+    # authenticated endpoints only.
+    media_dir: Path = MEDIA_DIR
+
     # Comma-separated feature modules to load. A module that is not listed gets no API routes,
     # no nav items, no dashboard widgets and no migrations - its code and tables stay untouched.
     enabled_modules: str = DEFAULT_ENABLED_MODULES

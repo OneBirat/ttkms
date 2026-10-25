@@ -221,6 +221,34 @@ class SalaryRevisionIn(BaseModel):
         return clean_optional(value)
 
 
+# ------------------------------------------------------------------------------- photos
+
+
+class PhotoDataIn(BaseModel):
+    """``data:image/jpeg;base64,...`` from the browser's capture / crop; JPEG, PNG or WebP."""
+
+    photo_data_url: str = Field(min_length=20)
+
+
+class PhotoTokenIn(BaseModel):
+    employee_id: int
+    #: The web app's origin for the QR link ("https://ttk.local"); the request's when omitted.
+    origin: str | None = Field(default=None, max_length=200)
+
+
+class PhotoTokenOut(BaseModel):
+    token: str
+    employee_id: int
+    #: Absolute URL the QR code encodes: {origin}/people/photo/{token}.
+    url: str
+    expires_at: datetime
+
+
+class PhotoTokenInfoOut(BaseModel):
+    employee: EmployeeOut
+    expires_at: datetime
+
+
 # ----------------------------------------------------------------------------- ledgers
 
 
