@@ -10,7 +10,7 @@
  * Planned endpoints are noted above each function.
  */
 
-import type { Role } from "@/lib/api";
+import { apiFetch, type Role } from "@/lib/api";
 import { dailyPay, defaultOtRate, monthlyPay, paymentError, settle } from "./_lib/calc";
 import { isValidBs } from "@/lib/bs";
 import { addMonths, compareMonths, dateBoth, daysInMonth, monthEnd, monthKey, monthLabel, monthStart, parseMonthKey, sameMonth, thisMonth, today } from "./_lib/months";
@@ -175,9 +175,41 @@ export async function listBranches(): Promise<Branch[]> {
   return respond(getState().branches.filter((b) => b.is_active));
 }
 
-/** GET /api/core/departments */
+// Departments are REAL: core.departments through /api/core/departments (app/core/departments.py).
+// The rows are mirrored into the mock state so mock employees can reference new departments and
+// show renamed ones; the mirror is silent (no commit) except after a change.
+
+function mirrorDepartments(rows: Department[]): void {
+  const current = getState();
+  current.departments = rows.map((d) => ({ ...d }));
+  for (const employee of current.employees) {
+    const fresh = employee.department ? rows.find((d) => d.id === employee.department!.id) : undefined;
+    if (fresh) employee.department = { ...fresh };
+  }
+}
+
+/** GET /api/core/departments -> Department[] (A-Z, with employee_count / active_employee_count). */
 export async function listDepartments(): Promise<Department[]> {
-  return respond(getState().departments.filter((d) => d.is_active));
+  const rows = await apiFetch<Department[]>("/api/core/departments");
+  mirrorDepartments(rows);
+  return rows;
+}
+
+/** PATCH /api/core/departments/{id} {name} -> Department (409 duplicate_name). manage_employees. */
+export async function renameDepartment(id: number, name: string): Promise<Department> {
+  const row = await apiFetch<Department>(`/api/core/departments/${id}`, { method: "PATCH", json: { name } });
+  const current = getState();
+  mirrorDepartments(current.departments.map((d) => (d.id === id ? row : d)));
+  commit();
+  return row;
+}
+
+/** DELETE /api/core/departments/{id} -> 204 (409 department_in_use {count, inactive_count}). manage_employees. */
+export async function deleteDepartment(id: number): Promise<void> {
+  await apiFetch<void>(`/api/core/departments/${id}`, { method: "DELETE" });
+  const current = getState();
+  mirrorDepartments(current.departments.filter((d) => d.id !== id));
+  commit();
 }
 
 /** POST /api/core/branches {name} (NEEDS FROM MAIN) */
@@ -194,18 +226,13 @@ export async function createBranch(name: string): Promise<Branch> {
   return respond(branch);
 }
 
-/** POST /api/core/departments {name} (NEEDS FROM MAIN) */
+/** POST /api/core/departments {name} -> 201 Department (409 duplicate_name, 422 empty). manage_employees. */
 export async function createDepartment(name: string): Promise<Department> {
+  const row = await apiFetch<Department>("/api/core/departments", { method: "POST", json: { name } });
   const current = getState();
-  const clean = name.trim();
-  if (!clean) throw new PayrollApiError(422, "Department name is required.", "name");
-  if (current.departments.some((d) => normalizeName(d.name) === normalizeName(clean))) {
-    throw new PayrollApiError(409, "A department with this name already exists.", "name");
-  }
-  const department: Department = { id: nextId("department"), name: clean, is_active: true };
-  current.departments.push(department);
+  mirrorDepartments([...current.departments.filter((d) => d.id !== row.id), row]);
   commit();
-  return respond(department);
+  return row;
 }
 
 // ---------------------------------------------------------- payment modes
@@ -892,7 +919,6 @@ export async function getSalaryReport(month: BsMonth, department_id: number | nu
     .filter((row): row is ReportRow => row.ledger !== null);
   const rows = department_id === null ? allRows : allRows.filter((row) => row.employee.department?.id === department_id);
   const by_department: DepartmentNetTotal[] = current.departments
-    .filter((d) => d.is_active)
     .map((department) => {
       const mine = allRows.filter((r) => r.employee.department?.id === department.id);
       return { department, staff: mine.length, net: mine.reduce((sum, r) => sum + r.ledger.net, 0) };

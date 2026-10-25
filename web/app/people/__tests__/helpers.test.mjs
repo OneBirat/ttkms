@@ -24,8 +24,8 @@ import { adToBs, bsToAd, formatBs, formatDateBoth, isValidBs, monthDays } from "
 import { addMonths, compareMonths, daysInMonth, monthKey, monthLabel, parseMonthKey } from "../_lib/months.ts";
 
 const DEPTS = [
-  { id: 1, name: "Store", is_active: true },
-  { id: 2, name: "Kitchen", is_active: true },
+  { id: 1, name: "Store", employee_count: 0, active_employee_count: 0 },
+  { id: 2, name: "Kitchen", employee_count: 0, active_employee_count: 0 },
 ];
 
 function emp(id, name, dept, designation = "Helper") {

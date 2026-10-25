@@ -6,8 +6,10 @@ import { useId, useMemo, useState, type MouseEvent } from "react";
 import { Icon } from "@/components/icons";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useSession } from "@/lib/session";
 import { AddEmployeeDialog } from "./AddEmployeeDialog";
 import { Avatar } from "./Avatar";
+import { ManageDepartmentsDialog } from "./ManageDepartmentsDialog";
 import { TodayPill } from "./TodayPill";
 import { listBranches, listDepartments, listEmployeeRows } from "../api";
 import { formatAmount, formatRs, matchesEmployee } from "../_lib/helpers";
@@ -29,6 +31,8 @@ export function EmployeesListScreen() {
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState<number | "all">("all");
   const [addOpen, setAddOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const canManage = useSession().can("manage_employees");
 
   // Everyone sees their own branch (session.branchId); `see_other_branches` adds the drop-down.
   const branchList = branches.data ?? [];
@@ -134,6 +138,12 @@ export function EmployeesListScreen() {
                   </button>
                 ))}
               </div>
+              {canManage ? (
+                <button type="button" className={`btn ${styles.deptManage}`} onClick={() => setManageOpen(true)}>
+                  <Icon name="edit" size={16} />
+                  Manage departments
+                </button>
+              ) : null}
             </div>
 
             <div className={shared.tableWrap}>
@@ -221,6 +231,15 @@ export function EmployeesListScreen() {
         </section>
       )}
 
+      <ManageDepartmentsDialog
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
+        onChanged={() => {
+          departments.reload();
+          rows.reload();
+          if (department !== "all" && !(departments.data ?? []).some((d) => d.id === department)) setDepartment("all");
+        }}
+      />
       <AddEmployeeDialog
         open={addOpen}
         onClose={() => setAddOpen(false)}

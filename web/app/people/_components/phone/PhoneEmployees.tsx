@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
+import { useSession } from "@/lib/session";
+import { ManageDepartmentsDialog } from "../ManageDepartmentsDialog";
 import { PhoneFrame } from "./PhoneFrame";
 import { TodayPill } from "../TodayPill";
 import { listBranches, listDepartments, listEmployeeRows } from "../../api";
@@ -25,6 +27,8 @@ export function PhoneEmployees() {
   const departments = usePayroll(listDepartments, []);
   const [query, setQuery] = useState("");
   const [dept, setDept] = useState<number | "all">("all");
+  const [manageOpen, setManageOpen] = useState(false);
+  const canManage = useSession().can("manage_employees");
   const branchList = branches.data ?? [];
   const { active: activeBranch, picker } = useBranchScope(branchList);
   const rows = usePayroll(() => listEmployeeRows(activeBranch), [activeBranch]);
@@ -81,7 +85,21 @@ export function PhoneEmployees() {
             {d.name} <b>{all.filter((r) => r.employee.department?.id === d.id).length}</b>
           </button>
         ))}
+        {canManage ? (
+          <button type="button" className={styles.chip} onClick={() => setManageOpen(true)} aria-label="Manage departments">
+            <Icon name="edit" size={14} /> Manage
+          </button>
+        ) : null}
       </div>
+      <ManageDepartmentsDialog
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
+        onChanged={() => {
+          departments.reload();
+          rows.reload();
+          if (dept !== "all" && !(departments.data ?? []).some((d) => d.id === dept)) setDept("all");
+        }}
+      />
       {rows.error ? <p className={styles.empty}>{payrollErrorMessage(rows.error)}</p> : null}
       {!rows.data && !rows.error ? <p className={styles.empty}>Loading…</p> : null}
       {groups.map((g) => (

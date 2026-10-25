@@ -83,12 +83,13 @@ export function modeRef(mode: PaymentMode): Payment["payment_mode"] {
   return { id: mode.id, type: mode.type, name: mode.name };
 }
 
+/** Seed copy of core.departments (ids match `make seed`); listDepartments() replaces it with the real rows. */
 export const DEPARTMENTS: Department[] = [
-  { id: 1, name: "Store", is_active: true },
-  { id: 2, name: "Kitchen", is_active: true },
-  { id: 3, name: "Housekeeping", is_active: true },
-  { id: 4, name: "Front desk", is_active: true },
-  { id: 5, name: "Accounts", is_active: true },
+  { id: 1, name: "Store", employee_count: 0, active_employee_count: 0 },
+  { id: 2, name: "Kitchen", employee_count: 0, active_employee_count: 0 },
+  { id: 3, name: "Housekeeping", employee_count: 0, active_employee_count: 0 },
+  { id: 4, name: "Front desk", employee_count: 0, active_employee_count: 0 },
+  { id: 5, name: "Accounts", employee_count: 0, active_employee_count: 0 },
 ];
 
 type Seed = [

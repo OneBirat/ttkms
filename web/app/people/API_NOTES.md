@@ -70,10 +70,25 @@ summary and the month's payments (`ledgerFor` in api.ts shows the exact derivati
 | GET | /photo-tokens/{token} | → PhotoTokenInfo (no session; 410 when expired) |
 | POST | /photo-tokens/{token}/photo | multipart image, no session → Employee |
 
-Core endpoints used by the Add-employee popup: `GET/POST /api/core/branches` (still mock) and
-`/api/core/departments` (real since 2026-10-25: `GET` with `employee_count` / `active_employee_count`,
-`POST {name}`, `PATCH /{id} {name}`, `DELETE /{id}`; writes need `manage_employees`; `409 duplicate_name`
-/ `409 department_in_use {count, inactive_count}`).
+## Departments (real, `main`, 2026-10-25)
+
+`web/app/people/api.ts` calls these for real (`apiFetch`); everything else in the file is still mock.
+The rows are mirrored into the mock state so mock employees can point at new departments.
+
+| Method | Path | Request → Response | Permission |
+|---|---|---|---|
+| GET | /api/core/departments | → `Department[]` A-Z: `{id, name, employee_count (former staff included), active_employee_count}` | any signed-in user |
+| POST | /api/core/departments | `{name}` → 201 `Department`; 422 empty; `409 {code: "duplicate_name"}` (trimmed, case-insensitive, company-wide) | manage_employees |
+| PATCH | /api/core/departments/{id} | `{name}` → `Department`; 404; `409 duplicate_name` | manage_employees |
+| DELETE | /api/core/departments/{id} | → 204; 404; `409 {code: "department_in_use", count, inactive_count}` while any employee (active or former) references it; audit rows for add / rename / delete | manage_employees |
+
+UI (`_components/ManageDepartmentsDialog.tsx`, rules in `_lib/departments.ts`): "Manage departments"
+beside the department chips on `/people/employees` (desktop button, phone chip; only with
+`manage_employees`), modal on desktop / bottom sheet on phone: name, count, inline Rename, Delete
+(enabled only at 0 employees, otherwise "Move N employees first (includes former staff)"), confirm
+"Delete department X permanently?", "+ Add department". The Add-employee popup's "+ Add new
+department…" uses the same `AddDepartmentForm` and selects the new row. `core.departments.is_active`
+is ignored. Branches (`GET/POST /api/core/branches`) are still mock.
 
 ## Needs from main
 

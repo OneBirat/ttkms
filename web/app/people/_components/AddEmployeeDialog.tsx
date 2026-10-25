@@ -5,12 +5,12 @@ import { Modal } from "@/components/ui/Modal";
 import type { Role } from "@/lib/api";
 import { Avatar } from "./Avatar";
 import { CameraCapture } from "./CameraCapture";
+import { AddDepartmentForm } from "./DepartmentForm";
 import { Field, SelectInput, TextArea, TextInput, parseAmount, splitError } from "./FormBits";
 import { NepaliNameField } from "./NepaliNameField";
 import { ReviewCrop } from "./ReviewCrop";
 import {
   createBranch,
-  createDepartment,
   createEmployee,
   listBranches,
   listDepartments,
@@ -171,17 +171,6 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
       setErrors((e) => ({ ...e, branch_id: splitError(err).message }));
     }
   };
-  const addDepartment = async () => {
-    try {
-      const department = await createDepartment(newDepartment ?? "");
-      setDepartmentId(String(department.id));
-      setNewDepartment(null);
-      clearError("department_id");
-    } catch (err) {
-      setErrors((e) => ({ ...e, department_id: splitError(err).message }));
-    }
-  };
-
   const onFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -466,32 +455,17 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
               </div>
             ) : null}
             {newDepartment !== null ? (
-              <div className={styles.inlineAdd}>
-                <label htmlFor={id("newdept")} className={styles.srOnly}>
-                  New department name
-                </label>
-                <div className="field" style={{ flex: "1 1 auto" }}>
-                  <input
-                    id={id("newdept")}
-                    value={newDepartment}
-                    onChange={(e) => setNewDepartment(e.target.value)}
-                    placeholder="New department name"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void addDepartment();
-                      }
-                    }}
-                  />
-                </div>
-                <button type="button" className="btn" onClick={() => void addDepartment()}>
-                  Add department
-                </button>
-                <button type="button" className="btn btn--ghost" onClick={() => setNewDepartment(null)}>
-                  Cancel
-                </button>
-              </div>
+              <AddDepartmentForm
+                id={id("newdept")}
+                existing={departments.data ?? []}
+                onCreated={(department) => {
+                  // The new department is selected; the list refreshes through the store broadcast.
+                  setDepartmentId(String(department.id));
+                  setNewDepartment(null);
+                  clearError("department_id");
+                }}
+                onCancel={() => setNewDepartment(null)}
+              />
             ) : null}
           </fieldset>
 

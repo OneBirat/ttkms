@@ -31,10 +31,17 @@ export interface Branch {
   is_active: boolean;
 }
 
+/**
+ * One row of GET /api/core/departments (app/core/schemas.py DepartmentOut). Company-wide;
+ * `core.departments.is_active` exists but the API and UI ignore it - a department is listed
+ * until it is deleted, which the server allows only at employee_count 0.
+ */
 export interface Department {
   id: number;
   name: string;
-  is_active: boolean;
+  /** Every employee referencing it, former staff included. */
+  employee_count: number;
+  active_employee_count: number;
 }
 
 /** Login linked to an employee (core.users). */
