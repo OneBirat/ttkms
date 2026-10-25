@@ -1,8 +1,4 @@
-"""Attendance module tests (feat/attendance worktree): registry entries and the dashboard widget.
-
-The screens run on mock data in the browser for now; these tests cover what the backend already
-registers. The real endpoints (API_NOTES.md) get their own test files when they land.
-"""
+"""Attendance module registration: index, sidebar entries and the dashboard widget."""
 
 import pytest
 
@@ -11,12 +7,12 @@ from app.modules.attendance import SAMPLE_TODAY, module
 pytestmark = pytest.mark.anyio
 
 
-async def test_attendance_index_still_coming_soon(client, make_user, login):
+async def test_attendance_index_is_ready(client, make_user, login):
     await make_user("boss", role="manager")
     await login("boss")
     response = await client.get("/api/attendance")
     assert response.status_code == 200
-    assert response.json()["status"] == "coming_soon"
+    assert response.json()["status"] == "ready"
     assert module.name == "attendance"
 
 

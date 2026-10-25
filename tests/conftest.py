@@ -14,8 +14,10 @@ test the app with another module set.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Callable, Coroutine
-from contextlib import asynccontextmanager
+import importlib
+import importlib.util
+from collections.abc import AsyncIterator, Callable, Coroutine, Iterator
+from contextlib import asynccontextmanager, contextmanager
 from typing import Any
 
 import pytest
@@ -91,6 +93,38 @@ def migrated_database() -> str:
     return TEST_DB_URL
 
 
+class _SharedSession:
+    """``async with`` hands out the test's own session and leaves it open."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def __aenter__(self) -> AsyncSession:
+        return self.session
+
+    async def __aexit__(self, *exc: object) -> None:
+        return None
+
+
+#: The in-process contracts (app/contracts.py) open their own sessions through these factories;
+#: during a test they share the test's session, so they see its (uncommitted) rows.
+CONTRACT_MODULES = ("app.modules.payroll.contract", "app.modules.attendance.contract")
+
+
+@contextmanager
+def _contracts_on(session: AsyncSession) -> Iterator[None]:
+    with pytest.MonkeyPatch.context() as mp:
+        for name in CONTRACT_MODULES:
+            if name.split(".")[2] not in settings.enabled_module_names:
+                continue
+            if importlib.util.find_spec(name) is None:
+                continue
+            module = importlib.import_module(name)
+            mp.setattr(module, "SESSION_FACTORY", lambda: _SharedSession(session))
+            module.register()  # a test may have reset the registry to the fakes
+        yield
+
+
 @pytest.fixture
 async def db(migrated_database: str) -> AsyncIterator[AsyncSession]:
     engine = create_async_engine(migrated_database, poolclass=NullPool)
@@ -100,7 +134,8 @@ async def db(migrated_database: str) -> AsyncIterator[AsyncSession]:
             bind=conn, join_transaction_mode="create_savepoint", expire_on_commit=False
         )
         try:
-            yield session
+            with _contracts_on(session):
+                yield session
         finally:
             await session.close()
             await outer.rollback()

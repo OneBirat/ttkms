@@ -1,10 +1,8 @@
 """Attendance module.
 
-UI-first pass: the Next.js screens under web/app/(app)/attendance run on mock data in
-web/components/attendance/api.ts. This file registers what the shell needs today - the sidebar
-entries and the "Attendance today" dashboard widget (with sample data) - and keeps the index
-endpoint. The endpoints, the table and the payroll contract to implement after UI sign-off are
-written down in API_NOTES.md next to this file.
+Tables in ``models.py`` (schema ``attendance``), endpoints in ``routes.py`` (API_NOTES.md),
+marking rules in ``services.py``. This file registers the sidebar entries and the "Attendance
+today" dashboard widget.
 
 Rules (decided 24 Oct 2026): a day's status is only P (present), O (overtime: present + whole
 hours 1-12) or A (absent); no in/out times; weekly off is Saturday and shown as "-"; "not marked"
@@ -15,24 +13,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
-
 from app.core.modules import Module, NavItem, WidgetContext
-from app.core.schemas import ModuleStatusOut
-from app.modules.admin.permissions import require_any_access
+from app.modules.attendance.access import MARK, REPORT
+from app.modules.attendance.routes import router
 
 #: Access is per user (app.modules.admin.permissions), not per role: anyone with
 #: ``mark_attendance`` (every preset, Staff included) sees the module and marks; the report needs
 #: ``view_attendance_report`` (Manager and Admin presets, or switched on for a user).
-MARK = "mark_attendance"
-REPORT = "view_attendance_report"
-
-router = APIRouter(dependencies=[Depends(require_any_access(MARK, REPORT))])
-
-
-@router.get("", response_model=ModuleStatusOut, name="attendance:index")
-async def index() -> ModuleStatusOut:
-    return ModuleStatusOut(module="attendance", title="Attendance", status="coming_soon")
+__all__ = ["MARK", "REPORT", "module", "router"]
 
 
 # --------------------------------------------------------------------------- widgets
