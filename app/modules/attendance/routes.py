@@ -12,8 +12,8 @@ from app.core.models import User
 from app.core.schemas import ErrorOut, ModuleStatusOut
 from app.db import DbSession
 from app.modules.admin.permissions import require_any_access
-from app.modules.attendance import schemas, services
-from app.modules.attendance.access import MARK, REPORT, CanMark, scope_for
+from app.modules.attendance import report, schemas, services
+from app.modules.attendance.access import MARK, REPORT, CanMark, CanReport, scope_for
 
 router = APIRouter()
 
@@ -79,3 +79,40 @@ async def lookup(employee_id: int, me: CanMark, db: DbSession) -> schemas.Lookup
 @router.post("/scan", response_model=schemas.ScanResponse, responses=ERRORS)
 async def scan(body: schemas.ScanRequest, me: CanMark, db: DbSession) -> schemas.ScanResponse:
     return await services.scan_mark(db, me, await scope_for(db, me, None), body)
+
+
+# --------------------------------------------------------------------------------- report
+
+
+@router.get("/report", response_model=schemas.MonthReport, responses=ERRORS)
+async def month_report(
+    me: CanReport, db: DbSession, bs_year: int, bs_month: int, branch: int | None = None
+) -> schemas.MonthReport:
+    """One BS month; week and day views are sliced in the browser. ``branch`` left out = every
+    branch (see_other_branches); without that permission it is always the user's own."""
+    scope = await scope_for(db, me, branch)
+    return await report.month_report(db, scope, bs_year, bs_month)
+
+
+@router.get(
+    "/employees/{employee_id}/month", response_model=schemas.EmployeeMonth, responses=ERRORS
+)
+async def employee_month(
+    employee_id: int, me: AnyAttendance, db: DbSession, bs_year: int, bs_month: int
+) -> schemas.EmployeeMonth:
+    scope = await scope_for(db, me, None)
+    return await report.employee_month(db, scope, employee_id, bs_year, bs_month)
+
+
+@router.get("/marked-days", response_model=schemas.MarkedDays, responses=ERRORS)
+async def marked_days(
+    me: AnyAttendance,
+    db: DbSession,
+    bs_year: int,
+    bs_month: int,
+    employee_id: int | None = None,
+    branch: int | None = None,
+) -> schemas.MarkedDays:
+    """BS dates with a mark - for one employee, else for the branch (BSDatePicker dots)."""
+    scope = await scope_for(db, me, branch)
+    return await report.marked_days(db, scope, bs_year, bs_month, employee_id)

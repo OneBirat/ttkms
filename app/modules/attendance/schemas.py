@@ -157,3 +157,103 @@ class ScanResponse(BaseModel):
     employee: EmployeeRef
     record: AttendanceRecord
     previous: CellStatus
+
+
+# ---------------------------------------------------------------------------------- report
+
+
+class BsMonthRef(BaseModel):
+    bs_year: int
+    bs_month: int
+    #: "Kartik 2083"
+    label: str
+    #: "कार्तिक २०८३"
+    label_np: str
+    #: "2083-07"
+    key: str
+    ad_start: date
+    ad_end: date
+    days: list[DayHeader]
+    #: Days that are not the weekly off.
+    working_days: int
+
+
+class DayCell(BaseModel):
+    status: CellStatus
+    ot_hours: int = 0
+    #: Rupees paid that day (payments counting for this month); left out when none.
+    advance: int | None = None
+    salary: int | None = None
+
+
+class AttendanceTotals(BaseModel):
+    """``computeTotals`` in web/components/attendance/helpers.ts: a Saturday worked counts in
+    present / overtime_days; the saturday_* fields count it again on its own."""
+
+    present: int = 0
+    overtime_days: int = 0
+    overtime_hours: int = 0
+    absent: int = 0
+    weekly_off: int = 0
+    not_marked: int = 0
+    marked_days: int = 0
+    attended: int = 0
+    paid_days: int = 0
+    saturday_days_worked: int = 0
+    saturday_ot_hours: int = 0
+
+
+class ReportRow(BaseModel):
+    employee: EmployeeRef
+    cells: list[DayCell]
+    totals: AttendanceTotals
+
+
+class MonthReport(BaseModel):
+    month: BsMonthRef
+    settings: AttendanceSettings
+    #: The branch reported on; null = every branch (see_other_branches only).
+    branch_id: int | None
+    branches: list[BranchRef]
+    departments: list[DepartmentRef]
+    rows: list[ReportRow]
+    #: Staff present (P or O) per day, in ``month.days`` order.
+    staff_present: list[int]
+    #: Today's AD date (days after it are still to come in the running month).
+    today: date
+    generated_at: datetime
+
+
+class PaymentOut(BaseModel):
+    """app/contracts.py PaymentRecord (types.ts PaymentRecord)."""
+
+    payment_id: int
+    receipt_no: str
+    employee_id: int
+    for_year: int
+    for_month: int
+    kind: Literal["salary", "advance"]
+    amount: int
+    payment_mode_id: int
+    payment_mode: str
+    date: date
+    date_bs: str
+    note: str
+    source: Literal["scan", "account"]
+    recorded_at: datetime
+
+
+class EmployeeMonth(BaseModel):
+    employee: EmployeeRef
+    month: BsMonthRef
+    cells: list[DayCell]
+    totals: AttendanceTotals
+    #: Newest first.
+    payments: list[PaymentOut]
+
+
+class MarkedDays(BaseModel):
+    bs_year: int
+    bs_month: int
+    #: BS dates with at least one mark (the BSDatePicker dots).
+    marked_days: list[str]
