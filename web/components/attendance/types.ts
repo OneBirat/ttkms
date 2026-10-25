@@ -317,56 +317,77 @@ export interface ExportFile {
 
 /**
  * Payments belong to the PAYROLL module. Attendance only calls it through
- * api.ts (getMonthBalance / recordPayment); the shapes below are the contract
- * payroll implements (see API_NOTES.md, "Needs from main").
+ * api.ts (getMonthBalance / getPaymentHistoryFor / recordPayment); the shapes
+ * below are the shared contract in `app/contracts.py` (`PayrollPayments`:
+ * MonthBalance, PaymentInput, PaymentRecord, PaymentResult) - keep them in sync.
  */
+export type PaymentKind = "salary" | "advance";
+/** Alias the screens use for the chosen kind. */
+export type PaymentType = PaymentKind;
+export type PaymentSource = "scan" | "account";
+
+/** admin.payment_modes row 1 is the built-in Cash mode. */
+export const CASH_PAYMENT_MODE_ID = 1;
+
+/** GET /api/payroll/balance?employee_id=&bs_year=&bs_month= */
 export interface MonthBalance {
   employee_id: number;
+  bs_year: number;
+  bs_month: number;
   /** "2083-07" */
   month_key: string;
   /** "Kartik 2083" */
   month_label: string;
-  /** Net salary of the month, rupees. */
-  net: number;
-  /** Already paid this month (advances and part payments). */
+  /** Net earned so far this month, rupees. */
+  earned: number;
+  /** Salary and advances already paid against the month. */
   paid: number;
-  /** net - paid, never negative. */
+  /** earned - paid, never negative. */
   due: number;
 }
 
-export type PaymentType = "salary" | "advance";
-export type PaymentMethod = "cash" | "bank";
-
+/** POST /api/payroll/payments body. The payment belongs to the BS month of its date (today when omitted). */
 export interface PaymentInput {
   employee_id: number;
-  month_key: string;
-  type: PaymentType;
+  kind: PaymentKind;
+  /** Whole rupees, > 0 and never above the month's `due`. */
   amount: number;
-  method: PaymentMethod;
+  /** Defaults to Cash (CASH_PAYMENT_MODE_ID). */
+  payment_mode_id?: number;
+  /** BS date "YYYY-MM-DD"; today when omitted. */
+  date_bs?: string | null;
+  note?: string;
   /** Where it was recorded; attendance always sends "scan". */
-  source: "scan";
+  source: PaymentSource;
 }
 
-export interface PaymentResult {
+/** One recorded payment, as the history sheet, the day pop-up and the report badges list it. */
+export interface PaymentRecord {
   payment_id: number;
+  /** "ADV-0412" / "SAL-0410" - the receipt number payroll prints. */
+  receipt_no: string;
+  employee_id: number;
+  bs_year: number;
+  bs_month: number;
+  kind: PaymentKind;
   amount: number;
-  /** Balance due after this payment. */
-  due_after: number;
+  payment_mode_id: number;
+  /** "Cash", "Bank" ... */
+  payment_mode: string;
+  /** AD "YYYY-MM-DD". */
+  date: string;
+  /** BS "YYYY-MM-DD". */
+  date_bs: string;
+  note: string;
+  source: PaymentSource;
+  /** ISO timestamp. */
   recorded_at: string;
 }
 
-/** One payment of the month, as the scan flow's history sheet lists it. */
-export interface PaymentEntry {
-  id: number;
-  /** BS date "YYYY-MM-DD". */
-  bs_date: string;
-  type: PaymentType;
-  amount: number;
-  method: PaymentMethod;
-  /** "Cash", "Part salary", … */
-  note: string;
-  /** ISO timestamp. */
-  created_at: string;
+export interface PaymentResult {
+  payment: PaymentRecord;
+  /** Balance due for that month after this payment. */
+  due_after: number;
 }
 
 /** GET /api/attendance/employees/{id}/month?bs_year=&bs_month= – one person's month (attendance record sheet). */
@@ -377,16 +398,16 @@ export interface EmployeeMonth {
   cells: DayCell[];
   totals: AttendanceTotals;
   /** That month's payments, newest first. */
-  payments: PaymentEntry[];
+  payments: PaymentRecord[];
 }
 
-/** GET /api/payroll/payments?employee_id=&bs_year=&bs_month= (newest first). */
+/** GET /api/payroll/payments?employee_id=&bs_year=&bs_month= (newest first, with the month's balance). */
 export interface PaymentHistory {
   employee_id: number;
   month_key: string;
   month_label: string;
-  payments: PaymentEntry[];
-  totals: { paid: number; net: number; due: number };
+  payments: PaymentRecord[];
+  totals: { earned: number; paid: number; due: number };
 }
 
 // ------------------------------------------------------------ dashboard

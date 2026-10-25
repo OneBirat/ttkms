@@ -11,7 +11,7 @@
  * payments: they are the client of a contract the PAYROLL module implements.
  */
 
-import { monthLabel, parseMonthKey } from "@/lib/bs";
+import { isValidBs, monthLabel, parseMonthKey, todayBs } from "@/lib/bs";
 import { dayFromBs, findMonth, listMonths as calendarMonths, todayRef } from "./calendar";
 import { buildExportModel, type ExportContext } from "./exportModel";
 import { computeTotals, findByCode } from "./helpers";
@@ -195,9 +195,9 @@ export async function listMonths(): Promise<MonthOption[]> {
 function monthCells(employeeId: number, month: MonthReport["month"]): DayCell[] {
   const paid = new Map<string, { advance: number; salary: number }>();
   for (const p of getPaymentHistory(employeeId, month.key, month.label).payments) {
-    const slot = paid.get(p.bs_date) ?? { advance: 0, salary: 0 };
-    slot[p.type] += p.amount;
-    paid.set(p.bs_date, slot);
+    const slot = paid.get(p.date_bs) ?? { advance: 0, salary: 0 };
+    slot[p.kind] += p.amount;
+    paid.set(p.date_bs, slot);
   }
   return month.days.map((day) => {
     // A weekly-off day without a record is "–"; a record on it (overtime on a Saturday) shows as marked.
@@ -300,7 +300,7 @@ export async function getMonthBalance(employeeId: number, monthKey: string): Pro
   return getBalance(employeeId, monthKey, labelOf(monthKey));
 }
 
-/** PAYROLL: GET /api/payroll/payments?employee_id=&bs_year=&bs_month= -> PaymentHistory (newest first, with month totals). */
+/** PAYROLL: GET /api/payroll/payments?employee_id=&bs_year=&bs_month= -> PaymentHistory (newest first, with the month's balance). */
 export async function getPaymentHistoryFor(employeeId: number, monthKey: string): Promise<PaymentHistory> {
   await wait();
   if (!EMPLOYEES.some((e) => e.id === employeeId)) {
@@ -309,16 +309,26 @@ export async function getPaymentHistoryFor(employeeId: number, monthKey: string)
   return getPaymentHistory(employeeId, monthKey, labelOf(monthKey));
 }
 
-/** PAYROLL: POST /api/payroll/payments  body PaymentInput -> PaymentResult (422 when amount is 0 or above the balance due). */
+/**
+ * PAYROLL: POST /api/payroll/payments  body PaymentInput -> PaymentResult
+ * (422 when amount is 0 or above the balance due). The payment belongs to the
+ * BS month of `date_bs` (today when omitted) - app/contracts.py PaymentInput.
+ */
 export async function recordPayment(input: PaymentInput): Promise<PaymentResult> {
   await wait();
-  const label = labelOf(input.month_key);
-  const balance = getBalance(input.employee_id, input.month_key, label);
+  if (!EMPLOYEES.some((e) => e.id === input.employee_id)) {
+    throw new AttendanceApiError(404, "Unknown employee.");
+  }
+  const dateBs = input.date_bs ?? todayBs();
+  if (!isValidBs(dateBs)) throw new AttendanceApiError(422, `${dateBs} is not a valid BS date.`);
+  const monthKey = dateBs.slice(0, 7);
+  const label = labelOf(monthKey);
+  const balance = getBalance(input.employee_id, monthKey, label);
   if (!Number.isInteger(input.amount) || input.amount <= 0) {
     throw new AttendanceApiError(422, "Enter an amount above 0.");
   }
   if (input.amount > balance.due) {
     throw new AttendanceApiError(422, `More than the balance due for ${label}.`);
   }
-  return addPayment(input, label);
+  return addPayment(input, dateBs, monthKey, label);
 }

@@ -79,7 +79,11 @@ Core endpoints used by the Add-employee popup: `GET/POST /api/core/branches`, `G
 3. `web/middleware.ts`: exempt `/people/photo/*` (token link opened on a phone without a session). Done 2026-10-25.
 4. `app/contracts.py` MonthSummary: `days_in_month, present, overtime_days, overtime_hours, absent,
    weekly_off, paid_days` (drop late/half_days/leave); Fake to match. Done 2026-10-25.
-5. Shared contract for `MonthBalance`, `PaymentInput` (`payment_mode_id`), `PaymentResult`.
+5. Done 2026-10-25: `app/contracts.py` has `MonthBalance`, `PaymentInput` (`kind`, `payment_mode_id`,
+   `date_bs`, `note`, `source`), `PaymentRecord`, `PaymentResult`, `PaymentRejected` and the `PayrollPayments`
+   protocol (`balance` / `record` / `for_month`); payroll registers its service with
+   `register_payroll_payments(...)` and `types.ts` should adopt the same field names (`earned` for the
+   month's net so far, `kind` instead of `type`; the month comes from the payment date).
 6. Done: BS conversions, Nepal time and formatting come from `web/lib/bs` (shared with attendance
    and admin; same table as `app/core/bsdate.py`).
 7. Done 2026-10-25: `/api/auth/me` carries `branch_id` and the effective `access` map

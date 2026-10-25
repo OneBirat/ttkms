@@ -5,7 +5,7 @@
  * module's tables) once the backend lands.
  */
 
-import { adToBs, diffDays, isoBs, todayAd } from "@/lib/bs";
+import { bsToAd, diffDays, isoBs, todayAd } from "@/lib/bs";
 import type {
   AttendanceRecord,
   AttendanceSettings,
@@ -13,11 +13,13 @@ import type {
   MarkInput,
   MarkStatus,
   MonthBalance,
-  PaymentEntry,
   PaymentHistory,
   PaymentInput,
+  PaymentKind,
+  PaymentRecord,
   PaymentResult,
 } from "../types";
+import { CASH_PAYMENT_MODE_ID } from "../types";
 import { EMPLOYEES } from "./employees";
 
 export const MOCK_SETTINGS: AttendanceSettings = { weekly_off: 6 };
@@ -107,16 +109,18 @@ export function putMarks(
 
 // ------------------------------------------------------------ payroll (mock)
 
-const sessionPayments = new Map<string, PaymentEntry[]>();
+// Shapes of app/contracts.py (FakePayrollPayments has the same seed).
+
+const sessionPayments = new Map<string, PaymentRecord[]>();
 let nextPaymentId = 1000;
 
 /** Base figures per employee, like the design's `payFor`: a third have paid nothing, a third 5,000, a third 8,000. */
-function basePaidOf(employeeId: number, net: number): number {
-  return Math.min([0, 5000, 8000][(employeeId - 1) % 3], net);
+function basePaidOf(employeeId: number, earned: number): number {
+  return Math.min([0, 5000, 8000][(employeeId - 1) % 3], earned);
 }
 
 /** The design's sample payments behind the base amounts (HISTB). */
-const SEED_HISTORY: Record<number, [day: number, type: PaymentEntry["type"], amount: number, note: string][]> = {
+const SEED_HISTORY: Record<number, [day: number, kind: PaymentKind, amount: number, note: string][]> = {
   5000: [
     [4, "advance", 2000, "Cash"],
     [11, "advance", 3000, "Cash"],
@@ -128,76 +132,100 @@ const SEED_HISTORY: Record<number, [day: number, type: PaymentEntry["type"], amo
   ],
 };
 
-function seededPayments(employeeId: number, monthKey: string, net: number): PaymentEntry[] {
-  const [year, month] = monthKey.split("-").map(Number);
-  const rows = SEED_HISTORY[basePaidOf(employeeId, net)] ?? [];
-  return rows.map(([day, type, amount, note], i) => ({
-    id: employeeId * 100 + i + 1,
-    bs_date: isoBs(year, month, day),
-    type,
-    amount,
-    method: "cash",
-    note,
-    created_at: `2026-10-${String(17 + day).padStart(2, "0")}T10:00:00+05:45`,
-  }));
+/** "ADV-0412" / "SAL-0410" – payroll's receipt numbering. */
+function receiptNo(kind: PaymentKind, id: number): string {
+  return `${kind === "advance" ? "ADV" : "SAL"}-${String(id).padStart(4, "0")}`;
 }
 
-function netOf(employeeId: number): number {
+function seededPayments(employeeId: number, monthKey: string, earned: number): PaymentRecord[] {
+  const [year, month] = monthKey.split("-").map(Number);
+  const rows = SEED_HISTORY[basePaidOf(employeeId, earned)] ?? [];
+  return rows.map(([day, kind, amount, note], i) => {
+    const id = employeeId * 100 + i + 1;
+    const dateBs = isoBs(year, month, day);
+    const date = bsToAd(dateBs);
+    return {
+      payment_id: id,
+      receipt_no: receiptNo(kind, id),
+      employee_id: employeeId,
+      bs_year: year,
+      bs_month: month,
+      kind,
+      amount,
+      payment_mode_id: CASH_PAYMENT_MODE_ID,
+      payment_mode: "Cash",
+      date,
+      date_bs: dateBs,
+      note,
+      source: "account",
+      recorded_at: `${date}T10:00:00+05:45`,
+    };
+  });
+}
+
+function earnedOf(employeeId: number): number {
   return 18000 + (((employeeId - 1) * 731) % 9000);
 }
 
 export function getBalance(employeeId: number, monthKey: string, monthLabel: string): MonthBalance {
-  const net = netOf(employeeId);
+  const [year, month] = monthKey.split("-").map(Number);
+  const earned = earnedOf(employeeId);
   const extra = (sessionPayments.get(`${employeeId}:${monthKey}`) ?? []).reduce((a, p) => a + p.amount, 0);
-  const paid = basePaidOf(employeeId, net) + extra;
+  const paid = basePaidOf(employeeId, earned) + extra;
   return {
     employee_id: employeeId,
+    bs_year: year,
+    bs_month: month,
     month_key: monthKey,
     month_label: monthLabel,
-    net,
+    earned,
     paid,
-    due: Math.max(0, net - paid),
+    due: Math.max(0, earned - paid),
   };
 }
 
 /** Payments of the month, newest first (session payments on top). */
 export function getPaymentHistory(employeeId: number, monthKey: string, monthLabel: string): PaymentHistory {
   const balance = getBalance(employeeId, monthKey, monthLabel);
-  const seeded = seededPayments(employeeId, monthKey, balance.net);
+  const seeded = seededPayments(employeeId, monthKey, balance.earned);
   const session = sessionPayments.get(`${employeeId}:${monthKey}`) ?? [];
   const payments = [...session, ...seeded].sort((a, b) =>
-    b.created_at < a.created_at ? -1 : b.created_at > a.created_at ? 1 : b.id - a.id,
+    b.recorded_at < a.recorded_at ? -1 : b.recorded_at > a.recorded_at ? 1 : b.payment_id - a.payment_id,
   );
   return {
     employee_id: employeeId,
     month_key: monthKey,
     month_label: monthLabel,
     payments,
-    totals: { paid: balance.paid, net: balance.net, due: balance.due },
+    totals: { earned: balance.earned, paid: balance.paid, due: balance.due },
   };
 }
 
-export function addPayment(input: PaymentInput, monthLabel: string): PaymentResult {
-  const k = `${input.employee_id}:${input.month_key}`;
-  const now = new Date();
-  const todayBs = adToBs(todayAd(now));
-  const entry: PaymentEntry = {
-    id: nextPaymentId++,
-    bs_date: isoBs(todayBs.year, todayBs.month, todayBs.day),
-    type: input.type,
+/** Records a payment against the month of `dateBs` (already validated by api.ts). */
+export function addPayment(input: PaymentInput, dateBs: string, monthKey: string, monthLabel: string): PaymentResult {
+  const k = `${input.employee_id}:${monthKey}`;
+  const [year, month] = monthKey.split("-").map(Number);
+  const id = nextPaymentId++;
+  const modeId = input.payment_mode_id ?? CASH_PAYMENT_MODE_ID;
+  const payment: PaymentRecord = {
+    payment_id: id,
+    receipt_no: receiptNo(input.kind, id),
+    employee_id: input.employee_id,
+    bs_year: year,
+    bs_month: month,
+    kind: input.kind,
     amount: input.amount,
-    method: input.method,
-    note: input.method === "cash" ? "Cash" : "Bank transfer",
-    created_at: now.toISOString(),
+    payment_mode_id: modeId,
+    payment_mode: modeId === CASH_PAYMENT_MODE_ID ? "Cash" : `Mode ${modeId}`,
+    date: bsToAd(dateBs),
+    date_bs: dateBs,
+    note: input.note ?? (modeId === CASH_PAYMENT_MODE_ID ? "Cash" : ""),
+    source: input.source,
+    recorded_at: new Date().toISOString(),
   };
-  sessionPayments.set(k, [entry, ...(sessionPayments.get(k) ?? [])]);
-  const after = getBalance(input.employee_id, input.month_key, monthLabel);
-  return {
-    payment_id: entry.id,
-    amount: input.amount,
-    due_after: after.due,
-    recorded_at: entry.created_at,
-  };
+  sessionPayments.set(k, [payment, ...(sessionPayments.get(k) ?? [])]);
+  const after = getBalance(input.employee_id, monthKey, monthLabel);
+  return { payment, due_after: after.due };
 }
 
 /** Test/support hook: forget every record and seed again on next read. */

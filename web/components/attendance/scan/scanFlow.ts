@@ -19,14 +19,15 @@ import type {
   LookupResponse,
   MarkStatus,
   MonthBalance,
-  PaymentEntry,
   PaymentHistory,
   PaymentInput,
+  PaymentRecord,
   PaymentResult,
   PaymentType,
   ScanRequest,
   ScanResponse,
 } from "../types";
+import { CASH_PAYMENT_MODE_ID } from "../types";
 
 // ------------------------------------------------------------ state
 
@@ -38,7 +39,7 @@ export interface PayFields {
   /** Custom amount as typed (digits only). */
   amount: string;
   balance: MonthBalance | null;
-  history: PaymentEntry[] | null;
+  history: PaymentRecord[] | null;
 }
 
 interface Person {
@@ -359,9 +360,11 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
 
   const balanceFromHistory = (h: PaymentHistory): MonthBalance => ({
     employee_id: h.employee_id,
+    bs_year: Number(h.month_key.slice(0, 4)),
+    bs_month: Number(h.month_key.slice(5, 7)),
     month_key: h.month_key,
     month_label: h.month_label,
-    net: h.totals.net,
+    earned: h.totals.earned,
     paid: h.totals.paid,
     due: h.totals.due,
   });
@@ -468,7 +471,8 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
     const monthPaid = s.balance.paid + amount;
     setScan({ ...s, busy: true, error: null });
     deps.api
-      .pay({ employee_id: emp.id, month_key: deps.monthKey(), type, amount, method: "cash", source: "scan" })
+      // Today's payment, against today's month (the server defaults the date); always Cash from the scanner.
+      .pay({ employee_id: emp.id, kind: type, amount, payment_mode_id: CASH_PAYMENT_MODE_ID, source: "scan" })
       .then((paid) => {
         if (disposed) return;
         const cur = scanIs("pay");
@@ -547,7 +551,7 @@ export function createScanFlow(deps: ScanFlowDeps): ScanFlow {
     pick: null as string | null,
     amount: "",
     balance: null as MonthBalance | null,
-    history: null as PaymentEntry[] | null,
+    history: null as PaymentRecord[] | null,
     busy: false,
     error: null as string | null,
   });

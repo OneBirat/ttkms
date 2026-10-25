@@ -8,7 +8,7 @@ import { amountError, amountOf, createScanFlow, shiftMonthKey, type Scan, type S
 
 /** The tests use a short, equal auto-return for done and paid. */
 const AUTO_RETURN_MS = 3000;
-import type { EmployeeRef, PaymentEntry, PaymentHistory, ScanResponse } from "../types";
+import type { EmployeeRef, PaymentRecord, PaymentHistory, ScanResponse } from "../types";
 
 // ---- fakes
 
@@ -55,16 +55,21 @@ function setup(options: { markFails?: boolean; marked?: Set<number> } = {}) {
   const clock = new FakeClock();
   const calls: string[] = [];
   const marked = options.marked ?? new Set<number>();
-  let payments: PaymentEntry[] = [
-    { id: 1, bs_date: "2083-07-04", type: "advance", amount: 2000, method: "cash", note: "Cash", created_at: "2026-10-21T10:00:00Z" },
-    { id: 2, bs_date: "2083-07-11", type: "advance", amount: 3000, method: "cash", note: "Cash", created_at: "2026-10-28T10:00:00Z" },
+  const record = (id: number, dateBs: string, date: string, kind: PaymentRecord["kind"], amount: number, recordedAt: string): PaymentRecord => ({
+    payment_id: id, receipt_no: `${kind === "advance" ? "ADV" : "SAL"}-${String(id).padStart(4, "0")}`, employee_id: 4,
+    bs_year: 2083, bs_month: 7, kind, amount, payment_mode_id: 1, payment_mode: "Cash", date, date_bs: dateBs, note: "Cash",
+    source: "account", recorded_at: recordedAt,
+  });
+  let payments: PaymentRecord[] = [
+    record(1, "2083-07-04", "2026-10-21", "advance", 2000, "2026-10-21T10:00:00Z"),
+    record(2, "2083-07-11", "2026-10-28", "advance", 3000, "2026-10-28T10:00:00Z"),
   ];
   let paid = 5000;
-  const net = 20000;
+  const earned = 20000;
   const history = (): PaymentHistory => ({
     employee_id: 4, month_key: "2083-07", month_label: "Kartik 2083",
-    payments: [...payments].sort((a, b) => (b.created_at < a.created_at ? -1 : 1)),
-    totals: { paid, net, due: net - paid },
+    payments: [...payments].sort((a, b) => (b.recorded_at < a.recorded_at ? -1 : 1)),
+    totals: { earned, paid, due: earned - paid },
   });
   const api: ScanFlowApi = {
     async lookup(code) {
@@ -87,7 +92,7 @@ function setup(options: { markFails?: boolean; marked?: Set<number> } = {}) {
     },
     async balance() {
       calls.push("balance");
-      return { employee_id: 4, month_key: "2083-07", month_label: "Kartik 2083", net, paid, due: net - paid };
+      return { employee_id: 4, bs_year: 2083, bs_month: 7, month_key: "2083-07", month_label: "Kartik 2083", earned, paid, due: earned - paid };
     },
     async history() {
       calls.push("history");
@@ -104,10 +109,11 @@ function setup(options: { markFails?: boolean; marked?: Set<number> } = {}) {
       };
     },
     async pay(input) {
-      calls.push(`pay ${input.type} ${input.amount} ${input.method}`);
+      calls.push(`pay ${input.kind} ${input.amount} mode${input.payment_mode_id ?? 1} ${input.source}`);
       paid += input.amount;
-      payments = [{ id: 99, bs_date: "2083-07-07", type: input.type, amount: input.amount, method: input.method, note: "Cash", created_at: "2026-10-30T10:00:00Z" }, ...payments];
-      return { payment_id: 99, amount: input.amount, due_after: net - paid, recorded_at: "2026-10-30T10:00:00Z" };
+      const saved = { ...record(99, "2083-07-07", "2026-10-24", input.kind, input.amount, "2026-10-30T10:00:00Z"), source: input.source };
+      payments = [saved, ...payments];
+      return { payment: saved, due_after: earned - paid };
     },
   };
   const sounds: string[] = [];
@@ -305,7 +311,8 @@ describe("scan loop", () => {
     await flush();
     assert.equal(t.step(), "paid");
     assert.equal((t.scan() as Extract<Scan, { step: "paid" }>).summary, "✓ Kamala Bhandari · Advance Rs 1,500");
-    assert.ok(t.calls.includes("pay advance 1500 cash"));
+    assert.ok(t.calls.includes("pay advance 1500 mode1 scan"));
+    assert.equal((t.scan() as Extract<Scan, { step: "paid" }>).paid.payment.receipt_no, "ADV-0099");
     assert.equal(t.sounds.at(-1), "paid advance 1500");
     await t.clock.advance(AUTO_RETURN_MS);
     assert.equal(t.step(), "camera");

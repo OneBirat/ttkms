@@ -65,23 +65,28 @@ attendance.records
 
 Settings (core.settings): `attendance.weekly_off` (default 6).
 
-## Payroll client (contract payroll implements)
+## Payroll client (contract payroll implements) – `app/contracts.py` since 2026-10-25
 
-Attendance only calls these from `api.ts`; nothing in attendance reads payroll tables. The report
-and the attendance-record sheet need the month's payments per employee (for the advance / salary
-badges), so the attendance backend calls payroll's service in-process for `MonthReport` cells and
-`EmployeeMonth.payments`.
+Attendance only calls these from `api.ts`; nothing in attendance reads payroll tables. The shared
+shapes live in `app/contracts.py` (`MonthBalance`, `PaymentInput`, `PaymentRecord`,
+`PaymentResult`, `PaymentRejected`) behind the `PayrollPayments` protocol; `FakePayrollPayments`
+answers until payroll calls `register_payroll_payments(...)`. The TypeScript twins are in
+`web/components/attendance/types.ts` (same field names). The report and the attendance-record
+sheet need the month's payments per employee (advance / salary badges), so the attendance backend
+calls `get_payroll_payments().for_month(bs_year, bs_month, employee_ids)` in-process for
+`MonthReport` cells and `EmployeeMonth.payments`.
 
 | Method | Path | Request | Response |
 |---|---|---|---|
-| GET | `/api/payroll/balance?employee_id=&bs_year=&bs_month=` | | `MonthBalance {employee_id, month_key, month_label, net, paid, due}` |
-| POST | `/api/payroll/payments` | `PaymentInput {employee_id, month_key, type: salary\|advance, amount, method: cash\|bank, source: "scan"}` | `PaymentResult {payment_id, amount, due_after, recorded_at}`; 422 when amount ≤ 0 or above `due` |
-| GET | `/api/payroll/payments?employee_id=&bs_year=&bs_month=` | | `PaymentHistory {employee_id, month_key, month_label, payments: [{id, bs_date, type, amount, method, note, created_at}] (newest first), totals: {paid, net, due}}` – the scan flow's "Paid in {month}" card, the History sheet and the day-detail pop-up |
+| GET | `/api/payroll/balance?employee_id=&bs_year=&bs_month=` | | `MonthBalance {employee_id, bs_year, bs_month, month_key, month_label, earned, paid, due}` (`PayrollPayments.balance`) |
+| POST | `/api/payroll/payments` | `PaymentInput {employee_id, kind: salary\|advance, amount, payment_mode_id (default Cash = 1), date_bs? (today), note?, source: "scan"}` – the payment belongs to the BS month of its date | `PaymentResult {payment: PaymentRecord, due_after}`; 422 `{code: amount\|over_due\|unknown_employee\|payment_mode, detail}` (`PaymentRejected`) |
+| GET | `/api/payroll/payments?employee_id=&bs_year=&bs_month=` | | `PaymentHistory {employee_id, month_key, month_label, payments: PaymentRecord[] (newest first), totals: {earned, paid, due}}` – the scan flow's "Paid in {month}" card, the History sheet and the day-detail pop-up |
 
-The scan flow always sends `method: "cash"` (the Cash / Bank toggle was removed from the sheet; the
-column stays). Payroll's own shapes use `mode` for the method and `bs_year`/`bs_month` instead of
-`month_key`; attendance's client adapts in `api.ts` once the real endpoints exist. The paid sheet
-shows `PAY-{payment_id:04d}` as the receipt number.
+`PaymentRecord {payment_id, receipt_no "ADV-0412"/"SAL-0410", employee_id, bs_year, bs_month, kind,
+amount, payment_mode_id, payment_mode, date, date_bs, note, source, recorded_at}`. The scan flow
+always sends `payment_mode_id: 1` (Cash; the Cash / Bank toggle was removed from the sheet) and no
+date, so the payment lands on today's month. The paid sheet prints `receipt_no` as the receipt
+number.
 
 ## AttendanceSummary (app/contracts.py) – shape change (applied on main 2026-10-25)
 

@@ -6,7 +6,7 @@ import { bsMonthDays } from "../calendar";
 import { CheckIcon } from "../icons";
 import { draftText, formatAmount, formatRs, initials } from "../helpers";
 import { photoTint } from "../MarkRow";
-import type { DayCell, DayHeader, PaymentEntry, PaymentType } from "../types";
+import type { DayCell, DayHeader, PaymentRecord, PaymentType } from "../types";
 import { useDialog } from "../useDialog";
 import type { MarkState } from "../useMarkState";
 import { useSecondsLeft } from "./useCountdown";
@@ -326,7 +326,7 @@ function Already({ scan, state, titleId }: StepProps<"already">) {
   );
 }
 
-function paymentsCount(history: PaymentEntry[] | null): string {
+function paymentsCount(history: PaymentRecord[] | null): string {
   if (!history) return "…";
   const n = history.length;
   return n === 0 ? "no payments" : `${n} ${n === 1 ? "payment" : "payments"}`;
@@ -384,7 +384,7 @@ function Pay({ scan, state, titleId }: StepProps<"pay">) {
         <div className={styles.breakdown}>
           <div>
             <span>{month.split(" ")[0]} net salary</span>
-            <span className="mono">{formatRs(b.net)}</span>
+            <span className="mono">{formatRs(b.earned)}</span>
           </div>
           <div className={styles.breakdownPaid}>
             <span>Already paid (advances / part)</span>
@@ -463,9 +463,9 @@ function CustomAmountInput({ value, onChange }: { value: string; onChange: (text
   );
 }
 
-function dayNote(p: PaymentEntry, todayBs: string | undefined): string {
-  if (p.bs_date === todayBs) {
-    const age = Date.now() - Date.parse(p.created_at);
+function dayNote(p: PaymentRecord, todayBs: string | undefined): string {
+  if (p.date_bs === todayBs) {
+    const age = Date.now() - Date.parse(p.recorded_at);
     return Number.isFinite(age) && age < 10 * 60_000 ? "Today · just now" : `Today · ${p.note}`;
   }
   return p.note;
@@ -500,7 +500,7 @@ function History({ scan, state, titleId }: StepProps<"history">) {
         </div>
         <div className={`${styles.tile} ${styles.tileNet}`}>
           <span>Net salary</span>
-          <span className={styles.tileAmount}>{b ? formatRs(b.net) : "…"}</span>
+          <span className={styles.tileAmount}>{b ? formatRs(b.earned) : "…"}</span>
         </div>
         <div className={`${styles.tile} ${styles.tileDue}`}>
           <span>Due</span>
@@ -516,14 +516,14 @@ function History({ scan, state, titleId }: StepProps<"history">) {
       ) : (
         <ul className={styles.histList} aria-busy={rows === null}>
           {(rows ?? []).map((p) => (
-            <li key={p.id} className={styles.histRow}>
+            <li key={p.payment_id} className={styles.histRow}>
               <span className={styles.histDate} aria-hidden="true">
-                <span className={styles.histMon}>{monthName(Number(p.bs_date.slice(5, 7)))}</span>
-                <span className={styles.histDay}>{Number(p.bs_date.slice(8, 10))}</span>
+                <span className={styles.histMon}>{monthName(p.bs_month)}</span>
+                <span className={styles.histDay}>{Number(p.date_bs.slice(8, 10))}</span>
               </span>
               <span className={styles.histText}>
-                <span className={styles.histType} data-type={p.type}>
-                  {p.type === "advance" ? "Advance" : "Salary"}
+                <span className={styles.histType} data-type={p.kind}>
+                  {p.kind === "advance" ? "Advance" : "Salary"}
                 </span>
                 <span className={styles.histNote}>{dayNote(p, todayBs)}</span>
               </span>
@@ -547,7 +547,7 @@ interface RecDay {
   header: DayHeader;
   cell: DayCell | null;
   kind: RecKind;
-  payments: PaymentEntry[];
+  payments: PaymentRecord[];
 }
 
 function cellText(kind: RecKind, cell: DayCell | null): string {
@@ -606,7 +606,7 @@ function AttendanceRecord({ scan, state, titleId }: StepProps<"attrec">) {
           : cell.status === "N"
             ? "N"
             : cell.status;
-    const payments = (data?.payments ?? []).filter((p) => p.bs_date === h.bs_date);
+    const payments = (data?.payments ?? []).filter((p) => p.date_bs === h.bs_date);
     return { header: h, cell, kind, payments };
   });
   const lead = headers[0]?.weekday ?? 0;
@@ -678,8 +678,8 @@ function AttendanceRecord({ scan, state, titleId }: StepProps<"attrec">) {
           <span key={`lead-${i}`} aria-hidden="true" />
         ))}
         {days.map((d) => {
-          const hasAdv = d.payments.some((p) => p.type === "advance");
-          const hasSal = d.payments.some((p) => p.type === "salary");
+          const hasAdv = d.payments.some((p) => p.kind === "advance");
+          const hasSal = d.payments.some((p) => p.kind === "salary");
           const label = `${monthName(month)} ${d.header.bs_day}: ${attendanceText(d.kind, d.cell)}${
             d.payments.length ? `, ${d.payments.length} ${d.payments.length === 1 ? "payment" : "payments"}` : ""
           }`;
@@ -795,9 +795,9 @@ function DayDetail({
         <span className={styles.fieldLabel}>Money taken this day</span>
         <div className={styles.dpList}>
           {day.payments.map((p) => {
-            const sal = p.type === "salary";
+            const sal = p.kind === "salary";
             return (
-              <div key={p.id} className={`${styles.dpRow} ${sal ? styles.dpRowSal : styles.dpRowAdv}`}>
+              <div key={p.payment_id} className={`${styles.dpRow} ${sal ? styles.dpRowSal : styles.dpRowAdv}`}>
                 <span className={`${styles.dpIcon} ${sal ? styles.dpIconSal : styles.dpIconAdv}`} aria-hidden="true">
                   {sal ? <SalaryIcon /> : <AdvanceIcon />}
                 </span>
@@ -931,17 +931,17 @@ function Paid({ scan, state, titleId, phone }: StepProps<"paid"> & { phone: bool
           {scan.emp.name}
         </h2>
         <span className={styles.resultText}>
-          {typeLabel} of {formatRs(scan.paid.amount)} recorded
+          {typeLabel} of {formatRs(scan.paid.payment.amount)} recorded
         </span>
         <span className={styles.resultNp} lang="ne">
           {salary ? "तलब भुक्तानी सेभ भयो" : "पेश्की भुक्तानी सेभ भयो"}
         </span>
-        <span className={styles.resultSub}>Cash · {scan.monthLabel} · shows in Payments</span>
+        <span className={styles.resultSub}>{scan.paid.payment.payment_mode} · {scan.monthLabel} · shows in Payments</span>
       </div>
       <div className={styles.paidTiles}>
         <div className={`${styles.paidTile} ${salary ? styles.paidTileSal : styles.paidTileAdv}`}>
           <span>Paid now</span>
-          <b>{formatRs(scan.paid.amount)}</b>
+          <b>{formatRs(scan.paid.payment.amount)}</b>
         </div>
         <div className={styles.paidTile}>
           <span>Paid in {monthShort}</span>
@@ -953,7 +953,7 @@ function Paid({ scan, state, titleId, phone }: StepProps<"paid"> & { phone: bool
         </div>
       </div>
       <div className={styles.receipt}>
-        Receipt no. <span className="mono">PAY-{String(scan.paid.payment_id).padStart(4, "0")}</span>
+        Receipt no. <span className="mono">{scan.paid.payment.receipt_no}</span>
       </div>
       <Countdown state={state} phone={phone} token={scan.token} totalMs={AUTO_RETURN.paid} />
     </>

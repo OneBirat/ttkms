@@ -80,7 +80,7 @@ app/
   config.py        pydantic-settings (reads this worktree's .env)
   db.py            async engine, get_db dependency, declarative Base
   cli.py           create-admin, seed
-  contracts.py     cross-module interfaces (AttendanceSummary + fake + registry)
+  contracts.py     cross-module interfaces (AttendanceSummary, PayrollPayments + fakes + registries)
   core/
     models.py      users, branches, departments, employees, settings, audit_log  (schema core)
     schemas.py     pydantic response/request models = the API contract used by web/
@@ -224,8 +224,10 @@ worktrees never share test data. `tests/__init__.py` pins `ENABLED_MODULES` to t
   EmptyState, Pagination), the date components in `web/components/date/` and `web/lib/bs`.
 - Exports: `to_xlsx(title, meta_lines, columns, rows)` and `to_pdf(template, context)`; print
   templates extend `print/base.html`.
-- Cross-module data goes through `app/contracts.py` (payroll gets attendance summaries via
-  `get_attendance_summary()`; the attendance module calls `register_attendance_summary(...)`).
+- Cross-module data goes through `app/contracts.py`: payroll gets attendance summaries via
+  `get_attendance_summary()` (attendance calls `register_attendance_summary(...)`); attendance
+  records scan payments and lists a month's payments via `get_payroll_payments()` (payroll calls
+  `register_payroll_payments(...)`). Both have deterministic fakes until the real service registers.
 - `record_audit(db, module=..., action=..., entity=..., entity_id=...)` for the audit log.
 
 ## Bikram Sambat dates

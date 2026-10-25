@@ -6,6 +6,7 @@ import {
   getDay,
   getEmployeeMonth,
   getMonthBalance,
+  getPaymentHistoryFor,
   getReport,
   getToday,
   lookupCode,
@@ -207,17 +208,32 @@ describe("mock API rules", () => {
     assert.equal(r.record.marked_via, "scan");
     assert.equal((await lookupCode("E011")).today?.ot_hours, 2);
   });
-  it("payroll client: balance, payment, due after", async () => {
+  it("payroll client: balance, payment, due after (app/contracts.py shapes)", async () => {
     const before = await getMonthBalance(4, "2083-07");
     assert.equal(before.month_label, "Kartik 2083");
-    assert.equal(before.due, before.net - before.paid);
-    const paid = await recordPayment({ employee_id: 4, month_key: "2083-07", type: "advance", amount: 1500, method: "cash", source: "scan" });
+    assert.deepEqual([before.bs_year, before.bs_month], [2083, 7]);
+    assert.equal(before.due, before.earned - before.paid);
+    const paid = await recordPayment({ employee_id: 4, kind: "advance", amount: 1500, date_bs: "2083-07-07", source: "scan" });
     assert.equal(paid.due_after, before.due - 1500);
+    assert.equal(paid.payment.receipt_no, `ADV-${String(paid.payment.payment_id).padStart(4, "0")}`);
+    assert.deepEqual([paid.payment.kind, paid.payment.payment_mode_id, paid.payment.payment_mode], ["advance", 1, "Cash"]);
+    assert.deepEqual([paid.payment.date_bs, paid.payment.date, paid.payment.bs_month], ["2083-07-07", "2026-10-24", 7]);
     const after = await getMonthBalance(4, "2083-07");
     assert.equal(after.paid, before.paid + 1500);
+    const history = await getPaymentHistoryFor(4, "2083-07");
+    assert.equal(history.payments[0].payment_id, paid.payment.payment_id);
+    assert.deepEqual(history.totals, { earned: after.earned, paid: after.paid, due: after.due });
     await assert.rejects(
-      recordPayment({ employee_id: 4, month_key: "2083-07", type: "salary", amount: after.due + 1, method: "bank", source: "scan" }),
+      recordPayment({ employee_id: 4, kind: "salary", amount: after.due + 1, date_bs: "2083-07-07", source: "scan" }),
       (e: unknown) => e instanceof AttendanceApiError && e.status === 422,
     );
+    await assert.rejects(
+      recordPayment({ employee_id: 4, kind: "salary", amount: 1, date_bs: "2083-07-40", source: "scan" }),
+      (e: unknown) => e instanceof AttendanceApiError && e.status === 422,
+    );
+    // The month's payments carry their day for the report badges.
+    const month = await getEmployeeMonth(4, "2083-07");
+    assert.ok(month.payments.some((p) => p.payment_id === paid.payment.payment_id && p.date_bs === "2083-07-07"));
+    assert.equal(month.cells[6].advance, (month.payments.filter((p) => p.date_bs === "2083-07-07" && p.kind === "advance")).reduce((a, p) => a + p.amount, 0));
   });
 });
