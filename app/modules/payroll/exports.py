@@ -371,3 +371,514 @@ def salary_report_pdf(data: ReportData, printed_by: str) -> bytes:
         ),
     }
     return to_pdf("payroll/report.html", context, landscape=True)
+
+
+# -------------------------------------------------------------------- payments register
+
+from app.core.models import Employee  # noqa: E402
+from app.modules.payroll.schemas import (  # noqa: E402
+    MonthLedgerOut,
+    PaymentOut,
+    PaymentsRegisterOut,
+    RegisterRowOut,
+)
+
+
+def _range_label(data: PaymentsRegisterOut) -> str:
+    if data.from_bs and data.to_bs:
+        return f"{data.from_bs} → {data.to_bs}"
+    return "all dates"
+
+
+def register_title(data: PaymentsRegisterOut) -> str:
+    """``Payment report · {Branch|All branches} · {Department} · {range}``."""
+    parts = [
+        "Payment report",
+        data.branch.name if data.branch else "All branches",
+        data.department.name if data.department else None,
+        _range_label(data),
+    ]
+    return " · ".join(p for p in parts if p)
+
+
+def _slug(text: str) -> str:
+    import re
+
+    return re.sub(r"[^\w]+", "_", text).strip("_")
+
+
+def register_file_name(data: PaymentsRegisterOut, ext: str) -> str:
+    parts = [
+        "Payment_report",
+        _slug(data.branch.name) if data.branch else None,
+        _slug(data.department.name) if data.department else None,
+    ]
+    span = f"{data.from_bs}_to_{data.to_bs}" if data.from_bs and data.to_bs else "all"
+    return "_".join(p for p in [*parts, span] if p) + f".{ext}"
+
+
+def _kind_label(p: PaymentOut) -> str:
+    return "Salary" if p.kind == "salary" else "Advance"
+
+
+def _split(rows: Sequence[RegisterRowOut]) -> tuple[int, int, int]:
+    salary = sum(r.payment.amount for r in rows if r.payment.kind == "salary")
+    advances = sum(r.payment.amount for r in rows if r.payment.kind == "advance")
+    return salary, advances, salary + advances
+
+
+def group_rows(rows: Sequence[RegisterRowOut], key) -> list[tuple[Any, list[RegisterRowOut]]]:
+    """Consecutive groups in the order the rows come (the register sorts them)."""
+    groups: list[tuple[Any, list[RegisterRowOut]]] = []
+    for row in rows:
+        k = key(row)
+        if groups and groups[-1][0] == k:
+            groups[-1][1].append(row)
+        else:
+            groups.append((k, [row]))
+    return groups
+
+
+def _dept_key(row: RegisterRowOut):
+    return (
+        (row.employee.department.id, row.employee.department.name)
+        if row.employee.department
+        else (None, "No department")
+    )
+
+
+def _branch_key(row: RegisterRowOut):
+    return (row.employee.branch.id, row.employee.branch.name)
+
+
+def register_sheets(data: PaymentsRegisterOut) -> list[Sheet]:
+    rows = data.rows
+    all_branches = data.branch is None
+    salary, advances, total_amount = _split(rows)
+    rng = _range_label(data)
+    month = month_label(data.totals.month.bs_year, data.totals.month.bs_month)
+
+    HEADER = 4
+    first = HEADER + 1
+    last = HEADER + max(1, len(rows))
+    # Date order reads oldest first on paper; the other sorts stay as the screen shows them.
+    ordered = list(reversed(rows)) if data.sort == "date" else list(rows)
+    columns = [
+        "Date (BS)",
+        "Emp ID",
+        "Name",
+        "Department",
+        "Branch",
+        "For month",
+        "Type",
+        "Paid by",
+        "Reference / note",
+        "Amount",
+        "Recorded by",
+        "Date (AD)",
+    ]
+    sheet_rows: list[list[Cell]] = [
+        [Styled(f"TTK · {register_title(data)}", "title")],
+        [
+            Styled(
+                f"{len(rows)} payments · salary Rs {salary:,} · advances Rs {advances:,}"
+                f" · total Rs {total_amount:,}",
+                "muted",
+            )
+        ],
+        [],
+        header(columns),
+    ]
+    for r in ordered:
+        p, e = r.payment, r.employee
+        sheet_rows.append(
+            [
+                p.date.bs,
+                e.code,
+                e.full_name,
+                e.department.name if e.department else "",
+                e.branch.name,
+                month_label(p.for_year, p.for_month),
+                _kind_label(p),
+                p.payment_mode.name,
+                " · ".join(x for x in (p.reference, p.note) if x),
+                num(p.amount),
+                p.recorded_by,
+                p.date.ad,
+            ]
+        )
+    if not rows:
+        sheet_rows.append([Styled("No payments in this range", "muted")])
+    sheet_rows.append(
+        [Styled("Total", "total")]
+        + [Styled(None, "total")] * 8
+        + [
+            total(total_amount, f"SUM(J{first}:J{last})"),
+            Styled(f"=SUM(J{first}:J{last})", "muted"),
+        ]
+    )
+    payments_sheet = Sheet(
+        name="Payments",
+        rows=sheet_rows,
+        widths=[12, 9, 22, 14, 14, 14, 10, 16, 26, 12, 14, 12],
+        auto_filter=f"A{HEADER}:L{last}",
+    )
+
+    def summary_sheet(
+        name: str, label: str, groups: list[tuple[str, list[RegisterRowOut]]], title: str
+    ) -> Sheet:
+        g_first, g_last = 3, 2 + max(1, len(groups))
+        body: list[list[Cell]] = [
+            [Styled(title, "title")],
+            header([label, "Salary", "Advances", "Total", "Count"]),
+        ]
+        for i, (gname, grows) in enumerate(groups):
+            row = g_first + i
+            s, a, t = _split(grows)
+            body.append(
+                [gname, num(s), num(a), Styled(t, "number_bold", f"B{row}+C{row}"), num(len(grows))]
+            )
+        if not groups:
+            body.append([Styled("No payments in this range", "muted")])
+        body.append(
+            [
+                Styled(f"Total · {len(groups)}", "total"),
+                total(salary, f"SUM(B{g_first}:B{g_last})"),
+                total(advances, f"SUM(C{g_first}:C{g_last})"),
+                total(total_amount, f"SUM(D{g_first}:D{g_last})"),
+                total(len(rows), f"SUM(E{g_first}:E{g_last})"),
+            ]
+        )
+        return Sheet(name=name, rows=body, widths=[22, 14, 14, 14, 10], auto_filter=f"A2:E{g_last}")
+
+    by_branch_groups = sorted(
+        (
+            (k[1], grows)
+            for k, grows in group_rows(
+                sorted(rows, key=lambda r: (_branch_key(r), r.payment.date.ad)), _branch_key
+            )
+        ),
+        key=lambda g: g[0].lower(),
+    )
+    by_dept_groups = sorted(
+        (
+            (k[1], grows)
+            for k, grows in group_rows(
+                sorted(rows, key=lambda r: (_dept_key(r)[1], r.payment.date.ad)), _dept_key
+            )
+        ),
+        key=lambda g: g[0].lower(),
+    )
+    sheets = [payments_sheet]
+    if all_branches:
+        sheets.append(
+            summary_sheet(
+                "By branch",
+                "Branch",
+                by_branch_groups,
+                f"By branch · {rng}" + (f" · {data.department.name}" if data.department else ""),
+            )
+        )
+    sheets.append(
+        summary_sheet(
+            "By department",
+            "Department",
+            by_dept_groups,
+            f"By department · {rng}" + (f" · {data.department.name}" if data.department else ""),
+        )
+    )
+
+    by_rows = data.by_employee
+    b_first, b_last = 3, 2 + max(1, len(by_rows))
+    by_employee_rows: list[list[Cell]] = [
+        [Styled(f"By employee · {month}", "title")],
+        header(
+            [
+                "Emp ID",
+                "Name",
+                "Department",
+                "Branch",
+                "Net pay",
+                "Advances",
+                "Salary paid",
+                "Total paid",
+                "Still due",
+            ]
+        ),
+    ]
+    for i, r in enumerate(by_rows):
+        row = b_first + i
+        by_employee_rows.append(
+            [
+                r.employee.code,
+                r.employee.full_name,
+                r.employee.department.name if r.employee.department else "",
+                r.employee.branch.name,
+                num(r.net),
+                num(r.advance_paid),
+                num(r.salary_paid),
+                Styled(r.paid, "number_bold", f"F{row}+G{row}"),
+                Styled(r.due, "number_bold", f"MAX(0,E{row}-H{row})"),
+            ]
+        )
+    t = data.totals
+    by_employee_rows.append(
+        [
+            Styled(f"Total · {len(by_rows)} staff", "total"),
+            Styled(None, "total"),
+            Styled(None, "total"),
+            Styled(None, "total"),
+            total(t.month_net, f"SUM(E{b_first}:E{b_last})"),
+            total(t.advance_paid, f"SUM(F{b_first}:F{b_last})"),
+            total(t.salary_paid, f"SUM(G{b_first}:G{b_last})"),
+            total(t.salary_paid + t.advance_paid, f"SUM(H{b_first}:H{b_last})"),
+            total(t.due, f"SUM(I{b_first}:I{b_last})"),
+        ]  # fmt: skip
+    )
+    sheets.append(
+        Sheet(
+            name="By employee",
+            rows=by_employee_rows,
+            widths=[9, 22, 14, 14, 12, 12, 12, 12, 12],
+            auto_filter=f"A2:I{b_last}",
+        )
+    )
+
+    sheets.append(
+        Sheet(
+            name="Summary",
+            rows=[
+                [Styled(f"Summary · {month}", "title")],
+                ["Net payroll", num(t.month_net), Styled(f"{t.staff} staff", "muted")],
+                ["Salary paid", num(salary), Styled("in this range", "muted")],
+                ["Advances paid", num(advances), Styled("in this range", "muted")],
+                [Styled("Total paid", "bold"), Styled(total_amount, "number_bold", "B3+B4")],
+                [
+                    Styled(f"Still due · {month}", "bold"),
+                    total(t.due),
+                    Styled("net payroll − everything paid for the month", "muted"),
+                ],
+                [],
+                [
+                    Styled(
+                        "Advances are part-payments of that month's salary; nothing is "
+                        "recovered later. No SSF.",
+                        "muted",
+                    )
+                ],
+            ],
+            widths=[26, 16, 44],
+        )
+    )
+
+    f_first, f_last = 3, 2 + max(1, len(rows))
+    filter_rows: list[list[Cell]] = [
+        [
+            Styled(
+                f"All payments · sort & filter · {rng} · use the Name filter to pick employees",
+                "title",
+            )
+        ],
+        header(
+            [
+                "Date (BS)",
+                "Emp ID",
+                "Name",
+                "Department",
+                "Branch",
+                "For month",
+                "Type",
+                "Paid by",
+                "Amount",
+                "Recorded by",
+            ],
+            dark=True,
+        ),
+    ]
+    for r in rows:
+        p, e = r.payment, r.employee
+        filter_rows.append(
+            [
+                p.date.bs,
+                e.code,
+                e.full_name,
+                e.department.name if e.department else "",
+                e.branch.name,
+                month_label(p.for_year, p.for_month),
+                _kind_label(p),
+                p.payment_mode.name,
+                num(p.amount),
+                p.recorded_by,
+            ]
+        )
+    filter_rows.append(
+        [Styled(f"Total (visible rows) · {len(rows)} rows", "total")]
+        + [Styled(None, "total")] * 7
+        + [
+            total(total_amount, f"SUBTOTAL(109,I{f_first}:I{f_last})"),
+            Styled(f"=SUBTOTAL(109,I{f_first}:I{f_last})", "muted"),
+        ]
+    )
+    sheets.append(
+        Sheet(
+            name="Sort & filter",
+            rows=filter_rows,
+            widths=[12, 9, 22, 14, 14, 14, 10, 16, 12, 14],
+            auto_filter=f"A2:J{f_last}",
+        )
+    )
+    return sheets
+
+
+def register_xlsx(data: PaymentsRegisterOut) -> bytes:
+    return build_workbook(register_sheets(data))
+
+
+def register_pdf(data: PaymentsRegisterOut, printed_by: str) -> bytes:
+    rows = data.rows
+    salary, advances, total_amount = _split(rows)
+    t = data.totals
+    month = month_label(t.month.bs_year, t.month.bs_month)
+    all_branches = data.branch is None
+    # Sort = branch: branch blocks. Sort = department: department blocks, nested inside branch
+    # blocks when all branches are shown. Otherwise one flat block.
+    blocks: list[dict[str, Any]] = []
+    if data.sort == "branch":
+        for (_, name), grows in group_rows(rows, _branch_key):
+            s, a, tot = _split(grows)
+            blocks.append(
+                {
+                    "kind": "branch",
+                    "name": name,
+                    "rows": grows,
+                    "salary": s,
+                    "advances": a,
+                    "total": tot,
+                    "departments": None,
+                }
+            )
+    elif data.sort == "department" and all_branches:
+        for (_, bname), brows in group_rows(rows, _branch_key):
+            s, a, tot = _split(brows)
+            depts = []
+            for (_, dname), drows in group_rows(brows, _dept_key):
+                ds, da, dt_ = _split(drows)
+                depts.append(
+                    {"name": dname, "rows": drows, "salary": ds, "advances": da, "total": dt_}
+                )
+            blocks.append(
+                {
+                    "kind": "branch",
+                    "name": bname,
+                    "rows": brows,
+                    "salary": s,
+                    "advances": a,
+                    "total": tot,
+                    "departments": depts,
+                }
+            )
+    elif data.sort == "department":
+        for (_, name), grows in group_rows(rows, _dept_key):
+            s, a, tot = _split(grows)
+            blocks.append(
+                {
+                    "kind": "department",
+                    "name": name,
+                    "rows": grows,
+                    "salary": s,
+                    "advances": a,
+                    "total": tot,
+                    "departments": None,
+                }
+            )
+    else:
+        blocks.append(
+            {
+                "kind": "flat",
+                "name": "",
+                "rows": list(rows),
+                "salary": salary,
+                "advances": advances,
+                "total": total_amount,
+                "departments": None,
+            }
+        )
+    sort_label = {
+        "date": "by date",
+        "branch": "by branch",
+        "department": "by department",
+        "employee": "by employee",
+        "amount": "by amount",
+    }[data.sort]
+    context = {
+        "title": register_title(data),
+        "subtitle": f"Salary & advance payments · {len(rows)} payments · {sort_label}",
+        "printed_by": printed_by,
+        "data": data,
+        "blocks": blocks,
+        "kind_label": _kind_label,
+        "month_label": month_label,
+        "stats": [
+            ("Net payroll", f"Rs {t.month_net:,}", f"{t.staff} staff · {month}"),
+            (
+                "Salary paid",
+                f"Rs {salary:,}",
+                f"{sum(1 for r in rows if r.payment.kind == 'salary')} payments in range",
+            ),
+            (
+                "Advances paid",
+                f"Rs {advances:,}",
+                f"{sum(1 for r in rows if r.payment.kind == 'advance')} advances in range",
+            ),
+            ("Still due", f"Rs {t.due:,}", f"for {month}"),
+        ],
+        "salary": salary,
+        "advances": advances,
+        "total_amount": total_amount,
+        "month": month,
+        "legend_text": "Advances are part-payments of that month's salary · amounts in rupees",
+    }
+    return to_pdf("payroll/register.html", context, landscape=True)
+
+
+def receipt_pdf(employee: Employee, payment: PaymentOut, printed_by: str) -> bytes:
+    context = {
+        "title": f"{'Salary payment' if payment.kind == 'salary' else 'Advance payment'}"
+        f" · {payment.receipt_no}",
+        "subtitle": f"{employee.full_name} · {employee.code}",
+        "printed_by": printed_by,
+        "employee": employee,
+        "payment": payment,
+        "month": month_label(payment.for_year, payment.for_month),
+        "legend_text": (
+            "An advance counts as part of that month's salary; it is not recovered later."
+            if payment.kind == "advance"
+            else "Signature: ______________________"
+        ),
+    }
+    return to_pdf("payroll/receipt.html", context)
+
+
+def payslip_pdf(employee: Employee, ledger: MonthLedgerOut, printed_by: str) -> bytes:
+    a = ledger.attendance
+    per_day = round(ledger.rate / a.days_in_month) if a.days_in_month else 0
+    context = {
+        "title": f"Payslip · {month_label(ledger.month.bs_year, ledger.month.bs_month)}"
+        + (" (in progress)" if ledger.in_progress else ""),
+        "subtitle": f"{employee.full_name} · {employee.code} · {employee.designation or ''}"
+        f" · {employee.branch.name}",
+        "printed_by": printed_by,
+        "employee": employee,
+        "ledger": ledger,
+        "per_day": per_day,
+        "status_label": STATUS_LABEL,
+        "month_label": month_label,
+        "legend_text": (
+            "Net = salary − salary ÷ 30 × absent days + overtime − TDS. Saturdays are paid. "
+            "Advances are part of this month's salary."
+            if ledger.pay_type == "monthly"
+            else "Net = wage × (present + overtime days) + overtime hours × rate − TDS. "
+            "Advances are part of this month's salary."
+        ),
+    }
+    return to_pdf("payroll/payslip.html", context)

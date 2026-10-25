@@ -1,0 +1,59 @@
+{% extends "print/base.html" %}
+{% block content %}
+<div class="print-stats">
+  {% for label, value, hint in stats %}
+  <div class="print-stat"><span class="print-stat__label">{{ label }}</span><span class="print-stat__value">{{ value }}</span><span class="muted">{{ hint }}</span></div>
+  {% endfor %}
+</div>
+{% macro line(r, n) %}
+<tr>
+  <td class="muted">{{ n }}</td><td class="tt">{{ r.payment.date.bs }}</td>
+  <td class="nm">{{ r.employee.full_name }} <span class="muted">· {{ r.employee.code }}</span></td>
+  <td class="nm">{{ r.employee.department.name if r.employee.department else "" }}</td>
+  <td class="nm">{{ r.employee.branch.name }}</td>
+  <td>{{ month_label(r.payment.for_year, r.payment.for_month) }}</td>
+  <td><span class="pill pill--{{ 'leave' if r.payment.kind == 'advance' else 'ok' }}">{{ kind_label(r.payment) }}</span></td>
+  <td>{{ r.payment.payment_mode.name }}</td>
+  <td class="nm muted">{{ [r.payment.reference, r.payment.note] | select | join(" · ") or "—" }}</td>
+  <td class="num"><b>{{ "{:,}".format(r.payment.amount) }}</b></td>
+  <td>{{ r.payment.recorded_by }}</td><td class="sig"></td>
+</tr>
+{% endmacro %}
+{% macro subtotal(cls, label, g) %}
+<tr class="{{ cls }}"><td colspan="9" class="nm">Subtotal · {{ label }} · Salary {{ "{:,}".format(g.salary) }} · Advances {{ "{:,}".format(g.advances) }}</td><td class="num">{{ "{:,}".format(g.total) }}</td><td colspan="2"></td></tr>
+{% endmacro %}
+<style>
+  tr.grp td { background: #E9EFE9; font-weight: 700; color: #0A5454; text-align: left; }
+  tr.br td { background: #D7E6E3; font-weight: 700; color: #083F3F; text-align: left; }
+  tr.sub td { background: #F6F8F6; font-weight: 600; }
+  tr.brsub td { background: #E9EFE9; font-weight: 700; color: #083F3F; }
+  .sig { width: 60px; }
+</style>
+<table class="pg">
+  <thead><tr><th style="width:22px">#</th><th>Date (BS)</th><th class="nm">Employee</th><th class="nm">Department</th><th class="nm">Branch</th><th>For month</th><th>Type</th><th>Paid by</th><th class="nm">Reference / note</th><th class="num">Amount (Rs)</th><th>Recorded by</th><th>Signature</th></tr></thead>
+  <tbody>
+    {% set n = namespace(i=0) %}
+    {% for block in blocks %}
+      {% if block.kind == "branch" %}<tr class="br"><td colspan="12">{{ block.name }} · {{ block.rows | length }} payments</td></tr>{% endif %}
+      {% if block.kind == "department" %}<tr class="grp"><td colspan="12">{{ block.name }} · {{ block.rows | length }} payments</td></tr>{% endif %}
+      {% if block.departments %}
+        {% for d in block.departments %}
+          <tr class="grp"><td colspan="12">{{ d.name }} · {{ d.rows | length }} payments</td></tr>
+          {% for r in d.rows %}{% set n.i = n.i + 1 %}{{ line(r, n.i) }}{% endfor %}
+          {{ subtotal("sub", d.name, d) }}
+        {% endfor %}
+      {% else %}
+        {% for r in block.rows %}{% set n.i = n.i + 1 %}{{ line(r, n.i) }}{% endfor %}
+      {% endif %}
+      {% if block.kind == "branch" %}{{ subtotal("brsub", block.name, block) }}{% elif block.kind == "department" %}{{ subtotal("sub", block.name, block) }}{% endif %}
+    {% endfor %}
+    {% if not data.rows %}<tr><td colspan="12" class="muted">No payments in this range.</td></tr>{% endif %}
+  </tbody>
+  <tfoot>
+    <tr><th colspan="9" class="nm">Salary payments</th><th class="num">{{ "{:,}".format(salary) }}</th><th colspan="2"></th></tr>
+    <tr><th colspan="9" class="nm">Advances</th><th class="num">{{ "{:,}".format(advances) }}</th><th colspan="2"></th></tr>
+    <tr><th colspan="9" class="nm">Total paid · {{ data.rows | length }} payments</th><th class="num">{{ "{:,}".format(total_amount) }}</th><th colspan="2"></th></tr>
+  </tfoot>
+</table>
+<p class="print-note">Still due for {{ month }}: <b>Rs {{ "{:,}".format(data.totals.due) }}</b> (net payroll Rs {{ "{:,}".format(data.totals.month_net) }} − paid Rs {{ "{:,}".format(data.totals.salary_paid + data.totals.advance_paid) }}). Prepared by ______________ · Approved by ______________</p>
+{% endblock %}

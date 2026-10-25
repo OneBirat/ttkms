@@ -14,10 +14,11 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.core import bsdate
 from app.core.auth import CurrentUser
+from app.core.bsdate import BSDate
 from app.core.errors import CodedErrorOut
 from app.core.export import PDF_MEDIA_TYPE, XLSX_MEDIA_TYPE, PDFUnavailable
 from app.core.models import User
@@ -25,14 +26,25 @@ from app.core.modules import Module, NavItem, WidgetContext
 from app.core.schemas import ErrorOut, ModuleStatusOut
 from app.db import DbSession
 from app.modules.admin.permissions import require_access, require_any_access
-from app.modules.payroll import exports, reports, services
+from app.modules.payroll import exports, payments, reports, services
 from app.modules.payroll.schemas import (
+    AccountSummaryOut,
+    BsMonthOut,
     EmployeeCreatedOut,
     EmployeeIn,
+    EmployeeLedgerOut,
     EmployeeListRowOut,
+    EmployeeMonthAttendanceOut,
     EmployeeOut,
     EmployeeUpdateIn,
+    MonthBalanceOut,
+    MonthLedgerOut,
     NextCodeOut,
+    PaymentIn,
+    PaymentOut,
+    PaymentResultOut,
+    PaymentsRegisterOut,
+    RegisterSort,
     SalaryReportOut,
     SalaryRevisionIn,
     SalaryStructuresOut,
@@ -244,6 +256,207 @@ async def salary_report(
     year, month = reports.parse_month_key(month_key)
     scope = await services.scope_for(db, me, branch_id)
     return (await reports.salary_report(db, scope, year, month, department_id)).out
+
+
+# ------------------------------------------------------------------------------ account
+
+AnyAccess = Annotated[User, Depends(require_any_access(EMPLOYEES, SALARY))]
+
+
+async def _visible(db, me: User, employee_id: int):
+    employee = await services.get_employee(db, employee_id)
+    services.ensure_visible(await services.scope_for(db, me, None), employee)
+    return employee
+
+
+@router.get("/months", response_model=list[BsMonthOut], name="payroll:months")
+async def months(me: AnyAccess, db: DbSession) -> list[BsMonthOut]:
+    """Months the report select offers, newest first."""
+    return await payments.months_with_data(db)
+
+
+@router.get(
+    "/employees/{employee_id}/attendance",
+    response_model=EmployeeMonthAttendanceOut,
+    responses=ERRORS,
+)
+async def employee_attendance(
+    employee_id: int, me: AnyAccess, db: DbSession, bs_year: int, bs_month: int
+) -> EmployeeMonthAttendanceOut:
+    employee = await _visible(db, me, employee_id)
+    return await payments.attendance_month(employee, bs_year, bs_month)
+
+
+@router.get(
+    "/employees/{employee_id}/ledger", response_model=list[MonthLedgerOut], responses=ERRORS
+)
+async def employee_ledger(employee_id: int, me: CanPay, db: DbSession) -> list[MonthLedgerOut]:
+    """Newest month first, from the joining month, within the kept window."""
+    return await payments.month_ledgers(db, await _visible(db, me, employee_id))
+
+
+@router.get(
+    "/employees/{employee_id}/ledger/{month_key}", response_model=MonthLedgerOut, responses=ERRORS
+)
+async def employee_month_ledger(
+    employee_id: int, month_key: str, me: CanPay, db: DbSession
+) -> MonthLedgerOut:
+    year, month = reports.parse_month_key(month_key)
+    return await payments.month_ledger(db, await _visible(db, me, employee_id), year, month)
+
+
+@router.get(
+    "/employees/{employee_id}/transactions", response_model=EmployeeLedgerOut, responses=ERRORS
+)
+async def employee_transactions(employee_id: int, me: CanPay, db: DbSession) -> EmployeeLedgerOut:
+    """The running ledger, oldest first: salary earned, absence, overtime, payments out."""
+    return await payments.transactions(db, await _visible(db, me, employee_id))
+
+
+@router.get("/employees/{employee_id}/summary", response_model=AccountSummaryOut, responses=ERRORS)
+async def employee_summary(employee_id: int, me: CanPay, db: DbSession) -> AccountSummaryOut:
+    """What the Give advance / Pay salary dialogs show."""
+    return await payments.account_summary(db, await _visible(db, me, employee_id))
+
+
+@router.get(
+    "/employees/{employee_id}/payslips/{month_key}.pdf",
+    responses={**ERRORS, 503: {"model": ErrorOut}},
+    response_class=Response,
+    name="payroll:payslip_pdf",
+)
+async def payslip_pdf(employee_id: int, month_key: str, me: CanPay, db: DbSession) -> Response:
+    employee = await _visible(db, me, employee_id)
+    year, month = reports.parse_month_key(month_key)
+    ledger = await payments.month_ledger(db, employee, year, month)
+    pdf = _pdf_or_503(lambda: exports.payslip_pdf(employee, ledger, reports.printed_by(me)))
+    return _file(pdf, PDF_MEDIA_TYPE, f"payslip-{employee.code}-{month_key}.pdf")
+
+
+# ----------------------------------------------------------------------------- payments
+
+
+@router.get("/balance", response_model=MonthBalanceOut, responses=ERRORS, name="payroll:balance")
+async def balance(
+    me: CanPay, db: DbSession, employee_id: int, for_year: int, for_month: int
+) -> MonthBalanceOut:
+    """The contract's MonthBalance for one BS month (earned so far, paid, due)."""
+    employee = await _visible(db, me, employee_id)
+    return await payments.balance(db, employee, for_year, for_month)
+
+
+@router.post(
+    "/payments",
+    response_model=PaymentResultOut,
+    status_code=status.HTTP_201_CREATED,
+    responses=ERRORS,
+    name="payroll:record_payment",
+)
+async def record_payment(me: CanPay, db: DbSession, payload: PaymentIn) -> PaymentResultOut:
+    """Record a salary or advance payment for ``for_year`` / ``for_month``. Advances: the running
+    month, up to earned so far − paid. Salary: the running month (same cap) or a past month
+    (up to its balance due). The mode must be active and allowed for the kind."""
+    employee = await _visible(db, me, payload.employee_id)
+    return await payments.record_payment(db, me, employee, payload)
+
+
+@router.get("/payments/recent", response_model=list[PaymentOut], responses=ERRORS)
+async def recent_payments(me: CanPay, db: DbSession, employee_id: int) -> list[PaymentOut]:
+    """Newest first, for the advance dialog."""
+    return await payments.recent_payments(db, await _visible(db, me, employee_id))
+
+
+async def _register(db, me, branch_id, from_, to, type_, employee_id, department_id, sort):
+    scope = await services.scope_for(db, me, branch_id)
+    from_bs = BSDate.parse(from_) if from_ else None
+    to_bs = BSDate.parse(to) if to else None
+    return await payments.register(
+        db,
+        scope,
+        from_bs=from_bs,
+        to_bs=to_bs,
+        kind=None if type_ in (None, "all") else type_,
+        employee_id=employee_id,
+        department_id=department_id,
+        sort=sort,
+    )
+
+
+@router.get(
+    "/payments/export.xlsx", responses=ERRORS, response_class=Response, name="payroll:register_xlsx"
+)
+async def register_xlsx(
+    me: CanPay,
+    db: DbSession,
+    branch_id: int | None = None,
+    department_id: int | None = None,
+    employee_id: int | None = None,
+    type: str | None = None,
+    sort: RegisterSort = "date",
+    from_: str | None = Query(default=None, alias="from"),
+    to: str | None = None,
+) -> Response:
+    data = await _register(db, me, branch_id, from_, to, type, employee_id, department_id, sort)
+    return _file(
+        exports.register_xlsx(data), XLSX_MEDIA_TYPE, exports.register_file_name(data, "xlsx")
+    )
+
+
+@router.get(
+    "/payments/export.pdf",
+    responses={**ERRORS, 503: {"model": ErrorOut}},
+    response_class=Response,
+    name="payroll:register_pdf",
+)
+async def register_pdf(
+    me: CanPay,
+    db: DbSession,
+    branch_id: int | None = None,
+    department_id: int | None = None,
+    employee_id: int | None = None,
+    type: str | None = None,
+    sort: RegisterSort = "date",
+    from_: str | None = Query(default=None, alias="from"),
+    to: str | None = None,
+) -> Response:
+    data = await _register(db, me, branch_id, from_, to, type, employee_id, department_id, sort)
+    pdf = _pdf_or_503(lambda: exports.register_pdf(data, reports.printed_by(me)))
+    return _file(pdf, PDF_MEDIA_TYPE, exports.register_file_name(data, "pdf"))
+
+
+@router.get(
+    "/payments/{payment_id}/receipt.pdf",
+    responses={**ERRORS, 503: {"model": ErrorOut}},
+    response_class=Response,
+    name="payroll:receipt_pdf",
+)
+async def receipt_pdf(payment_id: int, me: CanPay, db: DbSession) -> Response:
+    payment = await payments.get_payment(db, payment_id)
+    employee = await _visible(db, me, payment.employee_id)
+    out = reports.payment_out(payment, await services.modes_by_id(db))
+    pdf = _pdf_or_503(lambda: exports.receipt_pdf(employee, out, reports.printed_by(me)))
+    return _file(pdf, PDF_MEDIA_TYPE, f"receipt-{payment.receipt_no}.pdf")
+
+
+@router.get(
+    "/payments", response_model=PaymentsRegisterOut, responses=ERRORS, name="payroll:register"
+)
+async def register(
+    me: CanPay,
+    db: DbSession,
+    branch_id: int | None = None,
+    department_id: int | None = None,
+    employee_id: int | None = None,
+    type: str | None = None,
+    sort: RegisterSort = "date",
+    from_: str | None = Query(default=None, alias="from"),
+    to: str | None = None,
+) -> PaymentsRegisterOut:
+    """Payments in a BS date range (``from`` / ``to``, inclusive), scoped to the caller's branch
+    unless they hold ``see_other_branches``; ``sort`` = date (newest first) | branch |
+    department | employee | amount. Group headings and subtotals are the client's: with all
+    branches and ``sort=department`` the rows come branch → department → newest first."""
+    return await _register(db, me, branch_id, from_, to, type, employee_id, department_id, sort)
 
 
 # --------------------------------------------------------------------------- widgets

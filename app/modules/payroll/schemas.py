@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from datetime import date, datetime
 from typing import Literal
 
@@ -340,3 +341,179 @@ class SalaryReportOut(BaseModel):
     trend: list[MonthNetTotalOut]
     #: Staff on the sheet before the department filter.
     all_staff: int
+
+
+# ---------------------------------------------------------------------------- payments
+
+
+class MonthBalanceOut(BaseModel):
+    """GET /balance - the contract shape (app/contracts.py MonthBalance) plus the breakdown the
+    pay dialogs show."""
+
+    employee_id: int
+    for_year: int
+    for_month: int
+    #: "2083-07"
+    month_key: str
+    #: "Kartik 2083"
+    month_label: str
+    #: Net earned (so far, for the running month).
+    earned: int
+    paid: int
+    #: max(0, earned - paid): what can still be paid for the month.
+    due: int
+    status: MonthStatus
+    breakdown: dict[str, int | bool]
+
+
+class PaymentIn(BaseModel):
+    employee_id: int
+    kind: PaymentKind
+    #: The BS month the payment counts for - explicit, always.
+    for_year: int
+    for_month: int = Field(ge=1, le=12)
+    amount: int
+    #: admin.payment_modes row; null = Cash.
+    payment_mode_id: int | None = None
+    reference: str | None = Field(default=None, max_length=80)
+    note: str | None = Field(default=None, max_length=200)
+    #: Day of the payment (AD) or its BS twin; today when neither is given.
+    date: dt.date | None = None
+    date_bs: BSDate | None = None
+    source: PaymentSource = "account"
+
+    @field_validator("reference", "note")
+    @classmethod
+    def _clean_opt(cls, value: str | None) -> str | None:
+        return clean_optional(value)
+
+
+class PaymentResultOut(BaseModel):
+    payment: PaymentOut
+    #: What can still be paid for that month after this payment.
+    due_after: int
+
+
+class RegisterRowOut(BaseModel):
+    payment: PaymentOut
+    employee: EmployeeOut
+
+
+class RegisterTotalsOut(BaseModel):
+    """The settlement month (previous BS month while anyone still owes for it, else the running
+    month), within the branch / department scope; ``count`` / ``amount`` are the rows."""
+
+    month: BsMonthOut
+    staff: int
+    month_net: int
+    salary_paid: int
+    advance_paid: int
+    due: int
+    count: int
+    amount: int
+
+
+class RegisterEmployeeTotalOut(BaseModel):
+    employee: EmployeeOut
+    net: int
+    advance_paid: int
+    salary_paid: int
+    paid: int
+    due: int
+
+
+class RegisterDepartmentTotalOut(BaseModel):
+    department: DepartmentRef | None
+    count: int
+    salary: int
+    advances: int
+    total: int
+
+
+class RegisterBranchTotalOut(BaseModel):
+    branch: BranchRef
+    count: int
+    salary: int
+    advances: int
+    total: int
+
+
+RegisterSort = Literal["date", "branch", "department", "employee", "amount"]
+
+
+class PaymentsRegisterOut(BaseModel):
+    from_bs: str
+    to_bs: str
+    branch: BranchRef | None
+    department: DepartmentRef | None
+    sort: RegisterSort
+    rows: list[RegisterRowOut]
+    totals: RegisterTotalsOut
+    by_employee: list[RegisterEmployeeTotalOut]
+    #: Over the range within the branch scope (not the department), for the chips.
+    by_department: list[RegisterDepartmentTotalOut]
+    #: Over the range, every branch in scope (one entry when a branch is chosen).
+    by_branch: list[RegisterBranchTotalOut]
+
+
+# ------------------------------------------------------------------------------ account
+
+
+LedgerEntryType = Literal["salary", "absence", "overtime", "advance", "salary_paid"]
+
+
+class LedgerEntryOut(BaseModel):
+    id: str
+    date: DateBothOut
+    month: BsMonthOut
+    type: LedgerEntryType
+    details: str
+    earned: int
+    paid: int
+    balance: int
+    payment: PaymentOut | None
+    in_progress: bool
+
+
+class LedgerTotalsOut(BaseModel):
+    salary: int
+    overtime: int
+    overtime_hours: int
+    months: int
+    advances: int
+    advance_count: int
+    salary_payments: int
+    salary_payment_count: int
+    balance: int
+
+
+class EmployeeLedgerOut(BaseModel):
+    employee_id: int
+    entries: list[LedgerEntryOut]
+    totals: LedgerTotalsOut
+
+
+class AccountSummaryOut(BaseModel):
+    employee_id: int
+    #: The running month advances are given against.
+    month: BsMonthOut
+    earned_so_far: int
+    paid_this_month: int
+    #: max(0, earned_so_far - paid_this_month): "can give now".
+    room: int
+    #: The month "Pay <month> salary" targets.
+    salary_month: BsMonthOut
+    salary_net: int
+    salary_paid: int
+    salary_due: int
+    #: Newest first, every month.
+    recent: list[PaymentOut]
+    advances_recent: int
+    balance_due: int
+    overtime_hours_this_month: int
+
+
+class EmployeeMonthAttendanceOut(BaseModel):
+    employee_id: int
+    month: BsMonthOut
+    summary: MonthSummaryOut
