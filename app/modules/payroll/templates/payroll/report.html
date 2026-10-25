@@ -1,0 +1,69 @@
+{% extends "print/base.html" %}
+{% block content %}
+<div class="print-stats">
+  {% for label, value, hint in stats %}
+  <div class="print-stat">
+    <span class="print-stat__label">{{ label }}</span>
+    <span class="print-stat__value">{{ value }}</span>
+    <span class="muted">{{ hint }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% if all_branches and report.by_branch %}
+<table class="pg" style="width: 60%; margin: 0 0 10px">
+  <thead><tr><th class="nm">By branch</th><th class="num">Staff</th><th class="num">Net payroll</th><th class="num">Paid</th><th class="num">Due</th></tr></thead>
+  <tbody>
+    {% for b in report.by_branch %}
+    <tr><td class="nm">{{ b.branch.name }}</td><td class="num">{{ b.staff }}</td><td class="num">{{ "{:,}".format(b.net) }}</td><td class="num">{{ "{:,}".format(b.paid) }}</td><td class="num">{{ "{:,}".format(b.due) }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+<table class="pg">
+  <thead>
+    <tr>
+      <th style="width: 34px">Emp ID</th><th class="nm">Name</th><th class="nm">Department</th>{% if all_branches %}<th class="nm">Branch</th>{% endif %}
+      <th>Pay type</th><th class="num">Paid days</th><th class="num">Gross</th><th class="num">Overtime</th><th class="num">Absence</th>
+      <th class="num">Advance paid</th><th class="num">TDS</th><th class="num">Net</th><th class="num">Paid</th><th class="num">Due</th><th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td class="tt">{{ r.employee.code }}</td>
+      <td class="nm">{{ r.employee.full_name }}</td>
+      <td class="nm">{{ r.employee.department.name if r.employee.department else "" }}</td>
+      {% if all_branches %}<td class="nm">{{ r.employee.branch.name }}</td>{% endif %}
+      <td>{{ "Monthly" if r.structure.pay_type.value == "monthly" else "Daily" }}</td>
+      <td class="num">{{ r.pay.paid_days }}/{{ r.attendance.days_in_month }}</td>
+      <td class="num">{{ "{:,}".format(r.pay.earnings) }}</td>
+      <td class="num">{{ "{:,}".format(r.pay.overtime_pay) }}</td>
+      <td class="num">{% if r.pay.absence_deduction %}− {{ "{:,}".format(r.pay.absence_deduction) }}{% else %}—{% endif %}</td>
+      <td class="num">{% if r.settled.advance_paid %}{{ "{:,}".format(r.settled.advance_paid) }}{% else %}—{% endif %}</td>
+      <td class="num">{{ r.pay.tds }}</td>
+      <td class="num"><b>{{ "{:,}".format(r.pay.net) }}</b></td>
+      <td class="num">{{ "{:,}".format(r.settled.paid) }}</td>
+      <td class="num">{{ "{:,}".format(r.settled.due) }}</td>
+      <td><span class="pill pill--{{ {'paid': 'ok', 'part_paid': 'low', 'pending': 'neutral'}[r.settled.status] }}">{{ status_label[r.settled.status] }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="{{ 15 if all_branches else 14 }}" class="muted">Nobody on the sheet.</td></tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <th colspan="{{ 6 if all_branches else 5 }}" class="nm">Total · {{ report.totals.staff }} staff</th>
+      <th class="num">{{ "{:,}".format(report.totals.gross) }}</th>
+      <th class="num">{{ "{:,}".format(report.totals.overtime_pay) }}</th>
+      <th class="num">− {{ "{:,}".format(report.totals.absence_deduction) }}</th>
+      <th class="num">{{ "{:,}".format(report.totals.advance_paid) }}</th>
+      <th class="num">{{ report.totals.tds }}</th>
+      <th class="num">{{ "{:,}".format(report.totals.net) }}</th>
+      <th class="num">{{ "{:,}".format(report.totals.salary_paid + report.totals.advance_paid) }}</th>
+      <th class="num">{{ "{:,}".format(report.totals.due) }}</th>
+      <th></th>
+    </tr>
+  </tfoot>
+</table>
+<p class="print-note" lang="ne">{{ month_np }}</p>
+{% endblock %}

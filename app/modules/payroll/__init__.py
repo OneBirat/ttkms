@@ -14,17 +14,18 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.core import bsdate
 from app.core.auth import CurrentUser
 from app.core.errors import CodedErrorOut
+from app.core.export import PDF_MEDIA_TYPE, XLSX_MEDIA_TYPE, PDFUnavailable
 from app.core.models import User
 from app.core.modules import Module, NavItem, WidgetContext
 from app.core.schemas import ErrorOut, ModuleStatusOut
 from app.db import DbSession
 from app.modules.admin.permissions import require_access, require_any_access
-from app.modules.payroll import services
+from app.modules.payroll import exports, reports, services
 from app.modules.payroll.schemas import (
     EmployeeCreatedOut,
     EmployeeIn,
@@ -32,6 +33,7 @@ from app.modules.payroll.schemas import (
     EmployeeOut,
     EmployeeUpdateIn,
     NextCodeOut,
+    SalaryReportOut,
     SalaryRevisionIn,
     SalaryStructuresOut,
 )
@@ -168,6 +170,80 @@ async def revise_salary(
     services.ensure_visible(await services.scope_for(db, me, None), employee)
     await services.revise_salary(db, me, employee, payload)
     return await services.salary_structures(db, employee)
+
+
+# ------------------------------------------------------------------------ salary report
+
+
+def _file(content: bytes, media_type: str, filename: str) -> Response:
+    return Response(
+        content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _pdf_or_503(render) -> bytes:
+    try:
+        return render()
+    except PDFUnavailable as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+
+
+@router.get(
+    "/report/{month_key}.xlsx",
+    responses=ERRORS,
+    response_class=Response,
+    name="payroll:report_xlsx",
+)
+async def salary_report_xlsx(
+    month_key: str,
+    me: CanPay,
+    db: DbSession,
+    branch_id: int | None = None,
+    department_id: int | None = None,
+) -> Response:
+    year, month = reports.parse_month_key(month_key)
+    scope = await services.scope_for(db, me, branch_id)
+    data = await reports.salary_report(db, scope, year, month, department_id)
+    return _file(
+        exports.salary_report_xlsx(data), XLSX_MEDIA_TYPE, f"{reports.report_file_stem(data)}.xlsx"
+    )
+
+
+@router.get(
+    "/report/{month_key}.pdf",
+    responses={**ERRORS, 503: {"model": ErrorOut}},
+    response_class=Response,
+    name="payroll:report_pdf",
+)
+async def salary_report_pdf(
+    month_key: str,
+    me: CanPay,
+    db: DbSession,
+    branch_id: int | None = None,
+    department_id: int | None = None,
+) -> Response:
+    year, month = reports.parse_month_key(month_key)
+    scope = await services.scope_for(db, me, branch_id)
+    data = await reports.salary_report(db, scope, year, month, department_id)
+    pdf = _pdf_or_503(lambda: exports.salary_report_pdf(data, reports.printed_by(me)))
+    return _file(pdf, PDF_MEDIA_TYPE, f"{reports.report_file_stem(data)}.pdf")
+
+
+@router.get("/report/{month_key}", response_model=SalaryReportOut, responses=ERRORS)
+async def salary_report(
+    month_key: str,
+    me: CanPay,
+    db: DbSession,
+    branch_id: int | None = None,
+    department_id: int | None = None,
+) -> SalaryReportOut:
+    """One BS month ("2083-07"): rows, totals, per department and per branch, the trend. Scoped
+    to the caller's branch unless they hold ``see_other_branches``."""
+    year, month = reports.parse_month_key(month_key)
+    scope = await services.scope_for(db, me, branch_id)
+    return (await reports.salary_report(db, scope, year, month, department_id)).out
 
 
 # --------------------------------------------------------------------------- widgets

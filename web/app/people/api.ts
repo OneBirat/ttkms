@@ -13,7 +13,7 @@
 import { apiFetch, type Role } from "@/lib/api";
 import { dailyPay, defaultOtRate, monthlyPay, paymentError, settle } from "./_lib/calc";
 import { isValidBs } from "@/lib/bs";
-import { addMonths, compareMonths, dateBoth, daysInMonth, monthEnd, monthKey, monthLabel, monthStart, parseMonthKey, sameMonth, thisMonth, today } from "./_lib/months";
+import { addMonths, compareMonths, dateBoth, monthEnd, monthKey, monthLabel, monthStart, parseMonthKey, sameMonth, thisMonth, today } from "./_lib/months";
 import { barcodeFor, employeeCode, normalizeName, normalizePhone, receiptNo, sumBy, totalsFor } from "./_lib/helpers";
 import { groupTotals, sortRegisterRows } from "./_lib/register";
 import {
@@ -431,7 +431,7 @@ export async function createEmployee(input: EmployeeIn): Promise<EmployeeCreated
     basic: amount,
     allowances: 0,
     gross: amount,
-    ot_rate: defaultOtRate(input.pay_type, amount, daysInMonth(thisMonth())),
+    ot_rate: defaultOtRate(input.pay_type, amount),
     paid_by: input.paid_by,
     effective_from: dateBoth(joined_bs),
     reason: null,

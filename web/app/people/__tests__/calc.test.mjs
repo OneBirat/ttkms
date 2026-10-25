@@ -81,11 +81,16 @@ test("overtime: whole hours only, never negative", () => {
   assert.equal(overtimePay(3, -5), 0);
 });
 
-test("default overtime rate = salary ÷ days ÷ 8 (daily: wage ÷ 8), whole rupees", () => {
-  assert.equal(defaultOtRate("monthly", 24000, 30), 100);
-  assert.equal(defaultOtRate("monthly", 22000, 30), 92);
-  assert.equal(defaultOtRate("daily", 650, 30), 81);
-  assert.equal(defaultOtRate("monthly", 24000, 0), 0);
+test("default overtime rate = salary ÷ 30 ÷ 8 whatever the month length (daily: wage ÷ 8), whole rupees", () => {
+  assert.equal(defaultOtRate("monthly", 24000), 100);
+  assert.equal(defaultOtRate("monthly", 22000), 92);
+  assert.equal(defaultOtRate("daily", 650), 81);
+  // Ashadh (32 days) and Mangsir (29 days) pay the same overtime hour.
+  const rate = defaultOtRate("monthly", 24000);
+  const long = monthlyPay(24000, rate, { days_in_month: 32, present: 28, overtime_days: 2, overtime_hours: 4, absent: 0, weekly_off: 2, paid_days: 32 });
+  const short = monthlyPay(24000, rate, { days_in_month: 29, present: 25, overtime_days: 2, overtime_hours: 4, absent: 0, weekly_off: 2, paid_days: 29 });
+  assert.equal(long.overtime_pay, 400);
+  assert.equal(short.overtime_pay, 400);
 });
 
 test("rounding is to whole rupees, half up", () => {

@@ -218,3 +218,125 @@ class SalaryRevisionIn(BaseModel):
     @classmethod
     def _clean_opt(cls, value: str | None) -> str | None:
         return clean_optional(value)
+
+
+# ----------------------------------------------------------------------------- ledgers
+
+
+class MonthSummaryOut(BaseModel):
+    days_in_month: int
+    present: int
+    overtime_days: int
+    overtime_hours: int
+    absent: int
+    weekly_off: int
+    paid_days: int
+
+
+class PaymentOut(BaseModel):
+    id: int
+    receipt_no: str
+    employee_id: int
+    kind: PaymentKind
+    #: The BS month the payment counts for (sent explicitly when recording).
+    for_year: int
+    for_month: int
+    month: BsMonthOut
+    amount: int
+    payment_mode_id: int
+    payment_mode: PaymentModeRef
+    reference: str | None
+    note: str | None
+    date: DateBothOut
+    paid_at: datetime
+    #: Username of who recorded it ("" when that user is gone).
+    recorded_by: str
+    source: PaymentSource
+    created_at: datetime
+
+
+class MonthLedgerOut(BaseModel):
+    employee_id: int
+    month: BsMonthOut
+    starts: DateBothOut
+    ends: DateBothOut
+    in_progress: bool
+    pay_type: PayType
+    #: Monthly: salary per month. Daily: wage per day.
+    rate: int
+    ot_rate: int
+    attendance: MonthSummaryOut
+    paid_days: int
+    gross_salary: int
+    overtime_pay: int
+    earnings: int
+    absence_deduction: int
+    tds: int
+    net: int
+    salary_paid: int
+    advance_paid: int
+    paid: int
+    due: int
+    status: MonthStatus
+    #: Oldest first.
+    payments: list[PaymentOut]
+
+
+# ------------------------------------------------------------------------------ report
+
+
+class ReportRowOut(BaseModel):
+    employee: EmployeeOut
+    ledger: MonthLedgerOut
+
+
+class ReportTotalsOut(BaseModel):
+    staff: int
+    gross: int
+    absence_deduction: int
+    absent_days: int
+    overtime_pay: int
+    overtime_hours: int
+    advance_paid: int
+    salary_paid: int
+    tds: int
+    net: int
+    due: int
+    paid_count: int
+    part_paid_count: int
+    pending_count: int
+
+
+class MonthNetTotalOut(BaseModel):
+    month: BsMonthOut
+    net: int
+
+
+class DepartmentNetTotalOut(BaseModel):
+    department: DepartmentRef
+    staff: int
+    net: int
+
+
+class BranchNetTotalOut(BaseModel):
+    branch: BranchRef
+    staff: int
+    net: int
+    paid: int
+    due: int
+
+
+class SalaryReportOut(BaseModel):
+    month: BsMonthOut
+    branch: BranchRef | None
+    department: DepartmentRef | None
+    rows: list[ReportRowOut]
+    totals: ReportTotalsOut
+    #: Every department of the branch scope, unfiltered by department.
+    by_department: list[DepartmentNetTotalOut]
+    #: Per branch with the department filter applied; one entry when a branch is chosen.
+    by_branch: list[BranchNetTotalOut]
+    #: Oldest first, the report month last.
+    trend: list[MonthNetTotalOut]
+    #: Staff on the sheet before the department filter.
+    all_staff: int

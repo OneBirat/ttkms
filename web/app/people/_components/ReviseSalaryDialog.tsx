@@ -7,7 +7,6 @@ import { Field, SelectInput, TextInput, parseAmount, splitError } from "./FormBi
 import { currentMonth, reviseSalary } from "../api";
 import { defaultOtRate } from "../_lib/calc";
 import { isoBs } from "@/lib/bs";
-import { daysInMonth } from "../_lib/months";
 import { formatRs } from "../_lib/helpers";
 import type { Employee, PaidBy, PayType, SalaryStructure } from "../types";
 import styles from "./payroll.module.css";
@@ -55,7 +54,7 @@ export function ReviseSalaryDialog({ open, employee, current, onClose, onSaved }
   const basicNumber = parseAmount(basic);
   const allowanceNumber = payType === "monthly" ? parseAmount(allowances) || 0 : 0;
   const gross = (Number.isFinite(basicNumber) ? basicNumber : 0) + allowanceNumber;
-  const suggested = defaultOtRate(payType, gross, daysInMonth(month));
+  const suggested = defaultOtRate(payType, gross);
 
   useEffect(() => {
     if (!otTouched) setOtRate(String(suggested));

@@ -6,7 +6,8 @@
  *   Saturdays (weekly off) are paid. No half days, no leave.
  * - Daily:   net = wage × (present + overtime days) + overtime − TDS.
  * - Overtime: whole hours; amount = hours × hourly rate. The rate is per
- *   employee, default salary ÷ days in month ÷ 8 (daily: wage ÷ 8).
+ *   employee, default salary ÷ 30 ÷ 8 - always 30, whatever the BS month's
+ *   length (daily: wage ÷ 8); editable on every salary revision.
  * - Advances are part-payments of that month's salary: nothing to recover,
  *   nothing carried over. due = net − payments of the month.
  * - No SSF. TDS is a 0 placeholder.
@@ -21,10 +22,13 @@ export function roundRs(value: number): number {
   return Math.round(value + Number.EPSILON);
 }
 
-/** Default overtime rate: one hour of an 8-hour day. Whole rupees. */
-export function defaultOtRate(pay_type: PayType, amount: number, days_in_month: number): number {
+/** Days a monthly salary is divided by for the overtime rate: always 30, never the month's real length. */
+export const OT_DAYS = 30;
+
+/** Default overtime rate: one hour of an 8-hour day (monthly: salary ÷ 30 ÷ 8). Whole rupees. */
+export function defaultOtRate(pay_type: PayType, amount: number): number {
   if (pay_type === "daily") return roundRs(amount / 8);
-  return days_in_month > 0 ? roundRs(amount / days_in_month / 8) : 0;
+  return roundRs(amount / OT_DAYS / 8);
 }
 
 export function overtimePay(hours: number, ot_rate: number): number {
