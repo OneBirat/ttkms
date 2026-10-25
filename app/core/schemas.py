@@ -138,6 +138,8 @@ class SessionOut(BaseModel):
     csrf_token: str
     #: ``admin.user_access.branch_id``; ``None`` for admins (all branches) and unassigned users.
     branch_id: int | None = None
+    #: That branch's name (the sidebar footer's "role · branch"); ``None`` without a branch.
+    branch_name: str | None = None
     #: Effective access, ``{permission: on}`` - role preset + per-user switches.
     access: dict[str, bool] = Field(default_factory=dict)
 

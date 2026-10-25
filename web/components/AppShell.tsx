@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { PhoneDrawer } from "@/components/PhoneDrawer";
 import { Sidebar } from "@/components/Sidebar";
+import { rolePlace } from "@/components/UserFooter";
 import { SET_PASSWORD_PATH, type Module, type User } from "@/lib/api";
 import { useSession } from "@/lib/session";
 import { ShellProvider, useShell } from "@/lib/shell";
@@ -79,6 +80,8 @@ function ShellFrame({
   children: ReactNode;
 }) {
   const { menuOpen, openMenu, closeMenu, ownHeader } = useShell();
+  const { branchName, can } = useSession();
+  const place = rolePlace(user, branchName, can("see_other_branches"));
   const pathname = usePathname();
   // Navigating closes the drawer (a link in it was followed, or Back was used).
   useEffect(() => {
@@ -90,7 +93,7 @@ function ShellFrame({
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <Sidebar user={user} modules={modules} onLogout={onLogout} />
+      <Sidebar user={user} place={place} modules={modules} onLogout={onLogout} />
       <header className={styles.phoneBar}>
         <button
           type="button"
@@ -113,6 +116,7 @@ function ShellFrame({
       {menuOpen ? (
         <PhoneDrawer
           user={user}
+          place={place}
           modules={modules}
           onClose={closeMenu}
           onLogout={onLogout}

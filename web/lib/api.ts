@@ -51,6 +51,8 @@ export interface AuthResponse {
   csrf_token: string;
   /** The user's own branch (admin.user_access.branch_id); null for admins and unassigned users. */
   branch_id: number | null;
+  /** That branch's name (sidebar footer); null without a branch. */
+  branch_name?: string | null;
   access: Access;
 }
 

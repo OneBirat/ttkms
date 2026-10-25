@@ -117,7 +117,7 @@ async def test_session_carries_branch_and_effective_access(client, make_user, lo
     await db.flush()
     await login("clerk")
     me = (await client.get("/api/auth/me")).json()
-    assert me["branch_id"] == branch.id
+    assert me["branch_id"] == branch.id and me["branch_name"] == "Branch 2"
     assert me["access"] == {
         "mark_attendance": True,
         "view_attendance_report": True,
@@ -129,7 +129,7 @@ async def test_session_carries_branch_and_effective_access(client, make_user, lo
 
     await make_user("plain", role="staff")  # no user_access row: preset, no branch
     login_body = (await login("plain")).json()
-    assert login_body["branch_id"] is None
+    assert login_body["branch_id"] is None and login_body["branch_name"] is None
     assert login_body["access"] == perm.preset_for("staff")
 
 

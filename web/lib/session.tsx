@@ -32,6 +32,8 @@ export interface Session {
    * payroll scope their screens to it; null for admins and unassigned users.
    */
   branchId: number | null;
+  /** That branch's name ("Main branch"); null without a branch. */
+  branchName: string | null;
   /** Effective permissions from /api/auth/me (role preset + per-user switches). */
   access: Access;
   /** `can("see_other_branches")`: false until the session has loaded. */
@@ -67,6 +69,7 @@ async function loadSession(signal: AbortSignal) {
   return {
     user: meBody.user,
     branchId: meBody.branch_id ?? null,
+    branchName: meBody.branch_name ?? null,
     access: meBody.access ?? {},
     modules: modulesFromNav(modulesBody?.nav ?? []),
     enabled: modulesBody?.enabled ?? [],
@@ -82,6 +85,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [branchId, setBranchId] = useState<number | null>(null);
+  const [branchName, setBranchName] = useState<string | null>(null);
   const [access, setAccess] = useState<Access>({});
   const [modules, setModules] = useState<Module[]>([]);
   const [enabled, setEnabled] = useState<string[]>([]);
@@ -99,6 +103,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (controller.signal.aborted) return;
         setUser(result.user);
         setBranchId(result.branchId);
+        setBranchName(result.branchName);
         setAccess(result.access);
         setModules(result.modules);
         setEnabled(result.enabled);
@@ -130,6 +135,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setCsrfToken(null);
       setUser(null);
       setBranchId(null);
+      setBranchName(null);
       setAccess({});
       setModules([]);
       setEnabled([]);
@@ -150,6 +156,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       branchId,
+      branchName,
       access,
       can,
       modules,
@@ -164,6 +171,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [
       user,
       branchId,
+      branchName,
       access,
       can,
       modules,

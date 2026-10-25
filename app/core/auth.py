@@ -28,7 +28,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.core.csrf import get_csrf_token, rotate_csrf_token
-from app.core.models import Role, User, is_phone, normalize_phone, normalize_username
+from app.core.models import Branch, Role, User, is_phone, normalize_phone, normalize_username
 from app.core.schemas import ChangePasswordIn, CsrfOut, ErrorOut, LoginIn, SessionOut, UserOut
 from app.core.services import record_audit
 from app.core.sessions import PERSIST_KEY
@@ -129,10 +129,13 @@ async def session_out(db, user: User, csrf_token: str) -> SessionOut:
     permission catalogue and imports this module, so it is imported here lazily."""
     from app.modules.admin.permissions import access_for_user, branch_for_user
 
+    branch_id = await branch_for_user(db, user)
+    branch = await db.get(Branch, branch_id) if branch_id is not None else None
     return SessionOut(
         user=UserOut.from_user(user),
         csrf_token=csrf_token,
-        branch_id=await branch_for_user(db, user),
+        branch_id=branch_id,
+        branch_name=branch.name if branch else None,
         access=await access_for_user(db, user),
     )
 

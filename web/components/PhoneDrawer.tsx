@@ -5,11 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/icons";
 import { isActivePath } from "@/components/Sidebar";
+import { UserFooter } from "@/components/UserFooter";
 import type { Module, User } from "@/lib/api";
 import styles from "./PhoneDrawer.module.css";
 
 export interface PhoneDrawerProps {
   user: User;
+  /** "Admin · Main branch" under the name in the footer. */
+  place: string;
   /** Sidebar sections from the session (enabled modules, permission-filtered). */
   modules: Module[];
   onClose: () => void;
@@ -20,11 +23,12 @@ const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1
 
 /**
  * The phone menu (< 640px): the same links as the sidebar - Dashboard, then
- * one titled group per module - plus the user and Sign out. Opened from the
+ * one titled group per module - and the same footer (user, Log out) fixed at
+ * the bottom while the links scroll. Opened from the
  * shell's phone bar or from a screen's own menu button (useShell().openMenu);
  * closes on a link, the backdrop or Escape, and keeps Tab inside.
  */
-export function PhoneDrawer({ user, modules, onClose, onLogout }: PhoneDrawerProps) {
+export function PhoneDrawer({ user, place, modules, onClose, onLogout }: PhoneDrawerProps) {
   const pathname = usePathname();
   const ref = useRef<HTMLElement | null>(null);
   const sections = modules.filter((module) => module.nav.length > 0);
@@ -76,9 +80,7 @@ export function PhoneDrawer({ user, modules, onClose, onLogout }: PhoneDrawerPro
           </span>
           <span className={styles.brandText}>
             <span className={styles.brandName}>TTK Attendance</span>
-            <span className={styles.brandSub}>
-              {user.full_name} · {user.role_label}
-            </span>
+            <span className={styles.brandSub}>Attendance &amp; payroll</span>
           </span>
           <button
             type="button"
@@ -90,39 +92,38 @@ export function PhoneDrawer({ user, modules, onClose, onLogout }: PhoneDrawerPro
           </button>
         </div>
 
-        <Link
-          href="/"
-          className={styles.link}
-          aria-current={pathname === "/" ? "page" : undefined}
-          onClick={onClose}
-        >
-          <Icon name="dashboard" />
-          Dashboard
-        </Link>
-        {sections.map((module) => (
-          <Fragment key={module.name}>
-            <div className={styles.head} data-module={module.name}>
-              {module.title}
-            </div>
-            {module.nav.map((item) => (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={styles.link}
-                aria-current={isActivePath(pathname, item.path) ? "page" : undefined}
-                onClick={onClose}
-              >
-                <Icon name={item.icon} />
-                {item.label}
-              </Link>
-            ))}
-          </Fragment>
-        ))}
+        <div className={styles.scroll}>
+          <Link
+            href="/"
+            className={styles.link}
+            aria-current={pathname === "/" ? "page" : undefined}
+            onClick={onClose}
+          >
+            <Icon name="dashboard" />
+            Dashboard
+          </Link>
+          {sections.map((module) => (
+            <Fragment key={module.name}>
+              <div className={styles.head} data-module={module.name}>
+                {module.title}
+              </div>
+              {module.nav.map((item) => (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={styles.link}
+                  aria-current={isActivePath(pathname, item.path) ? "page" : undefined}
+                  onClick={onClose}
+                >
+                  <Icon name={item.icon} />
+                  {item.label}
+                </Link>
+              ))}
+            </Fragment>
+          ))}
+        </div>
 
-        <button type="button" className={styles.signOut} onClick={onLogout}>
-          <Icon name="logout" size={16} />
-          Sign out
-        </button>
+        <UserFooter user={user} place={place} onLogout={onLogout} />
       </nav>
       <div aria-hidden="true" className={styles.backdrop} onClick={onClose} />
     </div>

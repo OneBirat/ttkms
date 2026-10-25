@@ -1,5 +1,6 @@
 .sidebar {
   flex: 1 1 232px;
+  box-sizing: border-box;
   max-width: 100%;
   background: var(--color-sidebar);
   color: var(--color-sidebar-text);
@@ -60,7 +61,7 @@
   padding: 16px 12px 6px;
 }
 
-.brand + .list + .sectionTitle {
+.scroll > .list:first-child + .sectionTitle {
   padding-top: 12px;
 }
 
@@ -99,59 +100,25 @@
   flex: none;
 }
 
-.footer {
-  margin-top: auto;
-  padding: 16px 8px 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.user {
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  gap: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-sidebar-active) transparent;
 }
 
-.userName {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.userRole {
-  color: var(--color-sidebar-muted);
-  font-size: 12px;
-}
-
-.signOut {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 0 10px;
-  border-radius: var(--radius-input);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: transparent;
-  color: var(--color-sidebar-text);
-  font-size: 13px;
-  cursor: pointer;
-  flex: none;
-}
-
-.signOut:hover {
-  background: var(--color-sidebar-hover);
-  color: #fff;
-}
-
-@media (max-width: 800px) {
-  .footer {
-    margin-top: 8px;
+/* Beside the page (the row does not wrap from ~800px): one viewport high, sticky. */
+@media (min-width: 800px) {
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    align-self: flex-start;
+    padding-bottom: 14px;
   }
 }
 
