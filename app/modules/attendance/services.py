@@ -488,3 +488,45 @@ async def day_attendance(
             for e, r in rows
         ],
     )
+
+
+# ------------------------------------------------------------------------------------ scan
+
+
+async def lookup(db: AsyncSession, scope: Scope, employee_id: int) -> schemas.LookupResponse:
+    """Today's state of a scanned employee (the browser resolves the sticker through payroll's
+    ``/api/payroll/employees/by-barcode/{code}`` first)."""
+    employee = await employee_to_mark(db, scope, employee_id)
+    ad = today()
+    record = (await day_records(db, ad, [employee.id])).get(employee.id)
+    return schemas.LookupResponse(
+        date=ad,
+        date_bs=bs_of(ad),
+        code=employee.barcode,
+        employee=employee_ref(employee),
+        today=(await records_out(db, [record]))[0] if record else None,
+    )
+
+
+async def scan_mark(
+    db: AsyncSession, user: User, scope: Scope, body: schemas.ScanRequest
+) -> schemas.ScanResponse:
+    """Present or overtime for today, saved at once (``source = scan``)."""
+    employee = await employee_to_mark(db, scope, body.employee_id)
+    ad = today()
+    overtime = body.action == "overtime"
+    record, previous = await upsert(
+        db,
+        user,
+        employee,
+        ad,
+        "O" if overtime else "P",
+        body.ot_hours if overtime else 0,
+        None,
+        Source.scan,
+    )
+    out = (await records_out(db, [record]))[0]
+    await db.commit()
+    return schemas.ScanResponse(
+        date=ad, date_bs=bs_of(ad), employee=employee_ref(employee), record=out, previous=previous
+    )

@@ -132,3 +132,28 @@ class BulkMarkResponse(BaseModel):
     marked: list[MarkedName]
     skipped: list[int]
     records: list[AttendanceRecord]
+
+
+class LookupResponse(BaseModel):
+    """The scan flow's "who is this and are they marked today" (after payroll's by-barcode)."""
+
+    date: date
+    date_bs: str
+    #: The sticker value, "TTK-E001".
+    code: str
+    employee: EmployeeRef
+    today: AttendanceRecord | None
+
+
+class ScanRequest(BaseModel):
+    employee_id: int
+    action: Literal["present", "overtime"]
+    ot_hours: int = 0
+
+
+class ScanResponse(BaseModel):
+    date: date
+    date_bs: str
+    employee: EmployeeRef
+    record: AttendanceRecord
+    previous: CellStatus

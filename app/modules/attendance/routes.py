@@ -66,3 +66,16 @@ async def bulk_mark(
 ) -> schemas.BulkMarkResponse:
     scope = await scope_for(db, me, body.branch_id)
     return await services.bulk_present(db, me, scope, body)
+
+
+# ----------------------------------------------------------------------------------- scan
+
+
+@router.get("/lookup", response_model=schemas.LookupResponse, responses=ERRORS)
+async def lookup(employee_id: int, me: CanMark, db: DbSession) -> schemas.LookupResponse:
+    return await services.lookup(db, await scope_for(db, me, None), employee_id)
+
+
+@router.post("/scan", response_model=schemas.ScanResponse, responses=ERRORS)
+async def scan(body: schemas.ScanRequest, me: CanMark, db: DbSession) -> schemas.ScanResponse:
+    return await services.scan_mark(db, me, await scope_for(db, me, None), body)
