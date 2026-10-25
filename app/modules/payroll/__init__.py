@@ -12,24 +12,162 @@ preset, or switched on for a user). Guard real endpoints with ``require_access(<
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 
 from app.core import bsdate
+from app.core.auth import CurrentUser
+from app.core.errors import CodedErrorOut
+from app.core.models import User
 from app.core.modules import Module, NavItem, WidgetContext
-from app.core.schemas import ModuleStatusOut
-from app.modules.admin.permissions import require_any_access
+from app.core.schemas import ErrorOut, ModuleStatusOut
+from app.db import DbSession
+from app.modules.admin.permissions import require_access, require_any_access
+from app.modules.payroll import services
+from app.modules.payroll.schemas import (
+    EmployeeCreatedOut,
+    EmployeeIn,
+    EmployeeListRowOut,
+    EmployeeOut,
+    EmployeeUpdateIn,
+    NextCodeOut,
+    SalaryRevisionIn,
+    SalaryStructuresOut,
+)
 
 EMPLOYEES = "manage_employees"
 SALARY = "salary_advances"
 
 router = APIRouter(dependencies=[Depends(require_any_access(EMPLOYEES, SALARY))])
 
+CanManage = Annotated[User, Depends(require_access(EMPLOYEES))]
+CanPay = Annotated[User, Depends(require_access(SALARY))]
+ERRORS: dict[int | str, dict[str, Any]] = {
+    403: {"model": ErrorOut},
+    404: {"model": ErrorOut},
+    409: {"model": CodedErrorOut},
+    422: {"model": CodedErrorOut},
+}
+
 
 @router.get("", response_model=ModuleStatusOut, name="payroll:index")
 async def index() -> ModuleStatusOut:
-    return ModuleStatusOut(module="payroll", title="People & payroll", status="coming_soon")
+    return ModuleStatusOut(module="payroll", title="People & payroll", status="ready")
+
+
+# --------------------------------------------------------------------------- employees
+
+
+@router.get("/employees", response_model=list[EmployeeListRowOut], name="payroll:employees")
+async def list_employees(
+    me: CanManage,
+    db: DbSession,
+    q: str | None = None,
+    department_id: int | None = None,
+    branch_id: int | None = None,
+    active: bool | None = None,
+) -> list[EmployeeListRowOut]:
+    """Every employee the caller may see (own branch unless ``see_other_branches``), A-Z, with
+    today's attendance mark; salary and balance due only with ``salary_advances``."""
+    scope = await services.scope_for(db, me, branch_id)
+    return await services.list_rows(db, scope, q=q, department_id=department_id, active=active)
+
+
+@router.get("/employees/next-code", response_model=NextCodeOut, name="payroll:next_code")
+async def next_code(me: CanManage, db: DbSession) -> NextCodeOut:
+    code = await services.next_code(db)
+    return NextCodeOut(code=code, barcode=services.barcode_of(code))
+
+
+@router.get(
+    "/employees/by-barcode/{barcode}",
+    response_model=EmployeeOut,
+    responses=ERRORS,
+    name="payroll:employee_by_barcode",
+)
+async def employee_by_barcode(barcode: str, me: CurrentUser, db: DbSession) -> EmployeeOut:
+    """``TTK-E001`` (the sticker) - ``TTK-E-001`` (stickers printed before 2026-10-26), ``E-001``
+    and ``e1`` resolve too. Active employees only."""
+    employee = await services.employee_by_barcode(db, barcode)
+    scope = await services.scope_for(db, me, None)
+    services.ensure_visible(scope, employee)
+    logins = await services.logins_for(db, [employee.id])
+    return services.employee_out(employee, logins.get(employee.id))
+
+
+@router.get("/employees/{employee_id}", response_model=EmployeeOut, responses=ERRORS)
+async def get_employee(employee_id: int, me: CanManage, db: DbSession) -> EmployeeOut:
+    employee = await services.get_employee(db, employee_id)
+    services.ensure_visible(await services.scope_for(db, me, None), employee)
+    logins = await services.logins_for(db, [employee.id])
+    return services.employee_out(employee, logins.get(employee.id))
+
+
+@router.post(
+    "/employees",
+    response_model=EmployeeCreatedOut,
+    status_code=status.HTTP_201_CREATED,
+    responses=ERRORS,
+)
+async def create_employee(me: CanManage, db: DbSession, payload: EmployeeIn) -> EmployeeCreatedOut:
+    """New employee with the salary in force from the joining date, optionally with a login
+    (temporary password shown once; the person must change it at first sign-in)."""
+    scope = await services.scope_for(db, me, None)
+    if not scope.allows(payload.branch_id):
+        raise services.invalid("You can only add employees to your own branch.", "branch_id")
+    employee, login, temporary = await services.create_employee(db, me, payload)
+    return EmployeeCreatedOut(
+        employee=services.employee_out(employee, login), one_time_password=temporary
+    )
+
+
+@router.patch("/employees/{employee_id}", response_model=EmployeeOut, responses=ERRORS)
+async def update_employee(
+    employee_id: int, me: CanManage, db: DbSession, payload: EmployeeUpdateIn
+) -> EmployeeOut:
+    employee = await services.get_employee(db, employee_id)
+    scope = await services.scope_for(db, me, None)
+    services.ensure_visible(scope, employee)
+    if not scope.allows(payload.branch_id):
+        raise services.invalid("You can only move employees within your own branch.", "branch_id")
+    employee = await services.update_employee(db, me, employee, payload)
+    logins = await services.logins_for(db, [employee.id])
+    return services.employee_out(employee, logins.get(employee.id))
+
+
+@router.post("/employees/{employee_id}/deactivate", response_model=EmployeeOut, responses=ERRORS)
+async def deactivate_employee(employee_id: int, me: CanManage, db: DbSession) -> EmployeeOut:
+    """Former staff: kept with their history, out of lists and pickers, phone freed."""
+    employee = await services.get_employee(db, employee_id)
+    services.ensure_visible(await services.scope_for(db, me, None), employee)
+    employee = await services.deactivate_employee(db, me, employee)
+    logins = await services.logins_for(db, [employee.id])
+    return services.employee_out(employee, logins.get(employee.id))
+
+
+@router.get("/employees/{employee_id}/salary", response_model=SalaryStructuresOut, responses=ERRORS)
+async def salary_structures(employee_id: int, me: CanManage, db: DbSession) -> SalaryStructuresOut:
+    employee = await services.get_employee(db, employee_id)
+    services.ensure_visible(await services.scope_for(db, me, None), employee)
+    return await services.salary_structures(db, employee)
+
+
+@router.post(
+    "/employees/{employee_id}/salary",
+    response_model=SalaryStructuresOut,
+    status_code=status.HTTP_201_CREATED,
+    responses=ERRORS,
+)
+async def revise_salary(
+    employee_id: int, me: CanManage, db: DbSession, payload: SalaryRevisionIn
+) -> SalaryStructuresOut:
+    """A new salary row from ``effective_from_bs``; the overtime rate defaults to the
+    salary / 30 / 8 rule (wage / 8 for daily staff) when not given."""
+    employee = await services.get_employee(db, employee_id)
+    services.ensure_visible(await services.scope_for(db, me, None), employee)
+    await services.revise_salary(db, me, employee, payload)
+    return await services.salary_structures(db, employee)
 
 
 # --------------------------------------------------------------------------- widgets

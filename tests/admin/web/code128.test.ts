@@ -25,5 +25,5 @@ test("bars: 11 modules per symbol, 13 for stop, quiet zones of 10", () => {
     last = bar.x + bar.width;
   }
   assert.equal(last, code.width - 10);
-  assert.equal(stickerText("E-007"), "TTK-E-007");
+  assert.equal(stickerText("E-007"), "TTK-E007");
 });

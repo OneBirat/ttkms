@@ -281,7 +281,7 @@ export interface BarcodeEmployee {
   designation: string | null;
   branch_id: number;
   branch: string;
-  /** What the sticker encodes: "TTK-E-001". */
+  /** What the sticker encodes: core.employees.barcode, "TTK-E001". */
   barcode: string;
 }
 

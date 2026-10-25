@@ -38,7 +38,7 @@ def test_code128_bars_geometry():
         assert bar.x >= last
         last = bar.x + bar.width
     assert last == code.width - 10
-    assert sticker_text("E-007") == "TTK-E-007"
+    assert sticker_text("E-007") == "TTK-E007"
     assert [s.per_page for s in STICKER_SIZES.values()] == [24, 10, 40]
 
 
@@ -70,7 +70,10 @@ async def test_barcode_employees_endpoint(client, make_user, login, db):
     assert [e["full_name"] for e in body["employees"]] == ["Anita Gurung", "Sita Thapa"]
     sita = body["employees"][1]
     assert sita["department"] == "Store" and sita["designation"] == "Cashier"
-    assert sita["branch"] == "Main branch" and sita["barcode"] == f"TTK-{rows[0].code}"
+    assert (
+        sita["branch"] == "Main branch"
+        and sita["barcode"] == f"TTK-{rows[0].code.replace('-', '')}"
+    )
     assert [s["key"] for s in body["sizes"]] == ["3x8", "2x5", "4x10"]
     assert isinstance(body["pdf_available"], bool)
 

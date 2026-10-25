@@ -1,7 +1,9 @@
 """Employee barcode stickers (design/final/AdminBarcodes.dc.html).
 
-Each sticker carries ``TTK-<employee code>`` as a Code 128 (code set B) barcode; scanning it on
-Mark attendance marks the employee present / overtime. :func:`code128_bars` is the twin of
+Each sticker carries the employee's ``barcode`` (``core.employees.barcode``, "TTK-E001" - the
+code without its dash, one format everywhere) as a Code 128 (code set B) barcode; scanning it on
+Mark attendance marks the employee present / overtime. Stickers printed before 2026-10-26 read
+"TTK-E-001"; the by-barcode lookups still accept that form. :func:`code128_bars` is the twin of
 ``web/components/admin/code128.ts`` (the preview draws the same bars in the browser);
 :func:`sticker_pdf` lays the selected stickers out on A4 through the shared print pipeline.
 """
@@ -72,7 +74,8 @@ def code128_bars(text: str) -> Barcode:
 
 
 def sticker_text(employee_code: str) -> str:
-    return f"TTK-{employee_code}"
+    """``"E-007"`` -> ``"TTK-E007"``, the same expression as the generated ``barcode`` column."""
+    return f"TTK-{employee_code.replace('-', '')}"
 
 
 @dataclass(frozen=True)

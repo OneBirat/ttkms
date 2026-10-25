@@ -13,7 +13,7 @@ async def test_payroll_placeholder(client, make_user, login):
     await login("manager")
     response = await client.get("/api/payroll")
     assert response.status_code == 200
-    assert response.json()["status"] == "coming_soon"
+    assert response.json()["status"] == "ready"
     assert module.name == "payroll"
 
 

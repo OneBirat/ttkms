@@ -61,7 +61,7 @@ export function code128(text: string): Barcode {
   return { text, bars, width: x + QUIET_ZONE };
 }
 
-/** What a sticker encodes: "TTK-E-001". */
+/** What a sticker encodes: core.employees.barcode, "TTK-E001" (the code without its dash). */
 export function stickerText(employeeCode: string): string {
-  return `TTK-${employeeCode}`;
+  return `TTK-${employeeCode.replace(/-/g, "")}`;
 }

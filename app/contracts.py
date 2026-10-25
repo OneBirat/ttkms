@@ -41,9 +41,20 @@ class MonthSummary:
     paid_days: int
 
 
+#: One employee's mark for one day, as the People list shows it ("Today" column).
+TodayStatus = Literal["present", "overtime", "absent", "weekly_off", "not_marked"]
+
+
 @runtime_checkable
 class AttendanceSummary(Protocol):
     async def for_month(self, employee_id: int, bs_year: int, bs_month: int) -> MonthSummary: ...
+
+    async def today(
+        self, employee_ids: Iterable[int], day: dt.date | None = None
+    ) -> dict[int, TodayStatus]:
+        """The mark of each employee for ``day`` (today in Kathmandu when None): ``weekly_off``
+        on the weekly off without a record, ``not_marked`` when there is no record."""
+        ...
 
 
 def _days_in_month(bs_year: int, bs_month: int) -> int:
@@ -75,6 +86,24 @@ class FakeAttendanceSummary:
             weekly_off=weekly_off,
             paid_days=present + overtime_days + weekly_off,
         )
+
+    async def today(
+        self, employee_ids: Iterable[int], day: dt.date | None = None
+    ) -> dict[int, TodayStatus]:
+        """Saturday is the weekly off; otherwise a stable spread of present / overtime / absent /
+        not marked per employee and day (the mock's ``todayStatusFor``)."""
+        from app.core import bsdate
+
+        day = day or bsdate.today_ad()
+        if bsdate.weekday_index(day) == 6:
+            return {employee_id: "weekly_off" for employee_id in employee_ids}
+        out: dict[int, TodayStatus] = {}
+        for employee_id in employee_ids:
+            h = (employee_id * 37 + day.day * 11) % 10
+            out[employee_id] = (
+                "present" if h < 6 else "overtime" if h < 8 else "absent" if h < 9 else "not_marked"
+            )
+        return out
 
 
 _fake = FakeAttendanceSummary()

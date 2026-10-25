@@ -192,7 +192,7 @@ class BarcodeEmployeeOut(BaseModel):
     designation: str | None
     branch_id: int
     branch: str
-    #: What the sticker encodes: "TTK-E-001".
+    #: What the sticker encodes: core.employees.barcode, "TTK-E001".
     barcode: str
 
 

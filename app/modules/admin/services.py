@@ -25,7 +25,6 @@ from app.core import bsdate
 from app.core.auth import hash_password
 from app.core.models import Branch, Employee, EmployeeStatus, Role, User
 from app.core.services import norm_sql, record_audit
-from app.modules.admin.barcodes import sticker_text
 from app.modules.admin.models import PaymentMode, UserAccess
 from app.modules.admin.permissions import clean_overrides, effective_access, is_custom
 from app.modules.admin.schemas import (
@@ -559,7 +558,7 @@ async def barcode_employees(db: AsyncSession) -> list[BarcodeEmployeeOut]:
             designation=e.designation,
             branch_id=e.branch_id,
             branch=e.branch.name,
-            barcode=sticker_text(e.code),
+            barcode=e.barcode,
         )
         for e in rows
     ]

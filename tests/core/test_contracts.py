@@ -47,6 +47,9 @@ async def test_registry_returns_fake_until_real_implementation_registers():
                 paid_days=30,
             )
 
+        async def today(self, employee_ids, day=None):
+            return {employee_id: "present" for employee_id in employee_ids}
+
     real = Real()
     assert isinstance(real, AttendanceSummary)
     register_attendance_summary(real)
