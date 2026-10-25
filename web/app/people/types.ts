@@ -313,6 +313,16 @@ export interface DepartmentNetTotal {
   net: number;
 }
 
+/** The month per branch (the "By branch" summary shown with All branches). */
+export interface BranchNetTotal {
+  branch: Branch;
+  staff: number;
+  /** Net payroll of the branch. */
+  net: number;
+  paid: number;
+  due: number;
+}
+
 export interface SalaryReport {
   month: BsMonth;
   /** The chosen branch (rows, totals, by_department and the trend are scoped to it); null = all. */
@@ -321,6 +331,8 @@ export interface SalaryReport {
   totals: ReportTotals;
   /** Every department of the chosen branch (all branches when none), unfiltered by department, for the chips and the chart. */
   by_department: DepartmentNetTotal[];
+  /** Net payroll, paid and due per branch (department filter applied); one entry when a branch is chosen. */
+  by_branch: BranchNetTotal[];
   /** Oldest first, the report month last. */
   trend: MonthNetTotal[];
   /** Staff on the sheet before the department filter. */

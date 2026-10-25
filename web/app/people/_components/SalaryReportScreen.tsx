@@ -165,6 +165,7 @@ export function SalaryReportScreen() {
       ) : (
         <>
           <Totals data={data} />
+          {data.branch === null && data.by_branch.length > 0 ? <ByBranch data={data} /> : null}
           <div className={styles.charts}>
             <TrendChart data={data} />
             <DepartmentChart data={data} selected={department} />
@@ -214,6 +215,7 @@ export function SalaryReportScreen() {
                   <tr>
                     <th scope="col">Employee</th>
                     <th scope="col">Dept</th>
+                    {data.branch === null ? <th scope="col">Branch</th> : null}
                     <th scope="col" className={shared.num}>
                       Paid days
                     </th>
@@ -238,7 +240,7 @@ export function SalaryReportScreen() {
                 <tbody>
                   {paged.items.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className={shared.empty}>
+                      <td colSpan={data.branch === null ? 10 : 9} className={shared.empty}>
                         No employee matches.
                       </td>
                     </tr>
@@ -254,6 +256,7 @@ export function SalaryReportScreen() {
                           </Link>
                         </td>
                         <td>{employee.department?.name ?? "—"}</td>
+                        {data.branch === null ? <td>{employee.branch.name}</td> : null}
                         <td className={shared.num}>{formatPaidDays(ledger.paid_days, ledger.attendance.days_in_month)}</td>
                         <td className={shared.num} title={ledger.overtime_pay ? `incl. overtime ${formatRs(ledger.overtime_pay)}` : undefined}>
                           {formatAmount(ledger.earnings)}
@@ -275,8 +278,8 @@ export function SalaryReportScreen() {
                 </tbody>
                 <tfoot>
                   <tr>
-                    <th scope="row" colSpan={3} style={{ textAlign: "left" }}>
-                      Total · {filteredRows.length} staff
+                    <th scope="row" colSpan={data.branch === null ? 4 : 3} style={{ textAlign: "left" }}>
+                      Total · {filteredRows.length} staff · {scope}
                     </th>
                     <td className={shared.num}>{formatAmount(sum(filteredRows, "earnings"))}</td>
                     <td className={shared.num}>{formatDeduction(sum(filteredRows, "absence_deduction"))}</td>
@@ -307,6 +310,61 @@ export function SalaryReportScreen() {
         </>
       )}
     </>
+  );
+}
+
+/** All branches: net payroll, paid and due per branch (the department filter applies), above the sheet. */
+function ByBranch({ data }: { data: SalaryReport }) {
+  const t = data.by_branch;
+  return (
+    <section aria-labelledby="by-branch-h" className={`card ${shared.cardPad}`}>
+      <h2 id="by-branch-h" className={shared.cardTitle}>
+        By branch · {monthLabel(data.month)}
+      </h2>
+      <div className={shared.tableWrap}>
+        <table className={shared.table}>
+          <thead>
+            <tr>
+              <th scope="col">Branch</th>
+              <th scope="col" className={shared.num}>
+                Staff
+              </th>
+              <th scope="col" className={shared.num}>
+                Net payroll
+              </th>
+              <th scope="col" className={shared.num}>
+                Paid
+              </th>
+              <th scope="col" className={shared.num}>
+                Still due
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {t.map((b) => (
+              <tr key={b.branch.id}>
+                <td style={{ fontWeight: 600 }}>{b.branch.name}</td>
+                <td className={shared.num}>{b.staff}</td>
+                <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(b.net)}</td>
+                <td className={`${shared.num} ${shared.ok}`}>{formatAmount(b.paid)}</td>
+                <td className={`${shared.num} ${b.due > 0 ? shared.danger : shared.muted}`}>{formatAmount(b.due)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" style={{ textAlign: "left" }}>
+                All branches
+              </th>
+              <td className={shared.num}>{t.reduce((s, b) => s + b.staff, 0)}</td>
+              <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(t.reduce((s, b) => s + b.net, 0))}</td>
+              <td className={`${shared.num} ${shared.ok}`}>{formatAmount(t.reduce((s, b) => s + b.paid, 0))}</td>
+              <td className={shared.num}>{formatAmount(t.reduce((s, b) => s + b.due, 0))}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
   );
 }
 

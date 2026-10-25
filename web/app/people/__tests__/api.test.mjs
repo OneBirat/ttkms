@@ -298,3 +298,21 @@ test("branch_id scopes the payments register and the salary report; department c
   assert.ok(both.trend.at(-1).net <= branchReport.trend.at(-1).net);
   await assert.rejects(api.getSalaryReport(PREVIOUS, null, 99), /branch/i);
 });
+
+test("salary report by_branch: one line per branch adding up to the totals; one line when a branch is chosen", async () => {
+  const report = await api.getSalaryReport(PREVIOUS);
+  assert.ok(report.by_branch.length >= 2, "sample employees span at least two branches");
+  const names = report.by_branch.map((b) => b.branch.name);
+  assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b)));
+  assert.equal(report.by_branch.reduce((s, b) => s + b.staff, 0), report.rows.length);
+  assert.equal(report.by_branch.reduce((s, b) => s + b.net, 0), report.totals.net);
+  assert.equal(report.by_branch.reduce((s, b) => s + b.due, 0), report.totals.due);
+  assert.equal(report.by_branch.reduce((s, b) => s + b.paid, 0), report.totals.salary_paid + report.totals.advance_paid);
+  // The department filter applies to the summary too.
+  const kitchen = await api.getSalaryReport(PREVIOUS, 2);
+  assert.equal(kitchen.by_branch.reduce((s, b) => s + b.staff, 0), kitchen.rows.length);
+  const one = await api.getSalaryReport(PREVIOUS, null, 2);
+  assert.equal(one.by_branch.length, 1);
+  assert.equal(one.by_branch[0].branch.id, 2);
+  assert.equal(one.by_branch[0].net, one.totals.net);
+});

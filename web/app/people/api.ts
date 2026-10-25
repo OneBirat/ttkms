@@ -31,6 +31,7 @@ import {
 import type {
   AccountSummary,
   Branch,
+  BranchNetTotal,
   BsMonth,
   Department,
   DepartmentNetTotal,
@@ -968,6 +969,14 @@ export async function getSalaryReport(month: BsMonth, department_id: number | nu
     .map((employee) => ({ employee, ledger: ledgerFor(current, employee, month) }))
     .filter((row): row is ReportRow => row.ledger !== null);
   const rows = department_id === null ? allRows : allRows.filter((row) => row.employee.department?.id === department_id);
+  const by_branch: BranchNetTotal[] = [...current.branches]
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id)
+    .filter((b) => !branch || b.id === branch.id)
+    .map((b) => {
+      const mine = rows.filter((r) => r.employee.branch.id === b.id).map((r) => r.ledger);
+      return { branch: b, staff: mine.length, net: sumBy(mine, (l) => l.net), paid: sumBy(mine, (l) => l.paid), due: sumBy(mine, (l) => l.due) };
+    })
+    .filter((b) => b.staff > 0);
   const by_department: DepartmentNetTotal[] = current.departments
     .map((department) => {
       const mine = allRows.filter((r) => r.employee.department?.id === department.id);
@@ -989,6 +998,7 @@ export async function getSalaryReport(month: BsMonth, department_id: number | nu
     rows,
     totals: totalsFor(rows.map((r) => r.ledger)),
     by_department,
+    by_branch,
     trend,
     all_staff: allRows.length,
   });

@@ -80,6 +80,18 @@ export function PhoneSalaryReport() {
           </button>
         ))}
       </div>
+      {report.data && report.data.branch === null && report.data.by_branch.length > 1 ? (
+        <div className={styles.card} style={{ margin: "0 16px 10px" }} role="group" aria-label="By branch">
+          {report.data.by_branch.map((b) => (
+            <div key={b.branch.id} className={styles.kvLine} style={{ padding: "10px 14px", fontSize: 13 }}>
+              <span>
+                <b>{b.branch.name}</b> · {b.staff} staff · due {formatAmount(b.due)}
+              </span>
+              <b className="mono">Rs {formatAmount(b.net)}</b>
+            </div>
+          ))}
+        </div>
+      ) : null}
       {report.error ? <p className={styles.empty}>{payrollErrorMessage(report.error)}</p> : null}
       {!report.data && !report.error ? <p className={styles.empty}>Loading…</p> : null}
       {report.data ? (
@@ -92,7 +104,8 @@ export function PhoneSalaryReport() {
                   {e.full_name}
                 </span>
                 <span className={styles.rowSub}>
-                  {e.department?.name ?? "—"} · {l.attendance.absent ? `${l.attendance.absent} d absent` : "full month"} · OT {l.attendance.overtime_hours} h
+                  {e.department?.name ?? "—"}
+                  {report.data?.branch === null ? ` · ${e.branch.name}` : ""} · {l.attendance.absent ? `${l.attendance.absent} d absent` : "full month"} · OT {l.attendance.overtime_hours} h
                 </span>
               </span>
               <span className={styles.rowRight}>
