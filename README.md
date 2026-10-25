@@ -68,6 +68,7 @@ when set, otherwise they prompt. Both commands are idempotent.
 | `make test` | pytest (creates and migrates the `ttk_test` database itself) |
 | `make lint` / `make fmt` | ruff check + format check (+ `npm run lint` and `tsc` when `web/node_modules` exists) / auto-format |
 | `make seed` / `make create-admin` | `python -m app.cli seed` / `create-admin` |
+| `make seed-demo` | the 25 design employees across both branches with salary settings and a month of sample payments (payroll); refuses unless `APP_ENV=dev`, never runs by itself |
 
 In development the OpenAPI schema is at `/api/openapi.json` and Swagger UI at `/api/docs`
 (disabled when `APP_ENV=prod`, because Swagger UI loads from a CDN).

@@ -2,6 +2,8 @@
 
     python -m app.cli create-admin          # prompts for username / password
     python -m app.cli seed [--no-input]     # branches, departments, 5 employees, settings, admin
+    python -m app.cli seed-demo             # the 25 design employees + salaries + a month of
+                                            # payments (APP_ENV=dev only; never automatic)
 
 Both are idempotent. The admin user's credentials come from ADMIN_USERNAME / ADMIN_PASSWORD in
 .env (or the environment) when set, otherwise you are prompted.
@@ -163,6 +165,21 @@ async def cmd_seed(args: argparse.Namespace) -> int:
     return 0
 
 
+async def cmd_seed_demo(args: argparse.Namespace) -> int:
+    from app.modules.payroll.seed_demo import NotDevelopment, seed_demo
+
+    try:
+        async with SessionLocal() as db:
+            created = await seed_demo(db)
+            await db.commit()
+    except NotDevelopment as exc:
+        raise CliError(str(exc)) from None
+    for key, count in created.items():
+        print(f"  {key:<12} +{count}")
+    print("Demo seed complete.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -175,6 +192,11 @@ def build_parser() -> argparse.ArgumentParser:
     seed = sub.add_parser("seed", help="load reference data, sample employees and the admin user")
     seed.add_argument("--no-input", action="store_true", help="never prompt; use env vars")
     seed.set_defaults(func=cmd_seed)
+
+    demo = sub.add_parser(
+        "seed-demo", help="sample employees, salaries and payments (APP_ENV=dev only)"
+    )
+    demo.set_defaults(func=cmd_seed_demo)
     return parser
 
 

@@ -15,7 +15,7 @@ comma := ,
 ENABLED_LIST := $(subst $(comma), ,$(ENABLED_MODULES))
 MODULES := $(filter admin,$(ENABLED_LIST)) $(filter-out admin,$(ENABLED_LIST))
 
-.PHONY: dev migrate test lint fmt seed create-admin web-install web-dev web-build web-lint web-test
+.PHONY: dev migrate test lint fmt seed seed-demo create-admin web-install web-dev web-build web-lint web-test
 
 dev:  ## FastAPI JSON API with reload on $APP_PORT
 	$(PY) -m uvicorn app.main:app --reload --port $(APP_PORT)
@@ -51,6 +51,10 @@ fmt:
 
 seed:
 	$(PY) -m app.cli seed
+
+## Sample employees, salaries and a month of payments into the real tables (refuses unless APP_ENV=dev).
+seed-demo:
+	$(PY) -m app.cli seed-demo
 
 create-admin:
 	$(PY) -m app.cli create-admin
