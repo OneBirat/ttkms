@@ -10,7 +10,6 @@ import type {
   AuditModule,
   AuditValues,
   Branch,
-  Department,
   EmployeeRef,
   Settings,
 } from "../types";
@@ -47,13 +46,14 @@ export const BRANCHES: Branch[] = [
   { id: 2, name: "Branch 2", is_active: true, employee_count: 0, active_employee_count: 0 },
 ];
 
-export const DEPARTMENTS: Department[] = [
-  { id: 1, name: "Store", is_active: true, employee_count: 0, active_employee_count: 0 },
-  { id: 2, name: "Kitchen", is_active: true, employee_count: 0, active_employee_count: 0 },
-  { id: 3, name: "Housekeeping", is_active: true, employee_count: 0, active_employee_count: 0 },
-  { id: 4, name: "Front desk", is_active: true, employee_count: 0, active_employee_count: 0 },
-  { id: 5, name: "Accounts", is_active: true, employee_count: 0, active_employee_count: 0 },
-];
+/** Department names of the mock employees (ids as `make seed`; the real list is /api/core/departments). */
+const DEPARTMENT_NAMES: Record<number, string> = {
+  1: "Store",
+  2: "Kitchen",
+  3: "Housekeeping",
+  4: "Front desk",
+  5: "Accounts",
+};
 
 interface SeedEmployee {
   id: number;
@@ -96,15 +96,11 @@ export const EMPLOYEES: EmployeeRef[] = EMPLOYEE_SEED.map((e) => ({
   code: `E-${pad(e.id).padStart(3, "0")}`,
   full_name: e.full_name,
   phone: null,
-  department: DEPARTMENTS.find((d) => d.id === e.department_id)?.name ?? null,
+  department: DEPARTMENT_NAMES[e.department_id] ?? null,
   branch_id: e.branch_id,
   status: e.status ?? "active",
   user_id: null,
 }));
-
-export const EMPLOYEE_DEPARTMENT_IDS: Record<number, number> = Object.fromEntries(
-  EMPLOYEE_SEED.map((e) => [e.id, e.department_id]),
-);
 
 // --------------------------------------------------------------- actors
 

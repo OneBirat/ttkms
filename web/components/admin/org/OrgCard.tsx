@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Pill } from "@/components/ui/Pill";
 import { errorMessage } from "@/lib/api";
-import { createOrg, renameOrg, setOrgActive } from "../api";
+import { createOrg, deleteOrg, renameOrg, setOrgActive } from "../api";
 import { findDuplicateName, validateName } from "../names";
 import type { PageAccess } from "../permissions";
 import type { Branch, Department, OrgKind } from "../types";
@@ -59,9 +59,10 @@ export function OrgCard({
   const [renameDraft, setRenameDraft] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
 
-  const [confirm, setConfirm] = useState<{ item: Branch | Department; active: boolean } | null>(
+  const [confirm, setConfirm] = useState<{ item: Branch | Department; action: "activate" | "deactivate" | "delete" } | null>(
     null,
   );
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const liveDuplicate = (value: string, ignoreId: number | null) => {
     const clash = findDuplicateName(list, value, ignoreId);
@@ -113,11 +114,28 @@ export function OrgCard({
     setBusy(false);
   };
 
-  const toggleActive = async () => {
+  const runConfirm = async () => {
     if (!confirm) return;
-    const row = await setOrgActive(kind, confirm.item.id, confirm.active);
-    setConfirm(null);
-    onChanged(`${row.name} ${confirm.active ? "activated" : "deactivated"}.`);
+    try {
+      if (confirm.action === "delete") {
+        await deleteOrg(kind, confirm.item.id);
+        setConfirm(null);
+        onChanged(`${confirm.item.name} deleted.`);
+        return;
+      }
+      const row = await setOrgActive(kind, confirm.item.id, confirm.action === "activate");
+      setConfirm(null);
+      onChanged(`${row.name} ${confirm.action === "activate" ? "activated" : "deactivated"}.`);
+    } catch (err) {
+      setConfirmError(errorMessage(err));
+    }
+  };
+
+  /** Delete (departments) is only possible while nobody - active or former - is in it. */
+  const deleteHint = (item: Branch | Department): string | null => {
+    if (item.employee_count === 0) return null;
+    const former = item.employee_count - item.active_employee_count;
+    return `Move ${item.employee_count} employee${item.employee_count === 1 ? "" : "s"} first${former > 0 ? " (includes former staff)" : ""}`;
   };
 
   const affected = confirm?.item.active_employee_count ?? 0;
@@ -198,7 +216,7 @@ export function OrgCard({
                   <span className={styles.listName}>{item.name}</span>
                   <span className={styles.secondary}>{countText(item)}</span>
                 </span>
-                <Pill status={item.is_active ? "active" : "inactive"} />
+                {kind === "branch" ? <Pill status={item.is_active ? "active" : "inactive"} /> : null}
                 {canEdit ? (
                   <span className={styles.rowActions}>
                     <button
@@ -209,11 +227,25 @@ export function OrgCard({
                     >
                       Rename
                     </button>
-                    {item.is_active ? (
+                    {kind === "department" ? (
                       <button
                         type="button"
                         className={`${styles.ghost} ${styles.ghostDanger}`}
-                        onClick={() => setConfirm({ item, active: false })}
+                        onClick={() => {
+                          setConfirmError(null);
+                          setConfirm({ item, action: "delete" });
+                        }}
+                        disabled={deleteHint(item) !== null}
+                        title={deleteHint(item) ?? undefined}
+                        aria-label={`Delete ${item.name}`}
+                      >
+                        Delete
+                      </button>
+                    ) : item.is_active ? (
+                      <button
+                        type="button"
+                        className={`${styles.ghost} ${styles.ghostDanger}`}
+                        onClick={() => setConfirm({ item, action: "deactivate" })}
                         aria-label={`Deactivate ${item.name}`}
                       >
                         Deactivate
@@ -222,12 +254,15 @@ export function OrgCard({
                       <button
                         type="button"
                         className={styles.ghost}
-                        onClick={() => setConfirm({ item, active: true })}
+                        onClick={() => setConfirm({ item, action: "activate" })}
                         aria-label={`Activate ${item.name}`}
                       >
                         Activate
                       </button>
                     )}
+                    {kind === "department" && deleteHint(item) ? (
+                      <span className={styles.secondary}>{deleteHint(item)}</span>
+                    ) : null}
                   </span>
                 ) : null}
               </>
@@ -300,13 +335,28 @@ export function OrgCard({
 
       <ConfirmDialog
         open={confirm !== null}
-        title={confirm?.active ? `Activate ${label.one}?` : `Deactivate ${label.one}?`}
-        confirmLabel={confirm?.active ? "Activate" : "Deactivate"}
-        danger={!confirm?.active}
-        onConfirm={toggleActive}
+        title={
+          confirm?.action === "delete"
+            ? `Delete ${label.one} ${confirm.item.name} permanently?`
+            : confirm?.action === "activate"
+              ? `Activate ${label.one}?`
+              : `Deactivate ${label.one}?`
+        }
+        confirmLabel={confirm?.action === "delete" ? "Delete" : confirm?.action === "activate" ? "Activate" : "Deactivate"}
+        danger={confirm?.action !== "activate"}
+        onConfirm={runConfirm}
         onClose={() => setConfirm(null)}
       >
-        {confirm?.active ? (
+        {confirmError ? (
+          <p className={`${styles.note} ${styles.noteDanger}`} role="alert">
+            {confirmError}
+          </p>
+        ) : null}
+        {confirm?.action === "delete" ? (
+          <p>
+            <strong>{confirm.item.name}</strong> is removed for good; it is not in any employee&apos;s record. This cannot be undone.
+          </p>
+        ) : confirm?.action === "activate" ? (
           <p>
             <strong>{confirm.item.name}</strong> will appear in pickers again.
           </p>

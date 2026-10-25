@@ -10,7 +10,7 @@ import { OrgCard } from "./OrgCard";
 import styles from "../components/admin.module.css";
 
 const TITLE = "Branches & departments";
-const SUBTITLE = "Where people work. Nothing is deleted: deactivate instead, history stays.";
+const SUBTITLE = "Where people work. Branches are deactivated, never deleted; a department can be deleted once nobody is in it.";
 
 export function OrgPage() {
   return (
@@ -54,7 +54,7 @@ function OrgScreen({ access }: { access: Exclude<PageAccess, "none"> }) {
         <OrgCard
           kind="department"
           title="Departments"
-          note="Teams across branches, used to group employees and reports."
+          note="Company-wide teams that group employees and reports. Delete is possible only at 0 employees (former staff count)."
           items={departments.data}
           loading={departments.loading}
           error={departments.error}

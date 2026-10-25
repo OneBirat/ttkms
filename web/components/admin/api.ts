@@ -1,14 +1,15 @@
 /**
- * Admin API client - MOCK EDITION for Branches & departments, Settings and
- * the Audit log (their endpoints do not exist yet). Users, payment modes and
- * barcodes use the real API (usersApi.ts, paymentModesApi.ts, barcodesApi.ts).
+ * Admin API client - MOCK EDITION for Branches, Settings and the Audit log
+ * (their endpoints do not exist yet). Users, payment modes and barcodes use
+ * the real API (usersApi.ts, paymentModesApi.ts, barcodesApi.ts), and so do
+ * departments since 2026-10-25 (/api/core/departments, app/core/departments.py).
  *
  * State lives in memory, seeded from ./mock/data; every mutation applies the
  * rules the backend will enforce (unique names, no deleting referenced rows)
  * and appends an audit entry.
  */
 
-import { ApiError } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { findDuplicateName, validateName } from "./names";
 import { changedGroups, validateSettings } from "./settingsValidation";
 import {
@@ -16,8 +17,6 @@ import {
   approxBs,
   AUDIT,
   BRANCHES,
-  DEPARTMENTS,
-  EMPLOYEE_DEPARTMENT_IDS,
   EMPLOYEES,
   SETTINGS,
 } from "./mock/data";
@@ -44,7 +43,6 @@ function clone<T>(value: T): T {
 
 const state = {
   branches: clone(BRANCHES),
-  departments: clone(DEPARTMENTS),
   employees: clone(EMPLOYEES),
   settings: clone(SETTINGS),
   audit: clone(AUDIT),
@@ -103,20 +101,27 @@ function recomputeCounts(): void {
     branch.employee_count = members.length;
     branch.active_employee_count = members.filter((e) => e.status === "active").length;
   }
-  for (const department of state.departments) {
-    const members = state.employees.filter(
-      (e) => EMPLOYEE_DEPARTMENT_IDS[e.id] === department.id,
-    );
-    department.employee_count = members.length;
-    department.active_employee_count = members.filter((e) => e.status === "active").length;
-  }
 }
 recomputeCounts();
 
-// -------------------------------------------------- branches & departments
+// -------------------------------------------------- branches (mock) & departments (real)
 
-function orgList(kind: OrgKind): (Branch | Department)[] {
-  return kind === "branch" ? state.branches : state.departments;
+/** One row of GET /api/core/departments (app/core/schemas.py DepartmentOut). */
+interface DepartmentRow {
+  id: number;
+  name: string;
+  employee_count: number;
+  active_employee_count: number;
+}
+
+/** core.departments.is_active exists but the API ignores it: a department is listed until deleted. */
+function departmentOf(row: DepartmentRow): Department {
+  return { ...row, is_active: true };
+}
+
+function orgList(kind: OrgKind): Branch[] {
+  if (kind !== "branch") throw new Error("departments are not mocked");
+  return state.branches;
 }
 
 function orgLabel(kind: OrgKind): string {
@@ -128,15 +133,26 @@ export async function listBranches(): Promise<Branch[]> {
   return respond(state.branches);
 }
 
+/** GET /api/core/departments - real; counts include former staff. */
 export async function listDepartments(): Promise<Department[]> {
-  recomputeCounts();
-  return respond(state.departments);
+  const rows = await apiFetch<DepartmentRow[]>("/api/core/departments");
+  return rows.map(departmentOf);
+}
+
+/** DELETE /api/core/departments/{id} - real; 409 department_in_use while anyone references it. */
+export async function deleteOrg(kind: OrgKind, id: number): Promise<void> {
+  if (kind !== "department") fail(405, "Branches are deactivated, not deleted.");
+  await apiFetch<void>(`/api/core/departments/${id}`, { method: "DELETE" });
 }
 
 export async function createOrg(kind: OrgKind, name: string): Promise<Branch | Department> {
   const clean = name.replace(/\s+/g, " ").trim();
   const error = validateName(clean, orgLabel(kind) + " name");
   if (error) fail(422, error);
+  if (kind === "department") {
+    // POST /api/core/departments {name} -> 201 (409 duplicate_name); the server writes the audit row.
+    return departmentOf(await apiFetch<DepartmentRow>("/api/core/departments", { method: "POST", json: { name: clean } }));
+  }
   const list = orgList(kind);
   const duplicate = findDuplicateName(list, clean);
   if (duplicate) fail(409, `${orgLabel(kind)} "${duplicate.name}" already exists.`);
@@ -157,12 +173,16 @@ export async function renameOrg(
   id: number,
   name: string,
 ): Promise<Branch | Department> {
-  const list = orgList(kind);
-  const row = list.find((r) => r.id === id);
-  if (!row) fail(404, `${orgLabel(kind)} not found.`);
   const clean = name.replace(/\s+/g, " ").trim();
   const error = validateName(clean, orgLabel(kind) + " name");
   if (error) fail(422, error);
+  if (kind === "department") {
+    // PATCH /api/core/departments/{id} {name} (409 duplicate_name).
+    return departmentOf(await apiFetch<DepartmentRow>(`/api/core/departments/${id}`, { method: "PATCH", json: { name: clean } }));
+  }
+  const list = orgList(kind);
+  const row = list.find((r) => r.id === id);
+  if (!row) fail(404, `${orgLabel(kind)} not found.`);
   const duplicate = findDuplicateName(list, clean, id);
   if (duplicate) fail(409, `${orgLabel(kind)} "${duplicate.name}" already exists.`);
   if (row.name === clean) return respond(row);
@@ -177,6 +197,7 @@ export async function setOrgActive(
   id: number,
   active: boolean,
 ): Promise<Branch | Department> {
+  if (kind === "department") fail(405, "Departments are deleted, not deactivated.");
   const list = orgList(kind);
   const row = list.find((r) => r.id === id);
   if (!row) fail(404, `${orgLabel(kind)} not found.`);
