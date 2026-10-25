@@ -334,6 +334,8 @@ export interface ReportFilters {
   group: boolean;
   /** Leave the Saturday columns out (PDF "Saturdays hidden" variant); totals still count them. */
   hide_weekly_off?: boolean;
+  /** Only this employee's row (`?employee=` from the employee account's "View all ›"). */
+  employee_id?: number | null;
 }
 
 /** Export response: a file to hand to the browser. */

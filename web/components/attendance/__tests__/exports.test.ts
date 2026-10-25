@@ -15,7 +15,7 @@ import {
   saveDay,
   scanMark,
 } from "../mock/mockApi";
-import { buildExportModel } from "../exportModel";
+import { buildExportModel, filterReportRows } from "../exportModel";
 import { buildPrintDocument, paginateLines, saturdayBand, saturdaySpans } from "../print";
 import { buildReportWorkbook, columnName, crc32, workbookToBytes } from "../xlsx";
 
@@ -37,6 +37,17 @@ describe("export model", () => {
     assert.equal(model.staff_present.length, 31);
     assert.ok(model.summary.overtime_hours > 0);
     assert.match(model.printed_at_ad, /^20 Oct 2026, 16:20$/);
+  });
+
+  it("?employee= keeps only that employee's row (screen and exports)", async () => {
+    const report = await getReport("2083-06");
+    const one = report.rows[3].employee;
+    const rows = filterReportRows(report, { ...filters, employee_id: one.id });
+    assert.deepEqual(rows.map((r) => r.employee.id), [one.id]);
+    const model = buildExportModel(report, { ...filters, employee_id: one.id }, context);
+    assert.equal(model.rows.length, 1);
+    assert.equal(model.filter_label, `All departments · ${one.name} (${one.code})`);
+    assert.equal(filterReportRows(report, { ...filters, employee_id: null }).length, report.rows.length);
   });
   it("respects a department filter and search", async () => {
     const report = await getReport("2083-06");

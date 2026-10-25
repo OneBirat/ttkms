@@ -68,9 +68,38 @@
 
 .branchRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.onlyChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 4px 0 12px;
+  border-radius: 999px;
+  background: #e6f5f3;
+  color: #0a5454;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.onlyClear {
+  border: 0;
+  background: none;
+  padding: 2px 10px 2px 0;
+  font: inherit;
+  font-weight: 600;
+  color: #0a5454;
+  cursor: pointer;
+}
+
+.onlyClear:hover {
+  text-decoration: underline;
 }
 
 .branchLabel {

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Segmented } from "@/components/ui/Segmented";
 import { useSession } from "@/lib/session";
-import { exportReport, getReport, getToday, listMonths } from "./api";
+import { exportReport, getEmployeeMonth, getReport, getToday, listMonths } from "./api";
 import { WEEKDAYS_EN, formatAdRange, formatAdShort, monthName as bsMonthName } from "@/lib/bs";
 import { downloadFile, openPrintWindow, writePrintDocument } from "./download";
 import { filterReportRows } from "./exportModel";
@@ -25,7 +26,7 @@ import {
   sumTotals,
   weekIndexOfDay,
 } from "./helpers";
-import type { CellStatus, DayHeader, MonthOption, MonthReport, ReportFilters, ReportRow, ReportSort, TodayRef } from "./types";
+import type { CellStatus, DayHeader, EmployeeRef, MonthOption, MonthReport, ReportFilters, ReportRow, ReportSort, TodayRef } from "./types";
 import shared from "./shared.module.css";
 import styles from "./report.module.css";
 
@@ -42,6 +43,14 @@ const DAY_CHIPS: { key: DayFilter; label: string }[] = [
   { key: "A", label: "Absent" },
 ];
 
+/** "?bs_year=2083&bs_month=7" → "2083-07" (null when missing or out of range). */
+function monthFromParams(params: URLSearchParams): string | null {
+  const y = Number(params.get("bs_year"));
+  const m = Number(params.get("bs_month"));
+  if (!Number.isInteger(y) || !Number.isInteger(m) || y < 1900 || m < 1 || m > 12) return null;
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
 /** Keep the chosen columns of every row; month totals stay whole unless `retotal`. */
 function project(rows: readonly ReportRow[], indices: readonly number[], retotal: boolean): ReportRow[] {
   return rows.map((row) => {
@@ -53,9 +62,16 @@ function project(rows: readonly ReportRow[], indices: readonly number[], retotal
 export function ReportPage() {
   const { user, branchId: homeBranch, can } = useSession();
   const canPickBranch = can("see_other_branches");
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  // ?employee=<id>&bs_year=&bs_month= (the employee account's "View all ›"): that month, only that row.
+  const employeeParam = Number(params.get("employee")) || null;
   const [months, setMonths] = useState<MonthOption[]>([]);
   const [today, setToday] = useState<TodayRef | null>(null);
-  const [monthKey, setMonthKey] = useState("");
+  const [monthKey, setMonthKey] = useState(() => monthFromParams(params) ?? "");
+  const [onlyEmployee, setOnlyEmployee] = useState<EmployeeRef | null>(null);
+  const monthReady = monthKey !== "";
   const [branchId, setBranchId] = useState<number | null>(homeBranch);
   const [view, setView] = useState<View>("month");
   const [weekIndex, setWeekIndex] = useState(1);
@@ -88,6 +104,39 @@ export function ReportPage() {
       cancelled = true;
     };
   }, []);
+
+  // The one employee: name for the chip, and their branch (a user who may pick branches is moved
+  // to it; everyone else is scoped to their own branch by the server anyway).
+  useEffect(() => {
+    if (employeeParam === null || !monthKey) {
+      setOnlyEmployee(null);
+      return;
+    }
+    let cancelled = false;
+    getEmployeeMonth(employeeParam, monthKey)
+      .then((m) => {
+        if (cancelled) return;
+        setOnlyEmployee(m.employee);
+        if (canPickBranch) setBranchId(m.employee.branch_id);
+      })
+      .catch(() => {
+        if (!cancelled) setOnlyEmployee(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Only when the URL's employee changes or the first month is known (then months are browsed freely).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeParam, monthReady, canPickBranch]);
+
+  const clearEmployee = () => {
+    const next = new URLSearchParams(params.toString());
+    next.delete("employee");
+    next.delete("bs_year");
+    next.delete("bs_month");
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   useEffect(() => {
     if (!monthKey) return;
@@ -141,8 +190,17 @@ export function ReportPage() {
   const days = useMemo<DayHeader[]>(() => indices.map((i) => allDays[i]), [indices, allDays]);
 
   const filters = useMemo<ReportFilters>(
-    () => ({ month: monthKey, branch_id: branchId, department_id: departmentId, query, sort, group, hide_weekly_off: hideOff }),
-    [monthKey, branchId, departmentId, query, sort, group, hideOff],
+    () => ({
+      month: monthKey,
+      branch_id: branchId,
+      department_id: departmentId,
+      query,
+      sort,
+      group,
+      hide_weekly_off: hideOff,
+      employee_id: employeeParam,
+    }),
+    [monthKey, branchId, departmentId, query, sort, group, hideOff, employeeParam],
   );
   const order = useMemo(() => report?.departments.map((d) => d.id) ?? [], [report]);
 
@@ -412,6 +470,14 @@ export function ReportPage() {
             {branch?.name ?? "…"} <span className={styles.branchPillSub}>· your branch</span>
           </span>
         )}
+        {employeeParam !== null ? (
+          <span className={styles.onlyChip} data-testid="only-employee">
+            Showing {onlyEmployee?.name ?? report?.rows.find((r) => r.employee.id === employeeParam)?.employee.name ?? "one employee"} ·
+            <button type="button" className={styles.onlyClear} onClick={clearEmployee}>
+              Clear
+            </button>
+          </span>
+        ) : null}
       </div>
 
       <section aria-label="Departments" className={styles.chips}>

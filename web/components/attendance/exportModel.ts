@@ -80,6 +80,7 @@ function printedNp(today: TodayRef | null, now: Date): string {
 export function filterReportRows(report: MonthReport, filters: ReportFilters): ReportRow[] {
   return report.rows.filter(
     (row) =>
+      (filters.employee_id == null || row.employee.id === filters.employee_id) &&
       (filters.department_id === null || row.employee.department_id === filters.department_id) &&
       matchesQuery(row.employee, filters.query),
   );
@@ -97,6 +98,8 @@ export function buildExportModel(
   const totals = sumTotals(rows);
   const department = report.departments.find((d) => d.id === filters.department_id);
   const filterParts = [department ? department.name : "All departments"];
+  const only = filters.employee_id == null ? null : report.rows.find((r) => r.employee.id === filters.employee_id);
+  if (only) filterParts.push(`${only.employee.name} (${only.employee.code})`);
   if (filters.query.trim()) filterParts.push(`search "${filters.query.trim()}"`);
   return {
     company: context.company,
