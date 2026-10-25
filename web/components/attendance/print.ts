@@ -154,6 +154,39 @@ export function saturdaySpans(lines: Line[]): number[] {
   return spans;
 }
 
+/** Body rows are 19px high (see `th, td` in css()); the band loses ~4px to borders and padding. */
+const ROW_PX = 19;
+const BAND_FONT_PX = 8.5;
+const BAND_MIN_FONT_PX = 6;
+/** Upright vertical letters: one em each plus the .1em letter spacing. */
+const LETTER_EM = 1.1;
+
+/**
+ * The text of the vertical Saturday band for a department run of `rows` employee rows, sized so
+ * it never runs into the next group or below the table: "SATURDAY" (shrunk down to 6px when the
+ * run is short), else "SAT", and "S" for a single row.
+ */
+export function saturdayBand(rows: number): { text: string; fontPx: number; maxPx: number } {
+  const maxPx = Math.max(1, rows) * ROW_PX - 4;
+  const fit = (text: string) => Math.min(BAND_FONT_PX, maxPx / (text.length * LETTER_EM));
+  if (rows > 1) {
+    for (const text of ["SATURDAY", "SAT"]) {
+      const fontPx = fit(text);
+      if (fontPx >= BAND_MIN_FONT_PX) return { text, fontPx: Math.floor(fontPx * 10) / 10, maxPx };
+    }
+  }
+  return { text: "S", fontPx: Math.floor(Math.min(BAND_FONT_PX, fit("S")) * 10) / 10, maxPx };
+}
+
+function saturdayBandCell(rows: number): string {
+  const band = saturdayBand(rows);
+  // The inner box is capped at the run's height, so even a font fallback cannot overflow it.
+  return (
+    `<td rowspan="${rows}" class="satband" style="font-size:${band.fontPx}px">` +
+    `<div style="max-height:${band.maxPx}px;overflow:hidden;margin:0 auto">${band.text}</div></td>`
+  );
+}
+
 function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
   const days = pdfDays(m);
   const span = days.length + 6;
@@ -184,7 +217,7 @@ function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
         .map(({ day, index }) => {
           if (day.is_weekly_off) {
             // One vertical SATURDAY band per department run; later rows skip the cell.
-            return spans[li] ? `<td rowspan="${spans[li]}" class="satband">SATURDAY</td>` : "";
+            return spans[li] ? saturdayBandCell(spans[li]) : "";
           }
           const cell = pdfCell(r.cells[index]);
           return `<td style="${cell.style}">${cell.text}</td>`;

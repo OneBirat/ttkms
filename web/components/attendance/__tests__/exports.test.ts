@@ -16,7 +16,7 @@ import {
   scanMark,
 } from "../mock/mockApi";
 import { buildExportModel } from "../exportModel";
-import { buildPrintDocument, paginateLines, saturdaySpans } from "../print";
+import { buildPrintDocument, paginateLines, saturdayBand, saturdaySpans } from "../print";
 import { buildReportWorkbook, columnName, crc32, workbookToBytes } from "../xlsx";
 
 // Ashwin 2083 (17 Sep – 17 Oct 2026) is in the past, so the mock seed is fixed.
@@ -92,7 +92,7 @@ describe("PDF print document", () => {
     assert.match(html, /<th>P<\/th><th>O<\/th><th>A<\/th><th>W<\/th><th>Paid<\/th>/);
     assert.match(html, /<col><col style="width:24px">/);
     assert.match(html, /<col style="width:26px"><col style="width:30px"><col style="width:24px"><col style="width:24px"><col style="width:34px">/);
-    assert.match(html, /<td rowspan="7" class="satband">SATURDAY<\/td>/); // Store has 7 staff on page 1
+    assert.match(html, /<td rowspan="7" class="satband" style="font-size:8.5px"><div style="max-height:129px;overflow:hidden;margin:0 auto">SATURDAY<\/div><\/td>/); // Store has 7 staff on page 1
     assert.match(html, /style="color:#1E9E4A;font-weight:700">✓</);
     assert.match(html, /Store <span>· 7 staff/);
     assert.match(html, /Staff present \(all 28\)/);
@@ -101,6 +101,20 @@ describe("PDF print document", () => {
     assert.match(html, /Page 2 of 2/);
     assert.match(html, /<span class="wd">श<\/span>/);
     assert.doesNotMatch(html, /Late|Leave|Half/);
+  });
+  it("the Saturday band always fits its department run: shrinks, then SAT, then S", () => {
+    const one = saturdayBand(1);
+    const two = saturdayBand(2);
+    const three = saturdayBand(3);
+    const five = saturdayBand(5);
+    assert.deepEqual([one.text, two.text, three.text, five.text], ["S", "SAT", "SATURDAY", "SATURDAY"]);
+    assert.equal(five.fontPx, 8.5); // 5 rows: full size
+    assert.ok(three.fontPx >= 6 && three.fontPx < 8.5); // 3 rows: shrunk to fit
+    for (const [rows, band] of [[1, one], [2, two], [3, three], [5, five]] as const) {
+      // letters × 1.1em never taller than the rows (19px each, 4px for borders)
+      assert.ok(band.text.length * band.fontPx * 1.1 <= rows * 19 - 4, `${rows} rows: ${band.text} at ${band.fontPx}px`);
+      assert.equal(band.maxPx, rows * 19 - 4);
+    }
   });
   it("can leave the Saturday columns out", async () => {
     const model = buildExportModel(await getReport("2083-06"), { ...filters, hide_weekly_off: true }, context);
