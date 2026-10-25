@@ -2,7 +2,8 @@
  * Pay calculations, pure and unit-tested (see __tests__/calc.test.mjs).
  *
  * Business rules (decided; the brief overrides any older design text):
- * - Monthly: net = salary − (salary ÷ days in month × absent days) + overtime − TDS.
+ * - Monthly: net = salary − (salary ÷ 30 × absent days) + overtime − TDS - a fixed 30,
+ *   whatever the BS month's real length.
  *   Saturdays (weekly off) are paid. No half days, no leave.
  * - Daily:   net = wage × (present + overtime days) + overtime − TDS.
  * - Overtime: whole hours; amount = hours × hourly rate. The rate is per
@@ -22,8 +23,9 @@ export function roundRs(value: number): number {
   return Math.round(value + Number.EPSILON);
 }
 
-/** Days a monthly salary is divided by for the overtime rate: always 30, never the month's real length. */
-export const OT_DAYS = 30;
+/** Days a monthly salary is divided by - absence deduction and overtime rate alike: always 30, never the month's real length. */
+export const PAY_DAYS = 30;
+export const OT_DAYS = PAY_DAYS;
 
 /** Default overtime rate: one hour of an 8-hour day (monthly: salary ÷ 30 ÷ 8). Whole rupees. */
 export function defaultOtRate(pay_type: PayType, amount: number): number {
@@ -45,10 +47,10 @@ export interface PayResult {
   net: number;
 }
 
-/** Monthly salary: full salary, minus salary ÷ days in month × absent days, plus overtime. */
+/** Monthly salary: full salary, minus salary ÷ 30 × absent days, plus overtime. */
 export function monthlyPay(salary: number, ot_rate: number, s: MonthSummary): PayResult {
   const days = s.days_in_month;
-  const perDay = days > 0 ? salary / days : 0;
+  const perDay = salary / PAY_DAYS;
   const absence = Math.min(roundRs(perDay * Math.max(0, s.absent)), roundRs(salary));
   const overtime = overtimePay(s.overtime_hours, ot_rate);
   const gross_salary = roundRs(salary);

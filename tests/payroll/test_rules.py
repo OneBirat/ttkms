@@ -40,21 +40,23 @@ def test_rounding_is_half_up():
     assert round_rs(2.5) == 3 and round_rs(2.49) == 2 and round_rs(-0.4) == 0
 
 
-def test_monthly_absence_uses_the_real_month_length():
+def test_monthly_absence_divides_by_a_fixed_30_whatever_the_month_length():
     salary = 30000
     for days in (29, 30, 31, 32):
         year, month = _month_with(days)
         assert bsdate.days_in_month(year, month) == days
         result = monthly_pay(salary, 125, summary(days, present=days - 2, absent=2))
-        assert result.absence_deduction == round_rs(salary / days * 2)
-        assert result.net == salary - round_rs(salary / days * 2)
+        assert result.absence_deduction == round_rs(salary / 30 * 2) == 2000
+        assert result.net == salary - 2000
         assert result.paid_days == days - 2
         assert result.gross_salary == salary and result.earnings == salary and result.tds == 0
-    # Two absent days cost more in a short month than in a long one.
+    # Two absent days cost the same in a 29-day month as in a 32-day one.
     assert (
         monthly_pay(salary, 0, summary(29, present=27, absent=2)).absence_deduction
-        > monthly_pay(salary, 0, summary(32, present=30, absent=2)).absence_deduction
+        == monthly_pay(salary, 0, summary(32, present=30, absent=2)).absence_deduction
+        == 2000
     )
+    assert monthly_pay(22000, 0, summary(31, present=30, absent=1)).absence_deduction == 733
     # Full month, nothing absent: the whole salary; Saturdays count as paid days.
     full = monthly_pay(salary, 0, summary(30, present=26))
     assert full.net == salary and full.paid_days == 30

@@ -21,7 +21,7 @@ from app.core import bsdate
 from app.core.models import Branch, Department, Employee, EmployeeStatus, User
 from app.core.services import record_audit
 from app.modules.admin.models import PaymentMode
-from app.modules.payroll import ledgers, services
+from app.modules.payroll import ledgers, rules, services
 from app.modules.payroll.ledgers import MonthLedger
 from app.modules.payroll.models import Payment, PaymentKind, PaymentSource
 from app.modules.payroll.reports import ledger_out, month_label, payment_out
@@ -513,11 +513,7 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
             )
         )
         if ledger.pay.absence_deduction > 0:
-            per_day = (
-                round(ledger.rate / ledger.attendance.days_in_month)
-                if ledger.attendance.days_in_month
-                else 0
-            )
+            per_day = round(ledger.rate / rules.PAY_DAYS)
             entries.append(
                 LedgerEntryOut(
                     id=f"{key}-absence",

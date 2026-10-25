@@ -5,6 +5,7 @@
  */
 
 import { bsToAd, formatAd, formatAdRange, formatBs, formatBsRange } from "@/lib/bs";
+import { PAY_DAYS } from "./calc";
 import { formatMonthRange, monthLabel } from "./months";
 import { STATUS_LABEL, formatAmount, formatDays, formatRs, toCsv } from "./helpers";
 import { XLSX_MIME, buildXlsx, cellRef, type Cell, type Sheet } from "./xlsx";
@@ -138,7 +139,7 @@ td.num,th.num{text-align:right;font-family:"IBM Plex Mono",ui-monospace,monospac
 export function payslipHtml(employee: Employee, l: MonthLedger): string {
   const line = (label: string, value: string, strong = false) =>
     `<tr${strong ? ' class="strong"' : ""}><td>${escapeHtml(label)}</td><td class="num">${escapeHtml(value)}</td></tr>`;
-  const perDay = l.attendance.days_in_month ? l.rate / l.attendance.days_in_month : 0;
+  const perDay = l.rate / PAY_DAYS;
   const rate =
     l.pay_type === "monthly"
       ? `Monthly salary ${formatRs(l.rate)} · overtime ${formatRs(l.ot_rate)}/h`
@@ -176,7 +177,7 @@ ${line("Net salary", formatRs(l.net), true)}
 <tr class="strong"><td colspan="3">Paid ${formatRs(l.paid)} · due ${formatRs(l.due)}</td><td class="num">${escapeHtml(STATUS_LABEL[l.status])}</td></tr></table>
 <p class="note">${
     l.pay_type === "monthly"
-      ? "Net = salary − salary ÷ days in month × absent days + overtime − TDS. Saturdays are paid. Advances are part of this month's salary."
+      ? "Net = salary − salary ÷ 30 × absent days + overtime − TDS. Saturdays are paid. Advances are part of this month's salary."
       : "Net = wage × (present + overtime days) + overtime hours × rate − TDS. Advances are part of this month's salary."
   }</p>
 <script>window.addEventListener("load",function(){setTimeout(function(){window.print()},150)})</script>

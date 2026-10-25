@@ -2,8 +2,9 @@
 
 Decided rules (the brief overrides any older design text):
 
-* Monthly: ``net = salary - (salary / days_in_BS_month * absent) + overtime - TDS``. Saturdays
-  (the weekly off) are paid. No half days, no leave.
+* Monthly: ``net = salary - (salary / 30 * absent) + overtime - TDS`` - a fixed 30-day divisor
+  whatever the BS month's real length. Saturdays (the weekly off) are paid. No half days, no
+  leave.
 * Daily: ``net = wage * (present + overtime_days) + overtime - TDS``. Nothing to deduct.
 * Overtime: whole hours x the employee's hourly rate. Default rate ``round(salary / 30 / 8)`` -
   always 30, whatever the BS month length - and ``round(wage / 8)`` for daily staff; editable on
@@ -27,9 +28,11 @@ from app.contracts import MonthSummary
 PayTypeName = Literal["monthly", "daily"]
 MonthStatus = Literal["paid", "part_paid", "pending"]
 
-#: The default hourly overtime rate divides a monthly salary by this many days, not by the
-#: month's real length, so the rate never moves between a 29- and a 32-day month.
-OT_DAYS = 30
+#: A monthly salary is divided by this many days - for the absence deduction and the default
+#: overtime rate alike - never by the month's real length, so a day costs the same in a 29- and
+#: a 32-day month.
+PAY_DAYS = 30
+OT_DAYS = PAY_DAYS
 HOURS_PER_DAY = 8
 
 
@@ -57,7 +60,7 @@ class PayResult:
     overtime_pay: int
     #: gross_salary + overtime_pay (the report's "Gross").
     earnings: int
-    #: Monthly: salary / days in month x absent days. Daily: 0.
+    #: Monthly: salary / 30 x absent days. Daily: 0.
     absence_deduction: int
     tds: int
     net: int
@@ -65,7 +68,7 @@ class PayResult:
 
 def monthly_pay(salary: int, ot_rate: int, s: MonthSummary) -> PayResult:
     days = s.days_in_month
-    per_day = salary / days if days > 0 else 0
+    per_day = salary / PAY_DAYS
     absence = min(round_rs(per_day * max(0, s.absent)), round_rs(salary))
     overtime = overtime_pay(s.overtime_hours, ot_rate)
     gross = round_rs(salary)

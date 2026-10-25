@@ -6,8 +6,9 @@ response shapes. This document is the build list for the FastAPI side. It is wri
 *after* ttk-admin's per-user permissions and payment modes are merged, because payments reference
 `admin.payment_modes` and every endpoint is gated on a permission switch.
 
-Rules the backend enforces (decided, unchanged): no SSF; monthly net = salary − salary ÷ days in month ×
-absent days + overtime hours × rate − TDS; daily net = wage × (present + overtime days) + overtime − TDS;
+Rules the backend enforces (decided 2026-10-26): no SSF; monthly net = salary − salary ÷ 30 × absent
+days + overtime hours × rate − TDS (a fixed 30, whatever the BS month's length; the overtime rate
+defaults to salary ÷ 30 ÷ 8 the same way); TDS stays 0 for now (a later decision); daily net = wage × (present + overtime days) + overtime − TDS;
 Saturdays paid; advances are part-payments of that month's salary (no recovery, no carry-over); a payment
 never exceeds the due; BS dates first; attendance only through `AttendanceSummary.for_month`.
 

@@ -36,7 +36,7 @@ test("monthly: a full month pays the full salary; Saturdays are paid", () => {
   assert.equal(r.paid_days, 30);
 });
 
-test("monthly: absent days deduct salary ÷ days in month × absent", () => {
+test("monthly: absent days deduct salary ÷ 30 × absent", () => {
   const r = monthlyPay(30000, 125, summary({ present: 24, absent: 2, paid_days: 28 }));
   assert.equal(r.absence_deduction, 2000);
   assert.equal(r.net, 28000);
@@ -50,9 +50,13 @@ test("monthly: overtime adds hours × rate; overtime days alone add nothing", ()
   assert.equal(r.net, 30750);
 });
 
-test("monthly: uses the real days in the BS month (32-day Ashadh)", () => {
-  const r = monthlyPay(32000, 125, summary({ days_in_month: 32, absent: 1, paid_days: 31 }));
-  assert.equal(r.absence_deduction, 1000);
+test("monthly: a day costs salary ÷ 30 in a 32-day Ashadh and a 29-day Mangsir alike", () => {
+  const long = monthlyPay(30000, 125, summary({ days_in_month: 32, absent: 1, paid_days: 31 }));
+  const short = monthlyPay(30000, 125, summary({ days_in_month: 29, absent: 1, paid_days: 28 }));
+  assert.equal(long.absence_deduction, 1000);
+  assert.equal(short.absence_deduction, 1000);
+  assert.equal(long.paid_days, 31);
+  assert.equal(short.paid_days, 28);
 });
 
 test("monthly: deduction never exceeds the salary", () => {

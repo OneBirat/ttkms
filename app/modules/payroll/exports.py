@@ -18,7 +18,7 @@ from openpyxl.utils import get_column_letter
 
 from app.core import bsdate
 from app.core.export import generated_at_text, to_pdf
-from app.modules.payroll import reports
+from app.modules.payroll import reports, rules
 from app.modules.payroll.reports import ReportData, month_label
 
 StyleName = Literal[
@@ -321,7 +321,7 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
             [],
             [
                 Styled(
-                    "Monthly: net = salary − salary ÷ days in month × absent days + overtime. "
+                    "Monthly: net = salary − salary ÷ 30 × absent days + overtime. "
                     "Daily: wage × days present + overtime. Saturdays are paid. No SSF; TDS 0 "
                     "for now.",
                     "muted",
@@ -351,7 +351,7 @@ def salary_report_pdf(data: ReportData, printed_by: str) -> bytes:
         "all_branches": out.branch is None,
         "status_label": STATUS_LABEL,
         "legend_text": (
-            "Monthly: net = salary − salary ÷ days in month × absent days + overtime · "
+            "Monthly: net = salary − salary ÷ 30 × absent days + overtime · "
             "Daily: wage × days present + overtime · Saturdays paid · no SSF · TDS 0"
         ),
         "stats": [
@@ -860,8 +860,7 @@ def receipt_pdf(employee: Employee, payment: PaymentOut, printed_by: str) -> byt
 
 
 def payslip_pdf(employee: Employee, ledger: MonthLedgerOut, printed_by: str) -> bytes:
-    a = ledger.attendance
-    per_day = round(ledger.rate / a.days_in_month) if a.days_in_month else 0
+    per_day = round(ledger.rate / rules.PAY_DAYS)
     context = {
         "title": f"Payslip · {month_label(ledger.month.bs_year, ledger.month.bs_month)}"
         + (" (in progress)" if ledger.in_progress else ""),

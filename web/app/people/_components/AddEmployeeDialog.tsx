@@ -46,7 +46,7 @@ export const PAY_RULES: Record<PayType, { title: string; hint: string; amountLab
     title: "Monthly salary",
     hint: "Fixed amount, absent days deducted",
     amountLabel: "Salary per month",
-    rule: "Pay = salary − salary ÷ days × absent days + overtime. Saturdays are paid.",
+    rule: "Pay = salary − salary ÷ 30 × absent days + overtime. Saturdays are paid.",
     exampleLabel: "Example, 30-day month with 2 absent days, no overtime:",
   },
   daily: {
@@ -515,7 +515,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
                 {rules.exampleLabel} <strong className={styles.ruleExample}>{formatRs(example)}</strong>
               </span>
               <span className={styles.note}>
-                Overtime rate defaults to {payType === "monthly" ? "salary ÷ days in month ÷ 8" : "wage ÷ 8"} per hour; change it
+                Overtime rate defaults to {payType === "monthly" ? "salary ÷ 30 ÷ 8" : "wage ÷ 8"} per hour; change it
                 later under Salary structure.
               </span>
             </div>

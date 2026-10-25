@@ -11,7 +11,7 @@
  */
 
 import { apiFetch, type Role } from "@/lib/api";
-import { dailyPay, defaultOtRate, monthlyPay, paymentError, settle } from "./_lib/calc";
+import { PAY_DAYS, dailyPay, defaultOtRate, monthlyPay, paymentError, settle } from "./_lib/calc";
 import { isValidBs } from "@/lib/bs";
 import { addMonths, compareMonths, dateBoth, monthEnd, monthKey, monthLabel, monthStart, parseMonthKey, sameMonth, thisMonth, today } from "./_lib/months";
 import { barcodeFor, employeeCode, normalizeName, normalizePhone, receiptNo, sumBy, totalsFor } from "./_lib/helpers";
@@ -840,7 +840,7 @@ export async function getEmployeeLedger(employee_id: number): Promise<EmployeeLe
       in_progress: l.in_progress,
     });
     if (l.absence_deduction > 0) {
-      const perDay = l.attendance.days_in_month ? Math.round(l.rate / l.attendance.days_in_month) : 0;
+      const perDay = Math.round(l.rate / PAY_DAYS);
       entries.push({
         id: `${key}-absence`,
         date: earnedOn,

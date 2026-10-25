@@ -302,7 +302,7 @@ export function SalaryReportScreen() {
               </div>
             ) : null}
             <span className={styles.sheetNote}>
-              Gross includes overtime. Monthly staff: absence = salary ÷ days in month × absent days; Saturdays are paid.
+              Gross includes overtime. Monthly staff: absence = salary ÷ 30 × absent days (a fixed 30); Saturdays are paid.
               Daily wage: wage × days present. Advances already paid are part of the net; the status compares net
               with every payment of the month. Exports include everyone in the current filter.
             </span>

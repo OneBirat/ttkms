@@ -7,10 +7,10 @@ endpoint it stands in for; the shapes are in `types.ts`. Backend lives in
 ## Business rules (decided)
 
 - No SSF anywhere. TDS is a 0 placeholder column.
-- Monthly: `net = gross − gross ÷ days_in_month × absent + overtime_hours × ot_rate − tds`.
+- Monthly: `net = gross − gross ÷ 30 × absent + overtime_hours × ot_rate − tds` (a fixed 30, whatever the BS month's length).
   Saturdays (weekly off) are paid. No half days, no leave.
 - Daily: `net = wage × (present + overtime_days) + overtime_hours × ot_rate − tds`.
-- Overtime rate per employee, default `gross ÷ days_in_month ÷ 8` (daily: `wage ÷ 8`), editable on the
+- Overtime rate per employee, default `gross ÷ 30 ÷ 8` (daily: `wage ÷ 8`), editable on the
   salary structure (`web/app/people/_lib/calc.ts`, unit-tested).
 - Advances are part-payments of that month's salary: no recovery, no carry-over.
   Month status is derived: `due = max(0, net − Σ payments)`; Paid (due 0) / Part paid / Pending.
