@@ -123,22 +123,6 @@ Every POST/PUT/PATCH/DELETE needs the `X-CSRF-Token` header (the token comes bac
 `401 {"detail": "login required"}`; the wrong role gets 403. A session without "Keep me signed in"
 is a browser-session cookie that also expires server-side after 12 hours.
 
-## Migrations per module
-
-`alembic.ini` has a named section per module; always pass it:
-
-```bash
-alembic -n core upgrade head
-alembic -n stock revision --autogenerate -m "items"   # in the feat/stock worktree
-alembic -n stock upgrade head
-```
-
-Each environment keeps its own version table (`<module>.alembic_version_<module>`) and only
-autogenerates objects in its own schema (`migrations/env_helper.py`). Models declare
-`__table_args__ = {"schema": "<module>"}`; cross-schema foreign keys such as
-`ForeignKey("core.employees.id")` are fine. `app.modules.<module>.models` is imported automatically
-by the module's environment once it exists. **Only `main` changes the `core` schema.**
-
 ## Tests
 
 ```bash
@@ -146,7 +130,7 @@ make test
 ```
 
 The suite uses a real Postgres database: `TEST_DATABASE_URL` or, by default, the main database's
-name + `_test_` + the checkout directory (`ttk_test_ttkms`, `ttk_test_ttk_stock`, ...) on the same
+name + `_test_` + the checkout directory (`ttk_test_ttkms`, `ttk_test_ttk_admin`, ...) on the same
 server, so worktrees never share a test database. It is created if missing, its schemas are reset,
 every enabled module's migrations are run through Alembic, and each test runs in a rolled-back
 transaction. `tests/__init__.py` pins `ENABLED_MODULES` to the default set so `.env` cannot change
@@ -156,27 +140,77 @@ The core downgrade/upgrade round-trip test uses a further throwaway database (`.
 Skipped until their inputs exist: the BS round-trip tests (need the calendar table, below) and the
 PDF tests (need pango). The frontend is checked with `make web-lint` and `make web-build`.
 
-## Worktree workflow
+## Worktrees
 
-Each feature module is built on its own branch in its own worktree, from `main`:
+`main` lives in this checkout (`ttkms`). Each module is developed on its own branch in a sibling
+worktree and merged back to `main`:
+
+| Worktree | Branch | Owns | `APP_PORT` / `WEB_PORT` |
+|---|---|---|---|
+| `ttkms` | `main` | core (`app/core`, `migrations/core`, `web/components`, `web/lib`, contracts) | 8000 / 3000 |
+| `../ttk-attendance` | `feat/attendance` | `app/modules/attendance`, `migrations/attendance`, `tests/attendance`, `web/app/(app)/attendance`, `web/components/attendance` | 8002 / 3002 |
+| `../ttk-payroll` | `feat/payroll` | `app/modules/payroll`, `migrations/payroll`, `tests/payroll`, `web/app/people` | 8003 / 3003 |
+| `../ttk-admin` | `feat/admin` | `app/modules/admin`, `migrations/admin`, `tests/admin`, `web/app/(app)/admin`, `web/components/admin` | 8004 / 3004 |
 
 ```bash
-git worktree add ../ttk-stock      -b feat/stock
-git worktree add ../ttk-attendance -b feat/attendance
-git worktree add ../ttk-payroll    -b feat/payroll
-git worktree add ../ttk-admin      -b feat/admin
+git worktree add ../ttk-attendance feat/attendance
+git worktree add ../ttk-payroll    feat/payroll
+git worktree add ../ttk-admin      feat/admin
 ```
 
-In every worktree:
+Setting up a worktree: create its own `.venv` (`pip install -r requirements.txt`), run
+`make web-install`, copy `.env` from `main` and give it the ports above. Everything else is
+shared: `git rebase main` before merging, and only `main` changes `app/core`, `migrations/core` and
+the shared frontend (`web/components`, `web/lib`).
 
-1. create its own `.venv` (`pip install -r requirements.txt`) and run `make web-install`;
-2. copy `.env` and give it its own ports - `APP_PORT`/`WEB_PORT` 8001/3001 stock, 8002/3002
-   attendance, 8003/3003 payroll, 8004/3004 admin - all worktrees share the same database;
-3. only touch `app/modules/<name>/`, `migrations/<name>/`, `tests/<name>/` and your module's pages
-   and components under `web/` (`web/app/(app)/<name>/`, `web/components/<name>/`);
-4. `git rebase main` before merging; merge order: stock, attendance, admin, then payroll.
+### One database, one Alembic section per module
 
-What a module can rely on from core:
+Every worktree points `DATABASE_URL` at the same Postgres (`localhost:5433`, database `ttk`, from
+`docker-compose.dev.yml`). Each module owns one Postgres schema and one Alembic section in
+`alembic.ini` with its own script directory and version table, so worktrees never migrate each
+other's tables:
+
+| Section | Schema | Scripts | Version table |
+|---|---|---|---|
+| `core` | `core` | `migrations/core/` | `core.alembic_version_core` |
+| `admin` | `admin` | `migrations/admin/` | `admin.alembic_version_admin` |
+| `attendance` | `attendance` | `migrations/attendance/` | `attendance.alembic_version_attendance` |
+| `payroll` | `payroll` | `migrations/payroll/` | `payroll.alembic_version_payroll` |
+
+```bash
+make migrate                                         # core, then every enabled module with versions
+alembic -n attendance revision --autogenerate -m "records"   # in the module's worktree
+alembic -n attendance upgrade head
+```
+
+Only the module's own schema is autogenerated (`migrations/env_helper.py`); cross-schema foreign
+keys such as `ForeignKey("core.employees.id")` are fine. Models declare
+`__table_args__ = {"schema": "<module>"}`; `app.modules.<module>.models` is imported by the
+module's environment once it exists.
+
+### Running a worktree
+
+```bash
+make dev          # uvicorn app.main:app --reload --port $APP_PORT
+make web-dev      # next dev --port $WEB_PORT, /api proxied to http://localhost:$APP_PORT
+```
+
+Open `http://localhost:$WEB_PORT` and sign in there. `make web-build` is the production build;
+stop that worktree's `next dev` first (both use `web/.next`).
+
+### Testing a worktree
+
+```bash
+make test         # pytest, then the web tests when web/node_modules exists
+make lint         # ruff check + format check, eslint, tsc --noEmit
+make web-test     # node --test over web/**/*.test.{ts,tsx,mjs} (web/test/README.md)
+```
+
+pytest uses a database of its own per checkout (`ttk_test_<directory>`, see Tests above), so
+worktrees never share test data. `tests/__init__.py` pins `ENABLED_MODULES` to the default set;
+`client_for("attendance,admin")` builds an app with another module set.
+
+### What a module can rely on from core
 
 - `Module` / `NavItem` (`app/core/modules.py`): the router is mounted under `/api/<name>`; nav
   items (frontend paths) show in the sidebar for the listed roles via `/api/core/modules`;
