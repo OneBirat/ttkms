@@ -45,6 +45,7 @@ async def test_registry_returns_fake_until_real_implementation_registers():
                 absent=0,
                 weekly_off=4,
                 paid_days=30,
+                days_counted=30,
             )
 
         async def today(self, employee_ids, day=None):

@@ -24,21 +24,31 @@ from typing import Literal, Protocol, runtime_checkable
 
 @dataclass
 class MonthSummary:
-    """One employee's attendance for one BS month, the way payroll needs it."""
+    """One employee's attendance for one BS month, the way payroll needs it. Past months count
+    the whole month; the running month counts the days up to today ("so far"), and
+    ``days_counted`` says how many days that is. Saturday work is counted on its own
+    (``saturday_*``) and never in present / overtime_days / overtime_hours."""
 
     days_in_month: int
-    #: Days marked P.
+    #: Days marked P (not Saturdays).
     present: int
-    #: Days marked O (present with overtime).
+    #: Days marked O (present with overtime; not Saturdays).
     overtime_days: int
     #: Sum of the overtime hours of those days.
     overtime_hours: int
     #: Days marked A (unpaid).
     absent: int
-    #: Weekly-off days without a record (paid).
+    #: Weekly-off days (Saturdays) counted - worked or not, they are paid.
     weekly_off: int
     #: present + overtime_days + weekly_off.
     paid_days: int
+    #: Days the figures cover: days_in_month for a past month, today's BS day for the running
+    #: month, 0 for a month that has not started.
+    days_counted: int
+    #: Saturdays marked P or O (pending business decision: payroll.saturday_work_rule).
+    saturday_days_worked: int = 0
+    #: Overtime hours marked on those Saturdays.
+    saturday_ot_hours: int = 0
 
 
 #: One employee's mark for one day, as the People list shows it ("Today" column).
@@ -63,12 +73,23 @@ def _days_in_month(bs_year: int, bs_month: int) -> int:
     return bsdate.days_in_month(bs_year, bs_month)
 
 
+def _days_counted(bs_year: int, bs_month: int, days: int) -> int:
+    """days for a past month, today's BS day for the running month, 0 for a future one."""
+    from app.core import bsdate
+
+    today = bsdate.today_bs()
+    if (bs_year, bs_month) == (today.year, today.month):
+        return today.day
+    return days if (bs_year, bs_month) < (today.year, today.month) else 0
+
+
 class FakeAttendanceSummary:
     """Deterministic sample data: the same inputs always give the same summary, and the days
     add up (present + overtime_days + absent + weekly_off + not marked = days_in_month)."""
 
     async def for_month(self, employee_id: int, bs_year: int, bs_month: int) -> MonthSummary:
         days = _days_in_month(bs_year, bs_month)
+        days_counted = _days_counted(bs_year, bs_month, days)
         seed = (employee_id * 31 + bs_year * 12 + bs_month) % 7
         weekly_off = sum(1 for d in range(days) if (d + seed) % 7 == 0)
         working = days - weekly_off
@@ -85,6 +106,7 @@ class FakeAttendanceSummary:
             absent=absent,
             weekly_off=weekly_off,
             paid_days=present + overtime_days + weekly_off,
+            days_counted=days_counted,
         )
 
     async def today(

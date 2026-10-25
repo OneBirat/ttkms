@@ -5,7 +5,6 @@ import pytest
 from app.core import bsdate
 from app.core.models import Role
 from app.main import MODULES
-from app.modules.attendance import SAMPLE_TODAY
 from tests.core.test_modules import frontend_prefix
 
 pytestmark = pytest.mark.anyio
@@ -82,20 +81,17 @@ async def test_today_counts_for_signed_in_users(client, make_user, login):
     await make_user("clerk", role=Role.staff)
     await login("clerk")
     counts = (await client.get("/api/today")).json()["counts"]
+    # A user without a branch sees nobody (tests/attendance/test_dashboard.py has real figures).
     assert counts == {
-        "total": SAMPLE_TODAY["total"],
-        "present": SAMPLE_TODAY["present"],
-        "overtime": SAMPLE_TODAY["overtime"],
-        "overtime_hours": SAMPLE_TODAY["overtime_hours"],
-        "absent": SAMPLE_TODAY["absent"],
-        "not_marked": SAMPLE_TODAY["not_marked"],
+        "total": 0,
+        "present": 0,
+        "overtime": 0,
+        "overtime_hours": 0,
+        "absent": 0,
+        "not_marked": 0,
         "paid_today": 0,
         "payments_today": 0,
     }
-    assert (
-        counts["present"] + counts["overtime"] + counts["absent"] + counts["not_marked"]
-        == (counts["total"])
-    )
 
 
 async def test_bs_convert(client):

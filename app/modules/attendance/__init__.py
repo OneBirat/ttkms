@@ -13,8 +13,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import select
+
+from app.core.models import Employee, EmployeeStatus
 from app.core.modules import Module, NavItem, WidgetContext
-from app.modules.attendance.access import MARK, REPORT
+from app.modules.attendance import contract, services
+from app.modules.attendance.access import MARK, REPORT, scope_for
 from app.modules.attendance.routes import router
 
 #: Access is per user (app.modules.admin.permissions), not per role: anyone with
@@ -25,28 +29,62 @@ __all__ = ["MARK", "REPORT", "module", "router"]
 
 # --------------------------------------------------------------------------- widgets
 
-#: Sample figures for the dashboard card until attendance.records exists: 14 staff, 9 present,
-#: 2 with overtime (3 h in total), 2 absent, 1 not marked yet.
-SAMPLE_TODAY: dict[str, Any] = {
-    "total": 14,
-    "present": 9,
-    "overtime": 2,
-    "overtime_hours": 3,
-    "absent": 2,
-    "not_marked": 1,
-    "not_in": [
-        {"employee_id": 13, "name": "Sita Thapa", "status": "A"},
-        {"employee_id": 2, "name": "Ramesh K.C.", "status": "A"},
-        {"employee_id": 21, "name": "Kiran Lama", "status": "N"},
-    ],
-    "mark_path": "/attendance/mark",
-}
+#: Names listed under "Not in yet" on the card.
+NOT_IN_LIMIT = 8
+
+
+async def today_figures(ctx: WidgetContext) -> dict[str, Any]:
+    """Today's counts for the caller's branch (every branch with ``see_other_branches``):
+    ``total`` active staff, ``present`` P, ``overtime`` O (+ ``overtime_hours``), ``absent`` A,
+    ``not_marked`` without a record (0 on the weekly off: nobody needs a mark), ``weekly_off``
+    true on Saturdays, ``not_in`` the absent / not-marked names, ``mark_path``."""
+    scope = await scope_for(ctx.db, ctx.user, None)
+    day = services.today()
+    query = select(Employee).where(
+        Employee.status == EmployeeStatus.active, Employee.joined_ad <= day
+    )
+    if scope.branch_id is not None:
+        query = query.where(Employee.branch_id == scope.branch_id)
+    employees = sorted(await ctx.db.scalars(query), key=lambda e: (e.full_name.lower(), e.id))
+    records = await services.day_records(ctx.db, day, [e.id for e in employees])
+    weekly_off = services.is_weekly_off(day)
+    counts = {"P": 0, "O": 0, "A": 0, "N": 0}
+    hours = 0
+    not_in: list[dict[str, Any]] = []
+    for e in employees:
+        record = records.get(e.id)
+        if record is None:
+            if weekly_off:
+                continue
+            counts["N"] += 1
+            not_in.append({"employee_id": e.id, "name": e.full_name, "status": "N"})
+            continue
+        counts[record.status] += 1
+        hours += record.overtime_hours
+        if record.status == "A":
+            not_in.append({"employee_id": e.id, "name": e.full_name, "status": "A"})
+    not_in.sort(key=lambda n: (n["status"] != "A", n["name"].lower()))
+    return {
+        "total": len(employees),
+        "present": counts["P"],
+        "overtime": counts["O"],
+        "overtime_hours": hours,
+        "absent": counts["A"],
+        "not_marked": counts["N"],
+        "weekly_off": weekly_off,
+        "not_in": not_in[:NOT_IN_LIMIT],
+        "mark_path": "/attendance/mark",
+    }
 
 
 async def attendance_today_widget(ctx: WidgetContext) -> dict[str, Any]:
     """The "Attendance today" card: segmented bar, Present / Overtime / Absent / Not marked
     counts, the "Not in yet" list and a Mark link (web/components/attendance/widgets)."""
-    return {"kind": "attendance_today", "title": "Attendance today", "data": dict(SAMPLE_TODAY)}
+    return {
+        "kind": "attendance_today",
+        "title": "Attendance today",
+        "data": await today_figures(ctx),
+    }
 
 
 TODAY_COUNT_FIELDS = ("total", "present", "overtime", "overtime_hours", "absent", "not_marked")
@@ -54,9 +92,13 @@ TODAY_COUNT_FIELDS = ("total", "present", "overtime", "overtime_hours", "absent"
 
 async def attendance_today_counts(ctx: WidgetContext) -> dict[str, Any]:
     """Attendance's share of ``GET /api/today`` ``counts`` (``TodayCountsOut``): the same figures
-    as the widget, for the dashboard stat row. Sample data until ``attendance.records`` exists;
-    the real version counts today's records of the caller's branch(es)."""
-    return {key: SAMPLE_TODAY[key] for key in TODAY_COUNT_FIELDS}
+    as the widget, for the dashboard stat row."""
+    figures = await today_figures(ctx)
+    return {key: figures[key] for key in TODAY_COUNT_FIELDS}
+
+
+# Payroll reads attendance through app/contracts.py (AttendanceSummary).
+contract.register()
 
 
 module = Module(

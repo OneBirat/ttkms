@@ -254,8 +254,8 @@ class TodayCountsOut(BaseModel):
     ``not_marked`` without a record. Payroll (``app.modules.payroll``): ``paid_today`` rupees paid
     today (salary + advances), ``payments_today`` number of payments.
 
-    Mock-backed until the attendance and payroll backends exist (the modules' ``SAMPLE_*``
-    constants); the shape is the contract both backends implement.
+    Both are real: attendance counts today's records (Kathmandu day; ``not_marked`` is 0 on the
+    weekly off), payroll today's payments.
     """
 
     total: int | None = None

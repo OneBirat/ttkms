@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.modules.attendance import SAMPLE_TODAY, module
+from app.modules.attendance import module
 
 pytestmark = pytest.mark.anyio
 
@@ -44,21 +44,3 @@ async def test_staff_see_marking_but_not_the_report(client, make_user, login):
     assert [(i["label"], i["path"]) for i in attendance["nav"]] == [
         ("Mark attendance", "/attendance/mark")
     ]
-
-
-async def test_dashboard_widget_is_attendance_today_only(client, make_user, login):
-    await make_user("boss", role="manager")
-    await login("boss")
-    response = await client.get("/api/dashboard")
-    assert response.status_code == 200
-    widgets = [w for w in response.json()["widgets"] if w["module"] == "attendance"]
-    assert [w["kind"] for w in widgets] == ["attendance_today"]
-    assert widgets[0]["title"] == "Attendance today"
-    today = widgets[0]["data"]
-    assert today == SAMPLE_TODAY
-    # P / O / A / not marked add up to the headcount; no late / half / leave anywhere.
-    counted = today["present"] + today["overtime"] + today["absent"] + today["not_marked"]
-    assert counted == today["total"]
-    assert {"late", "half_day", "leave", "on_time"}.isdisjoint(today)
-    assert {e["status"] for e in today["not_in"]} <= {"A", "N"}
-    assert today["mark_path"] == "/attendance/mark"

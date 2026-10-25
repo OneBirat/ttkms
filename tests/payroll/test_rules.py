@@ -25,6 +25,7 @@ def summary(days: int, present: int = 0, absent: int = 0, ot_days: int = 0, ot_h
         absent=absent,
         weekly_off=weekly_off,
         paid_days=present + ot_days + weekly_off,
+        days_counted=days,
     )
 
 

@@ -315,8 +315,15 @@ async def test_money_endpoints_need_salary_advances_and_stay_in_branch(
 
 
 async def _seed_payments(client, headers, people, bank):
-    """Six payments across both branches and both departments, the previous month and this one."""
+    """Six payments across both branches and both departments, the previous month and this one.
+    Ramesh is paid by the day, so he is marked present today first (nothing earned otherwise)."""
     first_of_month = bsdate.BSDate(CURRENT[0], CURRENT[1], 1).isoformat()
+    marked = await client.post(
+        "/api/attendance/mark",
+        json={"date_bs": TODAY.isoformat(), "employee_id": people["Ramesh"].id, "status": "P"},
+        headers=headers,
+    )
+    assert marked.status_code == 200, marked.text
     made = []
     for name, kind, amount, month, extra in [
         ("Anita", "advance", 2000, CURRENT, {"date_bs": first_of_month}),

@@ -40,7 +40,8 @@ async def test_dashboard_widget_is_payments_today(client, make_user, login):
     )
 
 
-async def test_payroll_can_use_the_attendance_contract():
+async def test_payroll_uses_the_real_attendance_contract(db):
+    """The attendance module registers its AttendanceSummary; payroll never sees the fake."""
     summary = await get_attendance_summary().for_month(1, 2083, 7)
-    assert isinstance(get_attendance_summary(), FakeAttendanceSummary)
+    assert not isinstance(get_attendance_summary(), FakeAttendanceSummary)
     assert summary.paid_days <= summary.days_in_month
