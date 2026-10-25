@@ -89,6 +89,7 @@ export function MarkPage() {
           ask={state.clearAsk}
           employee={clearRow.employee}
           weeklyOff={state.data?.day.is_weekly_off ?? false}
+          phone={phone}
           onConfirm={state.clearConfirm}
           onCancel={state.clearCancel}
         />
