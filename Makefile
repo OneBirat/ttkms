@@ -9,11 +9,12 @@ WEB_PORT ?= 3000
 PY ?= .venv/bin/python
 # Only enabled modules are migrated (ENABLED_MODULES in .env, comma-separated; same default as
 # app/config.py). A paused module's schema is never upgraded, downgraded or dropped here.
-# Order: core, then admin (payroll's tables reference admin.payment_modes), then the rest.
+# Order: core, admin (payroll's tables reference admin.payment_modes), payroll, attendance, rest.
 ENABLED_MODULES ?= attendance,payroll,admin
 comma := ,
 ENABLED_LIST := $(subst $(comma), ,$(ENABLED_MODULES))
-MODULES := $(filter admin,$(ENABLED_LIST)) $(filter-out admin,$(ENABLED_LIST))
+MODULES := $(filter admin,$(ENABLED_LIST)) $(filter payroll,$(ENABLED_LIST)) \
+	$(filter attendance,$(ENABLED_LIST)) $(filter-out admin payroll attendance,$(ENABLED_LIST))
 
 .PHONY: dev migrate test lint fmt seed seed-demo create-admin web-install web-dev web-build web-lint web-test
 
