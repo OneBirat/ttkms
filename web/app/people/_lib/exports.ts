@@ -9,7 +9,7 @@ import { PAY_DAYS } from "./calc";
 import { formatMonthRange, monthLabel } from "./months";
 import { STATUS_LABEL, formatAmount, formatDays, formatRs, toCsv } from "./helpers";
 import { XLSX_MIME, buildXlsx, cellRef, type Cell, type Sheet } from "./xlsx";
-import { groupRowsByBranch, groupRowsByDepartment, type RegisterGroup } from "./register";
+import { groupRowsByDepartment, type RegisterGroup } from "./register";
 import type { Branch, DepartmentRef, Employee, MonthLedger, Payment, PaymentsRegister, RegisterRow, ReportRow } from "../types";
 
 export function downloadText(filename: string, text: string, type = "text/csv;charset=utf-8"): void {
@@ -241,9 +241,9 @@ export function registerFileName(
   return `${parts.filter(Boolean).join("_")}.${ext}`;
 }
 
-/** "Payment report · {Branch or All branches} · {Department if any} · {range}" - file title and PDF header. */
+/** "Payment report · {Branch} · {Department if any} · {range}" - file title and PDF header. */
 export function registerTitle(register: PaymentsRegister): string {
-  const parts = ["Payment report", register.branch?.name ?? "All branches", register.department?.name ?? null, formatBsRange(register.from_bs, register.to_bs)];
+  const parts = ["Payment report", register.branch?.name ?? null, register.department?.name ?? null, formatBsRange(register.from_bs, register.to_bs)];
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -302,34 +302,6 @@ export function registerWorkbook({ register, rows, branch }: RegisterExportInput
       ],
     ],
   };
-
-  // By branch (All branches only): the exported rows per branch.
-  const branchGroups = register.branch ? [] : groupRowsByBranch(rows);
-  const bFirst = 3;
-  const bLast = bFirst + Math.max(1, branchGroups.length) - 1;
-  const byBranch: Sheet | null = register.branch
-    ? null
-    : {
-        name: "By branch",
-        widths: [22, 14, 14, 14, 10],
-        autoFilter: `A2:E${bLast}`,
-        rows: [
-          [{ v: `By branch · ${range}${register.department ? ` · ${register.department.name}` : ""}`, s: "title" }],
-          ["Branch", "Salary", "Advances", "Total", "Count"].map((h) => ({ v: h, s: "header" as const })),
-          ...branchGroups.map((g, i): Cell[] => {
-            const row = bFirst + i;
-            return [g.branch.name, { v: g.salary, s: "number" }, { v: g.advances, s: "number" }, { f: `B${row}+C${row}`, v: g.total, s: "numberBold" }, { v: g.rows.length, s: "number" }];
-          }),
-          ...(branchGroups.length === 0 ? [[{ v: "No payments in this range", s: "muted" as const }]] : []),
-          [
-            { v: `Total · ${branchGroups.length} branch${branchGroups.length === 1 ? "" : "es"}`, s: "total" },
-            { f: `SUM(B${bFirst}:B${bLast})`, v: sum(salary), s: "total" },
-            { f: `SUM(C${bFirst}:C${bLast})`, v: sum(advances), s: "total" },
-            { f: `SUM(D${bFirst}:D${bLast})`, v: sum(rows), s: "total" },
-            { f: `SUM(E${bFirst}:E${bLast})`, v: rows.length, s: "total" },
-          ],
-        ],
-      };
 
   // By department: the exported rows grouped, salary / advances / total / count per department.
   const groups = groupRowsByDepartment(rows);
@@ -447,7 +419,7 @@ export function registerWorkbook({ register, rows, branch }: RegisterExportInput
     ],
   };
   void cellRef;
-  return [payments, ...(byBranch ? [byBranch] : []), byDepartment, byEmployee, summary, filter];
+  return [payments, byDepartment, byEmployee, summary, filter];
 }
 
 export function downloadRegisterXlsx(input: RegisterExportInput): void {
@@ -480,7 +452,6 @@ table.pg{border-collapse:collapse;width:100%;font-size:10.5px}
 .sal{background:#e3f0ee;color:#0a5454}.adv{background:#e3e8f4;color:#253f73}
 tfoot tr.a td{background:#e3f0ee;font-weight:700}tfoot tr.b td{background:#e3e8f4;font-weight:700}tfoot tr.c td{background:#f1f3f0;font-weight:700}
 tr.grp td{background:#e9efe9;font-weight:700;color:#0a5454}tr.sub td{background:#f6f8f6;font-weight:600;color:#3e4a52}
-tr.br td{background:#d7e6e3;font-weight:700;color:#083f3f}tr.brsub td{background:#e9efe9;font-weight:700;color:#083f3f}
 .sig{width:90px}
 footer{display:flex;justify-content:space-between;align-items:flex-end;font-size:10px;color:#4a555c;border-top:1px solid #d5d9d5;padding-top:8px;margin-top:auto}
 .signs{display:flex;gap:40px}.signs span{border-top:1px solid #6b757b;padding-top:3px;width:140px;text-align:center}
@@ -512,22 +483,8 @@ export function registerPdfHtml({ register, rows, branch, generatedBy, previousM
     `<tr class="grp"><td colspan="${COLS}">${escapeHtml(g.department?.name ?? "No department")} · ${count(g.rows.length)}</td></tr>` +
     g.rows.map(line).join("") +
     subtotal("sub", g.department?.name ?? "No department", g);
-  // Sort = Branch: a heading + subtotal per branch. Sort = Department: per department, nested inside the
-  // branches when the report covers all of them. Subtotals carry Salary · Advances · Total.
-  let body: string;
-  if (register.sort === "branch") {
-    body = groupRowsByBranch(rows)
-      .map((g) => `<tr class="br"><td colspan="${COLS}">${escapeHtml(g.branch.name)} · ${count(g.rows.length)}</td></tr>` + g.rows.map(line).join("") + subtotal("brsub", g.branch.name, g))
-      .join("");
-  } else if (register.sort === "department" && !register.branch) {
-    body = groupRowsByBranch(rows, true)
-      .map((g) => `<tr class="br"><td colspan="${COLS}">${escapeHtml(g.branch.name)} · ${count(g.rows.length)}</td></tr>` + (g.departments ?? []).map(departmentBlock).join("") + subtotal("brsub", g.branch.name, g))
-      .join("");
-  } else if (register.sort === "department") {
-    body = groupRowsByDepartment(rows).map(departmentBlock).join("");
-  } else {
-    body = rows.map(line).join("");
-  }
+  // Sort = Department: a heading + subtotal (Salary · Advances · Total) per department.
+  const body = register.sort === "department" ? groupRowsByDepartment(rows).map(departmentBlock).join("") : rows.map(line).join("");
   const tiles = [
     ["Net payroll", formatAmount(t.month_net), "#1b2328", `${t.staff} staff · ${month}`],
     ["Salary paid", formatAmount(sum(salary)), "#0a5454", `${salary.length} payments in range`],
@@ -537,7 +494,7 @@ export function registerPdfHtml({ register, rows, branch, generatedBy, previousM
     .map(([k, v, c, s]) => `<div><span class="k">${k}</span><span class="v" style="color:${c}">Rs ${v}</span><span class="s">${s}</span></div>`)
     .join("");
   const now = new Date();
-  const sortLabel = { date: "by date", branch: "by branch", department: "by department", employee: "by employee", amount: "by amount" }[register.sort];
+  const sortLabel = { date: "by date", department: "by department", employee: "by employee", amount: "by amount" }[register.sort];
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${registerFileName(register.from_bs, register.to_bs, "pdf", register.department, register.branch)}</title>
 <style>${PDF_CSS}</style></head><body><div class="page">
 <header><div class="brand"><div class="tile">TT</div><div><h1>${escapeHtml(registerTitle(register))}</h1><span class="sub">Salary &amp; advance payments · ${escapeHtml(adRange)} · ${escapeHtml(branch)} · ${rows.length} payments · ${sortLabel}</span></div></div>

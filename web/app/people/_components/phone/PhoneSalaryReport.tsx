@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PhoneFrame } from "./PhoneFrame";
-import { useReportBranch } from "../../_lib/useBranchScope";
+import { useReportBranch, waitForBranch } from "../../_lib/useBranchScope";
 import { currentMonth, getSalaryReport, listBranches, listMonths } from "../../api";
 import { formatAdRange } from "@/lib/bs";
 import { addMonths, compareMonths, monthEnd, monthLabel, monthStart, sameMonth } from "../../_lib/months";
 import { formatAmount } from "../../_lib/helpers";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
+import type { SalaryReport } from "../../types";
 import styles from "./phone.module.css";
 import shared from "../payroll.module.css";
 
@@ -22,7 +23,10 @@ export function PhoneSalaryReport() {
   const [month, setMonth] = useState(currentMonth());
   const [filter, setFilter] = useState<Filter>("all");
   const branchScope = useReportBranch(branches.data ?? []);
-  const report = usePayroll(() => getSalaryReport(month, null, branchScope.branchId), [month.bs_year, month.bs_month, branchScope.branchId]);
+  const report = usePayroll(
+    () => (branchScope.ready ? getSalaryReport(month, null, branchScope.branchId) : waitForBranch<SalaryReport>()),
+    [month.bs_year, month.bs_month, branchScope.branchId, branchScope.ready],
+  );
   const picker = branchScope.picker;
   const rows = report.data?.rows ?? [];
   const shown = rows.filter((r) => (filter === "all" ? true : filter === "due" ? r.ledger.due > 0 : r.ledger.due === 0));
@@ -80,18 +84,6 @@ export function PhoneSalaryReport() {
           </button>
         ))}
       </div>
-      {report.data && report.data.branch === null && report.data.by_branch.length > 1 ? (
-        <div className={styles.card} style={{ margin: "0 16px 10px" }} role="group" aria-label="By branch">
-          {report.data.by_branch.map((b) => (
-            <div key={b.branch.id} className={styles.kvLine} style={{ padding: "10px 14px", fontSize: 13 }}>
-              <span>
-                <b>{b.branch.name}</b> · {b.staff} staff · due {formatAmount(b.due)}
-              </span>
-              <b className="mono">Rs {formatAmount(b.net)}</b>
-            </div>
-          ))}
-        </div>
-      ) : null}
       {report.error ? <p className={styles.empty}>{payrollErrorMessage(report.error)}</p> : null}
       {!report.data && !report.error ? <p className={styles.empty}>Loading…</p> : null}
       {report.data ? (
@@ -105,7 +97,7 @@ export function PhoneSalaryReport() {
                 </span>
                 <span className={styles.rowSub}>
                   {e.department?.name ?? "—"}
-                  {report.data?.branch === null ? ` · ${e.branch.name}` : ""} · {l.attendance.absent ? `${l.attendance.absent} d absent` : "full month"} · OT {l.attendance.overtime_hours} h
+                  {" "}· {l.attendance.absent ? `${l.attendance.absent} d absent` : "full month"} · OT {l.attendance.overtime_hours} h
                 </span>
               </span>
               <span className={styles.rowRight}>

@@ -345,7 +345,7 @@ export interface DepartmentNetTotal {
   net: number;
 }
 
-/** The month per branch (the "By branch" summary shown with All branches). */
+/** The month per branch (sent by the API; the UI always shows one branch, so it is not displayed). */
 export interface BranchNetTotal {
   branch: Branch;
   staff: number;
@@ -416,10 +416,10 @@ export interface RegisterDepartmentTotal {
   total: number;
 }
 
-/** Date = newest first (default) · Branch A-Z · Department A-Z · Employee A-Z · Amount high to low. */
-export type RegisterSort = "date" | "branch" | "department" | "employee" | "amount";
+/** Date = newest first (default) · Department A-Z · Employee A-Z · Amount high to low. */
+export type RegisterSort = "date" | "department" | "employee" | "amount";
 
-/** Payments of the range per branch (the "By branch" export sheet, All branches only). */
+/** Payments of the range per branch (sent by the API; not displayed, the UI shows one branch). */
 export interface RegisterBranchTotal {
   branch: Branch;
   count: number;

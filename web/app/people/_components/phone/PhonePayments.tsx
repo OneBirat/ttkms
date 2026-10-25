@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { BottomSheet } from "./BottomSheet";
 import { PhoneFrame } from "./PhoneFrame";
-import { useReportBranch } from "../../_lib/useBranchScope";
+import { useReportBranch, waitForBranch } from "../../_lib/useBranchScope";
 import { listDepartments, listPayments, receiptUrl } from "../../api";
 import { VoidPaymentDialog, VoidedNote, useCanVoid } from "../VoidPaymentDialog";
 import { monthLabel } from "../../_lib/months";
@@ -13,8 +13,8 @@ import { listBranches } from "../../api";
 import { formatBsDay } from "@/lib/bs";
 import { rangeFor, today } from "../../_lib/months";
 import { formatAmount, groupBy, initials } from "../../_lib/helpers";
-import { REGISTER_SORTS, groupRowsByBranch, groupRowsByDepartment, isRegisterSort, type RegisterGroup } from "../../_lib/register";
-import type { Payment, RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
+import { REGISTER_SORTS, groupRowsByDepartment, isRegisterSort, type RegisterGroup } from "../../_lib/register";
+import type { Payment, PaymentsRegister, RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import styles from "./phone.module.css";
 
@@ -26,8 +26,7 @@ const CHIPS: { value: RegisterTypeFilter; label: string }[] = [
 
 const SORT_HINT: Record<RegisterSort, string> = {
   date: "Newest first, grouped by day",
-  branch: "A–Z, grouped with a subtotal each",
-  department: "A–Z, grouped with a subtotal each (inside each branch when all are shown)",
+  department: "A–Z, grouped with a subtotal each",
   employee: "Name A–Z",
   amount: "Highest first",
 };
@@ -68,8 +67,11 @@ export function PhonePayments() {
   const range = useMemo(() => rangeFor("last_3"), []);
   const branchScope = useReportBranch(branches.data ?? []);
   const register = usePayroll(
-    () => listPayments({ ...range, type, branch_id: branchScope.branchId, department_id: departmentId, sort, show_voided: showVoided }),
-    [type, branchScope.branchId, departmentId, sort, showVoided],
+    () =>
+      branchScope.ready
+        ? listPayments({ ...range, type, branch_id: branchScope.branchId, department_id: departmentId, sort, show_voided: showVoided })
+        : waitForBranch<PaymentsRegister>(),
+    [type, branchScope.branchId, branchScope.ready, departmentId, sort, showVoided],
   );
   const picker = branchScope.picker;
   const data = register.data;
@@ -128,7 +130,7 @@ export function PhonePayments() {
         </span>
         <span className={styles.txBalance}>
           {e.department?.name ?? "No department"}
-          {data && !data.branch ? ` · ${e.branch.name}` : ""} · recorded by {p.recorded_by}
+          {" "}· recorded by {p.recorded_by}
         </span>
         <VoidedNote payment={p} />
       </span>
@@ -136,12 +138,11 @@ export function PhonePayments() {
     );
   };
 
-  // Date: one card per day. Branch / Department: one card per group with a subtotal (Department nests
-  // inside branch headings when all branches are shown). Employee / Amount: one flat card.
+  // Date: one card per day. Department: one card per group with a subtotal. Employee / Amount: one flat card.
   type Subtotal = null | { salary: number; advances: number; total: number };
-  type Section = { key: string; title: string; lang?: "ne"; rows: RegisterRow[]; subtotal: Subtotal; heading?: string; headingTotal?: number };
-  const departmentSection = (g: RegisterGroup, prefix = ""): Section => ({
-    key: `${prefix}d-${g.department?.id ?? "none"}`,
+  type Section = { key: string; title: string; lang?: "ne"; rows: RegisterRow[]; subtotal: Subtotal };
+  const departmentSection = (g: RegisterGroup): Section => ({
+    key: `d-${g.department?.id ?? "none"}`,
     title: `${g.department?.name ?? "No department"} · ${g.rows.length}`,
     rows: g.rows,
     subtotal: { salary: g.salary, advances: g.advances, total: g.total },
@@ -149,16 +150,6 @@ export function PhonePayments() {
   let sections: Section[];
   if (sort === "date") {
     sections = groupBy(rows, (r) => r.payment.date.bs).map((d) => ({ key: d.key, title: dayLabel(d.key), lang: "ne" as const, rows: d.items, subtotal: null }));
-  } else if (sort === "branch") {
-    sections = groupRowsByBranch(rows).map((g) => ({ key: `b-${g.branch.id}`, title: `${g.branch.name} · ${g.rows.length}`, rows: g.rows, subtotal: { salary: g.salary, advances: g.advances, total: g.total } }));
-  } else if (sort === "department" && data && !data.branch) {
-    sections = groupRowsByBranch(rows, true).flatMap((g) =>
-      (g.departments ?? []).map((d, i) => ({
-        ...departmentSection(d, `b${g.branch.id}-`),
-        heading: i === 0 ? `${g.branch.name} · ${g.rows.length}` : undefined,
-        headingTotal: i === 0 ? g.total : undefined,
-      })),
-    );
   } else if (sort === "department") {
     sections = groupRowsByDepartment(rows).map((g) => departmentSection(g));
   } else {
@@ -198,14 +189,6 @@ export function PhonePayments() {
       {!data && !register.error ? <p className={styles.empty}>Loading…</p> : null}
       {sections.map((section) => (
         <div key={section.key}>
-          {section.heading ? (
-            <div className={styles.dayHead} style={{ marginTop: 14 }}>
-              <span className={styles.groupTitle} style={{ fontWeight: 700 }}>
-                {section.heading}
-              </span>
-              <b className="mono">Rs {formatAmount(section.headingTotal ?? 0)}</b>
-            </div>
-          ) : null}
           <div className={styles.dayHead}>
             <span className={styles.groupTitle} lang={section.lang}>
               {section.title}

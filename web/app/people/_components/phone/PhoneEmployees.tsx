@@ -9,8 +9,9 @@ import { PhoneFrame } from "./PhoneFrame";
 import { TodayPill } from "../TodayPill";
 import { listBranches, listDepartments, listEmployeeRows } from "../../api";
 import { formatAmount, initials, matchesEmployee } from "../../_lib/helpers";
-import { useBranchScope } from "../../_lib/useBranchScope";
+import { useReportBranch, waitForBranch } from "../../_lib/useBranchScope";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
+import type { EmployeeListRow } from "../../types";
 import styles from "./phone.module.css";
 
 export const AVATAR_TONES = ["#6e5a4b", "#4f6d7a", "#7a5c61", "#5b7553", "#7a6a4f"];
@@ -30,8 +31,13 @@ export function PhoneEmployees() {
   const [manageOpen, setManageOpen] = useState(false);
   const canManage = useSession().can("manage_employees");
   const branchList = branches.data ?? [];
-  const { active: activeBranch, picker } = useBranchScope(branchList);
-  const rows = usePayroll(() => listEmployeeRows(activeBranch), [activeBranch]);
+  const branchScope = useReportBranch(branchList);
+  const activeBranch = branchScope.branchId;
+  const picker = branchScope.picker;
+  const rows = usePayroll(
+    () => (branchScope.ready ? listEmployeeRows(activeBranch) : waitForBranch<EmployeeListRow[]>()),
+    [activeBranch, branchScope.ready],
+  );
   const all = useMemo(() => rows.data ?? [], [rows.data]);
   const shown = useMemo(
     () => all.filter((r) => (dept === "all" || r.employee.department?.id === dept) && matchesEmployee(r.employee, query)).sort((a, b) => a.employee.full_name.localeCompare(b.employee.full_name)),
@@ -42,7 +48,7 @@ export function PhoneEmployees() {
     .filter((g) => g.rows.length > 0);
   const present = all.filter((r) => r.today === "present" || r.today === "overtime").length;
   const notMarked = all.filter((r) => r.today === "not_marked").length;
-  const branchName = branchList.find((b) => b.id === activeBranch)?.name ?? "";
+  const branchName = branchScope.label;
 
   return (
     <PhoneFrame

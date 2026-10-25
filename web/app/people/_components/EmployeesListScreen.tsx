@@ -15,7 +15,8 @@ import { listBranches, listDepartments, listEmployeeRows } from "../api";
 import { formatAmount, formatRs, matchesEmployee } from "../_lib/helpers";
 import type { EmployeeListRow } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
-import { useBranchScope } from "../_lib/useBranchScope";
+import { useReportBranch, waitForBranch } from "../_lib/useBranchScope";
+import { BranchSwitcher } from "./BranchSwitcher";
 import styles from "./employees.module.css";
 import shared from "./payroll.module.css";
 
@@ -38,8 +39,12 @@ export function EmployeesListScreen() {
 
   // Everyone sees their own branch (session.branchId); `see_other_branches` adds the drop-down.
   const branchList = branches.data ?? [];
-  const { active: activeBranch, picker } = useBranchScope(branchList);
-  const rows = usePayroll(() => listEmployeeRows(activeBranch), [activeBranch]);
+  const branchScope = useReportBranch(branchList);
+  const activeBranch = branchScope.branchId;
+  const rows = usePayroll(
+    () => (branchScope.ready ? listEmployeeRows(activeBranch) : waitForBranch<EmployeeListRow[]>()),
+    [activeBranch, branchScope.ready],
+  );
   const all = useMemo(() => rows.data ?? [], [rows.data]);
   const filtered = useMemo(
     () => all.filter((r) => (department === "all" || r.employee.department?.id === department) && matchesEmployee(r.employee, query)),
@@ -48,7 +53,7 @@ export function EmployeesListScreen() {
   const deptCounts = (departments.data ?? []).map((d) => ({ department: d, count: all.filter((r) => r.employee.department?.id === d.id).length }));
   const presentToday = all.filter((r) => r.today === "present" || r.today === "overtime").length;
   const notMarked = all.filter((r) => r.today === "not_marked").length;
-  const branchName = branchList.find((b) => b.id === activeBranch)?.name ?? "";
+  const branchName = branchScope.label;
   const toneOf = (id: number | undefined) => DEPT_TONES[((id ?? 0) - 1 + DEPT_TONES.length) % DEPT_TONES.length];
 
   const open = (row: EmployeeListRow) => (event: MouseEvent) => {
@@ -63,23 +68,7 @@ export function EmployeesListScreen() {
         subtitle="All employees with their department. Click a row to open their account."
         actions={
           <div className={shared.row}>
-            {picker ? (
-              <label htmlFor={branchId} className={styles.branchLabel}>
-                Branch
-                <span className={`field ${shared.selectWrap} ${styles.branchField}`}>
-                  <Icon name="home" size={16} style={{ color: "var(--color-primary)" }} />
-                  <select id={branchId} value={activeBranch ?? ""} onChange={(e) => picker.onChange(Number(e.target.value))}>
-                    {branchList.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </span>
-              </label>
-            ) : (
-              <span className={styles.branchLock}>🔒 {branchName || "Your branch"} · your branch</span>
-            )}
+            <BranchSwitcher scope={branchScope} id={branchId} />
             <button type="button" className="btn btn--primary" onClick={() => setAddOpen(true)}>
               <Icon name="plus" size={16} />
               Add employee

@@ -767,7 +767,6 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
   const rows = sortRegisterRows(
     department ? inRange.filter((r) => r.employee.department?.id === department.id) : inRange,
     sort,
-    branch === null,
   );
   // by_branch covers every branch of the range (type filter applied), for the "By branch" sheet.
   const by_branch: RegisterBranchTotal[] = [...current.branches]

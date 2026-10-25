@@ -77,23 +77,23 @@ summary and the month's payments (`ledgerFor` in api.ts shows the exact derivati
 | GET | /photo-tokens/{token} | → PhotoTokenInfo (no session; 410 when expired) |
 | POST | /photo-tokens/{token}/photo | multipart image, no session → Employee |
 
-## Branch switcher (Payment reports + Salary report, 2026-10-25)
+## Branch selection (Employees, Payment reports, Salary report; one branch since 2026-10-25)
 
-`_lib/branchScope.ts` (tested) + `useReportBranch`: with `see_other_branches` a switcher "All branches" +
-every branch (default All) in the desktop header and the phone pill; without it no switcher, the page is
-locked to the session `branchId` and shows the branch name as a label. `?branch=` sits in the URL next to
-`?dept=&sort=`; department chip counts, tiles and exports follow the branch. The Employees list keeps its
-own-branch default (`useBranchScope`).
+`_lib/branchScope.ts` (tested) + `useReportBranch`: always exactly one branch, never "All branches". With
+`see_other_branches` a Branch drop-down (house icon) of every active branch A-Z, left of the month/date
+controls (phone: the header pill); default = the session's own branch, else the first branch. Without it no
+drop-down: the page is locked to the session `branchId` and shows the branch name as a small label.
+`?branch=` sits in the URL next to `?dept=&sort=`; the UI always sends `branch_id` (screens wait with
+`waitForBranch()` until it is known); department chip counts, tiles and exports follow the branch, and the
+PDF title / file name name it. The API still answers `by_branch`; the UI does not show it.
 
 ## Payment reports (`/people/payments`, renamed from "Payments" 2026-10-25)
 
 Department chips ("All" + each department of `GET /api/core/departments` with its payment count for the
-From/To range and branch, from `by_department`), Sort (Date · Branch · Department · Employee · Amount),
-`?branch=&dept=&sort=` in the URL, tiles scoped to the chosen branch + department; Sort = Branch groups rows
-per branch with a subtotal (Salary · Advances · Total); Sort = Department groups per department, nested
-inside branch headings + subtotals when All branches (`_lib/register.ts`: `sortRegisterRows`,
-`groupRowsByBranch`, `groupRowsByDepartment`, `displayRows`). Phone: the same chips as a slider and the
-sort in a bottom sheet.
+From/To range and branch, from `by_department`), Sort (Date · Department · Employee · Amount),
+`?branch=&dept=&sort=` in the URL, tiles scoped to the chosen branch + department; Sort = Department groups
+rows per department with a subtotal (Salary · Advances · Total) (`_lib/register.ts`: `sortRegisterRows`,
+`groupRowsByDepartment`, `displayRows`). Phone: the same chips as a slider and the sort in a bottom sheet.
 
 ## Departments (real, `main`, 2026-10-25)
 

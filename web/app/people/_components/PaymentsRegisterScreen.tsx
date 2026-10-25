@@ -10,12 +10,12 @@ import { Pagination } from "@/components/ui/Pagination";
 import { Icon } from "@/components/icons";
 import { currentMonth, listBranches, listDepartments, listPayments, receiptUrl, registerExportUrl } from "../api";
 import { BranchSwitcher } from "./BranchSwitcher";
-import { useReportBranch } from "../_lib/useBranchScope";
+import { useReportBranch, waitForBranch } from "../_lib/useBranchScope";
 import { formatBs, isValidBs } from "@/lib/bs";
 import { monthLabel, monthName, monthStart, rangeFor } from "../_lib/months";
 import { formatAmount, formatRs, matchesEmployee, paginate } from "../_lib/helpers";
 import { REGISTER_SORTS, displayRows, isRegisterSort } from "../_lib/register";
-import type { DateRange, RegisterSort, RegisterTypeFilter } from "../types";
+import type { DateRange, PaymentsRegister, RegisterSort, RegisterTypeFilter } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import type { Payment } from "../types";
 import { VoidPaymentDialog, VoidedNote, useCanVoid } from "./VoidPaymentDialog";
@@ -101,7 +101,9 @@ export function PaymentsRegisterScreen() {
   const departments = usePayroll(listDepartments, []);
   const register = usePayroll(
     () =>
-      listPayments({
+      !branchScope.ready
+        ? waitForBranch<PaymentsRegister>()
+        : listPayments({
         from_bs: validRange && !rangeBad ? from_bs : null,
         to_bs: validRange && !rangeBad ? to_bs : null,
         type,
@@ -110,12 +112,12 @@ export function PaymentsRegisterScreen() {
         sort,
         show_voided: showVoided,
       }),
-    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, branchScope.branchId, departmentId, sort, showVoided],
+    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, branchScope.branchId, branchScope.ready, departmentId, sort, showVoided],
   );
   const data = register.data;
   const rows = useMemo(() => (data ? data.rows.filter((r) => matchesEmployee(r.employee, query)) : []), [data, query]);
   // Grouping (sort = Department) adds heading and subtotal lines; pages count those so a subtotal stays with its group.
-  const shown = useMemo(() => displayRows(rows, sort, (data?.branch ?? null) === null), [rows, sort, data?.branch]);
+  const shown = useMemo(() => displayRows(rows, sort), [rows, sort]);
   const paged = paginate(shown, page, PAGE_SIZE);
   const counted = rows.filter((r) => !r.payment.voided);
   const total = counted.reduce((sum, r) => sum + r.payment.amount, 0);
@@ -163,7 +165,6 @@ export function PaymentsRegisterScreen() {
         actions={
           <div className={styles.downloads}>
             <div className={shared.row} style={{ gap: 8 }}>
-              <BranchSwitcher scope={branchScope} id={branchSelectId} />
               <button type="button" className={`btn ${styles.xlsBtn}`} disabled={!data || rangeBad} onClick={() => tryDownload("xlsx")}>
                 <Icon name="download" size={16} />
                 Excel
@@ -174,7 +175,7 @@ export function PaymentsRegisterScreen() {
               </button>
             </div>
             <span className={shared.note}>
-              Downloads the report as shown: <b>{rangeText}</b>
+              Downloads the report as shown: <b>{branchScope.label}</b> · <b>{rangeText}</b>
               {deptName ? <b> · {deptName}</b> : null} · sorted by {REGISTER_SORTS.find((s) => s.value === sort)?.label.toLowerCase()}
             </span>
           </div>
@@ -250,7 +251,7 @@ export function PaymentsRegisterScreen() {
                 <select value={sort} onChange={(event) => setParams({ sort: event.target.value === "date" ? null : event.target.value })}>
                   {REGISTER_SORTS.map((s) => (
                     <option key={s.value} value={s.value}>
-                      {s.value === "date" ? "Date (newest first)" : s.value === "amount" ? "Amount (high → low)" : s.value === "department" && !data?.branch ? "Department (within branch)" : s.label}
+                      {s.value === "date" ? "Date (newest first)" : s.value === "amount" ? "Amount (high → low)" : s.label}
                     </option>
                   ))}
                 </select>
@@ -270,6 +271,7 @@ export function PaymentsRegisterScreen() {
             </div>
 
             <div className={styles.rangeRow}>
+              <BranchSwitcher scope={branchScope} id={branchSelectId} />
               <BSDateRangePicker value={{ from: from_bs, to: to_bs }} onChange={(r) => setRange({ from_bs: r.from, to_bs: r.to })} size="sm" />
               {rangeBad ? <span className={shared.warn}>&quot;From&quot; is after &quot;To&quot; — swap the dates.</span> : null}
               {!validRange ? <span className={shared.warn}>Pick both dates.</span> : null}
@@ -307,28 +309,6 @@ export function PaymentsRegisterScreen() {
                     </tr>
                   ) : (
                     paged.items.map((item) => {
-                      if (item.kind === "branch") {
-                        const g = item.group;
-                        return (
-                          <tr key={`b-${g.branch.id}`} className={styles.branchRow}>
-                            <th scope="rowgroup" colSpan={8}>
-                              {g.branch.name} · {g.rows.length} payment{g.rows.length === 1 ? "" : "s"}
-                            </th>
-                          </tr>
-                        );
-                      }
-                      if (item.kind === "branchSubtotal") {
-                        const g = item.group;
-                        return (
-                          <tr key={`bs-${g.branch.id}`} className={`${styles.subtotalRow} ${styles.branchSubtotalRow}`}>
-                            <th scope="row" colSpan={5} style={{ textAlign: "left" }}>
-                              Subtotal · {g.branch.name} · Salary {formatAmount(g.salary)} · Advances {formatAmount(g.advances)}
-                            </th>
-                            <td className={shared.num}>{formatAmount(g.total)}</td>
-                            <td colSpan={2} />
-                          </tr>
-                        );
-                      }
                       if (item.kind === "group") {
                         const g = item.group;
                         return (
@@ -362,7 +342,6 @@ export function PaymentsRegisterScreen() {
                             <span className={styles.empName}>{employee.full_name}</span>
                             <span className={styles.empSub}>
                               {employee.code} · {employee.department?.name ?? "—"}
-                              {!data.branch ? ` · ${employee.branch.name}` : ""}
                             </span>
                           </Link>
                         </td>
