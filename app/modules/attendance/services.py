@@ -103,6 +103,7 @@ def employee_ref(e: Employee) -> schemas.EmployeeRef:
         branch_name=e.branch.name if e.branch else "",
         department_id=e.department_id or 0,
         department_name=e.department.name if e.department else "",
+        designation=e.designation,
         active=e.status == EmployeeStatus.active,
     )
 

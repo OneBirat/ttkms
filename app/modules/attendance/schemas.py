@@ -25,6 +25,8 @@ class EmployeeRef(BaseModel):
     #: 0 / "" when the employee has no department.
     department_id: int
     department_name: str
+    #: core.employees.designation ("Store keeper"); the phone report's card line.
+    designation: str | None = None
     active: bool
 
 
