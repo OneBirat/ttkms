@@ -315,9 +315,11 @@ export interface DepartmentNetTotal {
 
 export interface SalaryReport {
   month: BsMonth;
+  /** The chosen branch (rows, totals, by_department and the trend are scoped to it); null = all. */
+  branch: Branch | null;
   rows: ReportRow[];
   totals: ReportTotals;
-  /** Every department, unfiltered, for the chips and the chart. */
+  /** Every department of the chosen branch (all branches when none), unfiltered by department, for the chips and the chart. */
   by_department: DepartmentNetTotal[];
   /** Oldest first, the report month last. */
   trend: MonthNetTotal[];
@@ -377,6 +379,8 @@ export interface PaymentsRegister {
   /** BS dates, inclusive. */
   from_bs: string;
   to_bs: string;
+  /** The chosen branch (rows, totals, by_employee and by_department are scoped to it); null = all. */
+  branch: Branch | null;
   /** The chosen department (rows, totals and by_employee are scoped to it); null = all. */
   department: Department | null;
   sort: RegisterSort;
@@ -384,7 +388,7 @@ export interface PaymentsRegister {
   rows: RegisterRow[];
   totals: RegisterTotals;
   by_employee: RegisterEmployeeTotal[];
-  /** Over the whole range and type filter, every department, so the chips keep their counts. */
+  /** Over the whole range, type filter and chosen branch (not the department), so the chips keep their counts. */
   by_department: RegisterDepartmentTotal[];
 }
 

@@ -268,3 +268,33 @@ test("photo tokens: resolve, upload, expire", async () => {
   assert.equal(employee.photo_url, "data:image/jpeg;base64,AAAA");
   await assert.rejects(api.resolvePhotoToken("nope"), (e) => e.status === 410);
 });
+
+test("branch_id scopes the payments register and the salary report; department counts follow the branch", async () => {
+  const range = rangeFor("last_month", NOW);
+  const all = await api.listPayments({ ...range, type: "all" });
+  const branches = new Set(all.rows.map((r) => r.employee.branch.id));
+  assert.ok(branches.size >= 2, "sample payments span at least two branches");
+  assert.equal(all.branch, null);
+  const two = await api.listPayments({ ...range, type: "all", branch_id: 2 });
+  assert.ok(two.rows.length > 0 && two.rows.length < all.rows.length);
+  assert.ok(two.rows.every((r) => r.employee.branch.id === 2));
+  assert.equal(two.branch.name, "Branch 2");
+  assert.ok(two.totals.staff < all.totals.staff && two.totals.month_net < all.totals.month_net);
+  assert.equal(two.by_department.reduce((s, d) => s + d.count, 0), two.rows.length);
+  assert.ok(two.by_department.reduce((s, d) => s + d.count, 0) < all.by_department.reduce((s, d) => s + d.count, 0));
+  await assert.rejects(api.listPayments({ ...range, type: "all", branch_id: 99 }), /branch/i);
+
+  const report = await api.getSalaryReport(PREVIOUS);
+  assert.equal(report.branch, null);
+  const branchReport = await api.getSalaryReport(PREVIOUS, null, 2);
+  assert.ok(branchReport.rows.length > 0 && branchReport.rows.length < report.rows.length);
+  assert.ok(branchReport.rows.every((r) => r.employee.branch.id === 2));
+  assert.equal(branchReport.all_staff, branchReport.rows.length);
+  assert.equal(branchReport.by_department.reduce((s, d) => s + d.staff, 0), branchReport.rows.length);
+  assert.ok(branchReport.by_department.reduce((s, d) => s + d.staff, 0) < report.by_department.reduce((s, d) => s + d.staff, 0));
+  const both = await api.getSalaryReport(PREVIOUS, 2, 2);
+  assert.ok(both.rows.every((r) => r.employee.branch.id === 2 && r.employee.department.id === 2));
+  assert.equal(both.all_staff, branchReport.rows.length);
+  assert.ok(both.trend.at(-1).net <= branchReport.trend.at(-1).net);
+  await assert.rejects(api.getSalaryReport(PREVIOUS, null, 99), /branch/i);
+});

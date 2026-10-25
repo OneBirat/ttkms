@@ -706,6 +706,8 @@ export interface PaymentsQuery {
   to_bs: string | null;
   type: RegisterTypeFilter;
   employee_id?: number | null;
+  /** Only payments of employees in this branch (null / omitted = all branches); tiles and chips follow it. */
+  branch_id?: number | null;
   /** Only payments of employees in this department; the tiles follow it too. */
   department_id?: number | null;
   /** Row order; "date" (newest first) when omitted. */
@@ -729,6 +731,8 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
     throw new PayrollApiError(422, '"From" is after "To" — swap the dates.', "from_bs");
   }
   const sort: RegisterSort = query.sort ?? "date";
+  const branch = query.branch_id ? (current.branches.find((b) => b.id === query.branch_id) ?? null) : null;
+  if (query.branch_id && !branch) throw new PayrollApiError(404, "No such branch.", "branch_id");
   const department = query.department_id ? (current.departments.find((d) => d.id === query.department_id) ?? null) : null;
   if (query.department_id && !department) throw new PayrollApiError(404, "No such department.", "department_id");
   const employeeById = new Map(current.employees.map((e) => [e.id, e]));
@@ -738,8 +742,9 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
     .filter((p) => query.type === "all" || p.type === query.type)
     .filter((p) => !query.employee_id || p.employee_id === query.employee_id)
     .map((payment) => ({ payment, employee: employeeById.get(payment.employee_id)! }))
-    .filter((row) => row.employee);
-  // by_department covers the whole range so the chips keep their counts whichever one is chosen.
+    .filter((row) => row.employee)
+    .filter((row) => !branch || row.employee.branch.id === branch.id);
+  // by_department covers the whole range (within the chosen branch) so the chips keep their counts whichever one is chosen.
   const by_department: RegisterDepartmentTotal[] = [...current.departments.map((d): Department | null => d), null]
     .map((dept) => {
       const mine = inRange.filter((r) => (r.employee.department?.id ?? null) === (dept?.id ?? null));
@@ -751,8 +756,9 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
     sort,
   );
   const month = settlementMonth(current);
-  // Tiles and "By employee" follow the chosen department.
+  // Tiles and "By employee" follow the chosen branch and department.
   const ledgers = current.employees
+    .filter((employee) => !branch || employee.branch.id === branch.id)
     .filter((employee) => !department || employee.department?.id === department.id)
     .map((employee) => ledgerFor(current, employee, month))
     .filter((row): row is MonthLedger => row !== null);
@@ -767,6 +773,7 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
   return respond({
     from_bs: query.from_bs ?? "",
     to_bs: query.to_bs ?? "",
+    branch,
     department,
     sort,
     rows,
@@ -935,10 +942,15 @@ export async function getAccountSummary(employee_id: number): Promise<AccountSum
 // ----------------------------------------------------------------- report
 
 /** GET /api/payroll/report/{YYYY-MM}?department_id= */
-export async function getSalaryReport(month: BsMonth, department_id: number | null = null): Promise<SalaryReport> {
+/** GET /api/payroll/report/{YYYY-MM}?department_id&branch_id (branch_id omitted = all branches). */
+export async function getSalaryReport(month: BsMonth, department_id: number | null = null, branch_id: number | null = null): Promise<SalaryReport> {
   const current = getState();
   if (compareMonths(month, thisMonth()) > 0) throw new PayrollApiError(404, "That month has not started yet.");
+  const branch = branch_id ? (current.branches.find((b) => b.id === branch_id) ?? null) : null;
+  if (branch_id && !branch) throw new PayrollApiError(404, "No such branch.", "branch_id");
+  // Everything below is scoped to the branch first; the department filter comes on top.
   const allRows: ReportRow[] = current.employees
+    .filter((e) => !branch || e.branch.id === branch.id)
     .filter((e) => e.active || current.payments.some((p) => p.employee_id === e.id && sameMonth(p.month, month)))
     .map((employee) => ({ employee, ledger: ledgerFor(current, employee, month) }))
     .filter((row): row is ReportRow => row.ledger !== null);
@@ -953,12 +965,14 @@ export async function getSalaryReport(month: BsMonth, department_id: number | nu
     .map((m) => ({
       month: m,
       net: current.employees
+        .filter((e) => !branch || e.branch.id === branch.id)
         .filter((e) => department_id === null || e.department?.id === department_id)
         .map((e) => ledgerFor(current, e, m))
         .reduce((sum, l) => sum + (l?.net ?? 0), 0),
     }));
   return respond({
     month,
+    branch,
     rows,
     totals: totalsFor(rows.map((r) => r.ledger)),
     by_department,

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PhoneFrame } from "./PhoneFrame";
-import { useBranchScope } from "../../_lib/useBranchScope";
+import { useReportBranch } from "../../_lib/useBranchScope";
 import { currentMonth, getSalaryReport, listBranches, listMonths } from "../../api";
 import { formatAdRange } from "@/lib/bs";
 import { addMonths, compareMonths, monthEnd, monthLabel, monthStart, sameMonth } from "../../_lib/months";
@@ -21,10 +21,10 @@ export function PhoneSalaryReport() {
   const months = usePayroll(listMonths, []);
   const [month, setMonth] = useState(currentMonth());
   const [filter, setFilter] = useState<Filter>("all");
-  const report = usePayroll(() => getSalaryReport(month), [month.bs_year, month.bs_month]);
-  const branchList = branches.data ?? [];
-  const { active: activeBranch, picker } = useBranchScope(branchList);
-  const rows = (report.data?.rows ?? []).filter((r) => activeBranch === null || r.employee.branch.id === activeBranch);
+  const branchScope = useReportBranch(branches.data ?? []);
+  const report = usePayroll(() => getSalaryReport(month, null, branchScope.branchId), [month.bs_year, month.bs_month, branchScope.branchId]);
+  const picker = branchScope.picker;
+  const rows = report.data?.rows ?? [];
   const shown = rows.filter((r) => (filter === "all" ? true : filter === "due" ? r.ledger.due > 0 : r.ledger.due === 0));
   const oldest = months.data?.[months.data.length - 1] ?? null;
   const running = sameMonth(month, currentMonth());
@@ -33,7 +33,7 @@ export function PhoneSalaryReport() {
   return (
     <PhoneFrame
       title="Salary report"
-      subtitle={`${branchList.find((b) => b.id === activeBranch)?.name ?? ""} · ${rows.length} staff`}
+      subtitle={`${branchScope.label} · ${rows.length} staff`}
       branch={picker}
       headerExtra={
         <div className={styles.monthNav}>

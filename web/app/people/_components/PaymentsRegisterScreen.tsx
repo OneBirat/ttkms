@@ -9,7 +9,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Icon } from "@/components/icons";
 import { useSession } from "@/lib/session";
-import { currentMonth, listDepartments, listPayments } from "../api";
+import { currentMonth, listBranches, listDepartments, listPayments } from "../api";
+import { BranchSwitcher } from "./BranchSwitcher";
+import { useReportBranch } from "../_lib/useBranchScope";
 import { formatBs, isValidBs } from "@/lib/bs";
 import { monthLabel, monthName, monthStart, rangeFor } from "../_lib/months";
 import { downloadRegisterXlsx, printReceipt, printRegisterPdf, registerFileName, type RegisterExportInput } from "../_lib/exports";
@@ -46,6 +48,9 @@ export function PaymentsRegisterScreen() {
   const params = useSearchParams();
   const { user } = useSession();
   const searchId = useId();
+  const branchSelectId = useId();
+  const branches = usePayroll(listBranches, []);
+  const branchScope = useReportBranch(branches.data ?? []);
 
   const defaults = useMemo(() => rangeFor("last_30"), []);
   const from_bs = params.get("from") ?? defaults.from_bs;
@@ -97,10 +102,11 @@ export function PaymentsRegisterScreen() {
         from_bs: validRange && !rangeBad ? from_bs : null,
         to_bs: validRange && !rangeBad ? to_bs : null,
         type,
+        branch_id: branchScope.branchId,
         department_id: departmentId,
         sort,
       }),
-    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, departmentId, sort],
+    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, branchScope.branchId, departmentId, sort],
   );
   const data = register.data;
   const rows = useMemo(() => (data ? data.rows.filter((r) => matchesEmployee(r.employee, query)) : []), [data, query]);
@@ -124,7 +130,7 @@ export function PaymentsRegisterScreen() {
     return {
       register: { ...data, from_bs: r.from_bs, to_bs: r.to_bs },
       rows: scoped,
-      branch: "All branches",
+      branch: branchScope.label,
       generatedBy: user?.full_name ?? user?.username ?? "TTK",
       previousMonth: r.from_bs < monthStartBs,
     };
@@ -159,6 +165,7 @@ export function PaymentsRegisterScreen() {
         actions={
           <div className={styles.downloads}>
             <div className={shared.row} style={{ gap: 8 }}>
+              <BranchSwitcher scope={branchScope} id={branchSelectId} />
               <button type="button" className={`btn ${styles.xlsBtn}`} disabled={!data || rangeBad} onClick={() => tryDownload("xlsx")}>
                 <Icon name="download" size={16} />
                 Excel
@@ -193,7 +200,8 @@ export function PaymentsRegisterScreen() {
               <span className={styles.totalLabel}>{monthName(settle)} net payroll</span>
               <span className={styles.totalValue}>{formatRs(data.totals.month_net)}</span>
               <span className={styles.totalHint}>
-                {data.totals.staff} staff{deptName ? ` · ${deptName}` : ""}
+                {data.totals.staff} staff · {branchScope.label}
+                {deptName ? ` · ${deptName}` : ""}
               </span>
             </div>
             <div className={`card ${styles.total}`}>

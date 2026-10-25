@@ -8,7 +8,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Pill } from "@/components/ui/Pill";
 import { Icon } from "@/components/icons";
-import { currentMonth, getSalaryReport, listDepartments, listMonths } from "../api";
+import { currentMonth, getSalaryReport, listBranches, listDepartments, listMonths } from "../api";
+import { BranchSwitcher } from "./BranchSwitcher";
+import { useReportBranch } from "../_lib/useBranchScope";
 import { monthKey, monthLabel, monthName, parseMonthKey, sameMonth } from "../_lib/months";
 import { downloadText, payrollSheetCsv } from "../_lib/exports";
 import {
@@ -49,6 +51,9 @@ export function SalaryReportScreen() {
   const monthSelectId = useId();
   const searchId = useId();
   const sortId = useId();
+  const branchSelectId = useId();
+  const branches = usePayroll(listBranches, []);
+  const branchScope = useReportBranch(branches.data ?? []);
 
   const month = parseMonthKey(params.get("month") ?? "") ?? currentMonth();
   const deptParam = params.get("dept");
@@ -80,7 +85,7 @@ export function SalaryReportScreen() {
 
   const months = usePayroll(listMonths, []);
   const departments = usePayroll(listDepartments, []);
-  const report = usePayroll(() => getSalaryReport(month, department), [monthKey(month), department]);
+  const report = usePayroll(() => getSalaryReport(month, department, branchScope.branchId), [monthKey(month), department, branchScope.branchId]);
 
   const data = report.data;
   const filteredRows = useMemo(() => {
@@ -90,9 +95,10 @@ export function SalaryReportScreen() {
   }, [data, query, sort, departments.data]);
   const paged = paginate(filteredRows, page, PAGE_SIZE);
   const deptName = department !== null ? (departments.data ?? []).find((d) => d.id === department)?.name : null;
-  const scope = deptName ?? "all departments";
+  const scope = `${branchScope.label} · ${deptName ?? "all departments"}`;
   const running = sameMonth(month, currentMonth());
-  const fileStem = `salary-${monthKey(month)}${deptName ? `-${deptName.toLowerCase().replace(/\s+/g, "-")}` : ""}`;
+  const slug = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+  const fileStem = `salary-${monthKey(month)}-${slug(branchScope.label)}${deptName ? `-${slug(deptName)}` : ""}`;
 
   return (
     <>
@@ -101,6 +107,7 @@ export function SalaryReportScreen() {
         subtitle={`${monthLabel(month)}${running ? " (in progress)" : ""} · attendance from the attendance module · ${scope}`}
         actions={
           <div className={`${shared.row} ${styles.noPrint}`}>
+            <BranchSwitcher scope={branchScope} id={branchSelectId} />
             <label htmlFor={monthSelectId} className={shared.srOnly}>
               Month (BS)
             </label>

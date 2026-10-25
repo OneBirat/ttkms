@@ -13,7 +13,7 @@ export interface PhoneFrameProps {
   /** Back link instead of the menu button. */
   backHref?: string;
   /** Branch pill (admins on list / report / payments). */
-  branch?: { value: number | null; options: Branch[]; onChange: (id: number) => void } | null;
+  branch?: { value: number | null; options: Branch[]; onChange: (id: number | null) => void; allowAll?: boolean } | null;
   /** "More actions" (⋮) handler. */
   onMore?: () => void;
   /** Tiles or the month switcher under the title row. */
@@ -29,7 +29,7 @@ export interface PhoneFrameProps {
 export function PhoneFrame({ title, subtitle, backHref, branch, onMore, headerExtra, children }: PhoneFrameProps) {
   const { openMenu } = useShell();
   usePhoneHeader();
-  const branchName = branch?.options.find((b) => b.id === branch.value)?.name ?? "";
+  const branchName = branch?.options.find((b) => b.id === branch.value)?.name ?? (branch?.allowAll && branch.value === null ? "All branches" : "");
 
   return (
     <div className={styles.frame}>
@@ -50,11 +50,12 @@ export function PhoneFrame({ title, subtitle, backHref, branch, onMore, headerEx
           </div>
           {branch ? (
             <label className={styles.branchPill}>
-              {branchName.replace(/ branch$/i, "") || "Branch"}
+              {branchName === "All branches" ? "All" : branchName.replace(/ branch$/i, "") || "Branch"}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M6 9l6 6 6-6" />
               </svg>
-              <select aria-label="Branch" value={branch.value ?? ""} onChange={(e) => branch.onChange(Number(e.target.value))}>
+              <select aria-label="Branch" value={branch.value ?? ""} onChange={(e) => branch.onChange(e.target.value === "" ? null : Number(e.target.value))}>
+                {branch.allowAll ? <option value="">All branches</option> : null}
                 {branch.options.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}

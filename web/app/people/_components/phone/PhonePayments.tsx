@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { BottomSheet } from "./BottomSheet";
 import { PhoneFrame } from "./PhoneFrame";
-import { useBranchScope } from "../../_lib/useBranchScope";
+import { useReportBranch } from "../../_lib/useBranchScope";
 import { listDepartments, listPayments } from "../../api";
 import { listBranches } from "../../api";
 import { formatBsDay } from "@/lib/bs";
@@ -58,11 +58,14 @@ export function PhonePayments() {
   );
 
   const range = useMemo(() => rangeFor("last_3"), []);
-  const register = usePayroll(() => listPayments({ ...range, type, department_id: departmentId, sort }), [type, departmentId, sort]);
-  const branchList = branches.data ?? [];
-  const { active: activeBranch, picker } = useBranchScope(branchList);
+  const branchScope = useReportBranch(branches.data ?? []);
+  const register = usePayroll(
+    () => listPayments({ ...range, type, branch_id: branchScope.branchId, department_id: departmentId, sort }),
+    [type, branchScope.branchId, departmentId, sort],
+  );
+  const picker = branchScope.picker;
   const data = register.data;
-  const rows = (data?.rows ?? []).filter((r) => activeBranch === null || r.employee.branch.id === activeBranch);
+  const rows = data?.rows ?? [];
   const t = today().bs;
   const dayLabel = (bs: string) => {
     const np = formatBsDay(bs, "ne");
@@ -125,7 +128,11 @@ export function PhonePayments() {
           : [];
 
   return (
-    <PhoneFrame title="Payment reports" subtitle={data?.department ? `${data.department.name} · advances & salary paid` : "Advances & salary paid"} branch={picker}>
+    <PhoneFrame
+      title="Payment reports"
+      subtitle={`${branchScope.label}${data?.department ? ` · ${data.department.name}` : ""} · advances & salary paid`}
+      branch={picker}
+    >
       <div className={styles.chips} role="group" aria-label="Type">
         {CHIPS.map((c) => (
           <button key={c.value} type="button" className={styles.chip} aria-pressed={type === c.value} onClick={() => setType(c.value)}>
