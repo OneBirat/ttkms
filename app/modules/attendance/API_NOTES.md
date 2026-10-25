@@ -1,117 +1,119 @@
-# Attendance – API notes (implement after UI sign-off)
+# Attendance – API notes
 
-Written 24 Oct 2026, updated 25 Oct 2026 for the final design pack (`design/final/`). The web
-screens already call these shapes through `web/components/attendance/api.ts` (mock); the TypeScript
-types in `web/components/attendance/types.ts` are the contract – keep the Pydantic models identical.
-The step-by-step backend plan (table, migration, permissions, order of work) is in
-`docs/attendance-backend-plan.md`.
+Built 25 Oct 2026 (tag `payroll-backend-done` + the attendance backend commits). The web screens call
+these through `web/components/attendance/api.ts`; `web/components/attendance/types.ts` mirrors
+`app/modules/attendance/schemas.py` field for field. The node tests run on the in-memory twin
+`web/components/attendance/mock/mockApi.ts`. Code: `models.py` (tables), `access.py` (permissions,
+branch scope), `services.py` (marking rules), `report.py` (report, employee month, dots),
+`contract.py` (AttendanceSummary), `routes.py`, `__init__.py` (sidebar, dashboard).
 
 ## Rules
 
-- Status is only `P` present, `O` overtime (present + whole hours 1–12), `A` absent.
-- Weekly off = Saturday (`settings.weekly_off`, 0 = Sunday … 6 = Saturday), shown as `–` / `W`.
-  A weekly-off day without a record is paid as weekly off; a record on it (overtime worked on a
-  Saturday) is reported as marked.
-- "Not marked" = no record. One record per employee per day. **Every mark saves at once** – there
-  is no draft / Save button any more.
-- Paid days = P + O + weekly off. Absent is unpaid. Overtime hours are paid hourly (payroll).
-- Dates: store both `date_bs` and `date_ad`; BS everywhere in the UI, AD second. Future days are
-  never writable (422).
-- Permissions (see the plan): `mark_attendance`, `view_attendance_report`, `see_other_branches`.
-  Without `see_other_branches` every call is scoped to the user's own branch and `branch` is ignored.
+- A day is only `P` present, `O` overtime (present + whole hours 1–12) or `A` absent. Not marked = no row.
+- **Saturday is the weekly off (`W`)**: computed, never stored. A Saturday row means the person came in:
+  `P` or `O` are stored, `A` is refused (422), bulk Present is refused on a Saturday.
+- The attendance day is an **AD date in Asia/Kathmandu** (`services.today()`; 23:59 there is still
+  today, 00:01 is tomorrow). Future days are never writable (422 "Attendance cannot be marked for a
+  future day."). Every mark saves at once.
+- Employees come only from `core.employees`. Only **active** employees who have joined by that day can
+  be marked (404 / 422); inactive staff keep their history and appear in the months they worked.
+- Every insert, change and clear writes `attendance.record_changes` (old → new status / hours / note,
+  who, when); a save that changes nothing writes nothing.
 
-## Endpoints (all under `/api/attendance`, session cookie + `X-CSRF-Token` on unsafe methods)
+## Permissions (app/modules/admin/permissions.py)
 
-| Method | Path | Request | Response (types.ts) | Permission |
-|---|---|---|---|---|
-| GET | `/day?date_bs=YYYY-MM-DD&branch=<id>` | — (the web UI filters, searches and pages locally) | `DayAttendance`: day header, settings, branches (headcount), departments of the branch (headcount), every active employee of the branch with that day's record or `null` | `mark_attendance` |
-| POST | `/mark` | `MarkOneRequest {date_bs, employee_id, status: P\|O\|A, ot_hours, note?}` | `MarkOneResponse {record, previous}` – upsert on (employee, day); `previous` is the status it replaced (`N` when none); 422 when `O` has hours outside 1–12 or `P`/`A` carry hours, or the day is in the future; 404 unknown / inactive employee; `marked_via = manual` | `mark_attendance` |
-| POST | `/bulk-mark` | `BulkMarkRequest {date_bs, branch_id, employee_ids?: int[], department_id?: int}` – one of the two scopes is required | `BulkMarkResponse {marked: [{employee_id, name}], skipped: int[], records}` – **one transaction**; writes `P` only for employees in scope **without a record that day**, the rest come back in `skipped`; never overwrites | `mark_attendance` |
-| GET | `/lookup?code=TTK-E004` | `code` is whatever the scanner/typist sent: `TTK-E004`, `E-004`, `E004`, `4` all resolve to `E-004` (see `normalizeCode` in helpers.ts) | `LookupResponse {code, employee, today}`; 404 when no active employee matches | `mark_attendance` |
-| POST | `/scan` | `ScanRequest {code, action: present\|overtime, ot_hours}` | `ScanResponse {employee, record}` – upserts today's record at once, `marked_via = scan` | `mark_attendance` |
-| GET | `/employees/{id}/month?bs_year=&bs_month=` | | `EmployeeMonth {employee, month, cells[], totals, payments[]}` – one person's month for the attendance-record sheet; `cells` carry `advance` / `salary` rupees paid that day; `payments` is the payroll history of the month (newest first) | `mark_attendance` or `view_attendance_report` |
-| GET | `/report?bs_year=&bs_month=&branch=` | `week`, `day` and `dept` are sliced client-side | `MonthReport`: month (days with BS/AD/weekday/weekly off), settings, `branches` the user may report on, departments of the branch, one row per active employee with 1 cell per day (`status` P/O/A/W/N, `ot_hours`, `advance?`, `salary?`) and `AttendanceTotals` | `view_attendance_report` |
-| GET | `/report/export.xlsx?bs_year=&bs_month=&branch=&dept=&q=&sort=` | | openpyxl workbook, sheets **Summary / Daily grid / By department** – columns of `web/components/attendance/xlsx.ts`: Emp ID, Name, Department, days, `P`, `O`, `A`, `W`, `Paid`; cells `✓`, overtime hours as a number, `A`, `–`, blank when unmarked | `view_attendance_report` |
-| GET | `/report/export.pdf?bs_year=&bs_month=&branch=&dept=&q=&sort=&hide_saturdays=0\|1` | | WeasyPrint, A4 landscape, layout of `print.ts`: header, boxes Total staff / Present per day (avg) / Total present days / Overtime (h) / Absent days, grouped grid with columns `P O A W Paid` (widths days 24, P 26, O 30, A 24, W 24, Paid 34 px, name auto), Saturdays merged per department into a vertical red "SATURDAY" band or left out with `hide_saturdays=1`, staff-present footer, legend "✓ present · number = overtime hours …" | `view_attendance_report` |
-| GET | `/status?date_bs=&employee_ids=1,2,3` | `date_bs` defaults to today | `[{employee_id, status: P\|O\|A\|W\|N, ot_hours}]` – today's status for payroll's screens (also exposed in-process through `AttendanceSummary`) | any signed-in user of attendance or payroll |
-| GET | `/api/today` (core) | | `TodayRef` once the BS table is on the server; the UI converts locally meanwhile | — |
+`mark_attendance` – day list, mark / change / clear, bulk, scan, lookup, marked-day dots, employee month.
+`view_attendance_report` – the month report (Staff get 403 unless it is switched on for them).
+The employee month (phone calendar) takes either. Without `see_other_branches` every call is scoped
+to the user's own branch (`admin.user_access.branch_id`) whatever the query says; a user without a
+branch sees nobody. Marking someone of another branch is 403. The scan flow's payment step needs
+payroll's `salary_advances` (the UI hides it without).
 
-Departments (`DayAttendance.departments`, `MonthReport.departments`) are **core's**: the UI already
-reads `GET /api/core/departments` (2026-10-25, `web/components/attendance/departments.ts`) and joins
-the headcount on `department_id`; the backend does the same join on `core.departments` /
-`core.employees`. Employees stay mock until the attendance backend.
-
-`PUT /day` (save a whole day at once) is no longer called by the UI; keep it out of the backend
-pass unless payroll asks for it. Months for the report ‹ › navigation are computed in the browser
-(current + 2 previous); no endpoint.
-
-Dashboard widget `attendance_today` (`AttendanceTodayWidgetData`): computed from today's records
-of all active employees of the user's branch(es): `total`, `present` (P), `overtime` (O),
-`overtime_hours`, `absent`, `not_marked`, `not_in` (A or N rows, name + status), `mark_path`.
-
-## Database
+## Tables (attendance_0001, runs after core → admin → payroll)
 
 ```
 attendance.records
-  id            bigserial PK
-  employee_id   int NOT NULL REFERENCES core.employees(id)
-  date_bs       char(10) NOT NULL      -- "2083-07-04"
-  date_ad       date NOT NULL
-  status        char(1) NOT NULL CHECK (status IN ('P','O','A'))
-  ot_hours      smallint NOT NULL DEFAULT 0 CHECK (ot_hours BETWEEN 0 AND 12)
-                                         -- CHECK ((status = 'O') = (ot_hours > 0))
-  note          varchar(200) NOT NULL DEFAULT ''
-  marked_by     int NULL REFERENCES core.users(id) ON DELETE SET NULL
-  marked_via    varchar(6) NOT NULL CHECK (marked_via IN ('manual','scan','bulk'))
-  updated_at    timestamptz NOT NULL DEFAULT now()
-  UNIQUE (employee_id, date_ad)
-  INDEX (date_ad), INDEX (employee_id, date_ad)
+  id bigserial PK
+  employee_id int NOT NULL → core.employees ON DELETE RESTRICT
+  date date NOT NULL                     -- the Kathmandu AD day; date_bs is derived on output
+  status char(1) CHECK IN ('P','O','A')
+  overtime_hours smallint DEFAULT 0      -- CHECK 0..12 AND (status = 'O') = (overtime_hours > 0)
+  branch_id int NOT NULL → core.branches -- the employee's branch on that day
+  source varchar(6) CHECK IN ('manual','scan','bulk')
+  marked_by int → core.users ON DELETE SET NULL
+  marked_at timestamptz DEFAULT now()
+  note varchar(200) DEFAULT ''
+  UNIQUE (employee_id, date), INDEX (date, branch_id)
+
+attendance.record_changes
+  id, record_id (plain number), employee_id → core.employees, date, old_status / new_status
+  (null = not marked / cleared), old_hours, new_hours, old_note, new_note, source, changed_by,
+  changed_at; INDEX (employee_id, date)
 ```
 
-Settings (core.settings): `attendance.weekly_off` (default 6).
+The API keeps the frontend's names: `ot_hours` (= overtime_hours), `marked_via` (= source),
+`updated_at` (= marked_at), `marked_by` as the username.
 
-## Payroll client (contract payroll implements) – `app/contracts.py` since 2026-10-25
+## Endpoints (`/api/attendance`, session cookie, `X-CSRF-Token` on unsafe methods)
 
-Attendance only calls these from `api.ts`; nothing in attendance reads payroll tables. The shared
-shapes live in `app/contracts.py` (`MonthBalance`, `PaymentInput`, `PaymentRecord`,
-`PaymentResult`, `PaymentRejected`) behind the `PayrollPayments` protocol; `FakePayrollPayments`
-answers until payroll calls `register_payroll_payments(...)`. The TypeScript twins are in
-`web/components/attendance/types.ts` (same field names). The report and the attendance-record
-sheet need the month's payments per employee (advance / salary badges), so the attendance backend
-calls `get_payroll_payments().for_month(bs_year, bs_month, employee_ids)` in-process for
-`MonthReport` cells and `EmployeeMonth.payments`.
+Every response carries the AD `date` and the BS `date_bs` (records: `date_ad` / `date_bs`).
 
-| Method | Path | Request | Response |
-|---|---|---|---|
-| GET | `/api/payroll/balance?employee_id=&bs_year=&bs_month=` | | `MonthBalance {employee_id, bs_year, bs_month, month_key, month_label, earned, paid, due}` (`PayrollPayments.balance`) |
-| POST | `/api/payroll/payments` | `PaymentInput {employee_id, kind: salary\|advance, amount, payment_mode_id (default Cash = 1), date_bs? (today), for_year? / for_month? (the BS month it counts for; default = the month of the date), note?, source: "scan"}` | `PaymentResult {payment: PaymentRecord, due_after}`; 422 `{code: amount\|over_due\|unknown_employee\|payment_mode, detail}` (`PaymentRejected`) |
-| GET | `/api/payroll/payments?employee_id=&bs_year=&bs_month=` | | `PaymentHistory {employee_id, month_key, month_label, payments: PaymentRecord[] (newest first), totals: {earned, paid, due}}` – the scan flow's "Paid in {month}" card, the History sheet and the day-detail pop-up |
+| Method | Path | Body / query | Answer | Permission |
+|---|---|---|---|---|
+| GET | `/day?date_bs=&branch=&department_id=` | | `DayAttendance`: day header, settings `{weekly_off: 6}`, branches with headcount, departments of the branch, active staff joined by that day (department, then name) with the record or null and `payments_today {advance, salary}` from payroll | mark |
+| POST | `/mark` | `{date_bs, employee_id, status, ot_hours, note?}` | `{record, previous}` – one upsert for mark, change status and set overtime | mark |
+| DELETE | `/mark?employee_id=&date_bs=` | | `{previous, now: N\|W}` – "Clear mark", idempotent | mark |
+| POST | `/bulk-mark` | `{date_bs, branch_id, employee_ids? \| department_id?}` | `{marked: [{employee_id, name}], skipped, records}` – Present only for the still unmarked, one `INSERT … ON CONFLICT DO NOTHING` | mark |
+| GET | `/lookup?employee_id=` | after payroll's `GET /api/payroll/employees/by-barcode/{code}` (TTK-E001, legacy TTK-E-001, E-001, 1) | `{code, employee, today: record \| null}` | mark |
+| POST | `/scan` | `{employee_id, action: present\|overtime, ot_hours}` | `{employee, record, previous}` – today, source scan | mark |
+| GET | `/employees/{id}/month?bs_year=&bs_month=` | | `EmployeeMonth`: cells (P/O/A/W/N + advance / salary paid that day), totals, payments newest first | mark or report |
+| GET | `/marked-days?bs_year=&bs_month=&branch=\|employee_id=` | | `{marked_days: [BS dates]}` – BSDatePicker dots | mark or report |
+| GET | `/report?bs_year=&bs_month=&branch=` | branch left out = every branch (see_other_branches) | `MonthReport`: month with days, rows (cells + totals incl. `saturday_days_worked` / `saturday_ot_hours`), `staff_present` per day, payment badges from `PayrollPayments.for_month`, `branch_id`, `today` | report |
 
-`PaymentRecord {payment_id, receipt_no "ADV-0412"/"SAL-0410", employee_id, for_year, for_month, kind,
-amount, payment_mode_id, payment_mode, date, date_bs, note, source, recorded_at}`; the month lookup
-(`for_month(for_year, for_month, employee_ids)`) and the report badges go by `for_year` /
-`for_month`, not by the payment date. The scan flow always sends `payment_mode_id: 1` (Cash; the
-Cash / Bank toggle was removed from the sheet), no date and no `for_*`, so the payment counts for
-today's month; payroll's account screen sends `for_*` explicitly (Ashoj's salary paid on Kartik 2
-counts for Ashoj). The paid sheet prints `receipt_no` as the receipt number.
+Future months are 404. Week and day views and the Excel / PDF exports are built in the browser from
+`/report` (`xlsx.ts`, `print.ts`), so they always match the screen.
 
-## AttendanceSummary (app/contracts.py) – shape change (applied on main 2026-10-25)
+Report rows: everyone of the branch who had joined by the month's end and was still active at its
+start, plus anyone with a mark in that branch that month (moved or left since); a moved employee
+shows only the days marked in that branch. Cells: a Saturday without a record is `W` (also in the
+future part of the running month), days before joining are `N`.
 
-```python
-@dataclass
-class MonthSummary:
-    days_in_month: int
-    present: int  # days marked P
-    overtime_days: int  # days marked O
-    overtime_hours: int  # sum of ot_hours
-    absent: int
-    weekly_off: int  # weekly-off days without a record
-    paid_days: int  # present + overtime_days + weekly_off
-```
+## Contracts (app/contracts.py)
 
-(drop `late`, `half_days`, `leave`; add `overtime_days`, `overtime_hours`). The attendance module
-then registers `AttendanceSummary.for_month(employee_id, bs_year, bs_month)` with
-`register_attendance_summary(...)` at import: convert the BS month to its AD range with
-`app.core.bsdate`, load the employee's records in the range, count statuses, `weekly_off` = days
-whose weekday equals the setting and that have no record, `paid_days` as above. The same logic is
-`computeTotals` / `paidDays` in `web/components/attendance/helpers.ts`, with tests to mirror.
+- `AttendanceSummary.for_month(employee_id, bs_year, bs_month) -> MonthSummary` (registered at import):
+  past month = the whole month; **running month = days up to today** (`days_counted` = today's BS
+  day); a month not started = 0. Saturday marks go only into `saturday_days_worked` /
+  `saturday_ot_hours`; `weekly_off` counts every Saturday so far (from the joining date);
+  `paid_days = present + overtime_days + weekly_off`.
+- `AttendanceSummary.today(employee_ids, day=None)` – present / overtime / absent / weekly_off /
+  not_marked, for payroll's Today column.
+- Payroll's `PayrollPayments` (for the report badges, employee month and the day list's payment flags).
+
+## Dashboard
+
+`attendance_today` widget and `/api/today` counts: today's records of the caller's branch (every
+branch with see_other_branches): total, present, overtime (+ hours), absent, not_marked (0 on a
+Saturday – nobody needs a mark), `weekly_off`, `not_in` (absent first, then not marked; 8 names).
+
+## Scan flow's payment step (web/components/attendance/scan/scanFlow.ts)
+
+Only with `salary_advances`. Paid by: Cash | Other ▾ (payroll's `PaidByPicker`, active modes from
+`/api/admin/payment-modes?active=1`). An **advance** counts for the running month: the sheet posts no
+`for_year` / `for_month` (payroll defaults them to the BS month of the payment date). A **salary**
+counts for payroll's settlement month – `salary_month` of `GET /api/payroll/employees/{id}/summary`
+(the previous BS month while anything is still due for it, else the running month) – sent as
+`for_year` / `for_month`, and the sheet says "Salary for Ashwin 2083". Balance:
+`GET /api/payroll/balance`; history: `GET /api/payroll/employees/{id}/ledger/{YYYY-MM}`.
+
+## Saturday work – PENDING BUSINESS DECISION
+
+Marking P / O on a Saturday is allowed and stored. Payroll applies one setting,
+`payroll.saturday_work_rule` (core.settings, admin Settings › Payroll, admin only,
+`GET/PUT /api/admin/settings/payroll`, audited):
+
+- `overtime_only` (default): monthly staff are paid only the overtime hours worked on the Saturday.
+- `extra_day`: they also get salary ÷ 30 per Saturday worked (inside gross).
+
+Daily-wage staff always get the day's wage plus the hours for Saturday work, whatever the setting.
+Revisit once the business decides; the setting and both code paths are tested
+(`tests/payroll/test_attendance_pay.py`, `tests/payroll/test_rules.py`).

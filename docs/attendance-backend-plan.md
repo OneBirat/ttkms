@@ -1,5 +1,13 @@
 # Attendance backend plan
 
+> **Built 25 Oct 2026.** What exists now is described in `app/modules/attendance/API_NOTES.md`
+> (tables, endpoints, rules, contracts, the pending Saturday-work decision). Differences from the
+> plan below: the table columns are `date`, `overtime_hours`, `source`, `marked_at`, `branch_id`
+> (no stored `date_bs`); permissions come from `app/modules/admin/permissions.py` (Staff can mark);
+> the scan lookup goes through payroll's by-barcode endpoint; exports stay in the browser; there is
+> a `DELETE /mark` ("Clear mark") and a `record_changes` audit table; no `/status` endpoint
+> (payroll uses `AttendanceSummary.today` in-process). The plan is kept for the reasoning.
+
 Written 25 Oct 2026 in the `ttk-attendance` worktree after the final-design UI pass. The frontend
 (`web/components/attendance/`) runs on the mock in `api.ts`; every shape below already exists in
 `web/components/attendance/types.ts` and is exercised by the node tests in

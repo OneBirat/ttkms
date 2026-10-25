@@ -12,6 +12,17 @@ defaults to salary ÷ 30 ÷ 8 the same way); TDS stays 0 for now (a later decisi
 Saturdays paid; advances are part-payments of that month's salary (no recovery, no carry-over); a payment
 never exceeds the due; BS dates first; attendance only through `AttendanceSummary.for_month`.
 
+Added 25 Oct 2026 with the attendance backend:
+- **Earned so far** (the running month, which also caps advances): salary × min(days_counted, 30) ÷ 30
+  − absences so far × salary ÷ 30 + overtime so far (`MonthSummary.days_counted` = today's BS day).
+  Past months are never prorated. Daily staff stay pay-as-you-go (wage × days marked).
+- **Saturday work – PENDING BUSINESS DECISION**: `payroll.saturday_work_rule` = `overtime_only`
+  (default: monthly staff get only the Saturday overtime hours) | `extra_day` (also salary ÷ 30 per
+  Saturday worked, inside gross). Daily staff always get the wage + hours. Set on admin Settings ›
+  Payroll (`/api/admin/settings/payroll`); see `app/modules/attendance/API_NOTES.md`.
+- `POST /payments`: `for_year` / `for_month` may be left out (both or neither) and then default to the
+  BS month of the payment date - the attendance scan flow's advances do that.
+
 ## 1. Tables (schema `payroll`, Alembic env `migrations/payroll`)
 
 **Employees live in `core.employees` (schema `core`, owned by `main`) - payroll has no employees

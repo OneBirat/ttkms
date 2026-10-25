@@ -11,7 +11,12 @@ the reference for the rules; `docs/payroll-backend-plan.md` has the endpoint tab
 - No SSF anywhere. TDS is a 0 placeholder column.
 - Monthly: `net = gross − gross ÷ 30 × absent + overtime_hours × ot_rate − tds` (a fixed 30, whatever the BS month's length).
   Saturdays (weekly off) are paid. No half days, no leave.
-- Daily: `net = wage × (present + overtime_days) + overtime_hours × ot_rate − tds`.
+- Daily: `net = wage × (present + overtime_days + Saturdays worked) + overtime_hours × ot_rate − tds`.
+- Running month ("earned so far", also the advance cap): `gross × min(days_counted, 30) ÷ 30`, then
+  the absences and overtime so far (added 2026-10-25; past months are never prorated).
+- Saturday work – **pending business decision**, setting `payroll.saturday_work_rule`:
+  `overtime_only` (default, monthly staff get the Saturday hours only) or `extra_day` (also gross ÷ 30
+  per Saturday). Daily staff always get the wage + hours (`calc.ts` `PayOptions`).
 - Overtime rate per employee, default `gross ÷ 30 ÷ 8` (daily: `wage ÷ 8`), editable on the
   salary structure (`web/app/people/_lib/calc.ts`, unit-tested).
 - Advances are part-payments of that month's salary: no recovery, no carry-over.
