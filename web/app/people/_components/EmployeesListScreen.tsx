@@ -32,7 +32,9 @@ export function EmployeesListScreen() {
   const [department, setDepartment] = useState<number | "all">("all");
   const [addOpen, setAddOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
-  const canManage = useSession().can("manage_employees");
+  const { can } = useSession();
+  const canManage = can("manage_employees");
+  const canMoney = can("salary_advances");
 
   // Everyone sees their own branch (session.branchId); `see_other_branches` adds the drop-down.
   const branchList = branches.data ?? [];
@@ -156,15 +158,19 @@ export function EmployeesListScreen() {
                     <th scope="col">Designation</th>
                     <th scope="col">Phone</th>
                     <th scope="col">Joined (BS)</th>
-                    <th scope="col" className={shared.num}>
-                      Monthly salary
-                    </th>
+                    {canMoney ? (
+                      <th scope="col" className={shared.num}>
+                        Monthly salary
+                      </th>
+                    ) : null}
                     <th scope="col" style={{ textAlign: "center" }}>
                       Today
                     </th>
-                    <th scope="col" className={shared.num}>
-                      Balance due
-                    </th>
+                    {canMoney ? (
+                      <th scope="col" className={shared.num}>
+                        Balance due
+                      </th>
+                    ) : null}
                     <th scope="col">
                       <span className={shared.srOnly}>Open</span>
                     </th>
@@ -173,7 +179,7 @@ export function EmployeesListScreen() {
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className={shared.empty}>
+                      <td colSpan={canMoney ? 9 : 7} className={shared.empty}>
                         No employees match.
                       </td>
                     </tr>
@@ -205,15 +211,19 @@ export function EmployeesListScreen() {
                           <td className="mono" style={{ fontSize: 13 }}>
                             {e.joined.bs}
                           </td>
-                          <td className={shared.num}>
-                            {row.rate ? (row.pay_type === "monthly" ? formatRs(row.rate) : `${formatRs(row.rate)} / day`) : "—"}
-                          </td>
+                          {canMoney ? (
+                            <td className={shared.num}>
+                              {row.rate ? (row.pay_type === "monthly" ? formatRs(row.rate) : `${formatRs(row.rate)} / day`) : "—"}
+                            </td>
+                          ) : null}
                           <td style={{ textAlign: "center" }}>
                             <TodayPill status={row.today} />
                           </td>
-                          <td className={`${shared.num} ${row.balance_due > 0 ? styles.dueCell : shared.muted}`}>
-                            {row.balance_due > 0 ? `Rs ${formatAmount(row.balance_due)}` : "—"}
-                          </td>
+                          {canMoney ? (
+                            <td className={`${shared.num} ${(row.balance_due ?? 0) > 0 ? styles.dueCell : shared.muted}`}>
+                              {(row.balance_due ?? 0) > 0 ? `Rs ${formatAmount(row.balance_due ?? 0)}` : "—"}
+                            </td>
+                          ) : null}
                           <td className={styles.chevCell}>›</td>
                         </tr>
                       );

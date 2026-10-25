@@ -6,7 +6,8 @@ import { PayrollIcon } from "./icons";
 import { BSDateText } from "@/components/date";
 import { formatBsShort } from "@/lib/bs";
 import { formatMonthRange, monthLabel } from "../_lib/months";
-import { downloadText, ledgerCsv, modeLabel, printPayslip, printReceipt } from "../_lib/exports";
+import { payslipUrl, receiptUrl } from "../api";
+import { downloadText, ledgerCsv, modeLabel } from "../_lib/exports";
 import {
   STATUS_LABEL,
   formatAddition,
@@ -55,7 +56,7 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
             disabled={!latest}
             title={latest ? `Payslip for ${monthLabel(latest.month)}` : undefined}
             onClick={() => {
-              if (latest && !printPayslip(employee, latest)) blocked();
+              if (latest && !window.open(payslipUrl(employee.id, latest.month), "_blank", "noopener")) blocked();
             }}
           >
             Payslip PDF
@@ -156,10 +157,10 @@ export function LedgerTable({ employee, ledger, onRecordPayment }: LedgerTablePr
                             onClose={() => setOpen(null)}
                             onRecordPayment={() => onRecordPayment(l.month)}
                             onPayslip={() => {
-                              if (!printPayslip(employee, l)) blocked();
+                              if (!window.open(payslipUrl(employee.id, l.month), "_blank", "noopener")) blocked();
                             }}
                             onReceipt={(payment) => {
-                              if (!printReceipt(employee, payment, null)) blocked();
+                              if (!window.open(receiptUrl(payment.id), "_blank", "noopener")) blocked();
                             }}
                           />
                         </td>
@@ -329,12 +330,12 @@ function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceip
                       <BSDateText value={p.date.bs} inline />
                     </td>
                     <td>
-                      <span className={p.type === "advance" ? shared.pillAdvance : shared.pillSalary}>
-                        {p.type === "advance" ? "Advance" : "Salary"}
+                      <span className={p.kind === "advance" ? shared.pillAdvance : shared.pillSalary}>
+                        {p.kind === "advance" ? "Advance" : "Salary"}
                       </span>
                     </td>
                     <td style={{ whiteSpace: "normal" }}>
-                      {p.note ?? (p.type === "advance" ? "Part of this month's salary" : "—")}
+                      {p.note ?? (p.kind === "advance" ? "Part of this month's salary" : "—")}
                       {p.source === "scan" ? <span className={shared.note}> · from attendance scan</span> : null}
                     </td>
                     <td>

@@ -105,8 +105,8 @@ test("rounding is to whole rupees, half up", () => {
 
 test("settle: advances and salary payments both reduce the due; status follows", () => {
   const s = settle(20000, [
-    { type: "advance", amount: 1500 },
-    { type: "salary", amount: 10000 },
+    { kind: "advance", amount: 1500 },
+    { kind: "salary", amount: 10000 },
   ]);
   assert.equal(s.advance_paid, 1500);
   assert.equal(s.salary_paid, 10000);
@@ -114,8 +114,8 @@ test("settle: advances and salary payments both reduce the due; status follows",
   assert.equal(s.due, 8500);
   assert.equal(s.status, "part_paid");
   assert.equal(settle(20000, []).status, "pending");
-  assert.equal(settle(20000, [{ type: "salary", amount: 20000 }]).status, "paid");
-  assert.equal(settle(20000, [{ type: "salary", amount: 25000 }]).due, 0);
+  assert.equal(settle(20000, [{ kind: "salary", amount: 20000 }]).status, "paid");
+  assert.equal(settle(20000, [{ kind: "salary", amount: 25000 }]).due, 0);
 });
 
 test("month status: nothing earned and nothing paid counts as paid (nothing due)", () => {

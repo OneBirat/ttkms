@@ -1,6 +1,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import * as api from "../api.ts";
+import * as api from "../_lib/mockApi.ts";
 import { mockAttendance } from "../_lib/mockData.ts";
 import { addMonths, monthKey, rangeFor, thisMonth, today } from "../_lib/months.ts";
 
@@ -89,24 +89,38 @@ test("balance matches the ledger and payments reduce the due", async () => {
   const pending = (await api.getSalaryReport(PREVIOUS)).rows.find((r) => r.ledger.status === "pending");
   const id = pending.employee.id;
   const before = await api.getBalance(id, PREVIOUS);
-  assert.equal(before.due, before.net);
+  assert.equal(before.due, before.earned);
   assert.equal(before.month_label, `${["Baishakh", "Jestha", "Ashadh", "Shrawan", "Bhadra", "Ashwin", "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"][PREVIOUS.bs_month - 1]} ${PREVIOUS.bs_year}`);
 
-  const advance = await api.recordPayment({
-    employee_id: id, bs_year: PREVIOUS.bs_year, bs_month: PREVIOUS.bs_month,
-    type: "advance", amount: 1500, payment_mode_id: 1, source: "scan",
+  // A part salary payment for last month, paid today: it counts for last month.
+  const part = await api.recordPayment({
+    employee_id: id, for_year: PREVIOUS.bs_year, for_month: PREVIOUS.bs_month,
+    kind: "salary", amount: 1500, payment_mode_id: 1, source: "account",
   });
-  assert.equal(advance.due_after, before.net - 1500);
-  assert.equal(advance.payment.recorded_by, "admin");
-  assert.equal(advance.payment.date.bs, today().bs);
+  assert.equal(part.due_after, before.earned - 1500);
+  assert.equal(part.payment.recorded_by, "admin");
+  assert.equal(part.payment.date.bs, today().bs);
+  assert.deepEqual([part.payment.for_year, part.payment.for_month], [PREVIOUS.bs_year, PREVIOUS.bs_month]);
 
   const mid = await api.getBalance(id, PREVIOUS);
   assert.equal(mid.status, "part_paid");
-  assert.equal(mid.breakdown.advance_paid, 1500);
+  assert.equal(mid.breakdown.salary_paid, 1500);
+
+  // Advances only go against the running month, up to earned so far − paid.
+  const running = await api.getBalance(id, CURRENT);
+  const advance = await api.recordPayment({
+    employee_id: id, for_year: CURRENT.bs_year, for_month: CURRENT.bs_month,
+    kind: "advance", amount: 500, payment_mode_id: 1, source: "scan",
+  });
+  assert.equal(advance.due_after, running.due - 500);
+  await assert.rejects(
+    api.recordPayment({ employee_id: id, for_year: PREVIOUS.bs_year, for_month: PREVIOUS.bs_month, kind: "advance", amount: 100, payment_mode_id: 1, source: "scan" }),
+    /running month/,
+  );
 
   const salary = await api.recordPayment({
-    employee_id: id, bs_year: PREVIOUS.bs_year, bs_month: PREVIOUS.bs_month,
-    type: "salary", amount: mid.due, payment_mode_id: 2, reference: "NBL-1", source: "account",
+    employee_id: id, for_year: PREVIOUS.bs_year, for_month: PREVIOUS.bs_month,
+    kind: "salary", amount: mid.due, payment_mode_id: 2, reference: "NBL-1", source: "account",
   });
   assert.equal(salary.due_after, 0);
   const after = await api.getBalance(id, PREVIOUS);
@@ -118,12 +132,12 @@ test("balance matches the ledger and payments reduce the due", async () => {
 
 test("payments: 0, above due, future month and future date are refused", async () => {
   const pending = (await api.getSalaryReport(PREVIOUS)).rows.find((r) => r.ledger.status === "pending");
-  const base = { employee_id: pending.employee.id, bs_year: PREVIOUS.bs_year, bs_month: PREVIOUS.bs_month, payment_mode_id: 1, source: "account" };
-  await assert.rejects(api.recordPayment({ ...base, type: "salary", amount: 0 }), /above 0/);
-  await assert.rejects(api.recordPayment({ ...base, type: "salary", amount: pending.ledger.due + 1 }), /More than the balance due/);
+  const base = { employee_id: pending.employee.id, for_year: PREVIOUS.bs_year, for_month: PREVIOUS.bs_month, payment_mode_id: 1, source: "account" };
+  await assert.rejects(api.recordPayment({ ...base, kind: "salary", amount: 0 }), /above 0/);
+  await assert.rejects(api.recordPayment({ ...base, kind: "salary", amount: pending.ledger.due + 1 }), /More than the balance due/);
   const next = addMonths(CURRENT, 1);
-  await assert.rejects(api.recordPayment({ ...base, bs_year: next.bs_year, bs_month: next.bs_month, type: "advance", amount: 100 }), /not started/);
-  await assert.rejects(api.recordPayment({ ...base, type: "advance", amount: 100, date_bs: "2099-01-01" }), /future/);
+  await assert.rejects(api.recordPayment({ ...base, for_year: next.bs_year, for_month: next.bs_month, kind: "advance", amount: 100 }), /not started/);
+  await assert.rejects(api.recordPayment({ ...base, kind: "salary", amount: 100, date_bs: "2099-01-01" }), /future/);
 });
 
 test("payments register: BS date range + type filter, settlement-month totals, by_employee", async () => {
@@ -132,7 +146,7 @@ test("payments register: BS date range + type filter, settlement-month totals, b
   const range = rangeFor("last_month", NOW);
   const advances = await api.listPayments({ ...range, type: "advance" });
   assert.ok(advances.rows.length > 0);
-  assert.ok(advances.rows.every((r) => r.payment.type === "advance" && r.payment.date.bs >= range.from_bs && r.payment.date.bs <= range.to_bs));
+  assert.ok(advances.rows.every((r) => r.payment.kind === "advance" && r.payment.date.bs >= range.from_bs && r.payment.date.bs <= range.to_bs));
   assert.equal(advances.totals.amount, advances.rows.reduce((s, r) => s + r.payment.amount, 0));
   assert.equal(advances.totals.count, advances.rows.length);
   // Tiles describe the settlement month (last month while anything is due for it).
@@ -158,18 +172,18 @@ test("payment modes: Cash first, inactive hidden, type rules enforced on save", 
   assert.deepEqual(Object.keys(active[0]).sort(), ["active", "details", "id", "name", "type", "use_advance", "use_salary"]);
   const report = await api.getSalaryReport(PREVIOUS);
   const pending = report.rows.find((r) => r.ledger.status === "pending");
-  const base = { employee_id: pending.employee.id, bs_year: PREVIOUS.bs_year, bs_month: PREVIOUS.bs_month, source: "account" };
+  const base = { employee_id: pending.employee.id, for_year: PREVIOUS.bs_year, for_month: PREVIOUS.bs_month, source: "account" };
   // Khalti is advances-only in the sample; Cheque is switched off.
   const khalti = everything.find((m) => m.name === "Khalti");
   const cheque = everything.find((m) => m.type === "cheque");
-  await assert.rejects(api.recordPayment({ ...base, type: "salary", amount: 100, payment_mode_id: khalti.id }), /not set up for salary/);
-  await assert.rejects(api.recordPayment({ ...base, type: "salary", amount: 100, payment_mode_id: cheque.id }), /switched off/);
-  await assert.rejects(api.recordPayment({ ...base, type: "salary", amount: 100, payment_mode_id: 999 }), /Choose how/);
+  await assert.rejects(api.recordPayment({ ...base, kind: "salary", amount: 100, payment_mode_id: khalti.id }), /not set up for salary/);
+  await assert.rejects(api.recordPayment({ ...base, kind: "salary", amount: 100, payment_mode_id: cheque.id }), /switched off/);
+  await assert.rejects(api.recordPayment({ ...base, kind: "salary", amount: 100, payment_mode_id: 999 }), /Choose how/);
   // Default is Cash; a bank mode keeps the reference, cash drops it.
-  const cash = await api.recordPayment({ ...base, type: "salary", amount: 100, reference: "ignored" });
+  const cash = await api.recordPayment({ ...base, kind: "salary", amount: 100, reference: "ignored" });
   assert.equal(cash.payment.payment_mode.type, "cash");
   assert.equal(cash.payment.reference, null);
-  const bank = await api.recordPayment({ ...base, type: "salary", amount: 100, payment_mode_id: 2, reference: "NIC 1" });
+  const bank = await api.recordPayment({ ...base, kind: "salary", amount: 100, payment_mode_id: 2, reference: "NIC 1" });
   assert.equal(bank.payment.payment_mode.name, "NIC Asia Bank");
   assert.equal(bank.payment.reference, "NIC 1");
 });

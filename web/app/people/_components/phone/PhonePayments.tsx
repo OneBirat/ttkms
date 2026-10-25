@@ -80,19 +80,19 @@ export function PhonePayments() {
 
   const payRow = ({ payment: p, employee: e }: RegisterRow) => (
     <div key={p.id} className={styles.payRow}>
-      <span className={styles.payAvatar} data-type={p.type}>
+      <span className={styles.payAvatar} data-type={p.kind}>
         {initials(e.full_name)}
       </span>
       <span className={styles.txText}>
         <span className={styles.txLine}>
           <span className={styles.rowName}>{e.full_name}</span>
-          <span className={styles.txAmount} style={{ color: p.type === "advance" ? "var(--pill-leave-fg)" : "var(--pill-ok-fg)" }}>
+          <span className={styles.txAmount} style={{ color: p.kind === "advance" ? "var(--pill-leave-fg)" : "var(--pill-ok-fg)" }}>
             Rs {formatAmount(p.amount)}
           </span>
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <span className={styles.pill} data-tone={p.type === "advance" ? "advance" : "ok"}>
-            {p.type === "advance" ? "Advance" : "Salary"}
+          <span className={styles.pill} data-tone={p.kind === "advance" ? "advance" : "ok"}>
+            {p.kind === "advance" ? "Advance" : "Salary"}
           </span>
           <span className={styles.rowSub} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {sort === "date" ? "" : `${p.date.bs} · `}

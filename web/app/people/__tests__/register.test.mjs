@@ -1,6 +1,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import * as api from "../api.ts";
+import * as api from "../_lib/mockApi.ts";
 import { departmentPaymentCounts, displayRows, groupRowsByBranch, groupRowsByDepartment, groupTotals, isRegisterSort, sortRegisterRows } from "../_lib/register.ts";
 import { registerFileName, registerPdfHtml, registerWorkbook } from "../_lib/exports.ts";
 import { rangeFor } from "../_lib/months.ts";

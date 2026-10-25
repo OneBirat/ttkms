@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { Icon } from "@/components/icons";
 import { BottomSheet } from "./BottomSheet";
 import { PaidByPicker, modesFor } from "../PaidByPicker";
-import { getAccountSummary, listPaymentModes, recordPayment } from "../../api";
+import { getAccountSummary, listPaymentModes, receiptUrl, recordPayment } from "../../api";
 import { formatBs, formatBsShort } from "@/lib/bs";
 import { monthName, today } from "../../_lib/months";
-import { printReceipt } from "../../_lib/exports";
 import { ADVANCE_QUICK, formatAmount, formatRs, initials } from "../../_lib/helpers";
 import type { Employee, PaymentResult, PaymentType } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
@@ -73,9 +72,9 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
     try {
       const result = await recordPayment({
         employee_id: employee.id,
-        bs_year: month.bs_year,
-        bs_month: month.bs_month,
-        type,
+        for_year: month.bs_year,
+        for_month: month.bs_month,
+        kind: type,
         amount: amountNumber,
         payment_mode_id: effectiveMode.id,
         reference,
@@ -112,11 +111,11 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
       {done ? (
         <>
           <div className={shared.doneBox} style={{ padding: "18px 0" }} role="status">
-            <span className={shared.doneBadge} data-tone={done.payment.type}>
+            <span className={shared.doneBadge} data-tone={done.payment.kind}>
               <Icon name="check" size={30} />
             </span>
-            <strong style={{ fontSize: 19 }}>{done.payment.type === "salary" ? "Salary paid" : "Advance saved"}</strong>
-            <span className={shared.doneAmount} data-tone={done.payment.type} style={{ fontSize: 28 }}>
+            <strong style={{ fontSize: 19 }}>{done.payment.kind === "salary" ? "Salary paid" : "Advance saved"}</strong>
+            <span className={shared.doneAmount} data-tone={done.payment.kind} style={{ fontSize: 28 }}>
               {formatRs(done.payment.amount)}
             </span>
             <span className={styles.rowSub} lang="ne">
@@ -127,7 +126,7 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
             </span>
           </div>
           <div className={styles.actions2}>
-            <button type="button" className={styles.sheetCancel} onClick={() => printReceipt(employee, done.payment, done.due_after)}>
+            <button type="button" className={styles.sheetCancel} onClick={() => window.open(receiptUrl(done.payment.id), "_blank", "noopener")}>
               Share receipt
             </button>
             <button type="button" className={styles.saveBig} style={{ minHeight: 48 }} onClick={onClose}>
@@ -214,8 +213,8 @@ export function PaySheet({ open, employee, initialType, isAdmin, onClose }: PayS
               {recent.length === 0 ? <span className={styles.rowSub} style={{ padding: 10 }}>No payments yet.</span> : null}
               {recent.map((p) => (
                 <div key={p.id} className={styles.recentRow}>
-                  <span className={styles.pill} data-tone={p.type === "advance" ? "advance" : "ok"} style={{ width: 58, textAlign: "center", flex: "none" }}>
-                    {p.type === "advance" ? "Advance" : "Salary"}
+                  <span className={styles.pill} data-tone={p.kind === "advance" ? "advance" : "ok"} style={{ width: 58, textAlign: "center", flex: "none" }}>
+                    {p.kind === "advance" ? "Advance" : "Salary"}
                   </span>
                   <span className={styles.txText}>
                     <span style={{ fontSize: 12, fontWeight: 600 }}>

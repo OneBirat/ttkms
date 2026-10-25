@@ -6,10 +6,9 @@ import { Modal } from "@/components/ui/Modal";
 import { Avatar } from "./Avatar";
 import { Field, TextInput, parseAmount, splitError } from "./FormBits";
 import { PaidByPicker, modesFor } from "./PaidByPicker";
-import { getAccountSummary, listPaymentModes, recordPayment } from "../api";
+import { getAccountSummary, listPaymentModes, receiptUrl, recordPayment } from "../api";
 import { formatBsDay, formatBsShort } from "@/lib/bs";
 import { monthLabel, monthName, today } from "../_lib/months";
-import { printReceipt } from "../_lib/exports";
 import { ADVANCE_QUICK, formatAmount, formatRs } from "../_lib/helpers";
 import type { Employee, PaymentResult } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
@@ -77,9 +76,9 @@ export function AdvanceDialog({ open, employee, manageModes = false, onClose, on
     try {
       const result = await recordPayment({
         employee_id: employee.id,
-        bs_year: s.month.bs_year,
-        bs_month: s.month.bs_month,
-        type: "advance",
+        for_year: s.month.bs_year,
+        for_month: s.month.bs_month,
+        kind: "advance",
         amount: amountNumber,
         payment_mode_id: effectiveMode.id,
         reference,
@@ -131,7 +130,7 @@ export function AdvanceDialog({ open, employee, manageModes = false, onClose, on
                 </span>
               </div>
               <div className={styles.toggle}>
-                <button type="button" className={styles.cancelBig} onClick={() => printReceipt(employee, done.payment, done.due_after)}>
+                <button type="button" className={styles.cancelBig} onClick={() => window.open(receiptUrl(done.payment.id), "_blank", "noopener")}>
                   Print receipt
                 </button>
                 <button type="button" className={styles.primaryBig} onClick={onClose}>
@@ -241,8 +240,8 @@ export function AdvanceDialog({ open, employee, manageModes = false, onClose, on
             {recent.length === 0 ? <span className={styles.note}>No payments yet.</span> : null}
             {recent.map((p) => (
               <div key={p.id} className={styles.recentRow} data-new={done?.payment.id === p.id}>
-                <span className={styles.recentTag} data-type={p.type}>
-                  {p.type === "advance" ? "Advance" : "Salary"}
+                <span className={styles.recentTag} data-type={p.kind}>
+                  {p.kind === "advance" ? "Advance" : "Salary"}
                 </span>
                 <span className={styles.recentText}>
                   <span className={styles.recentTitle}>

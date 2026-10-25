@@ -20,8 +20,8 @@ export interface PaymentDialogProps {
   purpose: "salary" | "record";
   /** Month to start on; "Pay <month> salary" passes the suggested month. */
   month: BsMonth;
-  /** Preselect the first bank mode when the salary structure says "paid to bank". */
-  preferBank?: boolean;
+  /** Preselect the employee's usual mode (salary structure default_payment_mode_id). */
+  preferModeId?: number | null;
   /** Admins see "Manage payment modes". */
   manageModes?: boolean;
   onClose: () => void;
@@ -37,7 +37,7 @@ const TITLES = { salary: "Pay salary", record: "Record payment" } as const;
  * one month. Save is disabled when the amount is 0 or above the balance due.
  * Advances for the running month have their own dialog (AdvanceDialog).
  */
-export function PaymentDialog({ open, employee, purpose, month, preferBank = false, manageModes = false, onClose, onSaved }: PaymentDialogProps) {
+export function PaymentDialog({ open, employee, purpose, month, preferModeId = null, manageModes = false, onClose, onSaved }: PaymentDialogProps) {
   const uid = useId();
   const [type, setType] = useState<PaymentType>("salary");
   const [key, setKey] = useState(monthKey(month));
@@ -74,7 +74,7 @@ export function PaymentDialog({ open, employee, purpose, month, preferBank = fal
   const typed = amount.trim() !== "";
   const problem = typed ? paymentError(amountNumber, due) : null;
   const allowed = modesFor(modes.data ?? [], type);
-  const defaultMode = (preferBank ? allowed.find((m) => m.type === "bank") : null) ?? allowed[0] ?? null;
+  const defaultMode = (preferModeId !== null ? allowed.find((m) => m.id === preferModeId) : null) ?? allowed[0] ?? null;
   const effectiveMode = allowed.find((m) => m.id === modeId) ?? defaultMode;
   const canSave = typed && !problem && !saving && Boolean(balance.data) && Boolean(effectiveMode);
   const id = (name: string) => `${uid}-${name}`;
@@ -92,9 +92,9 @@ export function PaymentDialog({ open, employee, purpose, month, preferBank = fal
     try {
       const result = await recordPayment({
         employee_id: employee.id,
-        bs_year: selectedMonth.bs_year,
-        bs_month: selectedMonth.bs_month,
-        type,
+        for_year: selectedMonth.bs_year,
+        for_month: selectedMonth.bs_month,
+        kind: type,
         amount: amountNumber,
         payment_mode_id: effectiveMode.id,
         reference,
@@ -166,7 +166,7 @@ export function PaymentDialog({ open, employee, purpose, month, preferBank = fal
         <div className={styles.tiles3} aria-live="polite">
           <div className={styles.tile} data-tone="ok">
             <span className={styles.tileLabel}>{label} net{running ? " so far" : ""}</span>
-            <span className={styles.tileValue}>{balance.data ? formatRs(balance.data.net) : "…"}</span>
+            <span className={styles.tileValue}>{balance.data ? formatRs(balance.data.earned) : "…"}</span>
           </div>
           <div className={styles.tile} data-tone="advance">
             <span className={styles.tileLabel}>Already paid</span>

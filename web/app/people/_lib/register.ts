@@ -4,7 +4,7 @@
  * these; the backend applies the same order for `?sort=`.
  */
 
-import type { Branch, Department, RegisterRow, RegisterSort } from "../types";
+import type { Branch, Department, DepartmentRef, RegisterRow, RegisterSort } from "../types";
 
 export const REGISTER_SORTS: { value: RegisterSort; label: string }[] = [
   { value: "date", label: "Date" },
@@ -62,7 +62,7 @@ export function sortRegisterRows(rows: readonly RegisterRow[], sort: RegisterSor
 
 export interface RegisterGroup {
   /** null = payments of employees without a department. */
-  department: Department | null;
+  department: DepartmentRef | null;
   rows: RegisterRow[];
   salary: number;
   advances: number;
@@ -73,7 +73,7 @@ export function groupTotals(rows: readonly RegisterRow[]): { salary: number; adv
   let salary = 0;
   let advances = 0;
   for (const r of rows) {
-    if (r.payment.type === "salary") salary += r.payment.amount;
+    if (r.payment.kind === "salary") salary += r.payment.amount;
     else advances += r.payment.amount;
   }
   return { salary, advances, total: salary + advances };

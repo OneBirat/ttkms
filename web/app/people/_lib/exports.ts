@@ -10,7 +10,7 @@ import { formatMonthRange, monthLabel } from "./months";
 import { STATUS_LABEL, formatAmount, formatDays, formatRs, toCsv } from "./helpers";
 import { XLSX_MIME, buildXlsx, cellRef, type Cell, type Sheet } from "./xlsx";
 import { groupRowsByBranch, groupRowsByDepartment, type RegisterGroup } from "./register";
-import type { Branch, Department, Employee, MonthLedger, Payment, PaymentsRegister, RegisterRow, ReportRow } from "../types";
+import type { Branch, DepartmentRef, Employee, MonthLedger, Payment, PaymentsRegister, RegisterRow, ReportRow } from "../types";
 
 export function downloadText(filename: string, text: string, type = "text/csv;charset=utf-8"): void {
   downloadBlob(filename, new Blob([text], { type }));
@@ -109,7 +109,7 @@ export function registerCsv(rows: RegisterRow[]): string {
       employee.full_name,
       employee.department?.name ?? "",
       monthLabel(payment.month),
-      payment.type === "salary" ? "Salary" : "Advance",
+      payment.kind === "salary" ? "Salary" : "Advance",
       payment.payment_mode.name,
       payment.reference ?? "",
       payment.amount,
@@ -145,7 +145,7 @@ export function payslipHtml(employee: Employee, l: MonthLedger): string {
       ? `Monthly salary ${formatRs(l.rate)} · overtime ${formatRs(l.ot_rate)}/h`
       : `Daily wage ${formatRs(l.rate)} × ${formatDays(l.paid_days)} days · overtime ${formatRs(l.ot_rate)}/h`;
   const payments = l.payments
-    .map((p) => `<tr><td>${escapeHtml(formatBs(p.date.bs))}</td><td>${p.type === "salary" ? "Salary" : "Advance"}</td><td>${escapeHtml(modeLabel(p))}</td><td class="num">${escapeHtml(formatRs(p.amount))}</td></tr>`)
+    .map((p) => `<tr><td>${escapeHtml(formatBs(p.date.bs))}</td><td>${p.kind === "salary" ? "Salary" : "Advance"}</td><td>${escapeHtml(modeLabel(p))}</td><td class="num">${escapeHtml(formatRs(p.amount))}</td></tr>`)
     .join("");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Payslip ${escapeHtml(employee.code)} ${escapeHtml(monthLabel(l.month))}</title>
 <style>${PRINT_CSS}</style></head><body>
@@ -188,7 +188,7 @@ ${line("Net salary", formatRs(l.net), true)}
 export function receiptHtml(employee: Employee, payment: Payment, due_after: number | null): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Receipt ${payment.id} · ${escapeHtml(employee.code)}</title>
 <style>${PRINT_CSS}</style></head><body>
-<h1>${payment.type === "salary" ? "Salary payment" : "Advance payment"} · receipt #${payment.id}</h1>
+<h1>${payment.kind === "salary" ? "Salary payment" : "Advance payment"} · receipt #${payment.id}</h1>
 <h2>${escapeHtml(employee.full_name)} · ${escapeHtml(employee.code)} · ${escapeHtml(employee.department?.name ?? "")}</h2>
 <div class="big">${escapeHtml(formatRs(payment.amount))}</div>
 <table>
@@ -199,7 +199,7 @@ export function receiptHtml(employee: Employee, payment: Payment, due_after: num
 ${payment.note ? `<tr><td>Note</td><td class="num">${escapeHtml(payment.note)}</td></tr>` : ""}
 ${due_after !== null ? `<tr class="strong"><td>Balance due for ${escapeHtml(monthLabel(payment.month))} after this payment</td><td class="num">${escapeHtml(formatRs(due_after))}</td></tr>` : ""}
 </table>
-<p class="note">${payment.type === "advance" ? "An advance counts as part of this month's salary; it is not recovered later." : "Signature: ______________________"}</p>
+<p class="note">${payment.kind === "advance" ? "An advance counts as part of this month's salary; it is not recovered later." : "Signature: ______________________"}</p>
 <script>window.addEventListener("load",function(){setTimeout(function(){window.print()},150)})</script>
 </body></html>`;
 }
@@ -233,7 +233,7 @@ export function registerFileName(
   from_bs: string,
   to_bs: string,
   ext: "xlsx" | "pdf",
-  department: Department | null = null,
+  department: DepartmentRef | null = null,
   branch: Branch | null = null,
 ): string {
   const parts = ["Payment_report", branch ? slug(branch.name) : null, department ? slug(department.name) : null, `${from_bs}_to_${to_bs}`];
@@ -247,7 +247,7 @@ export function registerTitle(register: PaymentsRegister): string {
 }
 
 function typeLabel(payment: Payment): string {
-  return payment.type === "salary" ? "Salary" : "Advance";
+  return payment.kind === "salary" ? "Salary" : "Advance";
 }
 
 /**
@@ -259,8 +259,8 @@ function typeLabel(payment: Payment): string {
 export function registerWorkbook({ register, rows, branch }: RegisterExportInput): Sheet[] {
   // Date order reads oldest first on paper; the other sorts are kept as the screen shows them.
   const oldestFirst = register.sort === "date" ? [...rows].reverse() : [...rows];
-  const salary = rows.filter((r) => r.payment.type === "salary");
-  const advances = rows.filter((r) => r.payment.type === "advance");
+  const salary = rows.filter((r) => r.payment.kind === "salary");
+  const advances = rows.filter((r) => r.payment.kind === "advance");
   const sum = (list: RegisterRow[]) => list.reduce((acc, r) => acc + r.payment.amount, 0);
   const range = formatBsRange(register.from_bs, register.to_bs);
   const month = monthLabel(register.totals.month);
@@ -489,8 +489,8 @@ tr{page-break-inside:avoid}
 /** Printable A4-landscape register (design PaymentsExportPdf); the browser's "Save as PDF" makes the file. */
 export function registerPdfHtml({ register, rows, branch, generatedBy, previousMonth }: RegisterExportInput): string {
   const t = register.totals;
-  const salary = rows.filter((r) => r.payment.type === "salary");
-  const advances = rows.filter((r) => r.payment.type === "advance");
+  const salary = rows.filter((r) => r.payment.kind === "salary");
+  const advances = rows.filter((r) => r.payment.kind === "advance");
   const sum = (list: RegisterRow[]) => list.reduce((acc, r) => acc + r.payment.amount, 0);
   const paidForMonth = t.salary_paid + t.advance_paid;
   const month = monthLabel(t.month);
@@ -501,7 +501,7 @@ export function registerPdfHtml({ register, rows, branch, generatedBy, previousM
     `<tr><td style="color:#6b757b">${++n}</td><td class="n" style="text-align:left!important">${p.date.bs}</td>` +
     `<td style="font-weight:600">${escapeHtml(e.full_name)} <span style="color:#6b757b;font-weight:400">· ${e.code}</span></td>` +
     `<td>${escapeHtml(e.department?.name ?? "")}</td><td>${escapeHtml(e.branch.name)}</td><td>${monthLabel(p.month)}</td>` +
-    `<td><span class="tag ${p.type === "advance" ? "adv" : "sal"}">${typeLabel(p)}</span></td>` +
+    `<td><span class="tag ${p.kind === "advance" ? "adv" : "sal"}">${typeLabel(p)}</span></td>` +
     `<td>${escapeHtml(p.payment_mode.name)}</td><td style="color:#4a555c">${escapeHtml([p.reference, p.note].filter(Boolean).join(" · ") || "—")}</td>` +
     `<td class="n" style="font-weight:700">${formatAmount(p.amount)}</td><td>${escapeHtml(p.recorded_by)}</td><td class="sig"></td></tr>`;
   const count = (k: number) => `${k} payment${k === 1 ? "" : "s"}`;

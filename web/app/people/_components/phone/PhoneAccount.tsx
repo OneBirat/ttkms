@@ -142,7 +142,7 @@ export function PhoneAccount({ id }: { id: number }) {
 
           {tab === "salary" ? <SalaryTab id={person.id} /> : null}
           {tab === "ledger" ? <LedgerTab id={person.id} /> : null}
-          {tab === "profile" ? <ProfileTab employee={person} paidBy={current?.paid_by ?? null} /> : null}
+          {tab === "profile" ? <ProfileTab employee={person} paidBy={current?.default_payment_mode.name ?? null} /> : null}
 
           <BottomSheet open={sheet?.kind === "actions"} label="Actions" onClose={() => setSheet(null)}>
             <button type="button" className={styles.sheetAction} data-tone="advance" onClick={() => setSheet({ kind: "pay", type: "advance" })}>
@@ -240,7 +240,7 @@ function SalaryTab({ id }: { id: number }) {
                 {l.payments.map((p) => (
                   <div key={p.id} className={styles.kvLine} style={{ color: "var(--pill-leave-fg)" }}>
                     <span>
-                      {formatBsShort(p.date.bs)} · {p.type === "advance" ? "Advance" : "Paid"} ({p.payment_mode.name})
+                      {formatBsShort(p.date.bs)} · {p.kind === "advance" ? "Advance" : "Paid"} ({p.payment_mode.name})
                     </span>
                     <span className="mono">−{formatAmount(p.amount)}</span>
                   </div>
@@ -329,7 +329,7 @@ function LedgerTab({ id }: { id: number }) {
   );
 }
 
-function ProfileTab({ employee: e, paidBy }: { employee: Employee; paidBy: "cash" | "bank" | null }) {
+function ProfileTab({ employee: e, paidBy }: { employee: Employee; paidBy: string | null }) {
   const rows: [string, string][] = [
     ["Employee ID", `${e.code} · ${e.barcode}`],
     ["Name in Nepali", e.full_name_np ?? "—"],
@@ -340,7 +340,7 @@ function ProfileTab({ employee: e, paidBy }: { employee: Employee; paidBy: "cash
     ["Extra contact", e.phone_alt ?? "—"],
     ["Address", e.address ?? "—"],
     ["Joined", e.joined.bs],
-    ["Salary paid to", paidBy === "bank" ? "Bank" : paidBy === "cash" ? "Cash" : "—"],
+    ["Salary paid to", paidBy ?? "—"],
     ["App login", e.login ? `${e.login.username} (${e.login.role_label.toLowerCase()})` : "none"],
   ];
   return (

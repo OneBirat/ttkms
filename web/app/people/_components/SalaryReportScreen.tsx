@@ -8,11 +8,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Pill } from "@/components/ui/Pill";
 import { Icon } from "@/components/icons";
-import { currentMonth, getSalaryReport, listBranches, listDepartments, listMonths } from "../api";
+import { currentMonth, getSalaryReport, listBranches, listDepartments, listMonths, salaryReportExportUrl } from "../api";
 import { BranchSwitcher } from "./BranchSwitcher";
 import { useReportBranch } from "../_lib/useBranchScope";
 import { monthKey, monthLabel, monthName, parseMonthKey, sameMonth } from "../_lib/months";
-import { downloadText, payrollSheetCsv } from "../_lib/exports";
 import {
   STATUS_LABEL,
   formatAmount,
@@ -97,8 +96,6 @@ export function SalaryReportScreen() {
   const deptName = department !== null ? (departments.data ?? []).find((d) => d.id === department)?.name : null;
   const scope = `${branchScope.label} · ${deptName ?? "all departments"}`;
   const running = sameMonth(month, currentMonth());
-  const slug = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
-  const fileStem = `salary-${monthKey(month)}-${slug(branchScope.label)}${deptName ? `-${slug(deptName)}` : ""}`;
 
   return (
     <>
@@ -121,11 +118,11 @@ export function SalaryReportScreen() {
                 ))}
               </select>
             </div>
-            <button type="button" className="btn" disabled={!data} onClick={() => downloadText(`${fileStem}.csv`, payrollSheetCsv(filteredRows))}>
+            <button type="button" className="btn" disabled={!data} onClick={() => window.location.assign(salaryReportExportUrl(month, "xlsx", department, branchScope.branchId))}>
               <Icon name="download" size={16} />
               Excel
             </button>
-            <button type="button" className="btn" disabled={!data} onClick={() => window.print()}>
+            <button type="button" className="btn" disabled={!data} onClick={() => window.open(salaryReportExportUrl(month, "pdf", department, branchScope.branchId), "_blank", "noopener")}>
               <Icon name="print" size={16} />
               PDF
             </button>

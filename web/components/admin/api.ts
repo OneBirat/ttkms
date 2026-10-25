@@ -1,8 +1,8 @@
 /**
- * Admin API client - MOCK EDITION for Branches, Settings and the Audit log
- * (their endpoints do not exist yet). Users, payment modes and barcodes use
- * the real API (usersApi.ts, paymentModesApi.ts, barcodesApi.ts), and so do
- * departments since 2026-10-25 (/api/core/departments, app/core/departments.py).
+ * Admin API client - MOCK EDITION for Settings and the Audit log (their
+ * endpoints do not exist yet). Users, payment modes and barcodes use the real
+ * API (usersApi.ts, paymentModesApi.ts, barcodesApi.ts), and so do branches
+ * and departments (/api/core/branches, /api/core/departments).
  *
  * State lives in memory, seeded from ./mock/data; every mutation applies the
  * rules the backend will enforce (unique names, no deleting referenced rows)
@@ -10,14 +10,12 @@
  */
 
 import { ApiError, apiFetch } from "@/lib/api";
-import { findDuplicateName, validateName } from "./names";
+import { validateName } from "./names";
 import { changedGroups, validateSettings } from "./settingsValidation";
 import {
   approxAd,
   approxBs,
   AUDIT,
-  BRANCHES,
-  EMPLOYEES,
   SETTINGS,
 } from "./mock/data";
 import type {
@@ -42,11 +40,8 @@ function clone<T>(value: T): T {
 }
 
 const state = {
-  branches: clone(BRANCHES),
-  employees: clone(EMPLOYEES),
   settings: clone(SETTINGS),
   audit: clone(AUDIT),
-  nextOrgId: 100,
   nextAuditId: Math.max(...AUDIT.map((a) => a.id)) + 1,
 };
 
@@ -95,16 +90,7 @@ function recordAudit(
   return entry;
 }
 
-function recomputeCounts(): void {
-  for (const branch of state.branches) {
-    const members = state.employees.filter((e) => e.branch_id === branch.id);
-    branch.employee_count = members.length;
-    branch.active_employee_count = members.filter((e) => e.status === "active").length;
-  }
-}
-recomputeCounts();
-
-// -------------------------------------------------- branches (mock) & departments (real)
+// ------------------------------------------- branches & departments (real, /api/core)
 
 /** One row of GET /api/core/departments (app/core/schemas.py DepartmentOut). */
 interface DepartmentRow {
@@ -119,18 +105,13 @@ function departmentOf(row: DepartmentRow): Department {
   return { ...row, is_active: true };
 }
 
-function orgList(kind: OrgKind): Branch[] {
-  if (kind !== "branch") throw new Error("departments are not mocked");
-  return state.branches;
-}
-
 function orgLabel(kind: OrgKind): string {
   return kind === "branch" ? "Branch" : "Department";
 }
 
+/** GET /api/core/branches - every branch A-Z with employee counts (former staff included). */
 export async function listBranches(): Promise<Branch[]> {
-  recomputeCounts();
-  return respond(state.branches);
+  return apiFetch<Branch[]>("/api/core/branches");
 }
 
 /** GET /api/core/departments - real; counts include former staff. */
@@ -145,29 +126,18 @@ export async function deleteOrg(kind: OrgKind, id: number): Promise<void> {
   await apiFetch<void>(`/api/core/departments/${id}`, { method: "DELETE" });
 }
 
+/** POST /api/core/branches | /api/core/departments {name} -> 201 (409 duplicate_name); the server audits. */
 export async function createOrg(kind: OrgKind, name: string): Promise<Branch | Department> {
   const clean = name.replace(/\s+/g, " ").trim();
   const error = validateName(clean, orgLabel(kind) + " name");
   if (error) fail(422, error);
   if (kind === "department") {
-    // POST /api/core/departments {name} -> 201 (409 duplicate_name); the server writes the audit row.
     return departmentOf(await apiFetch<DepartmentRow>("/api/core/departments", { method: "POST", json: { name: clean } }));
   }
-  const list = orgList(kind);
-  const duplicate = findDuplicateName(list, clean);
-  if (duplicate) fail(409, `${orgLabel(kind)} "${duplicate.name}" already exists.`);
-  const row = {
-    id: state.nextOrgId++,
-    name: clean,
-    is_active: true,
-    employee_count: 0,
-    active_employee_count: 0,
-  };
-  list.push(row);
-  recordAudit("create", kind, row.id, null, { name: row.name });
-  return respond(row);
+  return apiFetch<Branch>("/api/core/branches", { method: "POST", json: { name: clean } });
 }
 
+/** PATCH /api/core/branches/{id} | /api/core/departments/{id} {name} (409 duplicate_name). */
 export async function renameOrg(
   kind: OrgKind,
   id: number,
@@ -177,40 +147,19 @@ export async function renameOrg(
   const error = validateName(clean, orgLabel(kind) + " name");
   if (error) fail(422, error);
   if (kind === "department") {
-    // PATCH /api/core/departments/{id} {name} (409 duplicate_name).
     return departmentOf(await apiFetch<DepartmentRow>(`/api/core/departments/${id}`, { method: "PATCH", json: { name: clean } }));
   }
-  const list = orgList(kind);
-  const row = list.find((r) => r.id === id);
-  if (!row) fail(404, `${orgLabel(kind)} not found.`);
-  const duplicate = findDuplicateName(list, clean, id);
-  if (duplicate) fail(409, `${orgLabel(kind)} "${duplicate.name}" already exists.`);
-  if (row.name === clean) return respond(row);
-  const before = { name: row.name };
-  row.name = clean;
-  recordAudit("rename", kind, row.id, before, { name: row.name });
-  return respond(row);
+  return apiFetch<Branch>(`/api/core/branches/${id}`, { method: "PATCH", json: { name: clean } });
 }
 
+/** PATCH /api/core/branches/{id} {is_active} (409 last_active_branch). */
 export async function setOrgActive(
   kind: OrgKind,
   id: number,
   active: boolean,
 ): Promise<Branch | Department> {
   if (kind === "department") fail(405, "Departments are deleted, not deactivated.");
-  const list = orgList(kind);
-  const row = list.find((r) => r.id === id);
-  if (!row) fail(404, `${orgLabel(kind)} not found.`);
-  if (row.is_active === active) return respond(row);
-  if (!active && list.filter((r) => r.is_active).length <= 1) {
-    fail(409, `At least one active ${kind} is needed.`);
-  }
-  row.is_active = active;
-  recordAudit(active ? "activate" : "deactivate", kind, row.id, { is_active: !active }, {
-    is_active: active,
-    affected_employees: active ? 0 : row.active_employee_count,
-  });
-  return respond(row);
+  return apiFetch<Branch>(`/api/core/branches/${id}`, { method: "PATCH", json: { is_active: active } });
 }
 
 // -------------------------------------------------------------- settings

@@ -228,14 +228,14 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
           employee={person}
           purpose={dialog.purpose}
           month={dialog.month}
-          preferBank={current?.paid_by === "bank"}
+          preferModeId={current?.default_payment_mode_id ?? null}
           manageModes={isAdmin}
           onClose={() => setDialog(null)}
           onSaved={(result) => {
             setDialog(null);
             const p = result.payment;
             setToast({
-              text: `${p.type === "advance" ? "Advance" : "Salary payment"} of ${formatRs(p.amount)} for ${monthLabel(p.month)} recorded (${p.receipt_no}) · due now ${formatRs(result.due_after)} · shows in Payment reports.`,
+              text: `${p.kind === "advance" ? "Advance" : "Salary payment"} of ${formatRs(p.amount)} for ${monthLabel(p.month)} recorded (${p.receipt_no}) · due now ${formatRs(result.due_after)} · shows in Payment reports.`,
             });
           }}
         />
@@ -257,7 +257,7 @@ function OverviewTab({ employee: e, structure, ledger }: { employee: Employee; s
     ["Extra contact", e.phone_alt ?? "—"],
     ["Address", e.address ?? "—"],
     ["Joined", <BSDateText key="joined" value={e.joined.bs} inline />],
-    ["Salary paid to", structure ? (structure.paid_by === "bank" ? "Bank" : "Cash") : "—"],
+    ["Salary paid to", structure ? structure.default_payment_mode.name : "—"],
     ["App login", e.login ? `${e.login.username} (${e.login.role_label.toLowerCase()})` : "none"],
     ["Status", e.active ? "Active" : "Inactive"],
   ];
@@ -387,7 +387,7 @@ function SalaryStructureCard({ structure, onRevise }: { structure: SalaryStructu
             </div>
             <div className={shared.kv}>
               <span>Paid by</span>
-              <span>{structure.paid_by === "bank" ? "Bank" : "Cash"}</span>
+              <span>{structure.default_payment_mode.name}</span>
             </div>
           </div>
           <div className={`${shared.kv} ${shared.kvMuted}`}>
@@ -407,7 +407,7 @@ function SalaryStructureCard({ structure, onRevise }: { structure: SalaryStructu
 
 function AdvancesCard({ ledger, onGiveAdvance }: { ledger: MonthLedger[]; onGiveAdvance: () => void }) {
   const advances: { payment: Payment; month: BsMonth }[] = ledger
-    .flatMap((l) => l.payments.filter((p) => p.type === "advance").map((payment) => ({ payment, month: l.month })))
+    .flatMap((l) => l.payments.filter((p) => p.kind === "advance").map((payment) => ({ payment, month: l.month })))
     .sort((a, b) => b.payment.date.bs.localeCompare(a.payment.date.bs) || b.payment.id - a.payment.id)
     .slice(0, 8);
   return (

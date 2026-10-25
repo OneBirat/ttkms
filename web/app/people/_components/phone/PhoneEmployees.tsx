@@ -130,7 +130,9 @@ export function PhoneEmployees() {
                   </span>
                   <span className={styles.rowRight}>
                     <TodayPill status={r.today} small />
-                    <span className={r.balance_due > 0 ? styles.due : styles.nothingDue}>{r.balance_due > 0 ? `due Rs ${formatAmount(r.balance_due)}` : "nothing due"}</span>
+                    {r.balance_due !== null ? (
+                      <span className={r.balance_due > 0 ? styles.due : styles.nothingDue}>{r.balance_due > 0 ? `due Rs ${formatAmount(r.balance_due)}` : "nothing due"}</span>
+                    ) : null}
                   </span>
                   <span className={styles.rowChevron} aria-hidden="true">
                     ›

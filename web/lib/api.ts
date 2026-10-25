@@ -192,13 +192,20 @@ export class ApiError extends Error {
   readonly status: number;
   readonly detail: string;
   readonly code: string | null;
+  /** The form field the error belongs to, when the server names one (422 / 409 bodies). */
+  readonly field: string | null;
+  /** The parsed JSON error body, for extra keys such as `count` or `cap`. */
+  readonly body: unknown;
 
-  constructor(status: number, detail: string, code: string | null = null) {
+  constructor(status: number, detail: string, code: string | null = null, body: unknown = null) {
     super(detail);
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
     this.code = code;
+    this.body = body;
+    const field = body && typeof body === "object" && "field" in body ? (body as { field: unknown }).field : null;
+    this.field = typeof field === "string" ? field : null;
   }
 }
 
@@ -390,6 +397,7 @@ export async function apiFetch<T>(
       response.status,
       detailFrom(parsed, response.statusText || `Request failed (${response.status})`),
       code,
+      parsed,
     );
   }
 

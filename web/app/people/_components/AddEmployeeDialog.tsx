@@ -14,13 +14,14 @@ import {
   createEmployee,
   listBranches,
   listDepartments,
+  listPaymentModes,
   nextEmployeeCode,
 } from "../api";
 import { dailyExample, monthlyExample } from "../_lib/calc";
 import { formatRs, suggestUsername } from "../_lib/helpers";
 import { PayrollIcon } from "./icons";
 import { cameraAvailable, fileToDataUrl, shrinkImage } from "../_lib/image";
-import type { Employee, PaidBy, PayType } from "../types";
+import type { Employee, PayType } from "../types";
 import { usePayroll } from "../_lib/usePayroll";
 import photo from "./photo.module.css";
 import styles from "./payroll.module.css";
@@ -69,6 +70,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
   const branches = usePayroll(listBranches, []);
   const departments = usePayroll(listDepartments, []);
   const code = usePayroll(nextEmployeeCode, []);
+  const modes = usePayroll(() => listPaymentModes(), []);
 
   const [fullName, setFullName] = useState("");
   const [fullNameNp, setFullNameNp] = useState("");
@@ -80,7 +82,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
   const [designation, setDesignation] = useState("");
   const [payType, setPayType] = useState<PayType>("monthly");
   const [amount, setAmount] = useState("22000");
-  const [paidBy, setPaidBy] = useState<PaidBy>("cash");
+  const [modeId, setModeId] = useState<number>(1);
   const [login, setLogin] = useState(false);
   const [username, setUsername] = useState("");
   const [usernameTouched, setUsernameTouched] = useState(false);
@@ -110,7 +112,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
     setDesignation("");
     setPayType("monthly");
     setAmount("22000");
-    setPaidBy("cash");
+    setModeId(1);
     setLogin(false);
     setUsername("");
     setUsernameTouched(false);
@@ -205,7 +207,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
         designation,
         pay_type: payType,
         amount: amountNumber,
-        paid_by: paidBy,
+        default_payment_mode_id: modeId,
         photo_data_url: photoUrl,
         login: login ? { username, role } : null,
       });
@@ -504,9 +506,15 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
               />
             </Field>
             <Field id={id("paidby")} label="Paid by">
-              <SelectInput id={id("paidby")} value={paidBy} onChange={(e) => setPaidBy(e.target.value as PaidBy)}>
-                <option value="cash">Cash</option>
-                <option value="bank">Bank</option>
+              <SelectInput id={id("paidby")} value={String(modeId)} onChange={(e) => setModeId(Number(e.target.value))}>
+                {(modes.data ?? [{ id: 1, name: "Cash", type: "cash", details: null, use_salary: true, use_advance: true, active: true }])
+                  .filter((m) => m.use_salary)
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                      {m.details ? ` · ${m.details}` : ""}
+                    </option>
+                  ))}
               </SelectInput>
             </Field>
             <div className={`${styles.ruleBox} ${styles.span2}`} aria-live="polite">

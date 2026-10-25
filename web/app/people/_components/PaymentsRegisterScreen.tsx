@@ -8,13 +8,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Icon } from "@/components/icons";
-import { useSession } from "@/lib/session";
-import { currentMonth, listBranches, listDepartments, listPayments } from "../api";
+import { currentMonth, listBranches, listDepartments, listPayments, receiptUrl, registerExportUrl } from "../api";
 import { BranchSwitcher } from "./BranchSwitcher";
 import { useReportBranch } from "../_lib/useBranchScope";
 import { formatBs, isValidBs } from "@/lib/bs";
 import { monthLabel, monthName, monthStart, rangeFor } from "../_lib/months";
-import { downloadRegisterXlsx, printReceipt, printRegisterPdf, registerFileName, type RegisterExportInput } from "../_lib/exports";
 import { formatAmount, formatRs, matchesEmployee, paginate } from "../_lib/helpers";
 import { REGISTER_SORTS, displayRows, isRegisterSort } from "../_lib/register";
 import type { DateRange, RegisterSort, RegisterTypeFilter } from "../types";
@@ -46,7 +44,6 @@ export function PaymentsRegisterScreen() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const { user } = useSession();
   const searchId = useId();
   const branchSelectId = useId();
   const branches = usePayroll(listBranches, []);
@@ -114,7 +111,7 @@ export function PaymentsRegisterScreen() {
   const shown = useMemo(() => displayRows(rows, sort, (data?.branch ?? null) === null), [rows, sort, data?.branch]);
   const paged = paginate(shown, page, PAGE_SIZE);
   const total = rows.reduce((sum, r) => sum + r.payment.amount, 0);
-  const totalSalary = rows.filter((r) => r.payment.type === "salary").reduce((sum, r) => sum + r.payment.amount, 0);
+  const totalSalary = rows.filter((r) => r.payment.kind === "salary").reduce((sum, r) => sum + r.payment.amount, 0);
   // Chips: every department with its payment count in the range (whichever department is chosen).
   const countOf = (id: number | null) => data?.by_department.find((d) => (d.department?.id ?? null) === id)?.count ?? 0;
   const allCount = data?.by_department.reduce((sum, d) => sum + d.count, 0) ?? 0;
@@ -124,31 +121,24 @@ export function PaymentsRegisterScreen() {
   const previousMonth = from_bs < monthStartBs;
   const settle = data?.totals.month ?? currentMonth();
 
-  const exportInput = (r: DateRange): RegisterExportInput | null => {
-    if (!data) return null;
-    const scoped = r.from_bs === from_bs && r.to_bs === to_bs ? rows : data.rows.filter((x) => x.payment.date.bs >= r.from_bs && x.payment.date.bs <= r.to_bs && matchesEmployee(x.employee, query));
-    return {
-      register: { ...data, from_bs: r.from_bs, to_bs: r.to_bs },
-      rows: scoped,
-      branch: branchScope.label,
-      generatedBy: user?.full_name ?? user?.username ?? "TTK",
-      previousMonth: r.from_bs < monthStartBs,
-    };
-  };
+  // Files come from the server with the same From/To, type, branch, department and sort.
   const download = (ext: "xlsx" | "pdf", r: DateRange) => {
-    const input = exportInput(r);
-    if (!input) return;
+    if (!data) return;
     setAsk(null);
     if (r.from_bs !== from_bs || r.to_bs !== to_bs) setRange(r);
-    const dept = input.register.department;
-    const scope = `${r.from_bs} → ${r.to_bs}${dept ? ` · ${dept.name}` : ""}`;
+    const url = registerExportUrl(
+      { from_bs: r.from_bs, to_bs: r.to_bs, type, branch_id: branchScope.branchId, department_id: departmentId, sort },
+      ext,
+    );
+    const dept = data.department;
+    const scope = `${branchScope.label}${dept ? ` · ${dept.name}` : ""} · ${r.from_bs} → ${r.to_bs}`;
     if (ext === "xlsx") {
-      downloadRegisterXlsx(input);
-      setToast(`${registerFileName(r.from_bs, r.to_bs, "xlsx", dept)} downloaded · ${scope}`);
-    } else if (printRegisterPdf(input)) {
-      setToast(`${registerFileName(r.from_bs, r.to_bs, "pdf", dept)} opened for printing · ${scope}`);
+      window.location.assign(url);
+      setToast(`Excel downloading · ${scope}`);
+    } else if (window.open(url, "_blank", "noopener")) {
+      setToast(`PDF opened in a new tab · ${scope}`);
     } else {
-      setToast("The browser blocked the print window. Allow pop-ups for this site and try again.");
+      setToast("The browser blocked the PDF tab. Allow pop-ups for this site and try again.");
     }
   };
   const tryDownload = (ext: "xlsx" | "pdf") => {
@@ -366,7 +356,7 @@ export function PaymentsRegisterScreen() {
                         </td>
                         <td>{monthLabel(p.month)}</td>
                         <td>
-                          <span className={p.type === "advance" ? shared.pillAdvance : shared.pillSalary}>{p.type === "advance" ? "Advance" : "Salary"}</span>
+                          <span className={p.kind === "advance" ? shared.pillAdvance : shared.pillSalary}>{p.kind === "advance" ? "Advance" : "Salary"}</span>
                         </td>
                         <td>
                           {p.payment_mode.name}
@@ -382,8 +372,8 @@ export function PaymentsRegisterScreen() {
                             type="button"
                             className="btn btn--ghost btn--sm"
                             onClick={() => {
-                              if (!printReceipt(employee, p, null)) {
-                                window.alert("The browser blocked the receipt window. Allow pop-ups for this site and try again.");
+                              if (!window.open(receiptUrl(p.id), "_blank", "noopener")) {
+                                window.alert("The browser blocked the receipt tab. Allow pop-ups for this site and try again.");
                               }
                             }}
                           >
@@ -433,7 +423,8 @@ export function PaymentsRegisterScreen() {
                   Previous month in range
                 </h2>
                 <span className={shared.note} style={{ fontSize: 13 }}>
-                  {registerFileName(from_bs, to_bs, ask.ext, data?.department ?? null)}
+                  Payment report · {branchScope.label}
+                  {data?.department ? ` · ${data.department.name}` : ""} · {ask.ext.toUpperCase()}
                 </span>
               </div>
             </div>

@@ -4,11 +4,12 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { BSDate } from "@/components/date";
 import { Modal } from "@/components/ui/Modal";
 import { Field, SelectInput, TextInput, parseAmount, splitError } from "./FormBits";
-import { currentMonth, reviseSalary } from "../api";
+import { currentMonth, listPaymentModes, reviseSalary } from "../api";
 import { defaultOtRate } from "../_lib/calc";
 import { isoBs } from "@/lib/bs";
 import { formatRs } from "../_lib/helpers";
-import type { Employee, PaidBy, PayType, SalaryStructure } from "../types";
+import type { Employee, PayType, SalaryStructure } from "../types";
+import { usePayroll } from "../_lib/usePayroll";
 import styles from "./payroll.module.css";
 
 export interface ReviseSalaryDialogProps {
@@ -28,7 +29,8 @@ export function ReviseSalaryDialog({ open, employee, current, onClose, onSaved }
   const [allowances, setAllowances] = useState("0");
   const [otRate, setOtRate] = useState("");
   const [otTouched, setOtTouched] = useState(false);
-  const [paidBy, setPaidBy] = useState<PaidBy>("cash");
+  const [modeId, setModeId] = useState<number>(1);
+  const modes = usePayroll(() => listPaymentModes(), []);
   const [effective, setEffective] = useState(isoBs(month.bs_year, month.bs_month, 1));
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -42,7 +44,7 @@ export function ReviseSalaryDialog({ open, employee, current, onClose, onSaved }
     setAllowances(current ? String(current.allowances) : "0");
     setOtRate(current ? String(current.ot_rate) : "");
     setOtTouched(Boolean(current));
-    setPaidBy(current?.paid_by ?? "cash");
+    setModeId(current?.default_payment_mode_id ?? 1);
     setEffective(isoBs(month.bs_year, month.bs_month, 1));
     setReason("");
     setErrors({});
@@ -73,7 +75,7 @@ export function ReviseSalaryDialog({ open, employee, current, onClose, onSaved }
         basic: basicNumber,
         allowances: allowanceNumber,
         ot_rate: parseAmount(otRate),
-        paid_by: paidBy,
+        default_payment_mode_id: modeId,
         effective_from_bs: effective,
         reason,
       });
@@ -140,9 +142,15 @@ export function ReviseSalaryDialog({ open, employee, current, onClose, onSaved }
             </Field>
           ) : (
             <Field id={id("paidby")} label="Paid by">
-              <SelectInput id={id("paidby")} value={paidBy} onChange={(e) => setPaidBy(e.target.value as PaidBy)}>
-                <option value="cash">Cash</option>
-                <option value="bank">Bank</option>
+              <SelectInput id={id("paidby")} value={String(modeId)} onChange={(e) => setModeId(Number(e.target.value))}>
+                {(modes.data ?? [{ id: 1, name: "Cash", type: "cash", details: null, use_salary: true, use_advance: true, active: true }])
+                  .filter((m) => m.use_salary)
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                      {m.details ? ` · ${m.details}` : ""}
+                    </option>
+                  ))}
               </SelectInput>
             </Field>
           )}
@@ -150,7 +158,7 @@ export function ReviseSalaryDialog({ open, employee, current, onClose, onSaved }
             id={id("ot")}
             label="Overtime rate per hour"
             error={errors.ot_rate}
-            hint={`Default ${formatRs(suggested)} = ${payType === "monthly" ? "salary ÷ days in month ÷ 8" : "wage ÷ 8"}`}
+            hint={`Default ${formatRs(suggested)} = ${payType === "monthly" ? "salary ÷ 30 ÷ 8" : "wage ÷ 8"}`}
           >
             <TextInput
               id={id("ot")}
@@ -168,9 +176,15 @@ export function ReviseSalaryDialog({ open, employee, current, onClose, onSaved }
           </Field>
           {payType === "monthly" ? (
             <Field id={id("paidby")} label="Paid by">
-              <SelectInput id={id("paidby")} value={paidBy} onChange={(e) => setPaidBy(e.target.value as PaidBy)}>
-                <option value="cash">Cash</option>
-                <option value="bank">Bank</option>
+              <SelectInput id={id("paidby")} value={String(modeId)} onChange={(e) => setModeId(Number(e.target.value))}>
+                {(modes.data ?? [{ id: 1, name: "Cash", type: "cash", details: null, use_salary: true, use_advance: true, active: true }])
+                  .filter((m) => m.use_salary)
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                      {m.details ? ` · ${m.details}` : ""}
+                    </option>
+                  ))}
               </SelectInput>
             </Field>
           ) : null}

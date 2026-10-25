@@ -18,7 +18,7 @@ import type {
   Department,
   Employee,
   MonthSummary,
-  PaidBy,
+
   Payment,
   PaymentMode,
   PayType,
@@ -37,6 +37,9 @@ export const MOCK_USER = "admin";
 
 /** How many months the mock keeps (current month included). */
 export const MONTHS_KEPT = 6;
+
+/** How the seed rows say a person is paid; mapped to payment-mode ids below. */
+type PaidBy = "cash" | "bank";
 
 export interface MockPhotoToken {
   token: string;
@@ -269,7 +272,8 @@ export function buildSeedState(now: Date = new Date()): MockState {
         allowances: 0,
         gross: previous,
         ot_rate: defaultOtRate(pay, previous),
-        paid_by,
+        default_payment_mode_id: paid_by === "bank" ? BANK_MODE_ID : CASH_MODE_ID,
+        default_payment_mode: modeRef(PAYMENT_MODES.find((pm) => pm.id === (paid_by === "bank" ? BANK_MODE_ID : CASH_MODE_ID))!),
         effective_from: dateBoth(joined_bs),
         reason: null,
         previous_gross: null,
@@ -284,7 +288,8 @@ export function buildSeedState(now: Date = new Date()): MockState {
       allowances,
       gross: amount,
       ot_rate: defaultOtRate(pay, amount),
-      paid_by,
+      default_payment_mode_id: paid_by === "bank" ? BANK_MODE_ID : CASH_MODE_ID,
+      default_payment_mode: modeRef(PAYMENT_MODES.find((pm) => pm.id === (paid_by === "bank" ? BANK_MODE_ID : CASH_MODE_ID))!),
       effective_from: dateBoth(previous !== undefined ? revision : joined_bs),
       reason: previous !== undefined ? "Annual increment" : null,
       previous_gross: previous ?? null,
@@ -292,15 +297,17 @@ export function buildSeedState(now: Date = new Date()): MockState {
   });
 
   // Payments of past months, then the running month.
-  const addPayment = (p: Omit<Payment, "id" | "receipt_no" | "created_at" | "recorded_by" | "source">) => {
+  const addPayment = (p: Omit<Payment, "id" | "receipt_no" | "created_at" | "paid_at" | "recorded_by" | "source">) => {
     const payment_id = id(next, "payment");
+    const at = `${p.date.ad}T10:${String(10 + (p.employee_id % 45)).padStart(2, "0")}:00+05:45`;
     payments.push({
       ...p,
       id: payment_id,
-      receipt_no: receiptNo(p.type, payment_id),
+      receipt_no: receiptNo(p.kind, payment_id),
       recorded_by: MOCK_USER,
-      source: p.type === "advance" && p.employee_id % 2 === 0 ? "scan" : "account",
-      created_at: `${p.date.ad}T10:${String(10 + (p.employee_id % 45)).padStart(2, "0")}:00+05:45`,
+      source: p.kind === "advance" && p.employee_id % 2 === 0 ? "scan" : "account",
+      paid_at: at,
+      created_at: at,
     });
   };
 
@@ -316,19 +323,21 @@ export function buildSeedState(now: Date = new Date()): MockState {
       const pay = structure.pay_type === "monthly"
         ? monthlyPay(rate, structure.ot_rate, summary)
         : dailyPay(rate, structure.ot_rate, summary);
-      const mode = structure.paid_by;
+      const mode: PaidBy = structure.default_payment_mode_id === BANK_MODE_ID ? "bank" : "cash";
       const monthPayments: Payment[] = [];
-      const give = (type: Payment["type"], amount: number, bs: string, payMode: PaidBy, note: string | null = null) => {
+      const give = (kind: Payment["kind"], amount: number, bs: string, payMode: PaidBy, note: string | null = null) => {
         const due = settle(pay.net, monthPayments).due;
         const clean = Math.min(roundRs(amount), due);
         if (clean <= 0) return;
         // Cash by default; bank salaries through NIC Asia; a few advances through eSewa.
-        const modeId = payMode === "bank" ? BANK_MODE_ID : type === "advance" && employee.id % 7 === 3 ? 3 : CASH_MODE_ID;
+        const modeId = payMode === "bank" ? BANK_MODE_ID : kind === "advance" && employee.id % 7 === 3 ? 3 : CASH_MODE_ID;
         const paymentMode = PAYMENT_MODES.find((pm) => pm.id === modeId)!;
         const payment = {
           employee_id: employee.id,
+          for_year: month.bs_year,
+          for_month: month.bs_month,
           month,
-          type,
+          kind,
           amount: clean,
           payment_mode_id: modeId,
           payment_mode: modeRef(paymentMode),

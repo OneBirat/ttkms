@@ -31,14 +31,18 @@ export interface Branch {
   is_active: boolean;
 }
 
+/** The department embedded on an employee (id + name). */
+export interface DepartmentRef {
+  id: number;
+  name: string;
+}
+
 /**
  * One row of GET /api/core/departments (app/core/schemas.py DepartmentOut). Company-wide;
  * `core.departments.is_active` exists but the API and UI ignore it - a department is listed
  * until it is deleted, which the server allows only at employee_count 0.
  */
-export interface Department {
-  id: number;
-  name: string;
+export interface Department extends DepartmentRef {
   /** Every employee referencing it, former staff included. */
   employee_count: number;
   active_employee_count: number;
@@ -53,9 +57,8 @@ export interface EmployeeLogin {
 }
 
 export type PayType = "monthly" | "daily";
-export type PaidBy = "cash" | "bank";
 
-/** payroll.employees joined with branch, department and the optional login. */
+/** core.employees (GET /api/payroll/employees/{id}) joined with branch, department and the optional login. */
 export interface Employee {
   id: number;
   /** "E-001" */
@@ -70,11 +73,11 @@ export interface Employee {
   phone_alt: string | null;
   address: string | null;
   branch: Branch;
-  department: Department | null;
+  department: DepartmentRef | null;
   designation: string | null;
   active: boolean;
   joined: DateBoth;
-  /** URL of the stored photo (or a data: URL in the mock); null = initials. */
+  /** Authenticated URL of the stored photo (/api/payroll/employees/{id}/photo?v=…); null = initials. */
   photo_url: string | null;
   login: EmployeeLogin | null;
   created_at: string;
@@ -95,9 +98,11 @@ export interface SalaryStructure {
   allowances: number;
   /** basic + allowances */
   gross: number;
-  /** Rupees per overtime hour. Default: salary ÷ days in month ÷ 8. */
+  /** Rupees per overtime hour. Default: salary ÷ 30 ÷ 8 (daily: wage ÷ 8). */
   ot_rate: number;
-  paid_by: PaidBy;
+  /** How this person is usually paid (admin.payment_modes; Cash = 1). */
+  default_payment_mode_id: number;
+  default_payment_mode: PaymentModeRef;
   effective_from: DateBoth;
   reason: string | null;
   /** Gross of the structure this one replaced, for "previous Rs X". */
@@ -153,17 +158,24 @@ export interface PaymentModeRef {
 
 // ---------------------------------------------------------- payments
 
-export type PaymentType = "salary" | "advance";
+/** app/contracts.py PaymentKind. */
+export type PaymentKind = "salary" | "advance";
+/** Alias the screens use for the chosen kind. */
+export type PaymentType = PaymentKind;
 export type PaymentSource = "account" | "scan";
 
 /** One row of payroll.payments. An advance is a part-payment of that month's salary. */
 export interface Payment {
   id: number;
-  /** "ADV-0412" / "SAL-0410" (type + zero-padded id). */
+  /** "ADV-0412" / "SAL-0410" (kind + the per-kind sequence). */
   receipt_no: string;
   employee_id: number;
+  /** The BS month the payment counts for (explicit; not necessarily the month of `date`). */
+  for_year: number;
+  for_month: number;
+  /** The same month as an object, for the screens. */
   month: BsMonth;
-  type: PaymentType;
+  kind: PaymentKind;
   amount: number;
   /** payroll.payments.payment_mode_id (Cash = 1 by default). */
   payment_mode_id: number;
@@ -172,6 +184,8 @@ export interface Payment {
   reference: string | null;
   note: string | null;
   date: DateBoth;
+  /** When it was recorded (ISO). */
+  paid_at: string;
   /** Username of who recorded it. */
   recorded_by: string;
   source: PaymentSource;
@@ -225,21 +239,21 @@ export interface MonthLedger {
 // --------------------------------------------- cross-module contract
 
 /**
- * GET /api/payroll/balance?employee_id=&bs_year=&bs_month= — what the
- * attendance scan pop-up shows before recording a payment. NEEDS FROM MAIN:
- * put MonthBalance / PaymentInput / PaymentResult in a shared contract.
+ * GET /api/payroll/balance?employee_id=&for_year=&for_month= — the shared
+ * contract's MonthBalance (app/contracts.py) plus the breakdown the dialogs show.
  */
 export interface MonthBalance {
   employee_id: number;
-  bs_year: number;
-  bs_month: number;
+  for_year: number;
+  for_month: number;
   /** "2083-07" */
   month_key: string;
   /** "Kartik 2083" */
   month_label: string;
-  net: number;
+  /** Net earned (so far, for the running month). */
+  earned: number;
   paid: number;
-  /** net − paid, never negative. */
+  /** earned − paid, never negative: what can still be paid for the month. */
   due: number;
   status: MonthStatus;
   breakdown: {
@@ -253,12 +267,16 @@ export interface MonthBalance {
   };
 }
 
-/** POST /api/payroll/payments body. Validated: 0 < amount ≤ due. */
+/**
+ * POST /api/payroll/payments body (app/contracts.py PaymentInput). The month is explicit:
+ * advances target the running month (amount ≤ earned so far − paid); salary the running
+ * or a past month (≤ due). The server enforces both.
+ */
 export interface PaymentInput {
   employee_id: number;
-  bs_year: number;
-  bs_month: number;
-  type: PaymentType;
+  for_year: number;
+  for_month: number;
+  kind: PaymentKind;
   amount: number;
   /** Defaults to Cash (id 1) when omitted. */
   payment_mode_id?: number | null;
@@ -308,7 +326,7 @@ export interface MonthNetTotal {
 }
 
 export interface DepartmentNetTotal {
-  department: Department;
+  department: DepartmentRef;
   staff: number;
   net: number;
 }
@@ -327,6 +345,7 @@ export interface SalaryReport {
   month: BsMonth;
   /** The chosen branch (rows, totals, by_department and the trend are scoped to it); null = all. */
   branch: Branch | null;
+  department: DepartmentRef | null;
   rows: ReportRow[];
   totals: ReportTotals;
   /** Every department of the chosen branch (all branches when none), unfiltered by department, for the chips and the chart. */
@@ -376,7 +395,7 @@ export interface RegisterEmployeeTotal {
 /** Payments of the range per department (the chips and the "By department" export sheet). */
 export interface RegisterDepartmentTotal {
   /** null = employees without a department. */
-  department: Department | null;
+  department: DepartmentRef | null;
   count: number;
   salary: number;
   advances: number;
@@ -403,7 +422,7 @@ export interface PaymentsRegister {
   /** The chosen branch (rows, totals, by_employee and by_department are scoped to it); null = all. */
   branch: Branch | null;
   /** The chosen department (rows, totals and by_employee are scoped to it); null = all. */
-  department: Department | null;
+  department: DepartmentRef | null;
   sort: RegisterSort;
   /** In `sort` order. */
   rows: RegisterRow[];
@@ -441,12 +460,13 @@ export interface TodayAttendance {
 /** One row of the all-staff table (GET /api/payroll/employees?branch_id=&with=today,balance). */
 export interface EmployeeListRow {
   employee: Employee;
-  pay_type: PayType;
-  /** Monthly salary or daily wage in force this month. */
-  rate: number;
+  /** Null without `salary_advances` (the UI hides the money columns). */
+  pay_type: PayType | null;
+  /** Monthly salary or daily wage in force this month; null without `salary_advances`. */
+  rate: number | null;
   today: TodayStatus;
-  /** Sum of the due of every month kept. */
-  balance_due: number;
+  /** Sum of the due of every month kept; null without `salary_advances`. */
+  balance_due: number | null;
 }
 
 // ------------------------------------------------- transaction ledger
@@ -549,7 +569,8 @@ export interface EmployeeIn {
   pay_type: PayType;
   /** Salary per month or wage per day. */
   amount: number;
-  paid_by: PaidBy;
+  /** admin.payment_modes row; null = Cash. */
+  default_payment_mode_id?: number | null;
   /** BS date; defaults to today. */
   joined_bs?: string | null;
   photo_data_url?: string | null;
@@ -573,8 +594,9 @@ export interface SalaryRevisionIn {
   pay_type: PayType;
   basic: number;
   allowances: number;
-  ot_rate: number;
-  paid_by: PaidBy;
+  /** Null = the default rule (salary ÷ 30 ÷ 8, wage ÷ 8). */
+  ot_rate: number | null;
+  default_payment_mode_id?: number | null;
   /** BS date "YYYY-MM-DD". */
   effective_from_bs: string;
   reason?: string | null;

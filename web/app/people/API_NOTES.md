@@ -1,8 +1,10 @@
-# People & payroll — API / DB notes (implement after UI sign-off)
+# People & payroll — API / DB notes
 
-The UI runs on `web/app/people/api.ts` (mock). The full build list is `docs/payroll-backend-plan.md`. Every function there is annotated with the
-endpoint it stands in for; the shapes are in `types.ts`. Backend lives in
-`app/modules/payroll/` (schema `payroll`), migrations in `migrations/payroll/`.
+**Built 2026-10-26.** The UI runs on `web/app/people/api.ts`, a thin client over `/api/payroll`
+(`app/modules/payroll/`: schema `payroll`, migration `payroll_0001`) and the core branch / department
+endpoints; the old mock lives on as `_lib/mockApi.ts` for the unit tests only. Shapes are in `types.ts`
+(`kind`, `earned`, `for_year` / `for_month` as in `app/contracts.py`). The build notes below are kept as
+the reference for the rules; `docs/payroll-backend-plan.md` has the endpoint table.
 
 ## Business rules (decided)
 

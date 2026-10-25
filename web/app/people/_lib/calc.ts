@@ -96,9 +96,9 @@ export interface PaidResult {
 }
 
 /** Payments against a month, split by type; due never negative. */
-export function settle(net: number, payments: Pick<Payment, "type" | "amount">[]): PaidResult {
-  const salary_paid = payments.filter((p) => p.type === "salary").reduce((s, p) => s + p.amount, 0);
-  const advance_paid = payments.filter((p) => p.type === "advance").reduce((s, p) => s + p.amount, 0);
+export function settle(net: number, payments: Pick<Payment, "kind" | "amount">[]): PaidResult {
+  const salary_paid = payments.filter((p) => p.kind === "salary").reduce((s, p) => s + p.amount, 0);
+  const advance_paid = payments.filter((p) => p.kind === "advance").reduce((s, p) => s + p.amount, 0);
   const paid = salary_paid + advance_paid;
   const due = Math.max(0, roundRs(net - paid));
   return { salary_paid, advance_paid, paid, due, status: monthStatus(net, paid) };
