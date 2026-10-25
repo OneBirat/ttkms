@@ -17,7 +17,7 @@ const CHIPS: { value: RegisterTypeFilter; label: string }[] = [
   { value: "salary", label: "Salary" },
 ];
 
-/** Phone: payment records grouped by day (design PayrollMobile, payments screen). No tiles, no record form. */
+/** Phone: Payment reports grouped by day (design PayrollMobile, payments screen). No tiles, no record form. */
 export function PhonePayments() {
   const branches = usePayroll(listBranches, []);
   const [type, setType] = useState<RegisterTypeFilter>("all");
@@ -36,7 +36,7 @@ export function PhonePayments() {
 
   return (
     <PhoneFrame
-      title="Payment records"
+      title="Payment reports"
       subtitle="Advances & salary paid"
       branch={picker}
     >

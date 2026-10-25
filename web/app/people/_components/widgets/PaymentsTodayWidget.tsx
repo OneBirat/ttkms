@@ -61,7 +61,7 @@ export function readPaymentsData(data: Record<string, unknown>): PaymentsTodayWi
   };
 }
 
-/** "Payments today" card: totals, then each payment (newest first) with a link to the register. */
+/** "Payments today" card: totals, then each payment (newest first) with a link to Payment reports. */
 export function PaymentsTodayWidget({ widget }: { widget: Widget }) {
   const d = readPaymentsData(widget.data);
   return (
@@ -71,7 +71,7 @@ export function PaymentsTodayWidget({ widget }: { widget: Widget }) {
           {widget.title}
         </h2>
         <Link href={d.payments_path} className={styles.link}>
-          All payments
+          Payment reports
         </Link>
       </div>
       <ul className={styles.totals}>

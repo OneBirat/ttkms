@@ -33,7 +33,7 @@ function isType(value: string | null): value is RegisterTypeFilter {
 type Ask = { ext: "xlsx" | "pdf" } | null;
 
 /**
- * /people/payments (design Payments.dc.html): every salary and advance
+ * /people/payments "Payment reports" (design Payments.dc.html): every salary and advance
  * payment in a BS date range. Excel and PDF download exactly that range; a
  * range reaching into a previous month asks first.
  */
@@ -131,7 +131,7 @@ export function PaymentsRegisterScreen() {
   return (
     <>
       <PageHeader
-        title="Salary & advance payments"
+        title="Payment reports"
         subtitle="Every salary and advance payment in one place. Payments are recorded from each employee's account (Pay salary / Give advance)."
         actions={
           <div className={styles.downloads}>

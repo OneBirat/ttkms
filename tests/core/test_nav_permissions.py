@@ -79,7 +79,7 @@ async def test_staff_with_salary_advances_reaches_people(client, make_user, logi
     await _grant(db, payer, salary_advances=True)
     await login("payer")
     sections = _sections((await client.get("/api/core/modules")).json())
-    assert [i["label"] for i in sections["payroll"]] == ["Salary report", "Payments"]
+    assert [i["label"] for i in sections["payroll"]] == ["Salary report", "Payment reports"]
     assert (await client.get("/api/payroll")).status_code == 200
 
 

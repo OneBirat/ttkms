@@ -4,7 +4,7 @@ import { PaymentsRegisterScreen } from "@/app/people/_components/PaymentsRegiste
 import { Responsive } from "@/app/people/_components/Responsive";
 import { PhonePayments } from "@/app/people/_components/phone/PhonePayments";
 
-export const metadata: Metadata = { title: "Payments" };
+export const metadata: Metadata = { title: "Payment reports" };
 
 export default function PaymentsPage() {
   return (

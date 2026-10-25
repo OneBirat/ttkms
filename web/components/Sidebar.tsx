@@ -46,7 +46,7 @@ function NavLink({
  * Sidebar (docs/design/Main.dc.html): brand block, the Dashboard link, then one
  * titled section per module from /api/core/modules - Attendance (Mark
  * attendance, Attendance report), People & payroll (Employees, Salary report,
- * Payments), Admin (Users, Barcodes, Payment modes). The backend has already
+ * Payment reports), Admin (Users, Barcodes, Payment modes). The backend has already
  * filtered the entries to the user's effective permissions and left out
  * modules with nothing visible, so a section never shows a placeholder link.
  */

@@ -235,7 +235,7 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
             setDialog(null);
             const p = result.payment;
             setToast({
-              text: `${p.type === "advance" ? "Advance" : "Salary payment"} of ${formatRs(p.amount)} for ${monthLabel(p.month)} recorded (${p.receipt_no}) · due now ${formatRs(result.due_after)} · shows in Payments.`,
+              text: `${p.type === "advance" ? "Advance" : "Salary payment"} of ${formatRs(p.amount)} for ${monthLabel(p.month)} recorded (${p.receipt_no}) · due now ${formatRs(result.due_after)} · shows in Payment reports.`,
             });
           }}
         />

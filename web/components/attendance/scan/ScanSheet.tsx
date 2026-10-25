@@ -936,7 +936,7 @@ function Paid({ scan, state, titleId, phone }: StepProps<"paid"> & { phone: bool
         <span className={styles.resultNp} lang="ne">
           {salary ? "तलब भुक्तानी सेभ भयो" : "पेश्की भुक्तानी सेभ भयो"}
         </span>
-        <span className={styles.resultSub}>{scan.paid.payment.payment_mode} · {scan.monthLabel} · shows in Payments</span>
+        <span className={styles.resultSub}>{scan.paid.payment.payment_mode} · {scan.monthLabel} · shows in Payment reports</span>
       </div>
       <div className={styles.paidTiles}>
         <div className={`${styles.paidTile} ${salary ? styles.paidTileSal : styles.paidTileAdv}`}>

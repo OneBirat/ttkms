@@ -6,8 +6,8 @@ app/modules/payroll/models.py (schema "payroll"), API routes on the router below
 /api/payroll), and register dashboard widgets on the Module.
 
 Access is per user (app.modules.admin.permissions): ``manage_employees`` opens Employees
-(Manager and Admin presets), ``salary_advances`` opens Salary report and Payments (Admin preset,
-or switched on for a user). Guard real endpoints with ``require_access(<permission>)``.
+(Manager and Admin presets), ``salary_advances`` opens Salary report and Payment reports (Admin
+preset, or switched on for a user). Guard real endpoints with ``require_access(<permission>)``.
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ module = Module(
     nav=[
         NavItem(label="Employees", path="/people/employees", icon="users", permission=EMPLOYEES),
         NavItem(label="Salary report", path="/people/salary", icon="banknote", permission=SALARY),
-        NavItem(label="Payments", path="/people/payments", icon="list", permission=SALARY),
+        NavItem(label="Payment reports", path="/people/payments", icon="list", permission=SALARY),
     ],
     dashboard_widgets=[payments_today_widget],
     today_counts=payroll_today_counts,
