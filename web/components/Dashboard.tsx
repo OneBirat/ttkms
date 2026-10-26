@@ -1,120 +1,178 @@
 "use client";
 
-import { useActiveBranch, withBranch } from "@/lib/branchContext";
-import { DateLine } from "@/components/DateLine";
+import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { StatCard, type StatCardProps } from "@/components/ui/StatCard";
-import { WidgetRenderer } from "@/components/widgets";
-import { errorMessage, type DashboardResponse, type Today, type TodayCounts } from "@/lib/api";
-import { enabledOnly } from "@/lib/modules";
+import { errorMessage, type DashboardAttendance, type DashboardPayments, type DashboardToday, type Today } from "@/lib/api";
+import { useActiveBranch } from "@/lib/branchContext";
 import { useSession } from "@/lib/session";
 import { useApi } from "@/lib/useApi";
+import { DashboardHeader } from "./dashboard/Header";
+import { bar, formatRs, initials, moneyTiles, tiles } from "./dashboard/model";
 import styles from "./Dashboard.module.css";
 
 /**
- * The four headline cards from GET /api/today `counts`: Present today (P + O),
- * Overtime today (O, with the hours), Absent · not marked, Paid today. A card
- * whose module is not enabled is left out (its fields are null).
- */
-export function statCards(counts: TodayCounts | null): StatCardProps[] {
-  if (!counts) return [];
-  const cards: StatCardProps[] = [];
-  if (counts.present !== null && counts.overtime !== null) {
-    const total = counts.total ?? 0;
-    cards.push({
-      label: "Present today",
-      value: counts.present + counts.overtime,
-      hint: total ? `of ${total} staff` : null,
-      tone: "ok",
-      href: "/attendance/mark",
-    });
-    cards.push({
-      label: "Overtime today",
-      value: counts.overtime,
-      hint: counts.overtime_hours ? `${counts.overtime_hours} h in total` : "no overtime yet",
-      tone: "leave",
-      href: "/attendance/mark",
-    });
-    const absent = counts.absent ?? 0;
-    const notMarked = counts.not_marked ?? 0;
-    cards.push({
-      label: "Absent · not marked",
-      value: absent + notMarked,
-      hint: `${absent} absent · ${notMarked} not marked`,
-      tone: absent + notMarked > 0 ? "danger" : "neutral",
-      href: "/attendance/mark",
-    });
-  }
-  if (counts.paid_today !== null) {
-    const n = counts.payments_today ?? 0;
-    cards.push({
-      label: "Paid today",
-      value: counts.paid_today,
-      hint: `Rs · ${n} ${n === 1 ? "payment" : "payments"}`,
-      tone: "neutral",
-      href: "/people/payments",
-    });
-  }
-  return cards;
-}
-
-/**
- * Dashboard (docs/design/Main.dc.html, design/dashboard-branch): everything is the ONE active
- * branch - "Dashboard · Main branch", "Attendance today · Main branch". Page header with today's date, the
- * stat row (from /api/today), then the modules' cards - "Attendance today" and
- * "Payments today" - stacked full-width in sidebar order. Cards of a module
- * that is not in ENABLED_MODULES are never rendered (the API does not send
- * them either).
+ * Dashboard (/) for the ONE active branch (design/dashboard-branch/DashboardBranches.dc.html):
+ * "Dashboard · {Branch}", today's date, branch tabs for users with see_other_branches (a tab
+ * switches the whole app), the tiles, "Attendance today · {Branch}" and "Payments today ·
+ * {Branch}" - all from GET /api/dashboard/today?branch_id= (the branch is in the fetch key).
+ * Nothing is ever added up across branches.
  */
 export function Dashboard() {
-  const { today: sessionToday, enabled } = useSession();
-  // Everything here is the ONE active branch (the server scopes /api/today and the cards).
+  const { today: sessionToday } = useSession();
   const { branch } = useActiveBranch();
   const todayQuery = useApi<Today>("/api/today");
   const today = todayQuery.data ?? sessionToday;
-  const { data, error, loading, reload } = useApi<DashboardResponse>("/api/dashboard");
-  const widgets = data ? enabledOnly(data.widgets, enabled) : [];
-  const cards = statCards(todayQuery.data?.counts ?? null);
+  const { data, error, loading, reload } = useApi<DashboardToday>(
+    branch ? `/api/dashboard/today?branch_id=${branch.id}` : "/api/dashboard/today",
+  );
 
   return (
-    <>
-      <PageHeader title={withBranch("Dashboard", branch)} meta={<DateLine today={today} />} />
-
-      {cards.length > 0 ? (
-        <section className={styles.stats} aria-label="Today">
-          {cards.map((card) => (
-            <StatCard key={card.label} {...card} />
-          ))}
-        </section>
-      ) : null}
-
-      {loading ? (
+    <div className={styles.page}>
+      <DashboardHeader today={today} />
+      {loading && !data ? (
         <p className="muted" role="status">
           Loading…
         </p>
       ) : error ? (
-        <EmptyState
-          icon="alert"
-          title="Could not load the dashboard"
-          text={errorMessage(error)}
-        >
+        <EmptyState icon="alert" title="Could not load the dashboard" text={errorMessage(error)}>
           <button type="button" className="btn" onClick={reload}>
             Try again
           </button>
         </EmptyState>
-      ) : widgets.length > 0 ? (
-        <div className={styles.widgets}>
-          {widgets.map((widget, index) => (
-            <WidgetRenderer
-              key={`${widget.module}:${widget.kind}:${index}`}
-              widget={{ ...widget, title: withBranch(widget.title, branch) }}
-            />
+      ) : data ? (
+        <BranchView day={data} />
+      ) : null}
+    </div>
+  );
+}
+
+export function BranchView({ day }: { day: DashboardToday }) {
+  const cards = tiles(day);
+  return (
+    <>
+      {cards.length ? (
+        <section aria-label="Today" className={styles.tiles} data-count={cards.length}>
+          {cards.map((t) => (
+            <Link key={t.key} href={t.href} className={`card ${styles.tile}`} data-tile={t.key}>
+              <span className={styles.tileLabel}>{t.label}</span>
+              <span className={`mono ${styles.tileValue}`} style={{ color: t.colour }}>
+                {t.value}
+              </span>
+              <span className={styles.tileSub}>{t.sub}</span>
+            </Link>
           ))}
+        </section>
+      ) : null}
+      {day.attendance || day.payments ? (
+        <div className={styles.cards} data-two={Boolean(day.attendance && day.payments) || undefined}>
+          {day.attendance ? <AttendanceCard branch={day.branch.name} a={day.attendance} /> : null}
+          {day.payments ? <PaymentsCard branch={day.branch.name} p={day.payments} /> : null}
         </div>
       ) : (
         <EmptyState title="Nothing to show yet" />
       )}
     </>
+  );
+}
+
+function AttendanceCard({ branch, a }: { branch: string; a: DashboardAttendance }) {
+  const { can } = useSession();
+  const canOpen = can("manage_employees") || can("salary_advances");
+  const parts = bar(a);
+  return (
+    <section className={`card ${styles.card}`} aria-labelledby="dash-att-h" data-testid="attendance-card">
+      <div className={styles.cardHead}>
+        <h2 id="dash-att-h" className={styles.cardTitle}>
+          Attendance today · {branch}
+        </h2>
+        <Link href={a.mark_path} className={styles.cardLink}>
+          Mark ›
+        </Link>
+      </div>
+      <div className={styles.bar} aria-hidden="true">
+        {parts.map((p) => (p.count ? <span key={p.key} style={{ width: `${p.percent}%`, background: p.colour }} /> : null))}
+      </div>
+      <div className={styles.legend}>
+        {parts.map((p) => (
+          <span key={p.key} className={styles.legendItem}>
+            <span className={styles.dot} data-key={p.key} style={{ background: p.colour }} />
+            {p.label}
+            <b className="mono">{p.count}</b>
+          </span>
+        ))}
+      </div>
+      <div className={styles.notIn}>
+        {a.weekly_off ? (
+          <span className={styles.notInTitle}>Saturday · weekly off</span>
+        ) : (
+          <>
+            <span className={styles.notInTitle}>Not in yet · {a.not_in.length} staff</span>
+            {a.not_in.length === 0 ? <span className={styles.muted}>Everyone is marked ✓</span> : null}
+            {a.not_in.map((p) => (
+              <div key={p.employee_id} className={styles.person}>
+                <span className={styles.avatar}>
+                  {p.photo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- authenticated API image
+                    <img src={p.photo_url} alt="" loading="lazy" />
+                  ) : (
+                    initials(p.name)
+                  )}
+                </span>
+                {canOpen ? (
+                  <Link href={`/people/employees/${p.employee_id}`} className={styles.personName}>
+                    {p.name}
+                  </Link>
+                ) : (
+                  <span className={styles.personName}>{p.name}</span>
+                )}
+                <span className={styles.dept}>{p.department ?? ""}</span>
+                <span className={styles.notMarked}>Not marked</span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function PaymentsCard({ branch, p }: { branch: string; p: DashboardPayments }) {
+  return (
+    <section className={`card ${styles.card}`} aria-labelledby="dash-pay-h" data-testid="payments-card">
+      <div className={styles.cardHead}>
+        <h2 id="dash-pay-h" className={styles.cardTitle}>
+          Payments today · {branch}
+        </h2>
+        <Link href={p.payments_path} className={styles.cardLink}>
+          Payment reports ›
+        </Link>
+      </div>
+      <div className={styles.money}>
+        {moneyTiles(p).map((t) => (
+          <div key={t.label} className={styles.moneyTile} data-tone={t.tone}>
+            <span className={styles.moneyLabel}>{t.label}</span>
+            <span className={`mono ${styles.moneyValue}`}>{t.value}</span>
+            <span className={styles.moneySub}>{t.sub}</span>
+          </div>
+        ))}
+      </div>
+      {p.payments.length === 0 ? (
+        <span className={styles.muted}>No payments yet today.</span>
+      ) : (
+        p.payments.map((x) => (
+          <div key={x.payment_id} className={styles.payRow}>
+            <span className={styles.payTag} data-kind={x.kind}>
+              {x.kind === "advance" ? "Advance" : "Salary"}
+            </span>
+            <span className={styles.payName}>
+              {x.name}
+              {x.months > 1 ? <span className={styles.muted}> · {x.months} months</span> : null}
+            </span>
+            <span className={styles.payMode}>{x.mode}</span>
+            <b className="mono">Rs {formatRs(x.amount)}</b>
+          </div>
+        ))
+      )}
+    </section>
   );
 }

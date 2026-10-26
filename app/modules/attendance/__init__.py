@@ -97,6 +97,71 @@ async def attendance_today_counts(ctx: WidgetContext) -> dict[str, Any]:
     return {key: figures[key] for key in TODAY_COUNT_FIELDS}
 
 
+async def dashboard_today(db, user, branch_id: int) -> dict[str, Any]:
+    """Attendance's section of ``GET /api/dashboard/today`` / ``/compare`` for ONE branch
+    (``DashboardAttendance``): active staff who have joined by today; P / O (+ hours) / A / not
+    marked and the not-marked names. On the weekly off only the staff marked as working count and
+    nobody is "not marked". Needs mark_attendance or view_attendance_report (else ``{}``)."""
+    from app.core.media import photo_urls
+    from app.core.modules import is_enabled
+    from app.modules.admin.permissions import access_for_user
+
+    access = await access_for_user(db, user)
+    if not (access.get(MARK) or access.get(REPORT)):
+        return {}
+    day = services.today()
+    employees = sorted(
+        await db.scalars(
+            select(Employee).where(
+                Employee.status == EmployeeStatus.active,
+                Employee.joined_ad <= day,
+                Employee.branch_id == branch_id,
+            )
+        ),
+        key=lambda e: (e.full_name.lower(), e.id),
+    )
+    records = await services.day_records(db, day, [e.id for e in employees])
+    weekly_off = services.is_weekly_off(day)
+    counts = {"P": 0, "O": 0, "A": 0}
+    hours = 0
+    not_in = []
+    staff = 0
+    photos = is_enabled("payroll")
+    for e in employees:
+        record = records.get(e.id)
+        if record is None:
+            if weekly_off:
+                continue  # Saturday: nobody needs a mark; only those working count
+            staff += 1
+            not_in.append(
+                {
+                    "employee_id": e.id,
+                    "name": e.full_name,
+                    "department": e.department.name if e.department else None,
+                    "photo_url": photo_urls(e)[1] if photos else None,
+                }
+            )
+            continue
+        if weekly_off and record.status == "A":
+            continue
+        staff += 1
+        counts[record.status] += 1
+        hours += record.overtime_hours
+    return {
+        "attendance": {
+            "staff": staff,
+            "present": counts["P"],
+            "overtime": counts["O"],
+            "overtime_hours": hours,
+            "absent": counts["A"],
+            "not_marked": len(not_in),
+            "weekly_off": weekly_off,
+            "not_in": not_in,
+            "mark_path": "/attendance/mark",
+        }
+    }
+
+
 # Payroll reads attendance through app/contracts.py (AttendanceSummary).
 contract.register()
 
@@ -113,4 +178,5 @@ module = Module(
     ],
     dashboard_widgets=[attendance_today_widget],
     today_counts=attendance_today_counts,
+    dashboard_today=dashboard_today,
 )

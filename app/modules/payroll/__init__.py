@@ -679,32 +679,70 @@ async def photo_token_upload(token: str, db: DbSession, request: Request) -> Emp
 # --------------------------------------------------------------------------- widgets
 
 
-async def payments_today(ctx: WidgetContext) -> list[dict[str, Any]]:
-    """Today's payments (Kathmandu day) made by the branches the caller may see, newest first:
-    ``{payment_id, employee_id, name, kind, amount, mode, time}``."""
-    scope = await services.scope_for(ctx.db, ctx.user, None)
+async def payments_on(db, branch_id: int, day=None) -> list[dict[str, Any]]:
+    """The payments ONE branch made on a day (Kathmandu; today by default), newest first, not
+    voided. A salary payment group (one Pay salary over several months, ``payment_group_id``) is
+    ONE entry with the group's total and ``months``:
+    ``{payment_id, employee_id, name, kind, amount, mode, time, months}``."""
     query = (
         select(Payment)
-        .where(Payment.date == bsdate.today_ad(), Payment.voided_at.is_(None))
+        .where(
+            Payment.date == (day or bsdate.today_ad()),
+            Payment.voided_at.is_(None),
+            Payment.branch_id == branch_id,
+        )
         .order_by(Payment.paid_at.desc(), Payment.id.desc())
     )
-    if scope.branch_id is not None:  # paid by this branch (payments.branch_id)
-        query = query.where(Payment.branch_id == scope.branch_id)
-    modes = await services.modes_by_id(ctx.db)
+    modes = await services.modes_by_id(db)
     rows: list[dict[str, Any]] = []
-    for p in await ctx.db.scalars(query):
-        rows.append(
-            {
-                "payment_id": p.id,
-                "employee_id": p.employee_id,
-                "name": p.employee.full_name,
-                "kind": p.kind.value,
-                "amount": p.amount,
-                "mode": modes[p.payment_mode_id].name,
-                "time": p.paid_at.astimezone(bsdate.KATHMANDU).strftime("%H:%M"),
-            }
-        )
+    groups: dict[int, dict[str, Any]] = {}
+    for p in await db.scalars(query):
+        if p.payment_group_id is not None and p.payment_group_id in groups:
+            entry = groups[p.payment_group_id]
+            entry["amount"] += p.amount
+            entry["months"] += 1
+            continue
+        entry = {
+            "payment_id": p.payment_group_id or p.id,
+            "employee_id": p.employee_id,
+            "name": p.employee.full_name,
+            "kind": p.kind.value,
+            "amount": p.amount,
+            "mode": modes[p.payment_mode_id].name,
+            "time": p.paid_at.astimezone(bsdate.KATHMANDU).strftime("%H:%M"),
+            "months": 1,
+        }
+        if p.payment_group_id is not None:
+            groups[p.payment_group_id] = entry
+        rows.append(entry)
     return rows
+
+
+async def payments_today(ctx: WidgetContext) -> list[dict[str, Any]]:
+    """Today's payments of the caller's ONE active branch (see payments_on)."""
+    scope = await services.scope_for(ctx.db, ctx.user, None)
+    return await payments_on(ctx.db, scope.branch_id)
+
+
+async def dashboard_today(db, user, branch_id: int) -> dict[str, Any]:
+    """Payroll's section of ``GET /api/dashboard/today`` / ``/compare`` for ONE branch
+    (``DashboardPayments``): today's payments, a salary group counted once. salary_advances only
+    (else ``{}``)."""
+    from app.modules.admin.permissions import access_for_user
+
+    if not (await access_for_user(db, user)).get(SALARY):
+        return {}
+    rows = await payments_on(db, branch_id)
+    return {
+        "payments": {
+            "count": len(rows),
+            "paid": sum(p["amount"] for p in rows),
+            "salary": sum(p["amount"] for p in rows if p["kind"] == "salary"),
+            "advances": sum(p["amount"] for p in rows if p["kind"] == "advance"),
+            "payments": rows,
+            "payments_path": "/people/payments",
+        }
+    }
 
 
 def payments_today_data(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -754,4 +792,5 @@ module = Module(
     ],
     dashboard_widgets=[payments_today_widget],
     today_counts=payroll_today_counts,
+    dashboard_today=dashboard_today,
 )

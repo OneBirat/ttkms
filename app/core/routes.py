@@ -8,10 +8,13 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from app.core import bsdate
 from app.core.auth import CurrentUser, OptionalUser
+from app.core.models import Branch
 from app.core.modules import WidgetContext
 from app.core.schemas import (
     BsConvertOut,
+    DashboardBranchRef,
     DashboardOut,
+    DashboardTodayOut,
     ErrorOut,
     ModuleOut,
     ModulesOut,
@@ -26,7 +29,7 @@ from app.core.schemas import (
     resolve_date,
 )
 from app.db import DbSession
-from app.modules.admin.permissions import access_for_user
+from app.modules.admin.permissions import access_for_user, branch_scope
 
 router = APIRouter(prefix="/api", tags=["core"])
 
@@ -95,6 +98,40 @@ async def dashboard(request: Request, user: CurrentUser, db: DbSession) -> Dashb
                 )
             )
     return DashboardOut(widgets=widgets)
+
+
+async def branch_dashboard(request: Request, db, user, branch: Branch) -> DashboardTodayOut:
+    """ONE branch's dashboard: every enabled module's section (``Module.dashboard_today``)."""
+    header = bsdate.header_date()
+    sections: dict = {}
+    for module in request.app.state.modules:
+        if module.dashboard_today is not None:
+            sections.update(await module.dashboard_today(db, user, branch.id))
+    return DashboardTodayOut(
+        branch=DashboardBranchRef(id=branch.id, name=branch.name),
+        date=header.ad_date,
+        date_bs=header.bs_date.isoformat(),
+        **sections,
+    )
+
+
+@router.get(
+    "/dashboard/today",
+    response_model=DashboardTodayOut,
+    responses={401: {"model": ErrorOut}, 404: {"model": ErrorOut}},
+)
+async def dashboard_today(
+    request: Request, user: CurrentUser, db: DbSession, branch_id: int | None = None
+) -> DashboardTodayOut:
+    """Everything the dashboard shows, for ONE branch: the caller's active branch, or
+    ``branch_id`` for a user with see_other_branches (ignored for everyone else). Attendance
+    (staff, P / O / A / not marked, not-in list; Saturday = weekly off) needs mark_attendance or
+    view_attendance_report; payments today (a salary group once) need salary_advances."""
+    scope = await branch_scope(db, user, branch_id)
+    branch = await db.get(Branch, scope.branch_id) if scope.branch_id else None
+    if branch is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="You have no branch yet.")
+    return await branch_dashboard(request, db, user, branch)
 
 
 async def today_counts(request: Request, user, db) -> TodayCountsOut:

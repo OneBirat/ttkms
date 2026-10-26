@@ -318,3 +318,82 @@ class ModuleStatusOut(BaseModel):
     module: str
     title: str
     status: Literal["coming_soon", "ready"]
+
+
+# ---------------------------------------------------------------- dashboard (one branch)
+
+
+class DashboardPerson(BaseModel):
+    employee_id: int
+    name: str
+    department: str | None = None
+    #: 128 px photo thumbnail (versioned); null = initials.
+    photo_url: str | None = None
+
+
+class DashboardAttendance(BaseModel):
+    """Attendance today for ONE branch: active staff who have joined by today. On the weekly off
+    (Saturday) only the staff marked as working count and nobody is "not marked"."""
+
+    staff: int
+    present: int
+    overtime: int
+    overtime_hours: int
+    absent: int
+    not_marked: int
+    weekly_off: bool
+    #: Not marked yet, A-Z (empty on the weekly off).
+    not_in: list[DashboardPerson]
+    mark_path: str = "/attendance/mark"
+
+
+class DashboardPayment(BaseModel):
+    """One payment today; a salary payment group (one Pay salary over several months) is ONE."""
+
+    payment_id: int
+    employee_id: int
+    name: str
+    kind: str
+    amount: int
+    mode: str
+    #: "14:05" Kathmandu.
+    time: str
+    #: Months a salary group covers (1 for a single payment).
+    months: int = 1
+
+
+class DashboardPayments(BaseModel):
+    count: int
+    paid: int
+    salary: int
+    advances: int
+    #: Newest first.
+    payments: list[DashboardPayment]
+    payments_path: str = "/people/payments"
+
+
+class DashboardBranchRef(BaseModel):
+    id: int
+    name: str
+
+
+class DashboardTodayOut(BaseModel):
+    """GET /api/dashboard/today?branch_id= - everything the dashboard shows, for ONE branch (the
+    active one unless a branch is asked for by a user with see_other_branches). ``attendance``
+    needs mark_attendance or view_attendance_report, ``payments`` needs salary_advances; a section
+    the user may not see (or whose module is paused) is null."""
+
+    branch: DashboardBranchRef
+    date: date
+    date_bs: str
+    attendance: DashboardAttendance | None = None
+    payments: DashboardPayments | None = None
+
+
+class DashboardCompareOut(BaseModel):
+    """GET /api/dashboard/compare - one entry per active branch A-Z, side by side (never a
+    total). see_other_branches only."""
+
+    date: date
+    date_bs: str
+    branches: list[DashboardTodayOut]

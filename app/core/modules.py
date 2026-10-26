@@ -102,6 +102,10 @@ class WidgetContext:
 DashboardWidget = Callable[[WidgetContext], Awaitable[dict[str, Any]]]
 #: ``today_counts(ctx) -> {field: int}`` for the fields of ``TodayCountsOut`` a module owns.
 TodayCounts = Callable[[WidgetContext], Awaitable[dict[str, Any]]]
+#: ``dashboard_today(db, user, branch_id) -> {section: data}`` - the module's part of
+#: ``GET /api/dashboard/today`` / ``/compare`` for ONE branch (never several added together), or
+#: ``{}`` when the user may not see it.
+DashboardToday = Callable[["AsyncSession", "User", int], Awaitable[dict[str, Any]]]
 
 
 @dataclass
@@ -114,6 +118,8 @@ class Module:
     #: Headline numbers for today (attendance: present / overtime / absent / not marked;
     #: payroll: paid today). ``None`` = the module has nothing to report.
     today_counts: TodayCounts | None = None
+    #: Its section of the per-branch dashboard (attendance: ``attendance``; payroll: ``payments``).
+    dashboard_today: DashboardToday | None = None
 
     def visible_nav(self, role: str | None, access: Access | None = None) -> list[NavItem]:
         return [item for item in self.nav if item.visible_to(role, access)]

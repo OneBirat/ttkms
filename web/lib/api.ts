@@ -421,3 +421,63 @@ export async function apiFetch<T>(
   rememberCsrf(parsed);
   return parsed as T;
 }
+
+
+// ---------------------------------------------------------------- dashboard (one branch)
+
+export interface DashboardPerson {
+  employee_id: number;
+  name: string;
+  department: string | null;
+  /** 128 px photo thumbnail; null = initials. */
+  photo_url: string | null;
+}
+
+export interface DashboardAttendance {
+  staff: number;
+  present: number;
+  overtime: number;
+  overtime_hours: number;
+  absent: number;
+  not_marked: number;
+  weekly_off: boolean;
+  not_in: DashboardPerson[];
+  mark_path: string;
+}
+
+export interface DashboardPayment {
+  payment_id: number;
+  employee_id: number;
+  name: string;
+  kind: "salary" | "advance";
+  amount: number;
+  mode: string;
+  time: string;
+  /** Months a salary payment group covers (shown and counted as one payment). */
+  months: number;
+}
+
+export interface DashboardPayments {
+  count: number;
+  paid: number;
+  salary: number;
+  advances: number;
+  payments: DashboardPayment[];
+  payments_path: string;
+}
+
+/** GET /api/dashboard/today?branch_id= - one branch; a section is null without permission. */
+export interface DashboardToday {
+  branch: ActiveBranch;
+  date: string;
+  date_bs: string;
+  attendance: DashboardAttendance | null;
+  payments: DashboardPayments | null;
+}
+
+/** GET /api/dashboard/compare - one entry per active branch A-Z (see_other_branches). */
+export interface DashboardCompare {
+  date: string;
+  date_bs: string;
+  branches: DashboardToday[];
+}
