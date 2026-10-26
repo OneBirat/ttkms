@@ -34,7 +34,7 @@ NOT_IN_LIMIT = 8
 
 
 async def today_figures(ctx: WidgetContext) -> dict[str, Any]:
-    """Today's counts for the caller's branch (every branch with ``see_other_branches``):
+    """Today's counts for the caller's ONE active branch:
     ``total`` active staff, ``present`` P, ``overtime`` O (+ ``overtime_hours``), ``absent`` A,
     ``not_marked`` without a record (0 on the weekly off: nobody needs a mark), ``weekly_off``
     true on Saturdays, ``not_in`` the absent / not-marked names, ``mark_path``."""

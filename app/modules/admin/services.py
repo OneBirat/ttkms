@@ -543,13 +543,13 @@ async def set_payment_mode_active(
 # ----------------------------------------------------------------------------- barcodes
 
 
-async def barcode_employees(db: AsyncSession) -> list[BarcodeEmployeeOut]:
-    """Active employees, by name, with what their sticker encodes."""
+async def barcode_employees(db: AsyncSession, branch_id: int) -> list[BarcodeEmployeeOut]:
+    """Active employees of the (active) branch, by name, with what their sticker encodes."""
     rows = (
         (
             await db.execute(
                 select(Employee)
-                .where(Employee.status == EmployeeStatus.active)
+                .where(Employee.status == EmployeeStatus.active, Employee.branch_id == branch_id)
                 .order_by(Employee.full_name, Employee.id)
             )
         )

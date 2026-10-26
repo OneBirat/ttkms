@@ -59,18 +59,18 @@ async def test_admin_switches_and_it_persists_across_logins(client, db, make_use
     assert again["active_branch"] == {"id": second.id, "name": "Branch 2"}
 
 
-async def test_without_a_pick_admins_start_on_their_own_or_the_first_branch(
+async def test_without_a_pick_admins_start_on_their_own_or_the_first_branch_created(
     client, db, make_user, login
 ):
     main, second, closed = await _branches(db)
     await make_user("boss", role="admin")  # no user_access row, nothing stored
     body = (await login("boss")).json()
-    assert body["active_branch"] == {"id": second.id, "name": "Branch 2"}  # first active A-Z
+    assert body["active_branch"] == {"id": main.id, "name": "Main branch"}  # first created
     # A stored branch that was closed later falls back too.
     boss = await db.scalar(select(User).where(User.username == "boss"))
     boss.active_branch_id = closed.id
     await db.flush()
-    assert (await client.get("/api/auth/me")).json()["active_branch"]["id"] == second.id
+    assert (await client.get("/api/auth/me")).json()["active_branch"]["id"] == main.id
 
 
 async def test_staff_cannot_switch_and_stay_on_their_own_branch(client, db, make_user, login):

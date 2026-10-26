@@ -179,14 +179,15 @@ async def test_payments_today_widget_and_counts_are_branch_scoped(client, db, ma
         for w in (await client.get("/api/dashboard")).json()["widgets"]
         if w["module"] == "payroll"
     )
+    # The admin's active branch is Main (the first created): only Main's two payments.
     data = widget["data"]
     assert (
-        data["count"] == 3
-        and data["total"] == 7700
+        data["count"] == 2
+        and data["total"] == 7000
         and data["salary_total"] == 5000
-        and data["advance_total"] == 2700
+        and data["advance_total"] == 2000
     )
-    assert [p["name"] for p in data["payments"]] == ["Mina", "Anita", "Anita"]
+    assert [p["name"] for p in data["payments"]] == ["Anita", "Anita"]
     assert {p["kind"] for p in data["payments"]} == {"salary", "advance"}
     assert all(
         {"payment_id", "employee_id", "name", "kind", "amount", "mode", "time"} <= set(p)
@@ -194,7 +195,7 @@ async def test_payments_today_widget_and_counts_are_branch_scoped(client, db, ma
     )
     assert data["payments"][0]["mode"] == "Cash" and len(data["payments"][0]["time"]) == 5
     counts = (await client.get("/api/today")).json()["counts"]
-    assert counts["paid_today"] == 7700 and counts["payments_today"] == 3
+    assert counts["paid_today"] == 7000 and counts["payments_today"] == 2
     # A manager of Branch 2 only sees Mina's payment.
     await client.post(
         "/api/auth/logout",

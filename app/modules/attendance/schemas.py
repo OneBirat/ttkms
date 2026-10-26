@@ -216,7 +216,8 @@ class ReportRow(BaseModel):
 class MonthReport(BaseModel):
     month: BsMonthRef
     settings: AttendanceSettings
-    #: The branch reported on; null = every branch (see_other_branches only).
+    #: The branch reported on: the caller's active branch (or ``?branch=`` with
+    #: see_other_branches). Never null any more.
     branch_id: int | None
     branches: list[BranchRef]
     departments: list[DepartmentRef]

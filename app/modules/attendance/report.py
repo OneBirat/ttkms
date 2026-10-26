@@ -18,7 +18,7 @@ from app.contracts import PaymentRecord, get_payroll_payments
 from app.core import bsdate
 from app.core.models import Department, Employee, EmployeeStatus
 from app.modules.attendance import schemas, services
-from app.modules.attendance.access import Scope, one_branch
+from app.modules.attendance.access import Scope, one_branch, other_branch
 from app.modules.attendance.models import Record
 
 
@@ -203,7 +203,7 @@ async def employee_month(
     if employee is None:
         raise services.not_found("No such employee.")
     if not scope.allows(employee.branch_id):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="This employee is in another branch.")
+        raise other_branch(employee)
     start, end = month_or_404(bs_year, bs_month)
     month = month_ref(bs_year, bs_month)
     records = (await month_records(db, start, end, [employee.id], None)).get(employee.id, {})

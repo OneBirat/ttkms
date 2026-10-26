@@ -151,7 +151,8 @@ async def create_employee(me: CanManage, db: DbSession, payload: EmployeeIn) -> 
     """New employee with the salary in force from the joining date, optionally with a login
     (temporary password shown once; the person must change it at first sign-in)."""
     scope = await services.scope_for(db, me, None)
-    if not scope.allows(payload.branch_id):
+    # Users who may switch branches may add staff to any branch; everyone else to their own.
+    if scope.locked and not scope.allows(payload.branch_id):
         raise services.invalid("You can only add employees to your own branch.", "branch_id")
     employee, login, temporary = await services.create_employee(db, me, payload)
     return EmployeeCreatedOut(
@@ -166,7 +167,8 @@ async def update_employee(
     employee = await services.get_employee(db, employee_id)
     scope = await services.scope_for(db, me, None)
     services.ensure_visible(scope, employee)
-    if not scope.allows(payload.branch_id):
+    # Transfers: users who may switch branches may move staff to any branch.
+    if scope.locked and not scope.allows(payload.branch_id):
         raise services.invalid("You can only move employees within your own branch.", "branch_id")
     employee = await services.update_employee(db, me, employee, payload)
     logins = await services.logins_for(db, [employee.id])

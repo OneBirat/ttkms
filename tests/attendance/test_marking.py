@@ -242,7 +242,7 @@ async def test_day_list_rows_departments_and_branches(client, login, user_in, wo
 
 async def test_branch_scoping(client, login, user_in, world):
     """A manager only ever sees and marks their own branch, whatever the query says; an admin
-    (see_other_branches) picks any branch."""
+    (see_other_branches) works on their ONE active branch and switches it to reach another."""
     h = await _as(client, login, user_in, branch=world.main)
     mina = world.people["Mina"]
     other = await client.get(
@@ -264,6 +264,16 @@ async def test_branch_scoping(client, login, user_in, world):
     )
     assert [r["employee"]["name"] for r in second.json()["rows"]] == ["Mina"]
     assert {b["name"] for b in second.json()["branches"]} == {"Main branch", "Branch 2"}
+    # Marking follows the active branch (Main): Mina of Branch 2 only after switching.
+    assert (
+        await client.post("/api/attendance/mark", json=_mark(mina), headers=h)
+    ).status_code == 403
+    switched = await client.patch(
+        "/api/auth/me/active-branch", json={"branch_id": world.second.id}, headers=h
+    )
+    assert switched.status_code == 200
+    day = (await client.get("/api/attendance/day", params={"date_bs": BS_DAY})).json()
+    assert [r["employee"]["name"] for r in day["rows"]] == ["Mina"]
     assert (
         await client.post("/api/attendance/mark", json=_mark(mina), headers=h)
     ).status_code == 200

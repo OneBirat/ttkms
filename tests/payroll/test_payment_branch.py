@@ -66,7 +66,9 @@ def _receipts(register) -> set[str]:
     return {r["payment"]["receipt_no"] for r in register["rows"]}
 
 
-async def test_transfer_keeps_old_payments_in_the_old_branch(client, db, make_user, login):
+async def test_transfer_keeps_old_payments_in_the_old_branch(
+    client, db, make_user, login, on_branch
+):
     old, new, anita = await _setup(db)
     h = await _admin(client, make_user, login)
 
@@ -100,6 +102,8 @@ async def test_transfer_keeps_old_payments_in_the_old_branch(client, db, make_us
     assert moved.status_code == 200, moved.text
     assert moved.json()["branch"]["id"] == new.id
 
+    # Anita is in the new branch now: pay her from there (the admin switches to it).
+    await on_branch("admin", new.id)
     after = await _salary_for(client, h, anita, second, 500)
     assert after["branch"]["id"] == new.id
     stored = dict((await db.execute(select(Payment.receipt_no, Payment.branch_id))).all())
@@ -119,12 +123,11 @@ async def test_transfer_keeps_old_payments_in_the_old_branch(client, db, make_us
     assert _receipts(old_reg) == {before["receipt_no"], salary_receipt}
     assert _receipts(new_reg) == {after["receipt_no"]}
     assert old_reg["totals"]["amount"] == 31000 and new_reg["totals"]["amount"] == 500
-    every = (await client.get("/api/payroll/payments")).json()
-    assert {b["branch"]["name"]: b["total"] for b in every["by_branch"]} == {
-        "Old branch": 31000,
-        "New branch": 500,
-    }
-    row = next(r for r in every["rows"] if r["payment"]["receipt_no"] == before["receipt_no"])
+    # Without ?branch_id= the register is the active branch's (New) - never every branch.
+    active = (await client.get("/api/payroll/payments")).json()
+    assert _receipts(active) == {after["receipt_no"]}
+    assert [b["branch"]["name"] for b in active["by_branch"]] == ["New branch"]
+    row = next(r for r in old_reg["rows"] if r["payment"]["receipt_no"] == before["receipt_no"])
     assert row["payment"]["branch"]["name"] == "Old branch"
     assert row["employee"]["branch"]["name"] == "New branch"
 
@@ -157,9 +160,7 @@ async def test_transfer_keeps_old_payments_in_the_old_branch(client, db, make_us
     new_m2 = (await client.get(f"/api/payroll/report/{month2}?branch_id={new.id}")).json()
     assert old_m2["totals"]["salary_paid"] == 1000
     assert new_m2["totals"]["salary_paid"] == 500
-    everyone = (await client.get(f"/api/payroll/report/{month2}")).json()
-    assert everyone["totals"]["salary_paid"] == 1500
-    assert {b["branch"]["name"]: b["paid"] for b in everyone["by_branch"]} == {
-        "Old branch": 1000,
-        "New branch": 500,
-    }
+    active_m2 = (await client.get(f"/api/payroll/report/{month2}")).json()
+    assert active_m2["branch"]["name"] == "New branch"
+    assert active_m2["totals"]["salary_paid"] == 500
+    assert {b["branch"]["name"]: b["paid"] for b in active_m2["by_branch"]} == {"New branch": 500}

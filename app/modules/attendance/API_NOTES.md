@@ -73,7 +73,7 @@ Every response carries the AD `date` and the BS `date_bs` (records: `date_ad` / 
 | POST | `/scan` | `{employee_id, action: present\|overtime, ot_hours}` | `{employee, record, previous}` – today, source scan | mark |
 | GET | `/employees/{id}/month?bs_year=&bs_month=` | | `EmployeeMonth`: cells (P/O/A/W/N + advance / salary paid that day), totals, payments newest first | mark, report or manage_employees |
 | GET | `/marked-days?bs_year=&bs_month=&branch=\|employee_id=` | | `{marked_days: [BS dates]}` – BSDatePicker dots | mark or report |
-| GET | `/report?bs_year=&bs_month=&branch=` | branch left out = every branch (see_other_branches) | `MonthReport`: month with days, rows (cells + totals incl. `saturday_days_worked` / `saturday_ot_hours`), `staff_present` per day, payment badges from `PayrollPayments.for_month`, `branch_id`, `today` | report |
+| GET | `/report?bs_year=&bs_month=&branch=` | branch left out = the caller's active branch (`?branch=` only with see_other_branches; never every branch) | `MonthReport`: month with days, rows (cells + totals incl. `saturday_days_worked` / `saturday_ot_hours`), `staff_present` per day, payment badges from `PayrollPayments.for_month`, `branch_id`, `today` | report |
 
 Future months are 404. Week and day views and the Excel / PDF exports are built in the browser from
 `/report` (`xlsx.ts`, `print.ts`), so they always match the screen.

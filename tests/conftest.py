@@ -32,7 +32,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient, Response
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -248,3 +248,15 @@ def login(client: AsyncClient):
         return await login_as(client, username, password, remember)
 
     return _login
+
+
+@pytest.fixture
+def on_branch(db: AsyncSession):
+    """Set a user's ONE active branch (what PATCH /api/auth/me/active-branch stores)."""
+
+    async def _on_branch(username: str, branch_id: int) -> None:
+        user = await db.scalar(select(User).where(User.username == username))
+        user.active_branch_id = branch_id
+        await db.flush()
+
+    return _on_branch

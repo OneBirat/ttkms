@@ -27,6 +27,7 @@ from app.modules.admin.permissions import (
     PERMISSION_GROUPS,
     ROLE_PRESETS,
     ManageUsers,
+    branch_scope,
     require_access,
 )
 from app.modules.admin.schemas import (
@@ -223,10 +224,12 @@ def _pdf_available() -> bool:
 
 @router.get("/barcodes", response_model=BarcodesOut, name="admin:barcodes")
 async def barcodes_index(me: AdminOnly, db: DbSession) -> BarcodesOut:
-    """Active employees to print stickers for, the sticker sizes, and whether the server can
-    render the PDF (WeasyPrint needs pango; the page prints from the browser either way)."""
+    """Active employees of the caller's active branch to print stickers for, the sticker sizes,
+    and whether the server can render the PDF (WeasyPrint needs pango; the page prints from the
+    browser either way)."""
+    scope = await branch_scope(db, me)
     return BarcodesOut(
-        employees=await services.barcode_employees(db),
+        employees=await services.barcode_employees(db, scope.branch_id),
         sizes=[
             StickerSizeOut(
                 key=s.key, label=s.label, columns=s.columns, rows=s.rows, per_page=s.per_page
@@ -254,7 +257,11 @@ async def barcodes_pdf(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, detail="ids must be numbers."
         ) from exc
-    employees = await services.employees_by_ids(db, wanted)
+    scope = await branch_scope(db, me)
+    # Only the active branch's staff: ids of another branch are dropped.
+    employees = [
+        e for e in await services.employees_by_ids(db, wanted) if e.branch_id == scope.branch_id
+    ]
     if not employees:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Select at least one employee."

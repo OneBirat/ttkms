@@ -76,14 +76,27 @@ async def test_widget_and_counts_for_a_branch(client, db, login, user_in, world,
     }
 
 
-async def test_admin_sees_every_branch(client, db, make_user, login, world, monkeypatch):
+async def test_admin_sees_only_the_active_branch(client, db, make_user, login, world, monkeypatch):
+    """No more "every branch": the card and /api/today count the active branch, and switching
+    it switches the numbers."""
     _at(monkeypatch, WEDNESDAY)
     db.add(_rec(world.people["Mina"], WEDNESDAY, "P"))
     await db.flush()
     await make_user("chief", role="admin")
     await login("chief")
+    data = await _widget(client)  # Main branch (the first branch created)
+    assert data["total"] == 3 and data["present"] == 0 and data["not_marked"] == 3
+    counts = (await client.get("/api/today")).json()["counts"]
+    assert counts["total"] == 3 and counts["present"] == 0
+    h = {"X-CSRF-Token": (await client.get("/api/auth/csrf")).json()["csrf_token"]}
+    switched = await client.patch(
+        "/api/auth/me/active-branch", json={"branch_id": world.second.id}, headers=h
+    )
+    assert switched.status_code == 200, switched.text
     data = await _widget(client)
-    assert data["total"] == 4 and data["present"] == 1 and data["not_marked"] == 3
+    assert data["total"] == 1 and data["present"] == 1 and data["not_marked"] == 0
+    counts = (await client.get("/api/today")).json()["counts"]
+    assert counts["total"] == 1 and counts["present"] == 1
 
 
 async def test_saturday_needs_no_marks(client, db, login, user_in, world, monkeypatch):

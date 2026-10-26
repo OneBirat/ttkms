@@ -264,7 +264,7 @@ class TodayCountsOut(BaseModel):
     """Today's headline numbers for the dashboard stat row (Present today / Overtime today /
     Absent · not marked / Paid today). Each module fills the fields it owns through
     ``Module.today_counts``; a field stays ``None`` when its module is not enabled. Scope: the
-    caller's own branch unless they hold ``see_other_branches`` (then every branch).
+    caller's ONE active branch (``/api/auth/me`` ``active_branch``) - never every branch.
 
     Attendance (``app.modules.attendance``): ``total`` active employees, ``present`` marked P,
     ``overtime`` marked O (present with overtime), ``overtime_hours`` summed, ``absent`` marked A,

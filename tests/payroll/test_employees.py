@@ -122,7 +122,9 @@ async def test_manager_sees_own_branch_without_money_fields(client, db, make_use
     assert bad.status_code == 422 and bad.json()["field"] == "branch_id"
 
 
-async def test_admin_sees_everyone_with_money_fields(client, db, make_user, login):
+async def test_admin_sees_the_active_branch_with_money_fields(
+    client, db, make_user, login, on_branch
+):
     main, second, store, kitchen = await _org(db)
     a = await _employee(db, main, store, "A")
     b = await _employee(db, second, kitchen, "B")
@@ -130,13 +132,17 @@ async def test_admin_sees_everyone_with_money_fields(client, db, make_user, logi
     await _salary(db, b, basic=650, pay_type="daily", ot_rate=81)
     await _login(client, make_user, login, "admin", "admin")
     rows = (await client.get("/api/payroll/employees")).json()
-    assert [r["employee"]["full_name"] for r in rows] == ["A", "B"]
+    assert [r["employee"]["full_name"] for r in rows] == ["A"]  # active branch: Main
     assert rows[0]["pay_type"] == "monthly" and rows[0]["rate"] == 22000
-    assert rows[1]["pay_type"] == "daily" and rows[1]["rate"] == 650
-    assert all(isinstance(r["balance_due"], int) and r["balance_due"] >= 0 for r in rows)
+    assert isinstance(rows[0]["balance_due"], int) and rows[0]["balance_due"] >= 0
     only = (await client.get(f"/api/payroll/employees?branch_id={second.id}")).json()
-    assert [r["employee"]["full_name"] for r in only] == ["B"]
+    assert [r["employee"]["full_name"] for r in only] == ["B"]  # an explicit branch, allowed
     assert (await client.get("/api/payroll/employees?branch_id=999")).status_code == 404
+    assert (await client.get(f"/api/payroll/employees/{b.id}")).status_code == 403
+    await on_branch("admin", second.id)
+    rows = (await client.get("/api/payroll/employees")).json()
+    assert [r["employee"]["full_name"] for r in rows] == ["B"]
+    assert rows[0]["pay_type"] == "daily" and rows[0]["rate"] == 650
     assert (await client.get("/api/payroll/employees?q=b")).json()[0]["employee"][
         "full_name"
     ] == "B"
@@ -222,7 +228,7 @@ async def test_create_employee_with_login_and_salary(client, db, make_user, logi
     assert (await client.get("/api/payroll/employees/next-code")).json()["code"] != before["code"]
 
 
-async def test_update_and_deactivate_free_the_phone(client, db, make_user, login):
+async def test_update_and_deactivate_free_the_phone(client, db, make_user, login, on_branch):
     main, second, store, kitchen = await _org(db)
     employee = await _employee(db, main, store, phone="9841000001")
     headers = await _login(client, make_user, login, "admin", "admin")
@@ -249,7 +255,11 @@ async def test_update_and_deactivate_free_the_phone(client, db, make_user, login
         and body["address"] == "Balaju"
         and body["joined"]["bs"] == "2083-01-01"
     )
-    off = await client.post(f"/api/payroll/employees/{employee.id}/deactivate", headers=headers)
+    # Moved to Branch 2: reachable again once the admin switches there.
+    other = f"/api/payroll/employees/{employee.id}/deactivate"
+    assert (await client.post(other, headers=headers)).status_code == 403
+    await on_branch("admin", second.id)
+    off = await client.post(other, headers=headers)
     assert off.status_code == 200 and off.json()["active"] is False
     await db.refresh(employee)
     assert employee.status == EmployeeStatus.inactive and employee.deactivated_at is not None

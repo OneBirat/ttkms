@@ -24,7 +24,7 @@ from app.core.media import photo_urls
 from app.core.models import Branch, Department, Employee, EmployeeStatus, User
 from app.core.modules import is_enabled
 from app.modules.attendance import schemas
-from app.modules.attendance.access import Scope, one_branch
+from app.modules.attendance.access import Scope, one_branch, other_branch
 from app.modules.attendance.models import OT_MAX, OT_MIN, Record, RecordChange, Source
 
 #: Saturday (0 = Sunday ... 6 = Saturday). The rule is fixed: Saturday is the weekly off.
@@ -155,7 +155,7 @@ async def employee_to_mark(db: AsyncSession, scope: Scope, employee_id: int) -> 
     if employee is None or employee.status != EmployeeStatus.active:
         raise not_found("No active employee with that id.")
     if not scope.allows(employee.branch_id):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="This employee is in another branch.")
+        raise other_branch(employee)
     return employee
 
 

@@ -160,9 +160,10 @@ async def test_report_branch_scoping_and_moved_staff(client, db, login, user_in,
     assert [c["status"] for c in row["cells"]].count("P") == 1  # only the Main-branch day
     await client.post("/api/auth/logout")
     await _as(client, login, user_in, "chief", "admin")
-    every = (await client.get("/api/attendance/report", params=_params())).json()
-    assert every["branch_id"] is None
-    assert {r["employee"]["name"] for r in every["rows"]} >= {"Anita", "Mina"}
+    # No "every branch" any more: an admin gets their active branch (Main, the first created).
+    active = (await client.get("/api/attendance/report", params=_params())).json()
+    assert active["branch_id"] == world.main.id
+    assert "Anita" in {r["employee"]["name"] for r in active["rows"]}
     second = (
         await client.get("/api/attendance/report", params=_params(branch=world.second.id))
     ).json()

@@ -146,10 +146,11 @@ async def test_advance_is_capped_at_earned_so_far_minus_paid(client, db, make_us
     ]
 
 
-async def test_salary_caps_and_for_month_vs_payment_date(client, db, make_user, login):
+async def test_salary_caps_and_for_month_vs_payment_date(client, db, make_user, login, on_branch):
     *_, people, bank, off = await _setup(db)
     headers = await _admin(client, make_user, login)
     mina = people["Mina"]
+    await on_branch("admin", mina.branch_id)  # Mina works in Branch 2
     prev = (
         await client.get(
             f"/api/payroll/balance?employee_id={mina.id}&for_year={PREVIOUS[0]}&for_month={PREVIOUS[1]}"
@@ -315,10 +316,12 @@ async def test_money_endpoints_need_salary_advances_and_stay_in_branch(
     assert (await client.get("/api/payroll/payments")).status_code == 403
 
 
-async def _seed_payments(client, headers, people, bank):
+async def _seed_payments(client, headers, people, bank, on_branch):
     """Six payments across both branches and both departments, the previous month and this one.
+    Each is made from the employee's branch (the admin switches to it; back to Main at the end).
     Ramesh is paid by the day, so he is marked present today first (nothing earned otherwise)."""
     first_of_month = bsdate.BSDate(CURRENT[0], CURRENT[1], 1).isoformat()
+    await on_branch("admin", people["Ramesh"].branch_id)
     marked = await client.post(
         "/api/attendance/mark",
         json={"date_bs": TODAY.isoformat(), "employee_id": people["Ramesh"].id, "status": "P"},
@@ -334,84 +337,72 @@ async def _seed_payments(client, headers, people, bank):
         ("Mina", "salary", 6000, PREVIOUS, {}),
         ("Mina", "advance", 1500, CURRENT, {}),
     ]:
+        await on_branch("admin", people[name].branch_id)
         response = await _post(client, headers, _pay(people[name], kind, amount, month, **extra))
         assert response.status_code == 201, response.text
         made.append(response.json()["payment"])
+    await on_branch("admin", people["Anita"].branch_id)
     return made
 
 
-async def test_register_filters_sorts_and_grouped_totals(client, db, make_user, login):
+async def test_register_filters_sorts_and_grouped_totals(client, db, make_user, login, on_branch):
     main, second, store, kitchen, people, bank, off = await _setup(db)
     headers = await _admin(client, make_user, login)
-    made = await _seed_payments(client, headers, people, bank)
+    made = await _seed_payments(client, headers, people, bank, on_branch)
     first_of_month = bsdate.BSDate(CURRENT[0], CURRENT[1], 1).isoformat()
     rng = f"from={first_of_month}&to={TODAY.isoformat()}"
-    all_rows = (await client.get(f"/api/payroll/payments?{rng}")).json()
-    assert all_rows["branch"] is None and all_rows["sort"] == "date" and len(all_rows["rows"]) == 6
-    dates = [r["payment"]["date"]["ad"] for r in all_rows["rows"]]
+    # No branch asked for: the active branch (Main) - never every branch.
+    active = (await client.get(f"/api/payroll/payments?{rng}")).json()
+    assert active["branch"]["name"] == "Main branch" and active["sort"] == "date"
+    assert len(active["rows"]) == 3
+    dates = [r["payment"]["date"]["ad"] for r in active["rows"]]
     assert dates == sorted(dates, reverse=True)
-    assert all_rows["totals"]["count"] == 6 and all_rows["totals"]["amount"] == 19000
-    assert {b["branch"]["name"]: b["count"] for b in all_rows["by_branch"]} == {
-        "Branch 2": 3,
-        "Main branch": 3,
+    assert active["totals"]["count"] == 3 and active["totals"]["amount"] == 11000
+    assert [(b["branch"]["name"], b["count"]) for b in active["by_branch"]] == [("Main branch", 3)]
+    assert {d["department"]["name"]: d["count"] for d in active["by_department"]} == {
+        "Kitchen": 1,
+        "Store": 2,
     }
-    assert {d["department"]["name"]: d["count"] for d in all_rows["by_department"]} == {
-        "Kitchen": 3,
-        "Store": 3,
-    }
-    assert all(b["total"] == b["salary"] + b["advances"] for b in all_rows["by_branch"])
-    assert (
-        sum(b["total"] for b in all_rows["by_branch"])
-        == 19000
-        == sum(d["total"] for d in all_rows["by_department"])
-    )
+    assert sum(d["total"] for d in active["by_department"]) == 11000
     # Tiles: the settlement month is the previous month while anyone still owes for it.
+    assert tuple(active["totals"]["month"].values()) == PREVIOUS
+    assert active["totals"]["staff"] == 2
+    assert active["totals"]["salary_paid"] == 8000 and active["totals"]["advance_paid"] == 0
     assert (
-        tuple(all_rows["totals"]["month"].values()) == PREVIOUS and all_rows["totals"]["staff"] == 4
+        len(active["by_employee"]) == 2
+        and sum(e["due"] for e in active["by_employee"]) == active["totals"]["due"]
     )
-    assert all_rows["totals"]["salary_paid"] == 14000 and all_rows["totals"]["advance_paid"] == 0
-    assert (
-        len(all_rows["by_employee"]) == 4
-        and sum(e["due"] for e in all_rows["by_employee"]) == all_rows["totals"]["due"]
-    )
-    # Filters: type, department (chips keep the whole range), employee, branch.
-    advances = (await client.get(f"/api/payroll/payments?{rng}&type=advance")).json()
-    assert (
-        all(r["payment"]["kind"] == "advance" for r in advances["rows"])
-        and len(advances["rows"]) == 4
-    )
-    kitchen_only = (
-        await client.get(f"/api/payroll/payments?{rng}&department_id={kitchen.id}")
-    ).json()
-    assert [r["employee"]["full_name"] for r in kitchen_only["rows"]].count("Mina") == 2 and len(
-        kitchen_only["rows"]
-    ) == 3
-    assert {d["department"]["name"]: d["count"] for d in kitchen_only["by_department"]} == {
-        "Kitchen": 3,
-        "Store": 3,
-    }
-    assert kitchen_only["totals"]["staff"] == 2 and kitchen_only["department"]["name"] == "Kitchen"
-    one = (await client.get(f"/api/payroll/payments?{rng}&employee_id={people['Anita'].id}")).json()
-    assert len(one["rows"]) == 2
-    branch_only = (await client.get(f"/api/payroll/payments?{rng}&branch_id={second.id}")).json()
-    assert len(branch_only["rows"]) == 3 and [
-        b["branch"]["name"] for b in branch_only["by_branch"]
-    ] == ["Branch 2"]
-    assert {d["department"]["name"]: d["count"] for d in branch_only["by_department"]} == {
+    # Switching the active branch switches the register.
+    await on_branch("admin", second.id)
+    other = (await client.get(f"/api/payroll/payments?{rng}")).json()
+    assert other["branch"]["name"] == "Branch 2" and other["totals"]["amount"] == 8000
+    assert {r["employee"]["full_name"] for r in other["rows"]} == {"Ramesh", "Mina"}
+    assert {d["department"]["name"]: d["count"] for d in other["by_department"]} == {
         "Kitchen": 2,
         "Store": 1,
     }
-    # Sorts.
+    # Filters inside the branch: type, department (chips keep the whole range), employee.
+    advances = (await client.get(f"/api/payroll/payments?{rng}&type=advance")).json()
+    assert [r["payment"]["kind"] for r in advances["rows"]] == ["advance", "advance"]
+    kitchen_only = (
+        await client.get(f"/api/payroll/payments?{rng}&department_id={kitchen.id}")
+    ).json()
+    assert [r["employee"]["full_name"] for r in kitchen_only["rows"]] == ["Mina", "Mina"]
+    assert {d["department"]["name"]: d["count"] for d in kitchen_only["by_department"]} == {
+        "Kitchen": 2,
+        "Store": 1,
+    }
+    assert kitchen_only["totals"]["staff"] == 1 and kitchen_only["department"]["name"] == "Kitchen"
+    await on_branch("admin", main.id)
+    one = (await client.get(f"/api/payroll/payments?{rng}&employee_id={people['Anita'].id}")).json()
+    assert len(one["rows"]) == 2
+    # An explicit branch is still honoured for users who may see it.
+    explicit = (await client.get(f"/api/payroll/payments?{rng}&branch_id={second.id}")).json()
+    assert explicit["branch"]["name"] == "Branch 2" and len(explicit["rows"]) == 3
+    # Sorts (one branch).
     by_branch = (await client.get(f"/api/payroll/payments?{rng}&sort=branch")).json()["rows"]
-    assert [r["employee"]["branch"]["name"] for r in by_branch] == ["Branch 2"] * 3 + [
-        "Main branch"
-    ] * 3
-    nested = (await client.get(f"/api/payroll/payments?{rng}&sort=department")).json()["rows"]
-    keys = [(r["employee"]["branch"]["name"], r["employee"]["department"]["name"]) for r in nested]
-    assert keys == sorted(keys)  # branch, then department inside it
-    flat = (
-        await client.get(f"/api/payroll/payments?{rng}&sort=department&branch_id={main.id}")
-    ).json()["rows"]
+    assert [r["payment"]["branch"]["name"] for r in by_branch] == ["Main branch"] * 3
+    flat = (await client.get(f"/api/payroll/payments?{rng}&sort=department")).json()["rows"]
     assert [r["employee"]["department"]["name"] for r in flat] == ["Kitchen", "Store", "Store"]
     by_employee = (await client.get(f"/api/payroll/payments?{rng}&sort=employee")).json()["rows"]
     names = [r["employee"]["full_name"] for r in by_employee]
@@ -423,7 +414,11 @@ async def test_register_filters_sorts_and_grouped_totals(client, db, make_user, 
     narrow = (
         await client.get(f"/api/payroll/payments?from={first_of_month}&to={first_of_month}")
     ).json()
-    on_the_first = [m["receipt_no"] for m in made if m["date"]["bs"] == first_of_month]
+    on_the_first = [
+        m["receipt_no"]
+        for m in made
+        if m["date"]["bs"] == first_of_month and m["branch"]["id"] == main.id
+    ]
     assert sorted(r["payment"]["receipt_no"] for r in narrow["rows"]) == sorted(on_the_first)
     assert made[0]["receipt_no"] in on_the_first
     if TODAY.day > 1:
@@ -431,40 +426,32 @@ async def test_register_filters_sorts_and_grouped_totals(client, db, make_user, 
     last_month = bsdate.BSDate(PREVIOUS[0], PREVIOUS[1], 1).isoformat()
     bad = await client.get(f"/api/payroll/payments?from={first_of_month}&to={last_month}")
     assert bad.status_code == 422 and bad.json()["field"] == "from"
+    await on_branch("admin", second.id)
     recent = (
         await client.get(f"/api/payroll/payments/recent?employee_id={people['Mina'].id}")
     ).json()
     assert [p["kind"] for p in recent] == ["advance", "salary"]
 
 
-async def test_register_exports_and_receipt(client, db, make_user, login):
+async def test_register_exports_and_receipt(client, db, make_user, login, on_branch):
     main, second, store, kitchen, people, bank, off = await _setup(db)
     headers = await _admin(client, make_user, login)
-    made = await _seed_payments(client, headers, people, bank)
+    made = await _seed_payments(client, headers, people, bank, on_branch)
     first_of_month = bsdate.BSDate(CURRENT[0], CURRENT[1], 1).isoformat()
     rng = f"from={first_of_month}&to={TODAY.isoformat()}"
     xlsx = await client.get(f"/api/payroll/payments/export.xlsx?{rng}&sort=department")
     assert xlsx.status_code == 200, xlsx.text
+    # The active branch's file (Main): never "All branches", so no "By branch" sheet.
     assert xlsx.headers["content-disposition"].endswith(
-        f'Payment_report_{first_of_month}_to_{TODAY.isoformat()}.xlsx"'
+        f'Payment_report_Main_branch_{first_of_month}_to_{TODAY.isoformat()}.xlsx"'
     )
     wb = load_workbook(BytesIO(xlsx.content))
-    assert wb.sheetnames == [
-        "Payments",
-        "By branch",
-        "By department",
-        "By employee",
-        "Summary",
-        "Sort & filter",
-    ]
+    assert wb.sheetnames == ["Payments", "By department", "By employee", "Summary", "Sort & filter"]
     ws = wb["Payments"]
-    assert ws["A1"].value.startswith("TTK · Payment report · All branches · ")
+    assert ws["A1"].value.startswith("TTK · Payment report · Main branch · ")
     headers_row = [c.value for c in ws[4]]
-    assert headers_row[3:5] == ["Department", "Branch"] and ws.auto_filter.ref == "A4:L10"
-    assert ws.cell(row=11, column=10).value == "=SUM(J5:J10)"
-    by_branch = wb["By branch"]
-    assert [by_branch.cell(row=r, column=1).value for r in (3, 4)] == ["Branch 2", "Main branch"]
-    assert by_branch.cell(row=3, column=5).value + by_branch.cell(row=4, column=5).value == 6
+    assert headers_row[3:5] == ["Department", "Branch"] and ws.auto_filter.ref == "A4:L7"
+    assert ws.cell(row=8, column=10).value == "=SUM(J5:J7)"
     scoped = await client.get(
         f"/api/payroll/payments/export.xlsx?{rng}&branch_id={second.id}&department_id={kitchen.id}"
     )
@@ -482,9 +469,11 @@ async def test_register_exports_and_receipt(client, db, make_user, login):
     receipt = await client.get(f"/api/payroll/payments/{made[2]['id']}/receipt.pdf")
     assert receipt.status_code == 200 and receipt.content[:5] == b"%PDF-"
     assert receipt.headers["content-disposition"].endswith(f'receipt-{made[2]["receipt_no"]}.pdf"')
+    await on_branch("admin", second.id)
     payslip = await client.get(
         f"/api/payroll/employees/{people['Mina'].id}/payslips/{PREVIOUS[0]}-{PREVIOUS[1]:02d}.pdf"
     )
+    await on_branch("admin", main.id)
     assert payslip.status_code == 200 and payslip.content[:5] == b"%PDF-"
     # The register template groups branch → department with subtotals at both levels.
     from app.modules.payroll import exports, services
@@ -524,8 +513,8 @@ async def test_register_exports_and_receipt(client, db, make_user, login):
         generated_at="",
         landscape=True,
     )
-    assert "Payment report · All branches · " in html
-    assert exports.register_title(data).startswith("Payment report · All branches · ")
+    assert "Payment report · Main branch · " in html
+    assert exports.register_title(data).startswith("Payment report · Main branch · ")
     pdf_bytes = exports.register_pdf(data, "Test")
     assert pdf_bytes[:5] == b"%PDF-"
 

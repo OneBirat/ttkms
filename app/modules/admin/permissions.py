@@ -140,10 +140,9 @@ OTHER_BRANCHES = "see_other_branches"
 
 
 async def first_active_branch(db) -> int | None:
-    """The first active branch, A-Z (the default before a user has picked one)."""
-    return await db.scalar(
-        select(Branch.id).where(Branch.is_active.is_(True)).order_by(Branch.name, Branch.id)
-    )
+    """The first active branch created (lowest id - normally the main branch): the default
+    before a user has picked one."""
+    return await db.scalar(select(Branch.id).where(Branch.is_active.is_(True)).order_by(Branch.id))
 
 
 async def active_branch_for_user(db, user: User, access: Access | None = None) -> int | None:

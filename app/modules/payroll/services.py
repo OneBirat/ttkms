@@ -30,7 +30,7 @@ from app.core.models import (
 )
 from app.core.services import record_audit
 from app.modules.admin.models import PaymentMode, UserAccess
-from app.modules.admin.permissions import access_for_user, branch_for_user
+from app.modules.admin.permissions import access_for_user, branch_scope
 from app.modules.admin.services import generate_temporary_password
 from app.modules.payroll import ledgers, rules
 from app.modules.payroll.models import PayType, SalaryHistory
@@ -70,34 +70,33 @@ def not_found(detail: str) -> HTTPException:
 
 @dataclass(frozen=True)
 class Scope:
-    """Which branch the caller may read. ``branch_id`` None = every branch (only with
-    ``see_other_branches``); ``locked`` = forced to the caller's own branch, whatever the UI
-    sent."""
+    """The ONE branch the caller works on (``admin.permissions.branch_scope``: the active branch,
+    or an explicit one with ``see_other_branches``; 0 = nothing for a user without a branch).
+    Never "every branch". ``locked`` = may not switch (forced to their own branch)."""
 
-    branch_id: int | None
+    branch_id: int
     locked: bool
     #: ``salary_advances``: whether money fields may be shown.
     money: bool
 
     def allows(self, branch_id: int) -> bool:
-        return self.branch_id is None or self.branch_id == branch_id
+        return self.branch_id == branch_id
 
 
 async def scope_for(db: AsyncSession, user: User, requested: int | None) -> Scope:
     access = await access_for_user(db, user)
-    money = bool(access.get("salary_advances"))
-    if access.get("see_other_branches"):
-        if requested is not None and await db.get(Branch, requested) is None:
-            raise not_found("No such branch.")
-        return Scope(requested, False, money)
-    own = await branch_for_user(db, user)
-    # No branch assigned and no right to see others: nothing is visible (0 matches no branch).
-    return Scope(own if own is not None else 0, True, money)
+    scope = await branch_scope(db, user, requested)
+    return Scope(scope.branch_id, not scope.can_switch, bool(access.get("salary_advances")))
 
 
 def ensure_visible(scope: Scope, employee: Employee) -> None:
+    """Single-employee endpoints follow the active branch too: one branch for the whole app."""
     if not scope.allows(employee.branch_id):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="This employee is in another branch.")
+        where = employee.branch.name if employee.branch else "another branch"
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail=f"{employee.full_name} is in {where}. Switch to that branch to open them.",
+        )
 
 
 # ------------------------------------------------------------------------------- output

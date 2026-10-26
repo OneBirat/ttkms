@@ -76,19 +76,15 @@ def _key(bs=None) -> str:
     return f"{bs.year}-{bs.month:02d}"
 
 
-async def test_report_rows_totals_and_summaries(client, db, make_user, login):
+async def test_report_rows_totals_and_summaries(client, db, make_user, login, on_branch):
     main, second, store, kitchen, people = await _setup(db)
     await _admin(client, make_user, login)
     response = await client.get(f"/api/payroll/report/{_key()}")
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["branch"] is None and body["department"] is None
-    assert [r["employee"]["full_name"] for r in body["rows"]] == [
-        "Anita",
-        "Bikash",
-        "Mina",
-        "Ramesh",
-    ]
+    # No branch asked for: the admin's active branch (Main, the first created), never all.
+    assert body["branch"]["name"] == "Main branch" and body["department"] is None
+    assert [r["employee"]["full_name"] for r in body["rows"]] == ["Anita", "Bikash"]
     anita = body["rows"][0]["ledger"]
     assert (
         anita["pay_type"] == "monthly" and anita["rate"] == 220000 and anita["in_progress"] is True
@@ -107,22 +103,27 @@ async def test_report_rows_totals_and_summaries(client, db, make_user, login):
         anita["net"] == anita["gross_salary"] - anita["absence_deduction"] + anita["overtime_pay"]
     )
     totals = body["totals"]
-    assert totals["staff"] == 4 and totals["net"] == sum(r["ledger"]["net"] for r in body["rows"])
+    assert totals["staff"] == 2 and totals["net"] == sum(r["ledger"]["net"] for r in body["rows"])
     assert (
         totals["due"] == sum(r["ledger"]["due"] for r in body["rows"])
         and totals["advance_paid"] == 2000
     )
-    assert totals["paid_count"] + totals["part_paid_count"] + totals["pending_count"] == 4
-    assert [b["branch"]["name"] for b in body["by_branch"]] == ["Branch 2", "Main branch"]
-    assert sum(b["staff"] for b in body["by_branch"]) == 4
-    assert sum(b["net"] for b in body["by_branch"]) == totals["net"]
-    assert sum(b["due"] for b in body["by_branch"]) == totals["due"]
+    assert totals["paid_count"] + totals["part_paid_count"] + totals["pending_count"] == 2
+    assert [b["branch"]["name"] for b in body["by_branch"]] == ["Main branch"]
+    assert body["by_branch"][0]["staff"] == 2 and body["by_branch"][0]["net"] == totals["net"]
+    assert body["by_branch"][0]["due"] == totals["due"]
     assert {d["department"]["name"]: d["staff"] for d in body["by_department"]} == {
-        "Kitchen": 2,
-        "Store": 2,
+        "Kitchen": 1,
+        "Store": 1,
     }
     assert len(body["trend"]) == 5 and body["trend"][-1]["month"] == body["month"]
-    assert body["all_staff"] == 4
+    assert body["all_staff"] == 2
+    # Switching the active branch switches the report.
+    await on_branch("admin", second.id)
+    other = (await client.get(f"/api/payroll/report/{_key()}")).json()
+    assert other["branch"]["name"] == "Branch 2"
+    assert [r["employee"]["full_name"] for r in other["rows"]] == ["Mina", "Ramesh"]
+    assert other["totals"]["advance_paid"] == 0
 
 
 async def test_department_filter_and_branch_scoping(client, db, make_user, login):
@@ -131,9 +132,9 @@ async def test_department_filter_and_branch_scoping(client, db, make_user, login
     kitchen_only = (
         await client.get(f"/api/payroll/report/{_key()}?department_id={kitchen.id}")
     ).json()
-    assert [r["employee"]["full_name"] for r in kitchen_only["rows"]] == ["Bikash", "Mina"]
-    assert kitchen_only["all_staff"] == 4 and kitchen_only["department"]["name"] == "Kitchen"
-    assert sum(b["staff"] for b in kitchen_only["by_branch"]) == 2
+    assert [r["employee"]["full_name"] for r in kitchen_only["rows"]] == ["Bikash"]
+    assert kitchen_only["all_staff"] == 2 and kitchen_only["department"]["name"] == "Kitchen"
+    assert sum(b["staff"] for b in kitchen_only["by_branch"]) == 1
     branch_only = (await client.get(f"/api/payroll/report/{_key()}?branch_id={second.id}")).json()
     assert [r["employee"]["full_name"] for r in branch_only["rows"]] == ["Mina", "Ramesh"]
     assert branch_only["branch"]["name"] == "Branch 2" and branch_only["all_staff"] == 2
@@ -179,22 +180,21 @@ async def test_excel_and_pdf_exports(client, db, make_user, login):
     key = _key()
     xlsx = await client.get(f"/api/payroll/report/{key}.xlsx")
     assert xlsx.status_code == 200, xlsx.text
-    assert xlsx.headers["content-disposition"].endswith(f'salary-{key}-all-branches.xlsx"')
+    # The active branch (Main): one branch, so no Branch column and no "By branch" sheet.
+    assert xlsx.headers["content-disposition"].endswith(f'salary-{key}-main-branch.xlsx"')
     wb = load_workbook(BytesIO(xlsx.content))
-    assert wb.sheetnames == ["Payroll sheet", "By branch", "By department", "Summary"]
+    assert wb.sheetnames == ["Payroll sheet", "By department", "Summary"]
     ws = wb["Payroll sheet"]
-    assert ws["A1"].value.startswith("TTK · Salary report · All branches · ")
+    assert ws["A1"].value.startswith("TTK · Salary report · Main branch · ")
     headers = [c.value for c in ws[4]]
-    assert headers[:5] == ["Emp ID", "Name", "Department", "Branch", "Pay type"]
+    assert headers[:4] == ["Emp ID", "Name", "Department", "Pay type"]
     assert ws.auto_filter.ref.startswith("A4:")
     net_col = headers.index("Net") + 1
-    nets = [ws.cell(row=r, column=net_col).value for r in range(5, 9)]
+    nets = [ws.cell(row=r, column=net_col).value for r in range(5, 7)]
     report = (await client.get(f"/api/payroll/report/{key}")).json()
     assert nets == [r["ledger"]["net"] for r in report["rows"]]
-    total_row = 9
+    total_row = 7
     assert ws.cell(row=total_row, column=net_col).value.startswith("=SUM(")
-    by_branch = wb["By branch"]
-    assert [by_branch.cell(row=r, column=1).value for r in (3, 4)] == ["Branch 2", "Main branch"]
     # A branch + department: no "By branch" sheet, the names in the title and the file name.
     scoped = await client.get(
         f"/api/payroll/report/{key}.xlsx?branch_id={second.id}&department_id={kitchen.id}"
@@ -225,7 +225,7 @@ async def test_excel_and_pdf_exports(client, db, make_user, login):
     if pdf.status_code == 503:
         pytest.skip("WeasyPrint native libraries missing (brew install pango)")
     assert pdf.status_code == 200 and pdf.content[:5] == b"%PDF-"
-    assert pdf.headers["content-disposition"].endswith(f'salary-{key}-all-branches-store.pdf"')
+    assert pdf.headers["content-disposition"].endswith(f'salary-{key}-main-branch-store.pdf"')
     # The rendered HTML carries the title rule.
     from app.core.templating import env
     from app.modules.payroll import exports, reports, services
@@ -244,12 +244,12 @@ async def test_excel_and_pdf_exports(client, db, make_user, login):
     data = await reports.salary_report(
         db, scope, bsdate.today_bs().year, bsdate.today_bs().month, store.id
     )
-    assert data.title.startswith("Salary report · All branches · Store · ")
+    assert data.title.startswith("Salary report · Main branch · Store · ")
     html = env.get_template("payroll/report.html").render(
         title=data.title,
         report=data.out,
         rows=data.ledgers,
-        all_branches=True,
+        all_branches=False,
         status_label=exports.STATUS_LABEL,
         status_text=exports.status_text,
         stats=[],
@@ -263,7 +263,8 @@ async def test_excel_and_pdf_exports(client, db, make_user, login):
         generated_at="",
         landscape=True,
     )
-    assert "Salary report · All branches · Store" in html and "Anita" in html and "Ramesh" in html
+    assert "Salary report · Main branch · Store" in html and "Anita" in html
+    assert "Ramesh" not in html  # Branch 2
 
 
 def test_pdf_templates_never_show_tds():
