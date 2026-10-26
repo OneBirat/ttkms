@@ -6,7 +6,7 @@ import { BottomSheet } from "./BottomSheet";
 import { PhoneFrame } from "./PhoneFrame";
 import { useReportBranch, waitForBranch } from "../../_lib/useBranchScope";
 import { listDepartments, listPayments, receiptUrl } from "../../api";
-import { VoidPaymentDialog, VoidedNote, useCanVoid } from "../VoidPaymentDialog";
+import { VoidedNote } from "../VoidPaymentDialog";
 import { monthLabel } from "../../_lib/months";
 import shared from "../payroll.module.css";
 import { listBranches } from "../../api";
@@ -14,7 +14,7 @@ import { formatBsDay } from "@/lib/bs";
 import { rangeFor, today } from "../../_lib/months";
 import { formatAmount, groupBy, initials } from "../../_lib/helpers";
 import { REGISTER_SORTS, groupRowsByDepartment, isRegisterSort, type RegisterGroup } from "../../_lib/register";
-import type { Payment, PaymentsRegister, RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
+import type { PaymentsRegister, RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import { monthsText } from "../../_lib/settle";
 import styles from "./phone.module.css";
@@ -49,9 +49,7 @@ export function PhonePayments() {
   const departmentId: number | null = Number.isInteger(deptParam) && deptParam > 0 ? deptParam : null;
   const sort: RegisterSort = isRegisterSort(params.get("sort")) ? (params.get("sort") as RegisterSort) : "date";
   const showVoided = params.get("voided") === "1";
-  const canVoid = useCanVoid();
   const [details, setDetails] = useState<RegisterRow | null>(null);
-  const [voiding, setVoiding] = useState<Payment | null>(null);
   const setParams = useCallback(
     (changes: Record<string, string | null>) => {
       const next = new URLSearchParams(params.toString());
@@ -265,26 +263,12 @@ export function PhonePayments() {
             >
               Receipt PDF
             </button>
-            {canVoid && !details.payment.voided ? (
-              <button
-                type="button"
-                className={styles.sheetAction}
-                data-tone="danger"
-                onClick={() => {
-                  setVoiding(details.payment);
-                  setDetails(null);
-                }}
-              >
-                Void payment
-              </button>
-            ) : null}
             <button type="button" className={styles.sheetCancel} onClick={() => setDetails(null)}>
               Close
             </button>
           </>
         ) : null}
       </BottomSheet>
-      <VoidPaymentDialog payment={voiding} onClose={() => setVoiding(null)} />
 
       <BottomSheet open={sortOpen} label="Sort payments" onClose={() => setSortOpen(false)}>
         <div className={styles.sheetHeader}>

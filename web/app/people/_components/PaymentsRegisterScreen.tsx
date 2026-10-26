@@ -18,8 +18,7 @@ import { REGISTER_SORTS, displayRows, isRegisterSort } from "../_lib/register";
 import { monthsText } from "../_lib/settle";
 import type { DateRange, PaymentsRegister, RegisterSort, RegisterTypeFilter } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
-import type { Payment } from "../types";
-import { VoidPaymentDialog, VoidedNote, useCanVoid } from "./VoidPaymentDialog";
+import { VoidedNote } from "./VoidPaymentDialog";
 import styles from "./report.module.css";
 import shared from "./payroll.module.css";
 
@@ -64,8 +63,6 @@ export function PaymentsRegisterScreen() {
   const page = Math.max(1, Number(params.get("page") ?? "1") || 1);
   // "Show voided" (off by default): voided payments listed struck through, never in a total.
   const showVoided = params.get("voided") === "1";
-  const canVoid = useCanVoid();
-  const [voiding, setVoiding] = useState<{ payment: Payment; name: string } | null>(null);
   // Salary payment groups whose per-month split is open (by the entry's payment id).
   const [openSplits, setOpenSplits] = useState<Set<number>>(() => new Set());
   const toggleSplit = (id: number) =>
@@ -395,11 +392,6 @@ export function PaymentsRegisterScreen() {
                           >
                             Receipt
                           </button>
-                          {canVoid && !p.voided ? (
-                            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setVoiding({ payment: p, name: employee.full_name })}>
-                              Void
-                            </button>
-                          ) : null}
                         </td>
                       </tr>
                       {splitOpen && multi
@@ -482,13 +474,6 @@ export function PaymentsRegisterScreen() {
           </div>
         </div>
       ) : null}
-
-      <VoidPaymentDialog
-        payment={voiding?.payment ?? null}
-        employeeName={voiding?.name}
-        onClose={() => setVoiding(null)}
-        onVoided={(p) => setToast(`${p.receipt_no} voided — it no longer counts as paid`)}
-      />
 
       {toast ? (
         <div role="status" className={styles.toastDark}>
