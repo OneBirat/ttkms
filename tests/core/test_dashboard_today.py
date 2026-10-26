@@ -1,6 +1,7 @@
-"""GET /api/dashboard/today: everything the dashboard shows, for ONE branch - attendance (active
-staff joined by today, P / O / A / not marked, the not-in list, Saturday = weekly off) and
-payments today (a salary payment group counted once), with the permission rules."""
+"""GET /api/dashboard/today and /compare: everything the dashboard shows, for ONE branch -
+attendance (active staff joined by today, P / O / A / not marked, the not-in list, Saturday =
+weekly off) and payments today (a salary payment group counted once), with the permission rules;
+compare = every branch side by side."""
 
 from datetime import UTC, date, datetime
 
@@ -178,3 +179,36 @@ async def test_sections_follow_permissions_and_staff_get_their_own_branch(
     await login("cashier")
     body = (await client.get("/api/dashboard/today")).json()
     assert body["attendance"] is None and body["payments"]["paid"] == 44000
+
+
+async def test_compare_is_one_entry_per_branch_and_admin_only(
+    client, db, make_user, login, monkeypatch
+):
+    main, second, people = await _world(db)
+    _at(monkeypatch, WEDNESDAY)
+    await _seed(db, people, WEDNESDAY)
+    await make_user("admin", role="admin")
+    await login("admin")
+    before = (await client.get("/api/auth/me")).json()["active_branch"]
+    body = (await client.get("/api/dashboard/compare")).json()
+    # Side by side, A-Z, each with its own numbers - no total anywhere.
+    assert [b["branch"]["name"] for b in body["branches"]] == ["Branch 2", "Main branch"]
+    b2, m = body["branches"]
+    assert (b2["attendance"]["staff"], b2["payments"]["paid"]) == (1, 700)
+    assert (m["attendance"]["staff"], m["payments"]["paid"], m["payments"]["count"]) == (
+        4,
+        44000,
+        2,
+    )
+    assert set(body) == {"date", "date_bs", "branches"}
+    # Looking does not switch.
+    assert (await client.get("/api/auth/me")).json()["active_branch"] == before
+    await client.post(
+        "/api/auth/logout",
+        headers={"X-CSRF-Token": (await client.get("/api/auth/csrf")).json()["csrf_token"]},
+    )
+    boss = await make_user("boss", role="manager")
+    db.add(UserAccess(user_id=boss.id, branch_id=main.id, access=None))
+    await db.flush()
+    await login("boss")
+    assert (await client.get("/api/dashboard/compare")).status_code == 403

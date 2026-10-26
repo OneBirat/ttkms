@@ -73,7 +73,7 @@ describe("dashboard figures (one branch)", () => {
   it("compare card: the branch's own numbers, the not-in names or everyone marked", () => {
     const card = compareCard(day, 0);
     assert.equal(card.marked, "12 of 18 marked");
-    assert.equal(card.paid, "Rs 12,000 · 2 payments");
+    assert.deepEqual(card.paid, { amount: "Rs 12,000", count: "2 payments" });
     assert.equal(card.missing, "Nabin Poudel");
     const done = compareCard({ ...day, attendance: { ...day.attendance!, not_marked: 0, not_in: [] } }, 1);
     assert.equal(done.missing, "Everyone is marked ✓");
@@ -101,11 +101,21 @@ describe("dashboard header", () => {
   const render = (s: ActiveBranchState) =>
     renderToStaticMarkup(createElement(BranchContext.Provider, { value: s }, createElement(DashboardHeader, { today: null })));
 
-  it("see_other_branches: one tab per branch A-Z with its staff", () => {
+  it("see_other_branches: one tab per branch A-Z with its staff, then Compare branches", () => {
     const html = render(state());
+    assert.match(html, /aria-selected="false"[^>]*data-testid="compare-tab"[^>]*>Compare branches</);
     assert.match(html, /Dashboard <span[^>]*>· Main branch<\/span>/);
     assert.match(html, /role="tab" aria-selected="false"[^>]*>Branch 2<span[^>]*>12<\/span>/);
     assert.match(html, /role="tab" aria-selected="true"[^>]*>Main branch<span[^>]*>18<\/span>/);
+  });
+
+  it("Compare view: the compare tab is selected, no branch tab is, the title says so", () => {
+    const html = renderToStaticMarkup(
+      createElement(BranchContext.Provider, { value: state() }, createElement(DashboardHeader, { today: null, compare: true })),
+    );
+    assert.match(html, /· compare branches/);
+    assert.match(html, /aria-selected="true"[^>]*data-testid="compare-tab"/);
+    assert.doesNotMatch(html, /role="tab" aria-selected="true"[^>]*>Main branch/);
   });
 
   it("staff: no tabs", () => {

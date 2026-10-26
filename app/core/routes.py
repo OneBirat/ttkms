@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, Request, status
+from sqlalchemy import select
 
 from app.core import bsdate
 from app.core.auth import CurrentUser, OptionalUser
@@ -13,6 +14,7 @@ from app.core.modules import WidgetContext
 from app.core.schemas import (
     BsConvertOut,
     DashboardBranchRef,
+    DashboardCompareOut,
     DashboardOut,
     DashboardTodayOut,
     ErrorOut,
@@ -29,7 +31,7 @@ from app.core.schemas import (
     resolve_date,
 )
 from app.db import DbSession
-from app.modules.admin.permissions import access_for_user, branch_scope
+from app.modules.admin.permissions import OTHER_BRANCHES, access_for_user, branch_scope
 
 router = APIRouter(prefix="/api", tags=["core"])
 
@@ -132,6 +134,32 @@ async def dashboard_today(
     if branch is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="You have no branch yet.")
     return await branch_dashboard(request, db, user, branch)
+
+
+@router.get(
+    "/dashboard/compare",
+    response_model=DashboardCompareOut,
+    responses={401: {"model": ErrorOut}, 403: {"model": ErrorOut}},
+)
+async def dashboard_compare(
+    request: Request, user: CurrentUser, db: DbSession
+) -> DashboardCompareOut:
+    """Every active branch A-Z side by side, each with its own figures (the same as
+    /dashboard/today for that branch) - never added together, no total. see_other_branches only;
+    it does not change the caller's active branch."""
+    if not (await access_for_user(db, user)).get(OTHER_BRANCHES):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="Comparing branches needs 'See other branches'."
+        )
+    header = bsdate.header_date()
+    rows = await db.scalars(
+        select(Branch).where(Branch.is_active.is_(True)).order_by(Branch.name, Branch.id)
+    )
+    return DashboardCompareOut(
+        date=header.ad_date,
+        date_bs=header.bs_date.isoformat(),
+        branches=[await branch_dashboard(request, db, user, b) for b in list(rows)],
+    )
 
 
 async def today_counts(request: Request, user, db) -> TodayCountsOut:

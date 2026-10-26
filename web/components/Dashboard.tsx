@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Icon } from "@/components/icons";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { errorMessage, type DashboardAttendance, type DashboardPayments, type DashboardToday, type Today } from "@/lib/api";
+import { errorMessage, type DashboardAttendance, type DashboardCompare, type DashboardPayments, type DashboardToday, type Today } from "@/lib/api";
 import { useActiveBranch } from "@/lib/branchContext";
 import { useSession } from "@/lib/session";
 import { useApi } from "@/lib/useApi";
 import { DashboardHeader } from "./dashboard/Header";
-import { bar, formatRs, initials, moneyTiles, tiles } from "./dashboard/model";
+import { bar, compareCard, formatRs, initials, moneyTiles, tiles } from "./dashboard/model";
 import styles from "./Dashboard.module.css";
 
 /**
@@ -19,30 +21,139 @@ import styles from "./Dashboard.module.css";
  */
 export function Dashboard() {
   const { today: sessionToday } = useSession();
-  const { branch } = useActiveBranch();
+  const { branch, canSwitch, setActiveBranch } = useActiveBranch();
+  const router = useRouter();
+  const params = useSearchParams();
   const todayQuery = useApi<Today>("/api/today");
   const today = todayQuery.data ?? sessionToday;
-  const { data, error, loading, reload } = useApi<DashboardToday>(
-    branch ? `/api/dashboard/today?branch_id=${branch.id}` : "/api/dashboard/today",
-  );
+  // "Compare branches" is a view of this page (?view=compare); it never changes the active branch.
+  const compare = canSwitch && params.get("view") === "compare";
+  const branchView = () => router.replace("/", { scroll: false });
 
   return (
     <div className={styles.page}>
-      <DashboardHeader today={today} />
-      {loading && !data ? (
-        <p className="muted" role="status">
-          Loading…
-        </p>
-      ) : error ? (
-        <EmptyState icon="alert" title="Could not load the dashboard" text={errorMessage(error)}>
-          <button type="button" className="btn" onClick={reload}>
-            Try again
-          </button>
-        </EmptyState>
-      ) : data ? (
-        <BranchView day={data} />
-      ) : null}
+      <DashboardHeader
+        today={today}
+        compare={compare}
+        onCompare={() => router.replace("/?view=compare", { scroll: false })}
+        onBranch={(id) => {
+          void setActiveBranch(id);
+          if (compare) branchView();
+        }}
+      />
+      {compare ? (
+        <CompareView
+          onOpen={(id) => {
+            void setActiveBranch(id);
+            branchView();
+          }}
+        />
+      ) : (
+        <TodayView branchId={branch?.id ?? null} />
+      )}
     </div>
+  );
+}
+
+function TodayView({ branchId }: { branchId: number | null }) {
+  const { data, error, loading, reload } = useApi<DashboardToday>(
+    branchId ? `/api/dashboard/today?branch_id=${branchId}` : "/api/dashboard/today",
+  );
+  if (loading && !data) {
+    return (
+      <p className="muted" role="status">
+        Loading…
+      </p>
+    );
+  }
+  if (error) {
+    return (
+      <EmptyState icon="alert" title="Could not load the dashboard" text={errorMessage(error)}>
+        <button type="button" className="btn" onClick={reload}>
+          Try again
+        </button>
+      </EmptyState>
+    );
+  }
+  return data ? <BranchView day={data} /> : null;
+}
+
+/** Every active branch side by side (GET /api/dashboard/compare) - its own numbers, no total. */
+function CompareView({ onOpen }: { onOpen: (id: number) => void }) {
+  const { data, error, loading, reload } = useApi<DashboardCompare>("/api/dashboard/compare");
+  if (loading && !data) {
+    return (
+      <p className="muted" role="status">
+        Loading…
+      </p>
+    );
+  }
+  if (error || !data) {
+    return (
+      <EmptyState icon="alert" title="Could not compare the branches" text={errorMessage(error)}>
+        <button type="button" className="btn" onClick={reload}>
+          Try again
+        </button>
+      </EmptyState>
+    );
+  }
+  return (
+    <>
+      <p className={styles.intro}>
+        Each branch side by side — nothing is added together. Click &quot;Open&quot; to switch the whole app to that branch.
+      </p>
+      <div className={styles.compare} data-testid="compare-grid">
+        {data.branches.map((day, i) => {
+          const c = compareCard(day, i);
+          return (
+            <section key={c.branchId} className={`card ${styles.cmpCard}`} style={{ borderTopColor: c.accent }} aria-labelledby={`cmp-${c.branchId}`}>
+              <div className={styles.cmpHead}>
+                <span style={{ color: c.accent, display: "flex" }}>
+                  <Icon name="home" size={20} />
+                </span>
+                <h2 id={`cmp-${c.branchId}`} className={styles.cmpTitle}>
+                  {c.name} <span className={styles.cmpStaff}>· {c.staff} staff</span>
+                </h2>
+                <button type="button" className={styles.cmpOpen} onClick={() => onOpen(c.branchId)} data-testid={`open-${c.branchId}`}>
+                  Open {c.name} ›
+                </button>
+              </div>
+              {c.tiles.length ? (
+                <div className={styles.cmpTiles}>
+                  {c.tiles.map((t) => (
+                    <div key={t.label} className={styles.cmpTile} data-tone={t.tone}>
+                      <span className={styles.cmpTileLabel}>{t.label}</span>
+                      <span className={`mono ${styles.cmpTileValue}`}>{t.value}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {c.bar ? (
+                <div className={styles.bar} aria-hidden="true" style={{ height: 10 }}>
+                  {c.bar.map((p) => (p.count ? <span key={p.key} style={{ width: `${p.percent}%`, background: p.colour }} /> : null))}
+                </div>
+              ) : null}
+              {c.marked || c.paid ? (
+                <div className={styles.cmpLine}>
+                  <span>{c.marked}</span>
+                  {c.paid ? (
+                    <span>
+                      Paid today <b className="mono">{c.paid.amount}</b> · {c.paid.count}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+              {c.missing !== null ? (
+                <div className={styles.cmpMissing}>
+                  <span className={styles.notInTitle}>Not in yet</span>
+                  <span>{c.missing}</span>
+                </div>
+              ) : null}
+            </section>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

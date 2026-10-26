@@ -114,7 +114,8 @@ export interface CompareCard {
   tiles: { label: string; value: number; tone: "P" | "O" | "A" | "N" }[];
   bar: BarPart[] | null;
   marked: string | null;
-  paid: string | null;
+  /** "Rs 12,000" and "2 payments" (salary_advances only). */
+  paid: { amount: string; count: string } | null;
   missing: string | null;
 }
 
@@ -137,7 +138,7 @@ export function compareCard(day: DashboardToday, index: number): CompareCard {
       : [],
     bar: a ? bar(a) : null,
     marked: a ? `${a.staff - a.not_marked} of ${a.staff} marked` : null,
-    paid: day.payments ? `Rs ${formatRs(day.payments.paid)} · ${plural(day.payments.count, "payment")}` : null,
+    paid: day.payments ? { amount: `Rs ${formatRs(day.payments.paid)}`, count: plural(day.payments.count, "payment") } : null,
     missing: a ? (a.weekly_off ? "Saturday · weekly off" : a.not_in.map((p) => p.name).join(", ") || "Everyone is marked ✓") : null,
   };
 }
