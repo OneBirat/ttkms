@@ -1,14 +1,16 @@
 """Command-line admin tasks (argparse, no typer).
 
-    python -m app.cli create-admin          # prompts for username / password
+    python -m app.cli create-admin [--force] # the first admin (and first branch); prompts
     python -m app.cli seed [--no-input]     # branches, departments, 5 employees, settings, admin
     python -m app.cli seed-demo             # the 25 design employees + salaries + a month of
                                             # payments (APP_ENV=dev only; never automatic)
     python -m app.cli photos-upgrade        # old employees/<id>.jpg photos -> 600 px JPEG +
                                             # 128 px WebP, metadata stripped (run once)
 
-All are idempotent. The admin user's credentials come from ADMIN_USERNAME / ADMIN_PASSWORD in
-.env (or the environment) when set, otherwise you are prompted.
+``seed`` and ``seed-demo`` are idempotent development helpers; seed's admin credentials come from
+ADMIN_USERNAME / ADMIN_PASSWORD in .env (or the environment) when set, otherwise you are prompted.
+``create-admin`` is the production one (deploy/create-admin.sh runs it as the ttk user): it always
+asks, and refuses while an admin exists unless ``--force``.
 """
 
 from __future__ import annotations
@@ -17,9 +19,9 @@ import argparse
 import asyncio
 import getpass
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -31,10 +33,13 @@ from app.core.models import (
     Role,
     Setting,
     User,
+    is_phone,
+    normalize_phone,
     normalize_username,
 )
-from app.core.services import DEFAULT_SETTINGS, find_branch, find_department
+from app.core.services import DEFAULT_SETTINGS, find_branch, find_department, record_audit
 from app.db import SessionLocal
+from app.modules.admin.models import UserAccess
 
 SEED_BRANCHES = ["Main branch", "Branch 2"]
 SEED_DEPARTMENTS = ["Store", "Kitchen", "Housekeeping", "Front desk", "Accounts"]
@@ -124,6 +129,93 @@ async def seed_reference_data(db: AsyncSession) -> dict[str, int]:
     return created
 
 
+async def create_first_admin(
+    db: AsyncSession,
+    *,
+    force: bool,
+    ask: Callable[[str], str] = input,
+    secret: Callable[[str], str] = getpass.getpass,
+) -> tuple[User, Branch | None]:
+    """The production ``create-admin``: full name, username or phone, password (twice), and the
+    first branch when there is none. The user gets the Admin preset (role admin, no overrides,
+    all branches) and starts on the first branch A-Z. Returns (user, branch created or None).
+    Refuses while any admin exists unless ``force`` (then an existing login with the same
+    username is promoted and its password reset). Not committed."""
+    admins = await db.scalar(select(func.count()).select_from(User).where(User.role == Role.admin))
+    if admins and not force:
+        raise CliError(
+            f"{admins} admin user(s) already exist; sign in as one of them, or run again with "
+            "--force to add (or reset) another admin"
+        )
+
+    full_name = ask("Full name: ").strip()
+    if not full_name:
+        raise CliError("full name must not be empty")
+    login = ask("Username or phone: ").strip()
+    phone = normalize_phone(login) if is_phone(login) else None
+    username = phone or normalize_username(login)
+    if not username:
+        raise CliError("username must not be empty")
+    password = secret("Password: ")
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise CliError(f"password must be at least {MIN_PASSWORD_LENGTH} characters")
+    if secret("Password again: ") != password:
+        raise CliError("passwords do not match")
+
+    user = await db.scalar(select(User).where(User.username == username))
+    if user is not None and not force:
+        raise CliError(f"a user named {username!r} already exists (use --force to make it admin)")
+    if phone:
+        taken = await db.scalar(select(User).where(User.phone == phone))
+        if taken is not None and taken is not user:
+            raise CliError(f"phone {phone} is already the login of {taken.username!r}")
+
+    created_branch: Branch | None = None
+    first = await db.scalar(
+        select(Branch).where(Branch.is_active.is_(True)).order_by(Branch.name, Branch.id).limit(1)
+    )
+    if first is None:
+        name = ask("No branch yet. Name of the first branch: ").strip()
+        if not name:
+            raise CliError("branch name must not be empty")
+        first = await find_branch(db, name)  # an inactive branch of that name: switch it on
+        if first is None:
+            first = created_branch = Branch(name=name)
+            db.add(first)
+        first.is_active = True
+        await db.flush()
+
+    created = user is None
+    if user is None:
+        user = User(username=username)
+        db.add(user)
+    user.full_name = full_name
+    user.phone = phone or user.phone
+    user.role = Role.admin
+    user.is_active = True
+    user.must_change_password = False
+    user.password_hash = hash_password(password)
+    user.active_branch_id = first.id
+    await db.flush()
+    access = await db.get(UserAccess, user.id)
+    if access is None:
+        access = UserAccess(user_id=user.id)
+        db.add(access)
+    access.branch_id = None  # admins: all branches
+    access.access = None  # the Admin preset, no overrides
+    await record_audit(
+        db,
+        module="core",
+        action="cli_create_admin" if created else "cli_make_admin",
+        entity="user",
+        entity_id=user.id,
+        user_id=None,
+        data={"username": user.username, "branch_created": created_branch is not None},
+    )
+    await db.flush()
+    return user, created_branch
+
+
 # --------------------------------------------------------------------------- commands
 
 
@@ -146,11 +238,12 @@ def resolve_credentials(
 
 
 async def cmd_create_admin(args: argparse.Namespace) -> int:
-    username, password = resolve_credentials(args.no_input, username=args.username)
     async with SessionLocal() as db:
-        user, created = await ensure_admin(db, username, password)
+        user, branch = await create_first_admin(db, force=args.force)
         await db.commit()
-    print(f"{'Created' if created else 'Updated'} admin user {user.username!r}.")
+    if branch is not None:
+        print(f"Created branch {branch.name!r}.")
+    print(f"Admin {user.username!r} ({user.full_name}) is ready. Sign in with it.")
     return 0
 
 
@@ -195,9 +288,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    create = sub.add_parser("create-admin", help="create (or reset) the admin user")
-    create.add_argument("--username", help="admin username (default: ADMIN_USERNAME or prompt)")
-    create.add_argument("--no-input", action="store_true", help="never prompt; use env vars")
+    create = sub.add_parser(
+        "create-admin", help="create the first admin (and the first branch when there is none)"
+    )
+    create.add_argument(
+        "--force", action="store_true", help="add or reset an admin even when one already exists"
+    )
     create.set_defaults(func=cmd_create_admin)
 
     seed = sub.add_parser("seed", help="load reference data, sample employees and the admin user")

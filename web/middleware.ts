@@ -5,8 +5,11 @@ import { isPublicPath, moduleForPath } from "@/lib/modules";
 /** Name of the backend session cookie (HttpOnly, SameSite=Lax). */
 export const SESSION_COOKIE = "ttk_session";
 
-/** Origin of the FastAPI backend, the same value next.config.ts proxies to. */
-const API_URL = process.env.API_URL ?? "http://localhost:8000";
+/** Origin of the FastAPI backend for this server-side call (read at run time;
+ *  production: API_INTERNAL_URL=http://127.0.0.1:8000 from /etc/ttk/app.env). */
+function apiInternalUrl(): string {
+  return process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8000";
+}
 
 /**
  * Is the module that owns this page enabled on the backend (ENABLED_MODULES)?
@@ -20,7 +23,7 @@ async function moduleEnabled(
   request: NextRequest,
 ): Promise<boolean> {
   try {
-    const response = await fetch(`${API_URL}/api/core/modules`, {
+    const response = await fetch(`${apiInternalUrl()}/api/core/modules`, {
       headers: {
         Accept: "application/json",
         Cookie: request.headers.get("cookie") ?? "",
@@ -33,6 +36,28 @@ async function moduleEnabled(
   } catch {
     return true;
   }
+}
+
+/**
+ * A redirect to `pathname` on the address the browser used. Behind Caddy the
+ * Next.js server only knows its own bind address (127.0.0.1:3000) and builds
+ * request.nextUrl from it (even a relative Location is resolved against it),
+ * so the origin comes from the Host / X-Forwarded-Host / X-Forwarded-Proto
+ * headers instead. Caddy only answers for the server's own address, so these
+ * cannot point anywhere else.
+ */
+export function redirectTo(
+  request: NextRequest,
+  pathname: string,
+  params: Record<string, string> = {},
+): NextResponse {
+  const host =
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? request.nextUrl.host;
+  const proto =
+    request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(/:$/, "");
+  const url = new URL(pathname, `${proto}://${host}`);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  return NextResponse.redirect(url, 307);
 }
 
 /**
@@ -52,20 +77,12 @@ export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (isPublicPath(pathname)) return NextResponse.next();
   if (!request.cookies.has(SESSION_COOKIE)) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    loginUrl.search = "";
-    loginUrl.searchParams.set("next", `${pathname}${search}`);
-    return NextResponse.redirect(loginUrl);
+    return redirectTo(request, "/login", { next: `${pathname}${search}` });
   }
 
   const owner = moduleForPath(pathname);
   if (owner && !(await moduleEnabled(owner, request))) {
-    const offUrl = request.nextUrl.clone();
-    offUrl.pathname = "/module-off";
-    offUrl.search = "";
-    offUrl.searchParams.set("module", owner);
-    return NextResponse.redirect(offUrl);
+    return redirectTo(request, "/module-off", { module: owner });
   }
   return NextResponse.next();
 }

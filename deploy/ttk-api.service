@@ -1,0 +1,38 @@
+# TTK API: FastAPI under gunicorn with 2 uvicorn workers, on 127.0.0.1:8000 (Caddy proxies /api/*).
+# Installed by deploy/server-install.sh to /etc/systemd/system/ttk-api.service.
+#   journalctl -u ttk-api -f        sudo systemctl restart ttk-api
+[Unit]
+Description=TTK API (FastAPI, gunicorn + uvicorn)
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=ttk
+Group=ttk
+WorkingDirectory=/opt/ttk/app
+EnvironmentFile=/etc/ttk/app.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/ttk/venv/bin/gunicorn app.main:app \
+    --worker-class uvicorn_worker.UvicornWorker \
+    --workers 2 \
+    --bind 127.0.0.1:8000 \
+    --timeout 120 \
+    --graceful-timeout 30 \
+    --access-logfile - \
+    --error-logfile -
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=40
+Restart=always
+RestartSec=3
+
+# Hardening: /usr, /boot, /etc read-only; only the uploads folder is writable.
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+ReadWritePaths=/var/lib/ttk
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

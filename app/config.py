@@ -56,7 +56,9 @@ class Settings(BaseSettings):
     session_cookie: str = "ttk_session"
     session_max_age_days: int = 14  # cookie lifetime when "Keep me signed in" is ticked
     session_short_max_age_hours: int = 12  # server-side lifetime of a plain (browser) session
-    session_https_only: bool = False  # the app may run on a LAN over plain HTTP
+    # Secure flag on the session cookie. Unset = on in production (APP_ENV=prod, served over
+    # HTTPS by Caddy) and off in development (plain http://localhost).
+    session_https_only: bool | None = None
 
     # Used by `python -m app.cli seed` / `create-admin` when set; otherwise the CLI prompts.
     admin_username: str | None = None
@@ -69,7 +71,7 @@ class Settings(BaseSettings):
     timezone: str = "Asia/Kathmandu"
 
     # Uploaded files (employee photos) live outside the web root and are served through
-    # authenticated endpoints only.
+    # authenticated endpoints only. Production: MEDIA_DIR=/var/lib/ttk/uploads.
     media_dir: Path = MEDIA_DIR
 
     # Comma-separated feature modules to load. A module that is not listed gets no API routes,
@@ -79,6 +81,10 @@ class Settings(BaseSettings):
     @property
     def is_prod(self) -> bool:
         return self.app_env == "prod"
+
+    @property
+    def session_secure(self) -> bool:
+        return self.is_prod if self.session_https_only is None else self.session_https_only
 
     @property
     def enabled_module_names(self) -> tuple[str, ...]:

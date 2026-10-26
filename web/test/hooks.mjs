@@ -23,6 +23,9 @@ export async function resolve(specifier, context, nextResolve) {
     target = pathToFileURL(resolvePath(WEB_ROOT, specifier.slice(2))).href;
   } else if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL) {
     target = new URL(specifier, context.parentURL).href;
+  } else if (specifier === "next/server") {
+    // next has no "exports" map, so ESM needs the file name (middleware.ts imports next/server).
+    return nextResolve("next/server.js", context);
   } else {
     return nextResolve(specifier, context);
   }

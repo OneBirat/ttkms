@@ -1,0 +1,54 @@
+# TTK: HTTPS on the server's IP with Caddy's own CA (no domain). deploy/server-install.sh writes
+# this to /etc/caddy/Caddyfile with {SERVER_IP} replaced. Check: caddy validate --config /etc/caddy/Caddyfile
+{
+	# Browsers send no SNI for an IP address: pick the certificate for the IP anyway.
+	default_sni {SERVER_IP}
+	# Never try to install the CA into this server's trust store.
+	skip_install_trust
+}
+
+https://{SERVER_IP} {
+	tls internal
+	encode zstd gzip
+
+	request_body {
+		max_size 10MB
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Content-Security-Policy "frame-ancestors 'none'"
+		-Server
+	}
+
+	# The API (FastAPI): uploads and photos are only ever served through it, signed in.
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	# Everything else: the Next.js app.
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+http://{SERVER_IP} {
+	# Caddy's root certificate, so phones and PCs can install it once (deploy/README.md).
+	handle /ttk-ca.crt {
+		root * /var/lib/caddy/.local/share/caddy/pki/authorities/local
+		rewrite * /root.crt
+		header >Content-Type application/x-x509-ca-cert
+		header Content-Disposition "attachment; filename=\"ttk-ca.crt\""
+		file_server
+	}
+
+	handle {
+		redir https://{host}{uri} permanent
+	}
+}

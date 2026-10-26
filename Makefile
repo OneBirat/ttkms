@@ -74,10 +74,10 @@ web-install:
 	cd web && npm install
 
 web-dev:  ## Next.js dev server on $WEB_PORT, proxying /api to the backend on $APP_PORT
-	cd web && API_URL=http://localhost:$(APP_PORT) npm run dev -- --port $(WEB_PORT)
+	cd web && API_INTERNAL_URL=http://127.0.0.1:$(APP_PORT) npm run dev -- --port $(WEB_PORT)
 
 web-build:
-	cd web && API_URL=http://localhost:$(APP_PORT) npm run build
+	cd web && npm run build
 
 web-lint:
 	cd web && npm run lint && npx tsc --noEmit

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.config import settings
 from app.core import auth, branches, departments, routes
@@ -15,6 +16,7 @@ from app.core.csrf import csrf_protect
 from app.core.errors import ApiError, api_error_handler
 from app.core.modules import Module, load_modules
 from app.core.sessions import SessionMiddleware
+from app.db import DbSession
 
 # The enabled modules (ENABLED_MODULES in .env), imported exactly once, in sidebar order. Each is
 # mounted under /api/<name>; a disabled module is not imported at all.
@@ -55,7 +57,7 @@ def create_app(modules: list[Module] | None = None) -> FastAPI:
         session_cookie=settings.session_cookie,
         max_age=settings.session_max_age_days * 24 * 60 * 60,
         same_site="lax",
-        https_only=settings.session_https_only,
+        https_only=settings.session_secure,
     )
     app.state.modules = modules
     app.add_exception_handler(auth.LoginRequired, login_required_handler)
@@ -65,6 +67,15 @@ def create_app(modules: list[Module] | None = None) -> FastAPI:
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/health", include_in_schema=False, response_model=None)
+    async def api_health(db: DbSession) -> dict[str, str] | JSONResponse:
+        """Liveness + database check (the deploy scripts and Caddy's upstream both use it)."""
+        try:
+            await db.execute(text("SELECT 1"))
+        except Exception:  # any driver error means "not ready"
+            return JSONResponse({"status": "error", "database": "unreachable"}, status_code=503)
+        return {"status": "ok", "database": "ok"}
 
     app.include_router(auth.router)
     app.include_router(auth.me_router)

@@ -1,0 +1,29 @@
+# TTK web: the Next.js standalone server of the current release, on 127.0.0.1:3000 (Caddy proxies
+# everything that is not /api/*). /opt/ttk/web/current -> /opt/ttk/web/releases/<timestamp>.
+# Installed by deploy/server-install.sh to /etc/systemd/system/ttk-web.service.
+#   journalctl -u ttk-web -f        sudo systemctl restart ttk-web
+[Unit]
+Description=TTK web (Next.js)
+After=network-online.target ttk-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ttk
+Group=ttk
+WorkingDirectory=/opt/ttk/web/current
+EnvironmentFile=/etc/ttk/app.env
+# Fixed by the server layout (Next.js reads PORT and HOSTNAME).
+Environment=NODE_ENV=production PORT=3000 HOSTNAME=127.0.0.1 NEXT_TELEMETRY_DISABLED=1
+ExecStart=/usr/bin/node /opt/ttk/web/current/server.js
+Restart=always
+RestartSec=3
+
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+ReadWritePaths=/var/lib/ttk
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

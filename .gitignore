@@ -16,3 +16,16 @@ web/.env*.local
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Secrets and certificates: never commit (deploy/app.env.example is the template)
+.env.*
+!.env.example
+*.env
+!*.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*

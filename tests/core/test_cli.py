@@ -2,8 +2,10 @@ import pytest
 from sqlalchemy import func, select
 
 from app import cli
-from app.core.models import Branch, Department, Employee, Role, Setting, User
+from app.core.models import AuditLog, Branch, Department, Employee, Role, Setting, User
 from app.core.services import find_branch, get_setting
+from app.modules.admin.models import UserAccess
+from app.modules.admin.permissions import effective_access, preset_for
 
 pytestmark = pytest.mark.anyio
 
@@ -80,4 +82,94 @@ def test_resolve_credentials_prompts(monkeypatch):
 def test_parser_has_both_commands():
     parser = cli.build_parser()
     assert parser.parse_args(["seed", "--no-input"]).func is cli.cmd_seed
-    assert parser.parse_args(["create-admin", "--username", "x"]).func is cli.cmd_create_admin
+    create = parser.parse_args(["create-admin", "--force"])
+    assert create.func is cli.cmd_create_admin and create.force
+
+
+def _answers(*values):
+    """(ask, secret) prompt stand-ins that hand out ``values`` in order and record the prompts."""
+    queue, prompts = list(values), []
+
+    def answer(prompt):
+        prompts.append(prompt)
+        return queue.pop(0)
+
+    return answer, answer, prompts
+
+
+async def test_create_first_admin_makes_the_first_branch_and_an_admin(db):
+    ask, secret, prompts = _answers(
+        "Sita Sharma", "+977 984-1000002", "very-secret-1", "very-secret-1", "Main branch"
+    )
+    user, branch = await cli.create_first_admin(db, force=False, ask=ask, secret=secret)
+    assert prompts[-1].startswith("No branch yet")
+    assert branch is not None and branch.name == "Main branch"
+    # A phone login: username = phone, like the users the admin pages create.
+    assert (user.username, user.phone, user.full_name) == (
+        "9841000002",
+        "9841000002",
+        "Sita Sharma",
+    )
+    assert user.role == Role.admin and user.is_active and not user.must_change_password
+    assert user.active_branch_id == branch.id
+    access = await db.get(UserAccess, user.id)
+    assert access.branch_id is None and access.access is None  # Admin preset, all branches
+    assert effective_access(user.role, access.access) == preset_for(Role.admin)
+    from app.core.auth import verify_password
+
+    assert verify_password(user.password_hash, "very-secret-1")
+    audit = await db.scalar(select(AuditLog).where(AuditLog.action == "cli_create_admin"))
+    assert audit.entity_id == str(user.id)
+
+
+async def test_create_admin_refuses_while_an_admin_exists_unless_forced(db):
+    db.add(Branch(name="Main branch"))
+    await db.flush()
+    ask, secret, _ = _answers("Admin", "admin", "very-secret-1", "very-secret-1")
+    first, branch = await cli.create_first_admin(db, force=False, ask=ask, secret=secret)
+    assert branch is None and first.username == "admin"  # a branch exists: not asked
+
+    ask, secret, prompts = _answers()
+    with pytest.raises(cli.CliError, match="already exist"):
+        await cli.create_first_admin(db, force=False, ask=ask, secret=secret)
+    assert prompts == []  # refused before asking anything
+
+    ask, secret, _ = _answers("Boss", "boss", "other-secret-2", "other-secret-2")
+    second, _ = await cli.create_first_admin(db, force=True, ask=ask, secret=secret)
+    assert second.role == Role.admin and await _count(db, User) == 2
+
+
+async def test_create_admin_force_promotes_an_existing_login(db):
+    db.add(Branch(name="Main branch"))
+    clerk = User(username="clerk", full_name="Clerk", role=Role.staff, password_hash="x")
+    db.add(clerk)
+    await db.flush()
+    ask, secret, _ = _answers("Clerk Two", "clerk", "very-secret-1", "very-secret-1")
+    with pytest.raises(cli.CliError, match="already exists"):
+        await cli.create_first_admin(db, force=False, ask=ask, secret=secret)
+    ask, secret, _ = _answers("Clerk Two", "clerk", "very-secret-1", "very-secret-1")
+    user, _ = await cli.create_first_admin(db, force=True, ask=ask, secret=secret)
+    assert user.id == clerk.id and user.role == Role.admin and await _count(db, User) == 1
+
+
+@pytest.mark.parametrize(
+    "answers, message",
+    [
+        (("", "admin", "very-secret-1", "very-secret-1"), "full name"),
+        (("Admin", "  ", "very-secret-1", "very-secret-1"), "username"),
+        (("Admin", "admin", "short", "short"), "at least 8"),
+        (("Admin", "admin", "very-secret-1", "very-secret-2"), "do not match"),
+        (("Admin", "admin", "very-secret-1", "very-secret-1", " "), "branch name"),
+    ],
+)
+async def test_create_admin_validates(db, answers, message):
+    ask, secret, _ = _answers(*answers)
+    with pytest.raises(cli.CliError, match=message):
+        await cli.create_first_admin(db, force=False, ask=ask, secret=secret)
+    assert await _count(db, User) == 0 and await _count(db, Branch) == 0
+
+
+def test_seed_demo_refuses_in_production(monkeypatch, capsys):
+    monkeypatch.setattr(cli.settings, "app_env", "prod")
+    assert cli.main(["seed-demo"]) == 2
+    assert "APP_ENV=dev" in capsys.readouterr().err

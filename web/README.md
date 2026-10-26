@@ -8,11 +8,11 @@ the app runs on a LAN without internet.
 
 ```sh
 npm install
-API_URL=http://localhost:8000 npm run dev -- --port 3000
+API_INTERNAL_URL=http://127.0.0.1:8000 npm run dev -- --port 3000
 ```
 
-Then open http://localhost:3000. `API_URL` is the origin of the FastAPI
-backend; copy `.env.example` to `.env.local` to set it (and `PORT`) once.
+Then open http://localhost:3000. `API_INTERNAL_URL` is the origin of the FastAPI
+backend for server-side requests; copy `.env.example` to `.env.local` to set it (and `PORT`) once.
 
 Checks: `npm run lint`, `npx tsc --noEmit`, `npm run build` (then `npm start`).
 Pages are client-rendered and never call the API at build time, so the build
@@ -23,7 +23,10 @@ works without a running backend.
 `next.config.ts` rewrites `/api/:path*` and `/health` to the backend. The browser only ever talks to the Next.js origin, so the
 `ttk_session` cookie (HttpOnly, SameSite=Lax) stays same-origin and there is no
 CORS configuration anywhere. Rewrites are evaluated when the server starts
-(`next dev`) or at `next build`, so set `API_URL` for that process.
+(`next dev`) or at `next build`, so set `API_INTERNAL_URL` for that process.
+In production Caddy sends `/api/*` straight to the API (same origin, see
+`deploy/`), the build is `output: "standalone"`, and `middleware.ts` reads
+`API_INTERNAL_URL` at run time.
 
 - `middleware.ts` redirects app pages to `/login?next=...` when the cookie is
   missing; the API remains the real guard and every 401 also sends the user to
@@ -60,11 +63,11 @@ CORS configuration anywhere. Rewrites are evaluated when the server starts
 ## Worktrees
 
 Each git worktree has its own `web/` (and its own `node_modules`). Run it on
-its own port with `API_URL` pointing at that worktree's backend, e.g. worktree
+its own port with `API_INTERNAL_URL` pointing at that worktree's backend, e.g. worktree
 1 on 3001 against the backend on 8001:
 
 ```sh
-API_URL=http://localhost:8001 npm run dev -- --port 3001
+API_INTERNAL_URL=http://127.0.0.1:8001 npm run dev -- --port 3001
 ```
 
 Use 3001-3004 / 8001-8004 so several worktrees can run side by side.

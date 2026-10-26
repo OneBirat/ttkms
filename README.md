@@ -57,13 +57,15 @@ make dev                        # API on http://localhost:$APP_PORT  (8000)
 make web-dev                    # UI  on http://localhost:$WEB_PORT  (3000) -> sign in there
 ```
 
-`make seed` / `python -m app.cli create-admin` read `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env`
-when set, otherwise they prompt. Both commands are idempotent.
+`make seed` reads `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env` when set, otherwise it prompts; it
+is idempotent. `python -m app.cli create-admin` always asks (full name, username or phone, password
+twice), creates the first branch when there is none, and refuses while an admin exists unless
+`--force`.
 
 | Make target | What it does |
 |---|---|
 | `make dev` | `uvicorn app.main:app --reload --port $APP_PORT` |
-| `make web-dev` / `make web-build` | Next.js dev server / production build (API_URL points at `$APP_PORT`) |
+| `make web-dev` / `make web-build` | Next.js dev server / production build (API_INTERNAL_URL points at `$APP_PORT`) |
 | `make migrate` | `alembic -n core upgrade head`, then each module in `ENABLED_MODULES` with versions |
 | `make test` | pytest (creates and migrates the `ttk_test` database itself) |
 | `make lint` / `make fmt` | ruff check + format check (+ `npm run lint` and `tsc` when `web/node_modules` exists) / auto-format |
@@ -125,6 +127,12 @@ Every POST/PUT/PATCH/DELETE needs the `X-CSRF-Token` header (the token comes bac
 `/api/auth/csrf`, `/api/auth/login` and `/api/auth/me`). Unauthenticated requests get
 `401 {"detail": "login required"}`; the wrong role gets 403. A session without "Keep me signed in"
 is a browser-session cookie that also expires server-side after 12 hours.
+
+## Production
+
+One Ubuntu server, no Docker: Caddy (HTTPS on the IP with its own CA) in front of the API
+(gunicorn + uvicorn, 127.0.0.1:8000) and the Next.js standalone server (127.0.0.1:3000), same
+origin. Install, update, rollback, logs and the CA certificate on phones: [deploy/README.md](deploy/README.md).
 
 ## Employee photos and backups
 
