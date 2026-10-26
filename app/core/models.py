@@ -259,6 +259,11 @@ class User(Base, TimestampMixin):
         ForeignKey("core.employees.id", ondelete="SET NULL"), index=True
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    #: The one branch every screen works on (users with ``see_other_branches`` switch it; others
+    #: are always held to their own branch). Kept across logins.
+    active_branch_id: Mapped[int | None] = mapped_column(
+        ForeignKey("core.branches.id", ondelete="SET NULL")
+    )
 
     employee: Mapped[Employee | None] = relationship(lazy="selectin")
 

@@ -129,6 +129,17 @@ class LoginIn(BaseModel):
     remember: bool = False
 
 
+class ActiveBranchOut(BaseModel):
+    id: int
+    name: str
+
+
+class ActiveBranchIn(BaseModel):
+    """PATCH /api/auth/me/active-branch."""
+
+    branch_id: int
+
+
 class SessionOut(BaseModel):
     """``POST /api/auth/login``, ``GET /api/auth/me``, ``POST /api/auth/change-password``: the
     signed-in user plus what every screen needs to scope itself - the user's own branch and
@@ -136,10 +147,14 @@ class SessionOut(BaseModel):
 
     user: UserOut
     csrf_token: str
-    #: ``admin.user_access.branch_id``; ``None`` for admins (all branches) and unassigned users.
+    #: ``admin.user_access.branch_id`` (the user's own branch); ``None`` for unassigned users.
     branch_id: int | None = None
     #: That branch's name (the sidebar footer's "role · branch"); ``None`` without a branch.
     branch_name: str | None = None
+    #: The ONE branch every screen works on (switched with PATCH /api/auth/me/active-branch by
+    #: users with ``see_other_branches``; everyone else always gets their own branch). ``None``
+    #: only for a user without a branch who may not switch.
+    active_branch: ActiveBranchOut | None = None
     #: Effective access, ``{permission: on}`` - role preset + per-user switches.
     access: dict[str, bool] = Field(default_factory=dict)
 

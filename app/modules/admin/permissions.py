@@ -10,6 +10,9 @@ Admins always keep ``manage_users`` so the system cannot be locked out.
 * :func:`access_for_user` - the signed-in user's effective access (what the sidebar and the
   module registry in ``app.core.routes`` filter by, and what ``/api/auth/me`` returns)
 * :func:`branch_for_user` - the user's own branch (``user_access.branch_id``), also in the session
+* :func:`active_branch_for_user` / :func:`branch_scope` - the ONE branch every branch-aware
+  endpoint works on: ``users.active_branch_id`` for users with ``see_other_branches`` (they
+  switch it), the user's own branch for everyone else
 * :func:`require_access` - FastAPI dependency: ``Depends(require_access("manage_users"))``
   (every listed permission); :func:`require_any_access` - at least one of them
 
@@ -24,12 +27,14 @@ Keep ``web/components/admin/permissions.ts`` in step with the constants here.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy import select
 
 from app.core.auth import CurrentUser
-from app.core.models import Role, User
+from app.core.models import Branch, Role, User
 from app.core.modules import is_enabled
 from app.db import DbSession
 from app.modules.admin.models import UserAccess
@@ -129,6 +134,54 @@ async def branch_for_user(db, user: User) -> int | None:
     holds ``see_other_branches``."""
     row = await access_row_for_user(db, user)
     return row.branch_id if row else None
+
+
+OTHER_BRANCHES = "see_other_branches"
+
+
+async def first_active_branch(db) -> int | None:
+    """The first active branch, A-Z (the default before a user has picked one)."""
+    return await db.scalar(
+        select(Branch.id).where(Branch.is_active.is_(True)).order_by(Branch.name, Branch.id)
+    )
+
+
+async def active_branch_for_user(db, user: User, access: Access | None = None) -> int | None:
+    """The branch the whole app works on for this user. Without ``see_other_branches``: their own
+    branch, always (``None`` when they have none). With it: ``users.active_branch_id`` while that
+    branch exists and is active, else their own branch, else the first active branch."""
+    access = access if access is not None else await access_for_user(db, user)
+    own = await branch_for_user(db, user)
+    if not access.get(OTHER_BRANCHES):
+        return own
+    for candidate in (user.active_branch_id, own):
+        if candidate is not None:
+            branch = await db.get(Branch, candidate)
+            if branch is not None and branch.is_active:
+                return branch.id
+    return await first_active_branch(db)
+
+
+@dataclass(frozen=True)
+class BranchScope:
+    #: The one branch to read / write; 0 = nothing (a user without a branch who may not switch).
+    branch_id: int
+    #: ``see_other_branches``: may switch, and may name another branch explicitly.
+    can_switch: bool
+
+
+async def branch_scope(db, user: User, requested: int | None = None) -> BranchScope:
+    """Which branch an endpoint serves. ``requested`` (a ``?branch_id=``) is honoured only with
+    ``see_other_branches`` (404 when it does not exist) and ignored otherwise; without it, the
+    user's active branch. Never "every branch"."""
+    access = await access_for_user(db, user)
+    if access.get(OTHER_BRANCHES):
+        if requested is not None:
+            if await db.get(Branch, requested) is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such branch.")
+            return BranchScope(requested, True)
+        return BranchScope(await active_branch_for_user(db, user, access) or 0, True)
+    return BranchScope(await branch_for_user(db, user) or 0, False)
 
 
 def _check_permissions(name: str, permissions: tuple[str, ...]) -> None:

@@ -29,7 +29,16 @@ from sqlalchemy import select
 from app.config import settings
 from app.core.csrf import get_csrf_token, rotate_csrf_token
 from app.core.models import Branch, Role, User, is_phone, normalize_phone, normalize_username
-from app.core.schemas import ChangePasswordIn, CsrfOut, ErrorOut, LoginIn, SessionOut, UserOut
+from app.core.schemas import (
+    ActiveBranchIn,
+    ActiveBranchOut,
+    ChangePasswordIn,
+    CsrfOut,
+    ErrorOut,
+    LoginIn,
+    SessionOut,
+    UserOut,
+)
 from app.core.services import record_audit
 from app.core.sessions import PERSIST_KEY
 from app.db import DbSession
@@ -127,16 +136,24 @@ OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 async def session_out(db, user: User, csrf_token: str) -> SessionOut:
     """The session body: user, token, own branch and effective access. The admin module owns the
     permission catalogue and imports this module, so it is imported here lazily."""
-    from app.modules.admin.permissions import access_for_user, branch_for_user
+    from app.modules.admin.permissions import (
+        access_for_user,
+        active_branch_for_user,
+        branch_for_user,
+    )
 
+    access = await access_for_user(db, user)
     branch_id = await branch_for_user(db, user)
     branch = await db.get(Branch, branch_id) if branch_id is not None else None
+    active_id = await active_branch_for_user(db, user, access)
+    active = await db.get(Branch, active_id) if active_id is not None else None
     return SessionOut(
         user=UserOut.from_user(user),
         csrf_token=csrf_token,
         branch_id=branch_id,
         branch_name=branch.name if branch else None,
-        access=await access_for_user(db, user),
+        active_branch=ActiveBranchOut(id=active.id, name=active.name) if active else None,
+        access=access,
     )
 
 
@@ -214,6 +231,48 @@ async def login(request: Request, db: DbSession, payload: LoginIn) -> SessionOut
 
 @router.get("/me", response_model=SessionOut, responses={401: {"model": ErrorOut}})
 async def me(request: Request, db: DbSession, user: CurrentUser) -> SessionOut:
+    return await session_out(db, user, get_csrf_token(request))
+
+
+@router.patch(
+    "/me/active-branch",
+    response_model=SessionOut,
+    responses={401: {"model": ErrorOut}, 403: {"model": ErrorOut}, 422: {"model": ErrorOut}},
+)
+async def set_active_branch(
+    request: Request, db: DbSession, user: CurrentUser, payload: ActiveBranchIn
+) -> SessionOut:
+    """Switch the ONE branch the whole app works on - only with ``see_other_branches`` (everyone
+    else is always on their own branch). The branch must exist and be active. Kept on the user,
+    so it survives logins and applies to every tab; audit-logged."""
+    from app.modules.admin.permissions import (
+        OTHER_BRANCHES,
+        access_for_user,
+        active_branch_for_user,
+    )
+
+    access = await access_for_user(db, user)
+    if not access.get(OTHER_BRANCHES):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="You can only work in your own branch."
+        )
+    branch = await db.get(Branch, payload.branch_id)
+    if branch is None or not branch.is_active:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Pick one of the active branches."
+        )
+    before = await active_branch_for_user(db, user, access)
+    user.active_branch_id = branch.id
+    await record_audit(
+        db,
+        module="core",
+        action="active_branch",
+        entity="user",
+        entity_id=user.id,
+        user_id=user.id,
+        data={"before": {"branch_id": before}, "after": {"branch_id": branch.id}},
+    )
+    await db.commit()
     return await session_out(db, user, get_csrf_token(request))
 
 
