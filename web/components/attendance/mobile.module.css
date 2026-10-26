@@ -214,6 +214,12 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* The body scrolls; its rows must keep their height. Without this a long list ("All") squeezes
+   the side-scrolling status chips (overflow-x: auto, so min-height 0) down to a sliver. */
+.body > * {
+  flex-shrink: 0;
+}
+
 .pad {
   padding: 0 14px;
 }
