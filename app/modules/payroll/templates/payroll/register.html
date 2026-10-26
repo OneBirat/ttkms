@@ -10,7 +10,7 @@
   <td class="muted">{{ n }}</td><td class="tt">{{ r.payment.date.bs }}</td>
   <td class="nm">{{ r.employee.full_name }} <span class="muted">· {{ r.employee.code }}</span></td>
   <td class="nm">{{ r.employee.department.name if r.employee.department else "" }}</td>
-  <td class="nm">{{ r.employee.branch.name }}</td>
+  <td class="nm">{{ r.payment.branch.name }}</td>
   <td>{{ month_label(r.payment.for_year, r.payment.for_month) }}</td>
   <td><span class="pill pill--{{ 'leave' if r.payment.kind == 'advance' else 'ok' }}">{{ kind_label(r.payment) }}</span></td>
   <td>{{ r.payment.payment_mode.name }}</td>

@@ -24,7 +24,7 @@ from app.core.bsdate import BSDate
 from app.core.errors import CodedErrorOut
 from app.core.export import PDF_MEDIA_TYPE, XLSX_MEDIA_TYPE, PDFUnavailable
 from app.core.media import photo_version
-from app.core.models import Employee, User
+from app.core.models import User
 from app.core.modules import Module, NavItem, WidgetContext
 from app.core.schemas import ErrorOut, ModuleStatusOut
 from app.db import DbSession
@@ -678,17 +678,16 @@ async def photo_token_upload(token: str, db: DbSession, request: Request) -> Emp
 
 
 async def payments_today(ctx: WidgetContext) -> list[dict[str, Any]]:
-    """Today's payments (Kathmandu day) of the employees the caller may see, newest first:
+    """Today's payments (Kathmandu day) made by the branches the caller may see, newest first:
     ``{payment_id, employee_id, name, kind, amount, mode, time}``."""
     scope = await services.scope_for(ctx.db, ctx.user, None)
     query = (
         select(Payment)
-        .join(Employee, Employee.id == Payment.employee_id)
         .where(Payment.date == bsdate.today_ad(), Payment.voided_at.is_(None))
         .order_by(Payment.paid_at.desc(), Payment.id.desc())
     )
-    if scope.branch_id is not None:
-        query = query.where(Employee.branch_id == scope.branch_id)
+    if scope.branch_id is not None:  # paid by this branch (payments.branch_id)
+        query = query.where(Payment.branch_id == scope.branch_id)
     modes = await services.modes_by_id(ctx.db)
     rows: list[dict[str, Any]] = []
     for p in await ctx.db.scalars(query):

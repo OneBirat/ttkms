@@ -52,6 +52,7 @@ async def _setup(db):
         Payment(
             receipt_no="ADV-0001",
             employee_id=people[0].id,
+            branch_id=people[0].branch_id,
             kind=PaymentKind.advance,
             for_year=today.year,
             for_month=today.month,

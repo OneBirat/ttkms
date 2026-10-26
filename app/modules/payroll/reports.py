@@ -58,6 +58,7 @@ def payment_out(p: Payment, modes: dict[int, PaymentMode]) -> PaymentOut:
         amount=p.amount,
         payment_mode_id=p.payment_mode_id,
         payment_mode=services.mode_ref(mode),
+        branch=BranchRef(id=p.branch.id, name=p.branch.name, is_active=p.branch.is_active),
         reference=p.reference,
         system_remark=p.system_remark,
         note=p.note,
@@ -149,11 +150,46 @@ def branch_ref(branch: Branch) -> BranchRef:
     return BranchRef(id=branch.id, name=branch.name, is_active=branch.is_active)
 
 
-async def scoped_employees(db: AsyncSession, scope: services.Scope) -> list[Employee]:
+async def scoped_employees(
+    db: AsyncSession, scope: services.Scope, paid_for: tuple[int, int] | None = None
+) -> list[Employee]:
+    """The branch's current staff; with ``paid_for`` also anyone the branch paid for that BS
+    month (payments.branch_id) who has since moved to another branch."""
     query = select(Employee).order_by(Employee.full_name, Employee.id)
     if scope.branch_id is not None:
-        query = query.where(Employee.branch_id == scope.branch_id)
+        current = Employee.branch_id == scope.branch_id
+        if paid_for is not None:
+            paid_here = (
+                select(Payment.employee_id)
+                .where(
+                    Payment.branch_id == scope.branch_id,
+                    Payment.for_year == paid_for[0],
+                    Payment.for_month == paid_for[1],
+                    Payment.voided_at.is_(None),
+                )
+                .scalar_subquery()
+            )
+            query = query.where(current | Employee.id.in_(paid_here))
+        else:
+            query = query.where(current)
     return list(await db.scalars(query))
+
+
+def paid_in_branch(
+    ledgers_: Iterable[ledgers.MonthLedger], branch_id: int | None
+) -> tuple[int, int]:
+    """(salary, advances) the branch paid for these months - payments.branch_id, the employee's
+    branch when paid; every branch when ``branch_id`` is None."""
+    salary = advances = 0
+    for ledger in ledgers_:
+        for p in ledger.payments:
+            if branch_id is not None and p.branch_id != branch_id:
+                continue
+            if p.kind.value == "advance":
+                advances += p.amount
+            else:
+                salary += p.amount
+    return salary, advances
 
 
 async def salary_report(
@@ -171,7 +207,7 @@ async def salary_report(
         raise services.not_found("No such department.")
     branch = await db.get(Branch, scope.branch_id) if scope.branch_id else None
 
-    employees = await scoped_employees(db, scope)
+    employees = await scoped_employees(db, scope, (year, month))
     ids = [e.id for e in employees]
     structures = await ledgers.load_structures(db, ids)
     payments = await ledgers.load_payments(db, ids)
@@ -179,11 +215,21 @@ async def salary_report(
     logins = await services.logins_for(db, ids)
     rule = await ledgers.saturday_rule(db)
 
-    # Active staff, plus former staff who still have a payment for that month.
+    # Active staff of the branch, plus former staff and staff who moved away that the branch
+    # still paid for that month.
+    def paid_here(e: Employee) -> bool:
+        return any(
+            p.for_year == year
+            and p.for_month == month
+            and (scope.branch_id is None or p.branch_id == scope.branch_id)
+            for p in payments.get(e.id, [])
+        )
+
     def on_sheet(e: Employee) -> bool:
-        if e.status == EmployeeStatus.active:
+        current = scope.branch_id is None or e.branch_id == scope.branch_id
+        if current and e.status == EmployeeStatus.active:
             return True
-        return any(p.for_year == year and p.for_month == month for p in payments.get(e.id, []))
+        return paid_here(e)
 
     all_rows: list[ledgers.MonthLedger] = []
     for e in employees:
@@ -206,18 +252,19 @@ async def salary_report(
         for d in departments
     ]
     branches = list(await db.scalars(select(Branch).order_by(Branch.name, Branch.id)))
+    # Staff / net / due follow the employee's branch; paid follows the branch that paid.
     by_branch = [
         BranchNetTotalOut(
             branch=branch_ref(b),
             staff=sum(1 for r in rows if r.employee.branch_id == b.id),
             net=sum(r.net for r in rows if r.employee.branch_id == b.id),
-            paid=sum(r.paid for r in rows if r.employee.branch_id == b.id),
+            paid=sum(paid_in_branch(rows, b.id)),
             due=sum(r.due for r in rows if r.employee.branch_id == b.id),
         )
         for b in branches
         if branch is None or b.id == branch.id
     ]
-    by_branch = [b for b in by_branch if b.staff > 0]
+    by_branch = [b for b in by_branch if b.staff > 0 or b.paid > 0]
 
     trend: list[MonthNetTotalOut] = []
     for k in range(TREND_MONTHS - 1, -1, -1):
@@ -233,6 +280,10 @@ async def salary_report(
             )
             net += ledger.net if ledger else 0
         trend.append(MonthNetTotalOut(month=BsMonthOut(bs_year=ty, bs_month=tm), net=net))
+
+    totals = totals_for(rows)
+    salary_paid, advance_paid = paid_in_branch(rows, scope.branch_id)
+    totals = totals.model_copy(update={"salary_paid": salary_paid, "advance_paid": advance_paid})
 
     scope_text = branch.name if branch else "All branches"
     title_parts = [
@@ -252,7 +303,7 @@ async def salary_report(
             )
             for r in rows
         ],
-        totals=totals_for(rows),
+        totals=totals,
         by_department=by_department,
         by_branch=by_branch,
         trend=trend,

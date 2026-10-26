@@ -30,7 +30,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.models import Employee, User, _enum_values
+from app.core.models import Branch, Employee, User, _enum_values
 from app.db import Base
 from app.modules.payroll.remarks import remark_default
 
@@ -117,6 +117,7 @@ class Payment(Base):
         Index("uq_payments_receipt_month", "receipt_no", "for_year", "for_month", unique=True),
         Index("ix_payments_payment_group_id", "payment_group_id"),
         Index("ix_payments_date", "date"),
+        Index("ix_payments_branch_date", "branch_id", "date"),
         Index("ix_payments_payment_mode_id", "payment_mode_id"),
         {"schema": SCHEMA},
     )
@@ -127,6 +128,12 @@ class Payment(Base):
     receipt_no: Mapped[str] = mapped_column(String(16), nullable=False)
     employee_id: Mapped[int] = mapped_column(
         ForeignKey("core.employees.id", ondelete="RESTRICT"), nullable=False
+    )
+    #: The employee's branch at the moment of payment (set by the server, never from a client).
+    #: Payment reports, the salary report's paid totals and their exports filter on it, so a
+    #: transfer leaves earlier payments with the branch that made them.
+    branch_id: Mapped[int] = mapped_column(
+        ForeignKey("core.branches.id", ondelete="RESTRICT"), nullable=False
     )
     kind: Mapped[PaymentKind] = mapped_column(_enum(PaymentKind, "payment_kind"), nullable=False)
     for_year: Mapped[int] = mapped_column(SmallInteger, nullable=False)
@@ -171,6 +178,7 @@ class Payment(Base):
     void_reason: Mapped[str | None] = mapped_column(String(200))
 
     employee: Mapped[Employee] = relationship(lazy="selectin")
+    branch: Mapped[Branch] = relationship(lazy="selectin")
     recorder: Mapped[User | None] = relationship(lazy="selectin", foreign_keys=[recorded_by])
     voider: Mapped[User | None] = relationship(lazy="selectin", foreign_keys=[voided_by])
     note_editor: Mapped[User | None] = relationship(lazy="selectin", foreign_keys=[note_updated_by])

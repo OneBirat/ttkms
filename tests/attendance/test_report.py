@@ -53,6 +53,7 @@ async def _seed(db, world):
         Payment(
             receipt_no="ADV-9001",
             employee_id=anita.id,
+            branch_id=anita.branch_id,
             kind=PaymentKind.advance,
             for_year=PREVIOUS[0],
             for_month=PREVIOUS[1],

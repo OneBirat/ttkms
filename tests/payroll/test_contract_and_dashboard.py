@@ -52,6 +52,7 @@ async def _pay(db, employee, kind, amount, month, receipt):
         Payment(
             receipt_no=receipt,
             employee_id=employee.id,
+            branch_id=employee.branch_id,
             kind=PaymentKind(kind),
             for_year=month[0],
             for_month=month[1],

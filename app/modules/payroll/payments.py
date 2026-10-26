@@ -214,6 +214,7 @@ async def record_payment(
     payment = Payment(
         receipt_no=await next_receipt_no(db, data.kind),
         employee_id=employee.id,
+        branch_id=employee.branch_id,
         kind=PaymentKind(data.kind),
         for_year=data.for_year,
         for_month=data.for_month,
@@ -238,6 +239,7 @@ async def record_payment(
             "after": {
                 "receipt_no": payment.receipt_no,
                 "employee_id": employee.id,
+                "branch_id": employee.branch_id,
                 "kind": data.kind,
                 "for_year": data.for_year,
                 "for_month": data.for_month,
@@ -362,6 +364,7 @@ async def pay_salary(
         payment = Payment(
             receipt_no=receipt_no,
             employee_id=employee.id,
+            branch_id=employee.branch_id,
             kind=PaymentKind.salary,
             for_year=year,
             for_month=month,
@@ -392,6 +395,7 @@ async def pay_salary(
             "after": {
                 "receipt_no": receipt_no,
                 "employee_id": employee.id,
+                "branch_id": employee.branch_id,
                 "amount": data.amount,
                 "payment_mode_id": mode.id,
                 "date": day.isoformat(),
@@ -545,7 +549,7 @@ def _sort_key(sort: RegisterSort, all_branches: bool):
         return (0, d.name.lower()) if d else (1, "")
 
     def branch(row: RegisterRowOut) -> tuple[str, int]:
-        return (row.employee.branch.name.lower(), row.employee.branch.id)
+        return (row.payment.branch.name.lower(), row.payment.branch.id)
 
     def date_desc(row: RegisterRowOut) -> tuple[date, int]:
         return (row.payment.date.ad, row.payment.id)
@@ -609,16 +613,17 @@ async def register(
         raise services.not_found("No such department.")
     branch = await db.get(Branch, scope.branch_id) if scope.branch_id else None
 
+    # Rows: payments MADE BY the branch (payments.branch_id, the employee's branch when paid),
+    # whatever branch the employee is in now. Tiles / By employee: the branch's current staff.
     employees_q = select(Employee).order_by(Employee.full_name, Employee.id)
     if scope.branch_id is not None:
         employees_q = employees_q.where(Employee.branch_id == scope.branch_id)
     employees = list(await db.scalars(employees_q))
-    by_id = {e.id: e for e in employees}
-    logins = await services.logins_for(db, list(by_id))
     modes = await services.modes_by_id(db)
-    emp_out = {e.id: services.employee_out(e, logins.get(e.id)) for e in employees}
 
-    query = select(Payment).where(Payment.employee_id.in_(list(by_id) or [0]))
+    query = select(Payment)
+    if scope.branch_id is not None:
+        query = query.where(Payment.branch_id == scope.branch_id)
     if start:
         query = query.where(Payment.date >= start)
     if end:
@@ -629,10 +634,16 @@ async def register(
         query = query.where(Payment.employee_id == employee_id)
     if not show_voided:
         query = query.where(Payment.voided_at.is_(None))
+    found = list(await db.scalars(query.order_by(Payment.date, Payment.id)))
+    by_id = {e.id: e for e in employees}
+    for p in found:  # transferred staff: paid here before they moved
+        by_id.setdefault(p.employee_id, p.employee)
+    logins = await services.logins_for(db, list(by_id))
+    emp_out = {i: services.employee_out(e, logins.get(i)) for i, e in by_id.items()}
     listed = collapse_groups(
         [
             RegisterRowOut(payment=payment_out(p, modes), employee=emp_out[p.employee_id])
-            for p in await db.scalars(query.order_by(Payment.date, Payment.id))
+            for p in found
         ]
     )
     in_range = [r for r in listed if not r.payment.voided]
@@ -663,7 +674,7 @@ async def register(
     for b in branches:
         if branch and b.id != branch.id:
             continue
-        mine = [r for r in in_range if r.employee.branch.id == b.id]
+        mine = [r for r in in_range if r.payment.branch.id == b.id]
         if not mine:
             continue
         salary, advances, total = totals_of(mine)

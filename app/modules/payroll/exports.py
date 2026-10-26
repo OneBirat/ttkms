@@ -454,7 +454,8 @@ def _dept_key(row: RegisterRowOut):
 
 
 def _branch_key(row: RegisterRowOut):
-    return (row.employee.branch.id, row.employee.branch.name)
+    """The branch that made the payment (not the employee's current branch)."""
+    return (row.payment.branch.id, row.payment.branch.name)
 
 
 def months_of(row: RegisterRowOut) -> str:
@@ -512,7 +513,7 @@ def register_sheets(data: PaymentsRegisterOut) -> list[Sheet]:
                 e.code,
                 e.full_name,
                 e.department.name if e.department else "",
-                e.branch.name,
+                p.branch.name,
                 months_of(r),
                 _kind_label(p),
                 p.payment_mode.name,
@@ -718,7 +719,7 @@ def register_sheets(data: PaymentsRegisterOut) -> list[Sheet]:
                 e.code,
                 e.full_name,
                 e.department.name if e.department else "",
-                e.branch.name,
+                p.branch.name,
                 months_of(r),
                 _kind_label(p),
                 p.payment_mode.name,

@@ -47,6 +47,7 @@ async def test_salary_history_and_payment_rows(db):
     payment = Payment(
         receipt_no="ADV-0001",
         employee_id=employee.id,
+        branch_id=employee.branch_id,
         kind=PaymentKind.advance,
         for_year=2083,
         for_month=7,
@@ -74,6 +75,7 @@ async def test_payment_constraints(db, bad):
     values = dict(
         receipt_no="SAL-0001",
         employee_id=employee.id,
+        branch_id=employee.branch_id,
         kind=PaymentKind.salary,
         for_year=2083,
         for_month=6,

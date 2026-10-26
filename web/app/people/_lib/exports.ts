@@ -282,7 +282,7 @@ export function registerWorkbook({ register, rows, branch }: RegisterExportInput
         e.code,
         e.full_name,
         e.department?.name ?? "",
-        e.branch.name,
+        (p.branch ?? e.branch).name,
         monthLabel(p.month),
         typeLabel(p),
         p.payment_mode.name,
@@ -401,7 +401,7 @@ export function registerWorkbook({ register, rows, branch }: RegisterExportInput
         e.code,
         e.full_name,
         e.department?.name ?? "",
-        e.branch.name,
+        (p.branch ?? e.branch).name,
         monthLabel(p.month),
         typeLabel(p),
         p.payment_mode.name,
@@ -470,7 +470,7 @@ export function registerPdfHtml({ register, rows, branch, generatedBy, previousM
   const line = ({ payment: p, employee: e }: RegisterRow) =>
     `<tr><td style="color:#6b757b">${++n}</td><td class="n" style="text-align:left!important">${p.date.bs}</td>` +
     `<td style="font-weight:600">${escapeHtml(e.full_name)} <span style="color:#6b757b;font-weight:400">· ${e.code}</span></td>` +
-    `<td>${escapeHtml(e.department?.name ?? "")}</td><td>${escapeHtml(e.branch.name)}</td><td>${monthLabel(p.month)}</td>` +
+    `<td>${escapeHtml(e.department?.name ?? "")}</td><td>${escapeHtml((p.branch ?? e.branch).name)}</td><td>${monthLabel(p.month)}</td>` +
     `<td><span class="tag ${p.kind === "advance" ? "adv" : "sal"}">${typeLabel(p)}</span></td>` +
     `<td>${escapeHtml(p.payment_mode.name)}</td><td style="color:#4a555c">${escapeHtml([p.reference, p.note].filter(Boolean).join(" · ") || "—")}</td>` +
     `<td class="n" style="font-weight:700">${formatAmount(p.amount)}</td><td>${escapeHtml(p.recorded_by)}</td><td class="sig"></td></tr>`;

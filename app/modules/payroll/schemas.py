@@ -283,6 +283,9 @@ class PaymentOut(BaseModel):
     amount: int
     payment_mode_id: int
     payment_mode: PaymentModeRef
+    #: The branch that made the payment: the employee's branch at that moment (a later
+    #: transfer does not move it). Payment reports and their exports filter on this.
+    branch: BranchRef
     reference: str | None
     #: Written by the server at creation ("Salary for Kartik", "Bulk salary payment · ..."),
     #: identical on every row of a group; read-only.

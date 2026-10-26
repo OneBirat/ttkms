@@ -191,6 +191,9 @@ export interface Payment {
   /** payroll.payments.payment_mode_id (Cash = 1 by default). */
   payment_mode_id: number;
   payment_mode: PaymentModeRef;
+  /** The branch that made the payment: the employee's branch at that moment (a later transfer
+   *  does not move it). Payment reports and exports go by this. */
+  branch?: Branch;
   /** Bank / cheque reference; null for cash. */
   reference: string | null;
   /** Written by the server when the payment was created ("Salary for Kartik", "Advance for
