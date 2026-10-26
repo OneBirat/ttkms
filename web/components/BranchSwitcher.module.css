@@ -1,67 +1,163 @@
-/* Active-branch switcher (components/BranchSwitcher.tsx): sidebar under the logo, phone drawer
-   and phone top bar. A native <select> lies over the pill so keyboard and screen readers work. */
+/* Active-branch switcher (components/BranchSwitcher.tsx; design/dashboard-branch). */
 
 .wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  position: relative;
 }
 
-.branch {
-  position: relative;
+.button {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  width: 100%;
+  min-height: 42px;
   padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid #33464f;
   border-radius: 10px;
-  background: var(--color-sidebar-active);
+  background: #22323b;
   color: #fff;
+  font: inherit;
   font-size: 14px;
   font-weight: 600;
+  text-align: left;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
-.branch[data-locked] {
-  border-color: transparent;
-  background: transparent;
-  color: var(--color-sidebar-text);
+.button[data-locked] {
   cursor: default;
 }
 
-.branch[data-variant="bar"] {
-  min-height: 36px;
-  max-width: 170px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 13px;
+.button[data-busy] {
+  opacity: 0.75;
 }
 
-.branch[data-busy] {
-  opacity: 0.7;
-}
-
-.branch:focus-within {
-  outline: 2px solid var(--color-primary);
+.button:focus-visible {
+  outline: 2px solid #7fd1c1;
   outline-offset: 2px;
 }
 
-.name {
+.house {
+  flex: none;
+  color: #7fd1c1;
+}
+
+.text {
+  display: flex;
   flex: 1;
+  flex-direction: column;
   min-width: 0;
+  line-height: 1.2;
+}
+
+.caption {
+  color: #93a3ac;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.name {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.caret {
+.menu {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  left: 0;
+  z-index: 30;
   display: flex;
-  flex: none;
-  color: var(--color-sidebar-muted);
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
-.branch select {
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+  color: #1b2328;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.option:hover,
+.option:focus-visible {
+  background: #f1f3f0;
+  outline: none;
+}
+
+.option[aria-selected="true"] {
+  background: #e6f5f3;
+  font-weight: 700;
+}
+
+.optionName {
+  flex: 1;
+  text-align: left;
+}
+
+.optionStaff {
+  color: #5b6670;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.hint {
+  padding: 6px 8px 2px;
+  color: #5b6670;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.error {
+  display: block;
+  margin-top: 4px;
+  color: #f3b3a4;
+  font-size: 12px;
+}
+
+/* Phone headers: compact pill with a native select over it. */
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 170px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: var(--color-sidebar-active);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bar[data-locked] {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+}
+
+.bar[data-busy] {
+  opacity: 0.7;
+}
+
+.bar select {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -69,7 +165,15 @@
   cursor: pointer;
 }
 
-.error {
-  color: #f3b3a4;
-  font-size: 12px;
+.bar:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.barName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
