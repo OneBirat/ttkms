@@ -11,7 +11,7 @@ import { monthLabel } from "../../_lib/months";
 import shared from "../payroll.module.css";
 import { formatBsDay } from "@/lib/bs";
 import { rangeFor, today } from "../../_lib/months";
-import { formatAmount, groupBy, initials } from "../../_lib/helpers";
+import { formatAmount, groupBy, initials, thumbUrl } from "../../_lib/helpers";
 import { REGISTER_SORTS, groupRowsByDepartment, isRegisterSort, type RegisterGroup } from "../../_lib/register";
 import type { RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
@@ -100,9 +100,9 @@ export function PhonePayments() {
       }}
     >
       <span className={styles.payAvatar} data-type={p.kind}>
-        {e.photo_thumb_url ?? e.photo_url ? (
+        {thumbUrl(e) ? (
           // eslint-disable-next-line @next/next/no-img-element -- signed-in photo endpoint, cached a year
-          <img src={(e.photo_thumb_url ?? e.photo_url)!} alt="" width={40} height={40} loading="lazy" />
+          <img src={thumbUrl(e) ?? ""} alt="" width={40} height={40} loading="lazy" />
         ) : (
           initials(e.full_name)
         )}

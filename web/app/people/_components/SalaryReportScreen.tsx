@@ -10,6 +10,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { Icon } from "@/components/icons";
 import { currentMonth, getSalaryReport, listDepartments, listMonths, salaryReportExportUrl } from "../api";
 import { MonthStatusPill } from "./MonthStatusPill";
+import { Avatar } from "./Avatar";
 import { useReportBranch } from "../_lib/useBranchScope";
 import { withBranch } from "@/lib/branchContext";
 import { monthKey, monthLabel, monthName, parseMonthKey, sameMonth } from "../_lib/months";
@@ -23,6 +24,7 @@ import {
   paginate,
   percentChange,
   sortRows,
+  thumbUrl,
 } from "../_lib/helpers";
 import type { ReportSort, SalaryReport } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
@@ -240,10 +242,13 @@ export function SalaryReportScreen() {
                     paged.items.map(({ employee, ledger }) => (
                       <tr key={employee.id}>
                         <td>
-                          <Link href={`/people/employees/${employee.id}`} className={styles.empCell}>
-                            <span className={styles.empName}>{employee.full_name}</span>
-                            <span className={styles.empSub}>
-                              {employee.code} · {employee.designation ?? "—"} · {ledger.pay_type === "monthly" ? "Monthly" : `Daily ${formatAmount(ledger.rate)}/day`}
+                          <Link href={`/people/employees/${employee.id}`} className={`${styles.empCell} ${styles.empCellPhoto}`}>
+                            <Avatar name={employee.full_name} photoUrl={thumbUrl(employee)} size={32} />
+                            <span className={styles.empText}>
+                              <span className={styles.empName}>{employee.full_name}</span>
+                              <span className={styles.empSub}>
+                                {employee.code} · {employee.designation ?? "—"} · {ledger.pay_type === "monthly" ? "Monthly" : `Daily ${formatAmount(ledger.rate)}/day`}
+                              </span>
                             </span>
                           </Link>
                         </td>

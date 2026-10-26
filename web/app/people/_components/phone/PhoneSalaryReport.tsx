@@ -7,7 +7,8 @@ import { useReportBranch } from "../../_lib/useBranchScope";
 import { currentMonth, getSalaryReport, listMonths } from "../../api";
 import { formatAdRange } from "@/lib/bs";
 import { addMonths, compareMonths, monthEnd, monthLabel, monthStart, sameMonth } from "../../_lib/months";
-import { formatAmount } from "../../_lib/helpers";
+import { formatAmount, initials, thumbUrl } from "../../_lib/helpers";
+import { avatarTone } from "./PhoneEmployees";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import { monthStatusText } from "../../_lib/settle";
 import styles from "./phone.module.css";
@@ -86,6 +87,14 @@ export function PhoneSalaryReport() {
           {shown.length === 0 ? <p className={styles.empty}>Nobody matches.</p> : null}
           {shown.map(({ employee: e, ledger: l }) => (
             <button key={e.id} type="button" className={styles.row} onClick={() => router.push(`/people/employees/${e.id}`)}>
+              <span className={styles.avatarTone} style={{ background: avatarTone(e.id) }}>
+                {e.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- signed-in photo endpoint, cached a year
+                  <img src={thumbUrl(e) ?? ""} alt="" loading="lazy" />
+                ) : (
+                  initials(e.full_name)
+                )}
+              </span>
               <span className={styles.rowText}>
                 <span className={styles.rowName} style={{ fontSize: 14 }}>
                   {e.full_name}

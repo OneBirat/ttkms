@@ -14,7 +14,7 @@ import { useReportBranch } from "../_lib/useBranchScope";
 import { withBranch } from "@/lib/branchContext";
 import { formatBs, isValidBs } from "@/lib/bs";
 import { monthLabel, monthName, monthStart, rangeFor } from "../_lib/months";
-import { formatAmount, formatRs, matchesEmployee, paginate } from "../_lib/helpers";
+import { formatAmount, formatRs, matchesEmployee, paginate, thumbUrl } from "../_lib/helpers";
 import { REGISTER_SORTS, displayRows, isRegisterSort } from "../_lib/register";
 import { monthsText } from "../_lib/settle";
 import type { DateRange, RegisterSort, RegisterTypeFilter } from "../types";
@@ -347,7 +347,7 @@ export function PaymentsRegisterScreen() {
                         </td>
                         <td>
                           <Link href={`/people/employees/${employee.id}`} className={`${styles.empCell} ${styles.empCellPhoto}`}>
-                            <Avatar name={employee.full_name} photoUrl={employee.photo_thumb_url ?? employee.photo_url} size={32} />
+                            <Avatar name={employee.full_name} photoUrl={thumbUrl(employee)} size={32} />
                             <span className={styles.empText}>
                               <span className={styles.empName}>{employee.full_name}</span>
                               <span className={styles.empSub}>
