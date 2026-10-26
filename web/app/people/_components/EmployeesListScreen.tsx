@@ -12,7 +12,7 @@ import { Avatar } from "./Avatar";
 import { ManageDepartmentsDialog } from "./ManageDepartmentsDialog";
 import { TodayPill } from "./TodayPill";
 import { listBranches, listDepartments, listEmployeeRows } from "../api";
-import { formatAmount, formatRs, matchesEmployee } from "../_lib/helpers";
+import { formatAmount, formatRs, matchesEmployee, thumbUrl } from "../_lib/helpers";
 import type { EmployeeListRow } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import { useReportBranch, waitForBranch } from "../_lib/useBranchScope";
@@ -179,7 +179,7 @@ export function EmployeesListScreen() {
                         <tr key={e.id} className={styles.erow} onClick={open(row)}>
                           <td>
                             <span className={styles.erowEmp}>
-                              <Avatar name={e.full_name} photoUrl={e.photo_url} size={34} />
+                              <Avatar name={e.full_name} photoUrl={thumbUrl(e)} size={34} />
                               <span className={styles.empText}>
                                 <Link href={`/people/employees/${e.id}`} className={styles.elink} onClick={open(row)}>
                                   {e.full_name}

@@ -4,8 +4,10 @@
     python -m app.cli seed [--no-input]     # branches, departments, 5 employees, settings, admin
     python -m app.cli seed-demo             # the 25 design employees + salaries + a month of
                                             # payments (APP_ENV=dev only; never automatic)
+    python -m app.cli photos-upgrade        # old employees/<id>.jpg photos -> 600 px JPEG +
+                                            # 128 px WebP, metadata stripped (run once)
 
-Both are idempotent. The admin user's credentials come from ADMIN_USERNAME / ADMIN_PASSWORD in
+All are idempotent. The admin user's credentials come from ADMIN_USERNAME / ADMIN_PASSWORD in
 .env (or the environment) when set, otherwise you are prompted.
 """
 
@@ -180,6 +182,15 @@ async def cmd_seed_demo(args: argparse.Namespace) -> int:
     return 0
 
 
+async def cmd_photos_upgrade(args: argparse.Namespace) -> int:
+    from app.modules.payroll.photos import upgrade_legacy
+
+    async with SessionLocal() as db:
+        done = await upgrade_legacy(db)
+    print(f"Converted {done} photo(s) to the 600 px JPEG + 128 px WebP layout.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -197,6 +208,12 @@ def build_parser() -> argparse.ArgumentParser:
         "seed-demo", help="sample employees, salaries and payments (APP_ENV=dev only)"
     )
     demo.set_defaults(func=cmd_seed_demo)
+
+    photos = sub.add_parser(
+        "photos-upgrade",
+        help="convert photos stored as employees/<id>.jpg to the two-size layout (run once)",
+    )
+    photos.set_defaults(func=cmd_photos_upgrade)
     return parser
 
 

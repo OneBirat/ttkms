@@ -1,5 +1,6 @@
 "use client";
 
+import { thumbUrl } from "../_lib/helpers";
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Avatar } from "./Avatar";
@@ -35,7 +36,7 @@ export function PaySalaryDialog({ open, employee, manageModes = false, onClose, 
       <div className={own.advanceGrid}>
         <div className={styles.stack} style={{ gap: 14 }}>
           <div className={settle.head}>
-            <Avatar name={employee.full_name} photoUrl={employee.photo_url} size={44} tone="profile" />
+            <Avatar name={employee.full_name} photoUrl={thumbUrl(employee)} size={44} tone="profile" />
             <div className={settle.headText}>
               <span className={settle.headName}>Pay salary</span>
               <span className={styles.note}>{meta}</span>

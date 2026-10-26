@@ -40,6 +40,8 @@ export interface EmployeeRef {
   department_name: string;
   /** "Store keeper" (core.employees.designation); null when not set. */
   designation?: string | null;
+  /** The 128 px photo thumbnail (versioned, signed-in users only); null = initials. */
+  photo_url?: string | null;
   /** Code 128 value on the staff card, "TTK-E004" (server only). */
   barcode?: string;
   /** False for former staff (they still appear in past reports). */

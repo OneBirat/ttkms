@@ -20,7 +20,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.contracts import get_payroll_payments
 from app.core import bsdate
 from app.core.errors import ApiError
+from app.core.media import photo_urls
 from app.core.models import Branch, Department, Employee, EmployeeStatus, User
+from app.core.modules import is_enabled
 from app.modules.attendance import schemas
 from app.modules.attendance.access import Scope, one_branch
 from app.modules.attendance.models import OT_MAX, OT_MIN, Record, RecordChange, Source
@@ -104,6 +106,7 @@ def employee_ref(e: Employee) -> schemas.EmployeeRef:
         department_id=e.department_id or 0,
         department_name=e.department.name if e.department else "",
         designation=e.designation,
+        photo_url=photo_urls(e)[1] if is_enabled("payroll") else None,
         active=e.status == EmployeeStatus.active,
     )
 

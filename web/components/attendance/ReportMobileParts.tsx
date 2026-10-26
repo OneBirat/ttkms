@@ -3,7 +3,7 @@
 import { useId, type CSSProperties } from "react";
 import { WEEKDAYS_SHORT_EN, formatAdShort, kathmanduTime } from "@/lib/bs";
 import { filterReportRows } from "./exportModel";
-import { computeTotals, groupByDepartment, initials, sortRows, type DepartmentGroup } from "./helpers";
+import { computeTotals, groupByDepartment, sortRows, type DepartmentGroup } from "./helpers";
 import { ChevronDownIcon, MenuIcon } from "./icons";
 import {
   MOBILE_VIEWS,
@@ -20,6 +20,7 @@ import {
 } from "./reportPeriod";
 import type { AttendanceRecord, BranchRef, DayHeader, MonthReport, ReportFilters, ReportRow } from "./types";
 import { useDialog } from "./useDialog";
+import { FaceContent } from "./Face";
 import styles from "./reportMobile.module.css";
 
 /*
@@ -231,10 +232,10 @@ export function MonthCalendar({ row, days, today }: { row: ReportRow; days: DayH
   );
 }
 
-function Avatar({ name, on }: { name: string; on?: boolean }) {
+function Avatar({ employee, on }: { employee: ReportRow["employee"]; on?: boolean }) {
   return (
     <span className={styles.avatar} data-on={on || undefined}>
-      {initials(name)}
+      <FaceContent employee={employee} />
     </span>
   );
 }
@@ -249,7 +250,7 @@ export function MonthCard(props: { row: ReportRow; days: DayHeader[]; today: str
     <>
       <button type="button" aria-expanded={open} className={styles.monthBtn} data-open={open || undefined} onClick={props.onToggle}>
         <span className={styles.personRow}>
-          <Avatar name={row.employee.name} on={open} />
+          <Avatar employee={row.employee} on={open} />
           <span className={styles.person}>
             <span className={styles.name}>{row.employee.name}</span>
             <span className={styles.meta}>{idLine(row)}</span>
@@ -311,7 +312,7 @@ export function DayRow({ row, day, index, today, record }: { row: ReportRow; day
   const pale = PALE_COLOUR[look];
   return (
     <div className={styles.dayRow}>
-      <Avatar name={row.employee.name} />
+      <Avatar employee={row.employee} />
       <span className={styles.person}>
         <span className={styles.name}>{row.employee.name}</span>
         <span className={styles.meta}>{dayMeta(row, look, record)}</span>

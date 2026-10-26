@@ -1,5 +1,6 @@
 "use client";
 
+import { FaceContent } from "../Face";
 import { useEffect, useId, useRef, useState } from "react";
 import { PaidByPicker } from "@/app/people/_components/PaidByPicker";
 import { NO_SALARY, NoSalaryNotice } from "@/app/people/_components/NoSalaryNotice";
@@ -7,7 +8,7 @@ import { useSession } from "@/lib/session";
 import { WEEKDAYS_NE, diffDays, formatAdShort, monthLabel, monthName, parseMonthKey, toNepaliDigits } from "@/lib/bs";
 import { bsMonthDays } from "../calendar";
 import { CheckIcon } from "../icons";
-import { draftText, formatAmount, formatRs, initials } from "../helpers";
+import { draftText, formatAmount, formatRs } from "../helpers";
 import { photoTint } from "../MarkRow";
 import type { DayCell, DayHeader, PaymentRecord, PaymentType } from "../types";
 import { useDialog } from "../useDialog";
@@ -122,7 +123,7 @@ function Person({ scan, titleId, size = 64 }: { scan: Step<"found" | "already">;
   return (
     <div className={styles.person}>
       <span className={styles.avatar} style={{ width: size, height: size }} aria-hidden="true">
-        {initials(e.name)}
+        <FaceContent employee={e} />
       </span>
       <div className={styles.personText}>
         <h2 id={titleId} className={styles.personName}>
@@ -848,7 +849,7 @@ function DayDetail({
       >
         <div className={styles.dpHead}>
           <span role="img" aria-label={`Photo of ${scan.emp.name}`} className={styles.dpPhoto} style={{ background: photoTint(scan.emp.id) }}>
-            {initials(scan.emp.name)}
+            <FaceContent employee={scan.emp} />
           </span>
           <div className={styles.personText}>
             <h3 id={titleId} className={styles.dpName}>
@@ -972,7 +973,7 @@ function Done({ scan, state, titleId, phone }: StepProps<"done"> & { phone: bool
       <div className={styles.result}>
         <span className={styles.donePhotoWrap}>
           <span role="img" aria-label={`Photo of ${scan.emp.name}`} className={styles.donePhoto} style={{ background: photoTint(scan.emp.id) }}>
-            {initials(scan.emp.name)}
+            <FaceContent employee={scan.emp} />
           </span>
           <span aria-hidden="true" className={styles.doneBadge} data-status={scan.status}>
             <CheckIcon size={16} />

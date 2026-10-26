@@ -16,7 +16,7 @@ ENABLED_LIST := $(subst $(comma), ,$(ENABLED_MODULES))
 MODULES := $(filter admin,$(ENABLED_LIST)) $(filter payroll,$(ENABLED_LIST)) \
 	$(filter attendance,$(ENABLED_LIST)) $(filter-out admin payroll attendance,$(ENABLED_LIST))
 
-.PHONY: dev migrate test lint fmt seed seed-demo create-admin web-install web-dev web-build web-lint web-test
+.PHONY: dev migrate test lint fmt seed seed-demo create-admin backup photos-upgrade web-install web-dev web-build web-lint web-test
 
 dev:  ## FastAPI JSON API with reload on $APP_PORT
 	$(PY) -m uvicorn app.main:app --reload --port $(APP_PORT)
@@ -62,6 +62,12 @@ seed-demo:
 
 create-admin:
 	$(PY) -m app.cli create-admin
+
+backup:  ## database dump + media folder into $BACKUP_DIR (scripts/backup.sh; run nightly from cron)
+	PY=$(PY) scripts/backup.sh
+
+photos-upgrade:  ## once after deploying the two-size photo layout: convert old employees/<id>.jpg photos
+	$(PY) -m app.cli photos-upgrade
 
 # ---- Next.js frontend -------------------------------------------------------------------
 web-install:

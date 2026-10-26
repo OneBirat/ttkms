@@ -16,6 +16,7 @@ from app.contracts import get_attendance_summary
 from app.core import bsdate
 from app.core.auth import hash_password
 from app.core.errors import ApiError
+from app.core.media import photo_urls
 from app.core.models import (
     PHONE_RE,
     Branch,
@@ -107,12 +108,13 @@ def date_both(ad) -> DateBothOut:
 
 
 def photo_url(employee: Employee) -> str | None:
-    if not employee.photo_path:
-        return None
-    version = (
-        re.sub(r"\D", "", employee.updated_at.isoformat())[-10:] if employee.updated_at else "0"
-    )
-    return f"/api/payroll/employees/{employee.id}/photo?v={version}"
+    """The 600 px photo (profile, barcode views); see photo_thumb_url for lists."""
+    return photo_urls(employee)[0]
+
+
+def photo_thumb_url(employee: Employee) -> str | None:
+    """The 128 px thumbnail (lists, side strip, avatars, attendance cards)."""
+    return photo_urls(employee)[1]
 
 
 def employee_out(employee: Employee, login: User | None) -> EmployeeOut:
@@ -135,6 +137,7 @@ def employee_out(employee: Employee, login: User | None) -> EmployeeOut:
         active=employee.status == EmployeeStatus.active,
         joined=date_both(employee.joined_ad),
         photo_url=photo_url(employee),
+        photo_thumb_url=photo_thumb_url(employee),
         login=LoginOut(
             user_id=login.id, username=login.username, role=login.role, role_label=login.role_label
         )

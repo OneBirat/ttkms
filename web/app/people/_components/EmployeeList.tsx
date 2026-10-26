@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import { Avatar } from "./Avatar";
-import { departmentCounts, matchesEmployee } from "../_lib/helpers";
+import { departmentCounts, matchesEmployee, thumbUrl } from "../_lib/helpers";
 import { readCollapsed, staffGroups, writeCollapsed } from "../_lib/account";
 import type { Department, Employee, EmployeeSort } from "../types";
 import styles from "./employees.module.css";
@@ -97,7 +97,7 @@ export function EmployeeList({
                       aria-label={label}
                       title={label}
                     >
-                      <Avatar name={employee.full_name} photoUrl={employee.photo_url} size={40} tone={selected ? "selected" : "default"} />
+                      <Avatar name={employee.full_name} photoUrl={thumbUrl(employee)} size={40} tone={selected ? "selected" : "default"} />
                     </Link>
                   );
                 })}
@@ -191,7 +191,7 @@ export function EmployeeList({
                 >
                   <Avatar
                     name={employee.full_name}
-                    photoUrl={employee.photo_url}
+                    photoUrl={thumbUrl(employee)}
                     size={34}
                     tone={selected ? "selected" : "default"}
                   />

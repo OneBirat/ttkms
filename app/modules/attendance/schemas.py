@@ -27,6 +27,8 @@ class EmployeeRef(BaseModel):
     department_name: str
     #: core.employees.designation ("Store keeper"); the phone report's card line.
     designation: str | None = None
+    #: The 128 px photo thumbnail (versioned, signed-in users only); null = initials.
+    photo_url: str | None = None
     active: bool
 
 

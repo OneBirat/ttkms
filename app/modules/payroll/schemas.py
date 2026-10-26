@@ -87,8 +87,10 @@ class EmployeeOut(BaseModel):
     designation: str | None
     active: bool
     joined: DateBothOut
-    #: Authenticated URL of the stored photo; null = initials.
+    #: Authenticated, versioned URL of the 600 px photo (profile, barcode views); null = initials.
     photo_url: str | None
+    #: The 128 px thumbnail (lists, side strip, avatars); same version.
+    photo_thumb_url: str | None = None
     login: LoginOut | None
     created_at: datetime
 

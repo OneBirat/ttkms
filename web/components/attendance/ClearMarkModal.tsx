@@ -1,7 +1,8 @@
 "use client";
 
+import { FaceContent } from "./Face";
 import { useId } from "react";
-import { initials, statusLabel } from "./helpers";
+import { statusLabel } from "./helpers";
 import { photoTint } from "./MarkRow";
 import type { EmployeeRef } from "./types";
 import { useDialog } from "./useDialog";
@@ -39,7 +40,7 @@ export function ClearMarkModal({ ask, employee, weeklyOff, phone, onConfirm, onC
         >
           <div className={desk.cfmHead}>
             <span aria-hidden="true" className={desk.cfmAvatar} style={{ background: photoTint(employee.id) }}>
-              {initials(employee.name)}
+              <FaceContent employee={employee} />
             </span>
             <div className={desk.cfmText}>
               <h2 id={titleId} className={desk.cfmName}>
@@ -75,7 +76,7 @@ export function ClearMarkModal({ ask, employee, weeklyOff, phone, onConfirm, onC
         onKeyDown={dialog.onKeyDown}
       >
         <div className={styles.askHead}>
-          <span className={styles.askAvatar}>{initials(employee.name)}</span>
+          <span className={styles.askAvatar}><FaceContent employee={employee} /></span>
           <div className={styles.askText}>
             <h2 id={titleId} className={styles.askTitle}>
               Clear mark?

@@ -1,10 +1,11 @@
 "use client";
 
+import { FaceContent } from "./Face";
 import { useEffect } from "react";
 import { formatAdShort, formatBs, toNepaliDigits, validBs } from "@/lib/bs";
 import { useShell } from "@/lib/shell";
 import { ChevronDownIcon, MenuIcon, ScanIcon, SearchIcon } from "./icons";
-import { draftText, initials, type Draft, type StatusFilter } from "./helpers";
+import { draftText, type Draft, type StatusFilter } from "./helpers";
 import type { CellStatus, MarkRow } from "./types";
 import type { MarkState } from "./useMarkState";
 import styles from "./mobile.module.css";
@@ -232,7 +233,7 @@ function Card({ row, draft, status, state }: { row: MarkRow; draft: Draft; statu
     <article className={styles.card} data-status={status} aria-busy={pending || undefined}>
       <div className={styles.cardHead}>
         <span className={styles.avatar} data-status={status} aria-hidden="true">
-          {initials(e.name)}
+          <FaceContent employee={e} />
         </span>
         <div className={styles.cardText}>
           <span className={styles.cardName}>{e.name}</span>

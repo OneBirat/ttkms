@@ -1,7 +1,8 @@
 "use client";
 
+import { FaceContent } from "./Face";
 import { useId } from "react";
-import { draftText, initials, type Draft } from "./helpers";
+import { draftText, type Draft } from "./helpers";
 import type { EmployeeRef } from "./types";
 import { useDialog } from "./useDialog";
 import styles from "./mobile.module.css";
@@ -40,7 +41,7 @@ export function ActionSheet({ employee, current, onOvertime, onPayments, onCalen
         <span aria-hidden="true" className={styles.sheetHandle} />
         <div className={styles.actHead}>
           <span className={styles.actAvatar} data-status={status}>
-            {initials(employee.name)}
+            <FaceContent employee={employee} />
           </span>
           <div className={styles.actText}>
             <h2 id={titleId} className={styles.actName}>

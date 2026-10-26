@@ -1,8 +1,8 @@
 "use client";
 
+import { FaceContent } from "./Face";
 import { memo, type MouseEvent } from "react";
 import { CheckIcon } from "./icons";
-import { initials } from "./helpers";
 import type { CellStatus, EmployeeRef } from "./types";
 import styles from "./mark.module.css";
 
@@ -70,7 +70,7 @@ function MarkRowInner({
               className={styles.photo}
               style={{ background: photoTint(employee.id) }}
             >
-              {initials(employee.name)}
+              <FaceContent employee={employee} />
             </span>
           ) : null}
           <div className={styles.whoText}>

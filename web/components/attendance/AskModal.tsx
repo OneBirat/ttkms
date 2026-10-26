@@ -1,7 +1,8 @@
 "use client";
 
+import { FaceContent } from "./Face";
 import { useId } from "react";
-import { initials, statusLabel } from "./helpers";
+import { statusLabel } from "./helpers";
 import type { EmployeeRef } from "./types";
 import { useDialog } from "./useDialog";
 import type { AskConfirm } from "./useMarkState";
@@ -33,7 +34,7 @@ export function AskModal({ ask, employee, onConfirm, onCancel }: AskModalProps) 
         onKeyDown={dialog.onKeyDown}
       >
         <div className={styles.askHead}>
-          <span className={styles.askAvatar}>{initials(employee.name)}</span>
+          <span className={styles.askAvatar}><FaceContent employee={employee} /></span>
           <div className={styles.askText}>
             <h2 id={titleId} className={styles.askTitle}>
               {title}

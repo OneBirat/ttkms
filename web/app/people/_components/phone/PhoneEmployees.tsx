@@ -8,7 +8,7 @@ import { ManageDepartmentsDialog } from "../ManageDepartmentsDialog";
 import { PhoneFrame } from "./PhoneFrame";
 import { TodayPill } from "../TodayPill";
 import { listBranches, listDepartments, listEmployeeRows } from "../../api";
-import { formatAmount, initials, matchesEmployee } from "../../_lib/helpers";
+import { formatAmount, initials, matchesEmployee, thumbUrl } from "../../_lib/helpers";
 import { useReportBranch, waitForBranch } from "../../_lib/useBranchScope";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import type { EmployeeListRow } from "../../types";
@@ -123,7 +123,7 @@ export function PhoneEmployees() {
                   <span className={styles.avatarTone} style={{ background: avatarTone(e.id) }}>
                     {e.photo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element -- data: URLs from the capture flow
-                      <img src={e.photo_url} alt="" />
+                      <img src={thumbUrl(e) ?? ""} alt="" />
                     ) : (
                       initials(e.full_name)
                     )}

@@ -56,7 +56,8 @@ summary and the month's payments (`ledgerFor` in api.ts shows the exact derivati
 | GET | /employees/next-code | → { code, barcode } |
 | POST | /employees | EmployeeIn → { employee, one_time_password } (409 + field on duplicate phone/username) |
 | PATCH | /employees/{id} | EmployeeUpdateIn → Employee |
-| PUT/DELETE | /employees/{id}/photo | multipart image → Employee |
+| GET | /employees/{id}/photo?size=full\|thumb&v=<hash> | signed-in users who may see the employee (people or attendance permissions; 401 without a session): `full` = 600 px JPEG q80 (profile, barcode views), `thumb` = 128 px WebP (lists, side strip, avatars, attendance cards); with the current `v` → `Cache-Control: private, max-age=31536000, immutable`, else `private, no-cache`. `Employee.photo_url` / `photo_thumb_url` and attendance `EmployeeRef.photo_url` (thumb) carry the versioned URLs |
+| PUT/DELETE | /employees/{id}/photo | multipart image → Employee (both sizes stored under `MEDIA_DIR/employees/<id>/<hash>.jpg` / `.thumb.webp`, metadata stripped; the previous files are deleted) |
 | GET | /employees/{id}/salary | → { current: SalaryStructure, history: SalaryStructure[] } |
 | POST | /employees/{id}/salary | SalaryRevisionIn → SalaryStructure |
 | GET | /employees/{id}/attendance?bs_year&bs_month | → { employee_id, month, summary: MonthSummary } |

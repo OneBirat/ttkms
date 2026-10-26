@@ -77,8 +77,11 @@ export interface Employee {
   designation: string | null;
   active: boolean;
   joined: DateBoth;
-  /** Authenticated URL of the stored photo (/api/payroll/employees/{id}/photo?v=…); null = initials. */
+  /** The 600 px photo for the profile and barcode views (/api/payroll/employees/{id}/photo?size=full&v=<hash>,
+   *  signed-in users only, cached by the browser for a year); null = initials. */
   photo_url: string | null;
+  /** The 128 px WebP thumbnail for lists, the side strip and avatars (?size=thumb&v=<hash>). */
+  photo_thumb_url?: string | null;
   login: EmployeeLogin | null;
   created_at: string;
 }

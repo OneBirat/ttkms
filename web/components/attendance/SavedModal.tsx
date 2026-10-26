@@ -1,8 +1,9 @@
 "use client";
 
+import { FaceContent } from "./Face";
 import { useId } from "react";
 import { CheckIcon } from "./icons";
-import { initials, statusLabel } from "./helpers";
+import { statusLabel } from "./helpers";
 import { photoTint } from "./MarkRow";
 import type { EmployeeRef, MarkStatus } from "./types";
 import { useDialog } from "./useDialog";
@@ -40,7 +41,7 @@ export function SavedModal({ saved, employee, onEdit, onChange, onClear, onClose
       >
         <div className={styles.cfmHead}>
           <span aria-hidden="true" className={styles.cfmAvatar} style={{ background: photoTint(employee.id) }}>
-            {initials(employee.name)}
+            <FaceContent employee={employee} />
           </span>
           <div className={styles.cfmText}>
             <h2 id={titleId} className={styles.cfmName}>

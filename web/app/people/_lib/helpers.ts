@@ -269,3 +269,8 @@ export function groupBy<T, K extends string | number>(items: T[], keyOf: (item: 
   }
   return groups;
 }
+
+/** Lists, the side strip and avatars load the 128 px thumbnail (the 600 px photo when none). */
+export function thumbUrl(employee: { photo_url: string | null; photo_thumb_url?: string | null }): string | null {
+  return employee.photo_thumb_url ?? employee.photo_url;
+}

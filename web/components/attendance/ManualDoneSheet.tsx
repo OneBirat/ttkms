@@ -1,9 +1,10 @@
 "use client";
 
+import { FaceContent } from "./Face";
 import { useId } from "react";
 import { toNepaliDigits } from "@/lib/bs";
 import { CheckIcon } from "./icons";
-import { initials, statusLabel } from "./helpers";
+import { statusLabel } from "./helpers";
 import { photoTint } from "./MarkRow";
 import { useSecondsLeft } from "./scan/useCountdown";
 import type { EmployeeRef } from "./types";
@@ -45,7 +46,7 @@ export function ManualDoneSheet({ done, employee, onClose }: ManualDoneSheetProp
         <div className={styles.doneBody}>
           <span className={styles.donePhotoWrap}>
             <span role="img" aria-label={`Photo of ${employee.name}`} className={styles.donePhoto} style={{ background: photoTint(employee.id) }}>
-              {initials(employee.name)}
+              <FaceContent employee={employee} />
             </span>
             <span aria-hidden="true" className={styles.doneBadge} data-status={done.status}>
               <CheckIcon size={18} />

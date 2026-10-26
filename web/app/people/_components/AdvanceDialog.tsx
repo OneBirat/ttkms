@@ -10,7 +10,7 @@ import { RecentPaymentsPanel } from "./RecentPaymentsPanel";
 import { getAccountSummary, listPaymentModes, receiptUrl, recordPayment } from "../api";
 import { formatBsDay } from "@/lib/bs";
 import { monthName, today } from "../_lib/months";
-import { ADVANCE_QUICK, formatAmount, formatRs } from "../_lib/helpers";
+import { ADVANCE_QUICK, formatAmount, formatRs, thumbUrl } from "../_lib/helpers";
 import type { Employee, PaymentResult } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import styles from "./payroll.module.css";
@@ -102,7 +102,7 @@ export function AdvanceDialog({ open, employee, manageModes = false, onClose, on
       <div className={own.advanceGrid}>
         <div className={styles.stack} style={{ gap: 14 }}>
           <div className={styles.row} style={{ gap: 12 }}>
-            <Avatar name={employee.full_name} photoUrl={employee.photo_url} size={44} tone="profile" />
+            <Avatar name={employee.full_name} photoUrl={thumbUrl(employee)} size={44} tone="profile" />
             <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
               <span style={{ fontSize: 15, fontWeight: 600 }}>{employee.full_name}</span>
               <span className={styles.note}>

@@ -126,6 +126,29 @@ Every POST/PUT/PATCH/DELETE needs the `X-CSRF-Token` header (the token comes bac
 `401 {"detail": "login required"}`; the wrong role gets 403. A session without "Keep me signed in"
 is a browser-session cookie that also expires server-side after 12 hours.
 
+## Employee photos and backups
+
+Photos are kept on the server, never on a CDN: each upload is stored under `MEDIA_DIR/employees/<id>/`
+as a 600 px JPEG (quality 80; profile and barcode views) and a 128 px WebP thumbnail (lists, the
+side strip, avatars, attendance cards), both re-encoded without EXIF / GPS / any metadata. They are
+only served to signed-in users by `GET /api/payroll/employees/{id}/photo?size=full|thumb&v=<hash>`;
+the `v` is the photo's content hash, so that URL is sent with
+`Cache-Control: private, max-age=31536000, immutable` and each browser downloads a photo once - a
+new upload gets a new hash. After deploying this layout run `make photos-upgrade` once to convert
+photos stored the old way (`employees/<id>.jpg`; they keep working until then).
+
+The media folder is not in the database, so the nightly backup must include it:
+`scripts/backup.sh` (`make backup`) writes `BACKUP_DIR/ttk-<timestamp>/db.dump` (pg_dump custom
+format) and `media.tar.gz`, checks both read back, and drops runs older than `KEEP_DAYS` (14).
+Schedule it with cron on the server:
+
+```cron
+30 2 * * *  cd /srv/ttkms && BACKUP_DIR=/var/backups/ttk scripts/backup.sh >> /var/log/ttk-backup.log 2>&1
+```
+
+Restore: `pg_restore --clean --no-owner --dbname=<db> db.dump` and
+`tar -xzf media.tar.gz -C <parent of MEDIA_DIR>`.
+
 ## Tests
 
 ```bash

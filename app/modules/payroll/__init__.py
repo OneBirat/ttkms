@@ -12,7 +12,7 @@ preset, or switched on for a user). Guard real endpoints with ``require_access(<
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
@@ -23,6 +23,7 @@ from app.core.auth import CurrentUser, require_role
 from app.core.bsdate import BSDate
 from app.core.errors import CodedErrorOut
 from app.core.export import PDF_MEDIA_TYPE, XLSX_MEDIA_TYPE, PDFUnavailable
+from app.core.media import photo_version
 from app.core.models import Employee, User
 from app.core.modules import Module, NavItem, WidgetContext
 from app.core.schemas import ErrorOut, ModuleStatusOut
@@ -72,6 +73,13 @@ CanManage = Annotated[User, Depends(require_access(EMPLOYEES))]
 CanPay = Annotated[User, Depends(require_access(SALARY))]
 AdminOnly = Annotated[User, Depends(require_role("admin"))]
 AnyAccess = Annotated[User, Depends(require_any_access(EMPLOYEES, SALARY))]
+#: Photos are shown on the attendance screens too: any of the people / attendance permissions.
+PhotoViewer = Annotated[
+    User,
+    Depends(require_any_access(EMPLOYEES, SALARY, "mark_attendance", "view_attendance_report")),
+]
+#: A versioned photo URL never changes content: each browser downloads it once.
+PHOTO_CACHE = "private, max-age=31536000, immutable"
 ERRORS: dict[int | str, dict[str, Any]] = {
     403: {"model": ErrorOut},
     404: {"model": ErrorOut},
@@ -564,14 +572,30 @@ async def _photo_bytes(request: Request) -> bytes:
 
 @router.get(
     "/employees/{employee_id}/photo",
-    responses={404: {"model": ErrorOut}},
+    responses={401: {"model": ErrorOut}, 403: {"model": ErrorOut}, 404: {"model": ErrorOut}},
     response_class=Response,
     name="payroll:employee_photo",
 )
-async def employee_photo(employee_id: int, me: AnyAccess, db: DbSession) -> Response:
-    """The stored JPEG (600 px), for signed-in users who may see the employee."""
+async def employee_photo(
+    employee_id: int,
+    me: PhotoViewer,
+    db: DbSession,
+    size: Literal["full", "thumb"] = "full",
+    v: str | None = None,
+) -> Response:
+    """The stored photo for signed-in users who may see the employee (never public):
+    ``size=full`` the 600 px JPEG (profile, barcode views), ``size=thumb`` the 128 px WebP
+    (lists, avatars, attendance cards). With the current ``v`` (the photo's hash, in the URLs
+    the API hands out) the answer is cacheable for a year - a new photo changes the hash;
+    without it or with an old one it must be revalidated."""
     employee = await _visible(db, me, employee_id)
-    return FileResponse(photos.photo_path_or_404(employee), media_type="image/jpeg")
+    path, media_type = photos.photo_file_or_404(employee, size)
+    current = v is not None and v == photo_version(employee)
+    return FileResponse(
+        path,
+        media_type=media_type,
+        headers={"Cache-Control": PHOTO_CACHE if current else "private, no-cache"},
+    )
 
 
 @router.put("/employees/{employee_id}/photo", response_model=EmployeeOut, responses=ERRORS)
