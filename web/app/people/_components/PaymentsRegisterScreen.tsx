@@ -1,5 +1,6 @@
 "use client";
 
+import { PageBranchSelect } from "@/components/PageBranchSelect";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useCallback, useEffect, useId, useMemo, useState } from "react";
@@ -115,7 +116,7 @@ export function PaymentsRegisterScreen() {
         sort,
         show_voided: showVoided,
       }),
-    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, departmentId, sort, showVoided],
+    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, departmentId, sort, showVoided, branchScope.branchId],
   );
   const data = register.data;
   const rows = useMemo(() => (data ? data.rows.filter((r) => matchesEmployee(r.employee, query)) : []), [data, query]);
@@ -274,6 +275,7 @@ export function PaymentsRegisterScreen() {
             </div>
 
             <div className={styles.rangeRow}>
+              <PageBranchSelect />
               <BSDateRangePicker value={{ from: from_bs, to: to_bs }} onChange={(r) => setRange({ from_bs: r.from, to_bs: r.to })} size="sm" />
               {rangeBad ? <span className={shared.warn}>&quot;From&quot; is after &quot;To&quot; — swap the dates.</span> : null}
               {!validRange ? <span className={shared.warn}>Pick both dates.</span> : null}

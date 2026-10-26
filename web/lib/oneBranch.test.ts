@@ -27,10 +27,10 @@ describe("one active branch: no page picks its own", () => {
     );
   });
 
-  it("no screen reads ?branch= or renders its own branch drop-down", () => {
+  it("no screen keeps its own branch: no ?branch=, no local branch state, no own drop-down", () => {
     const offenders = [...sources(join(WEB, "app")), ...sources(join(WEB, "components"))].filter((file) => {
       const text = readFileSync(file, "utf8");
-      return /params\.get\("branch"\)|aria-label="Branch"|useReportBranch\([^)]/.test(text);
+      return /params\.get\("branch"\)|branch=\$\{|useState<number \| null>\(homeBranch|aria-label="Branch"|useReportBranch\([^)]/.test(text);
     });
     assert.deepEqual(offenders, []);
   });

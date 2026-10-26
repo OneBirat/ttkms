@@ -54,9 +54,16 @@ export interface AuthResponse {
   /** That branch's name; null without a branch. */
   branch_name?: string | null;
   /** The ONE branch every screen works on (lib/branch.tsx); null only for a user without a branch
-   *  who may not switch. Switched with PATCH /api/auth/me/active-branch (see_other_branches). */
+   *  who may not switch. Switched with PUT /api/me/active-branch (see_other_branches). */
   active_branch?: ActiveBranch | null;
+  /** see_other_branches only: every active branch A-Z with its active staff (switcher, tabs). */
+  branches?: BranchOption[] | null;
   access: Access;
+}
+
+export interface BranchOption extends ActiveBranch {
+  /** Active staff in the branch. */
+  staff: number;
 }
 
 export interface ActiveBranch {

@@ -1,5 +1,6 @@
 "use client";
 
+import { PageBranchSelect } from "@/components/PageBranchSelect";
 import { withBranch } from "@/lib/branchContext";
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -75,7 +76,7 @@ export function MarkDesktop({ state }: { state: MarkState }) {
     <>
       <PageHeader
         title={withBranch("Mark attendance", state.branchName ? { name: state.branchName } : null)}
-        subtitle="Narrow down and mark. Each mark is saved as soon as you confirm it. The branch is switched in the sidebar."
+        subtitle="Pick a branch, narrow down and mark. Each mark is saved as soon as you confirm it."
         actions={
           <div className={styles.dateCol}>
             <BSDate
@@ -93,6 +94,11 @@ export function MarkDesktop({ state }: { state: MarkState }) {
       />
 
       <section aria-label="Filters" className={`card ${styles.filters}`}>
+        <div className={styles.filterCol}>
+          <span className={shared.label}>Branch</span>
+          {/* The active branch: changing it here switches the whole app. */}
+          <PageBranchSelect hideLabel />
+        </div>
         <div className={`${styles.filterCol} ${styles.filterSearch}`}>
           <label htmlFor="mark-search" className={shared.label}>
             Search

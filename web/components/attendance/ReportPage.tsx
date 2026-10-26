@@ -1,6 +1,7 @@
 "use client";
 
-import { useBranch, withBranch } from "@/lib/branchContext";
+import { PageBranchSelect } from "@/components/PageBranchSelect";
+import { useActiveBranch, withBranch } from "@/lib/branchContext";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,7 +12,6 @@ import { WEEKDAYS_EN, formatAdRange, formatAdShort, monthName as bsMonthName } f
 import { downloadFile, openPrintWindow, writePrintDocument } from "./download";
 import { filterReportRows } from "./exportModel";
 import { SearchIcon } from "./icons";
-import { Icon } from "@/components/icons";
 import { Pager } from "./Pager";
 import { AdvanceGlyph, ReportGrid, SalaryGlyph, type GridGroup, type GridMode } from "./ReportGrid";
 import {
@@ -64,7 +64,7 @@ function project(rows: readonly ReportRow[], indices: readonly number[], retotal
 export function ReportPage() {
   const { user } = useSession();
   // The ONE active branch (lib/branch.tsx); switching it in the shell remounts this page.
-  const { branch } = useBranch();
+  const { branch } = useActiveBranch();
   const branchId = branch?.id ?? null;
   const params = useSearchParams();
   const router = useRouter();
@@ -159,7 +159,8 @@ export function ReportPage() {
     return () => {
       cancelled = true;
     };
-  }, [monthKey]);
+    // The active branch is part of the key: a switch fetches again.
+  }, [monthKey, branchId]);
 
   const monthName = report ? bsMonthName(report.month.bs_month) : "";
   const allDays = useMemo(() => report?.month.days ?? [], [report]);
@@ -497,11 +498,8 @@ export function ReportPage() {
       <div className={styles.controls}>
         <div className={styles.topRow}>
           <div className={styles.branchRow}>
-            {/* The ONE active branch - switched in the sidebar, not here. */}
-            <span className={styles.branchButton} data-locked="true" title="Switch branch in the sidebar" data-testid="page-branch">
-              <Icon name="home" size={16} />
-              <span className={styles.branchName}>{branch?.name ?? "…"}</span>
-            </span>
+            {/* The active branch: changing it here switches the whole app. */}
+            <PageBranchSelect hideLabel />
             {employeeParam !== null ? (
               <span className={styles.onlyChip} data-testid="only-employee">
                 Showing {onlyEmployee?.name ?? report?.rows.find((r) => r.employee.id === employeeParam)?.employee.name ?? "one employee"} ·

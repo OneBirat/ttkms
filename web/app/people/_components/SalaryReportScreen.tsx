@@ -1,5 +1,6 @@
 "use client";
 
+import { PageBranchSelect } from "@/components/PageBranchSelect";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useId, useMemo } from "react";
@@ -83,7 +84,7 @@ export function SalaryReportScreen() {
   const departments = usePayroll(listDepartments, []);
   const report = usePayroll(
     () => getSalaryReport(month, department),
-    [monthKey(month), department],
+    [monthKey(month), department, branchScope.branchId],
   );
 
   const data = report.data;
@@ -103,6 +104,7 @@ export function SalaryReportScreen() {
         subtitle={`${monthLabel(month)} payroll`}
         actions={
           <div className={`${shared.row} ${styles.noPrint}`}>
+            <PageBranchSelect />
             <label htmlFor={monthSelectId} className={shared.srOnly}>
               Month (BS)
             </label>

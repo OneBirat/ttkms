@@ -29,7 +29,7 @@ export function PhoneEmployees() {
   const [manageOpen, setManageOpen] = useState(false);
   const canManage = useSession().can("manage_employees");
   const branchScope = useReportBranch();
-  const rows = usePayroll(() => listEmployeeRows(), []);
+  const rows = usePayroll(() => listEmployeeRows(), [branchScope.branchId]);
   const all = useMemo(() => rows.data ?? [], [rows.data]);
   const shown = useMemo(
     () => all.filter((r) => (dept === "all" || r.employee.department?.id === dept) && matchesEmployee(r.employee, query)).sort((a, b) => a.employee.full_name.localeCompare(b.employee.full_name)),

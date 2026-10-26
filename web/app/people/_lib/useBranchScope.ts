@@ -1,6 +1,6 @@
 "use client";
 
-import { useBranch } from "@/lib/branchContext";
+import { useActiveBranch } from "@/lib/branchContext";
 
 /**
  * Which branch a People screen shows (Employees, Payment reports, Salary report): the ONE active
@@ -15,6 +15,6 @@ export interface ReportBranch {
 }
 
 export function useReportBranch(): ReportBranch {
-  const { branch } = useBranch();
+  const { branch } = useActiveBranch();
   return { branchId: branch?.id ?? null, label: branch?.name ?? "Your branch" };
 }

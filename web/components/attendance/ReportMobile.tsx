@@ -1,7 +1,7 @@
 "use client";
 
 import { BranchSwitcher } from "@/components/BranchSwitcher";
-import { useBranch } from "@/lib/branchContext";
+import { useActiveBranch } from "@/lib/branchContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { WEEKDAYS_SHORT_EN } from "@/lib/bs";
@@ -30,7 +30,7 @@ const COMPANY = "TTK"; // as ReportPage. TODO backend: company name from core.se
 export function ReportMobile() {
   const { user } = useSession();
   // The ONE active branch (lib/branch.tsx); switching it remounts the page (AppShell).
-  const { branch } = useBranch();
+  const { branch } = useActiveBranch();
   const { openMenu } = useShell();
   const params = useSearchParams();
   const router = useRouter();
@@ -76,7 +76,8 @@ export function ReportMobile() {
     return () => {
       cancelled = true;
     };
-  }, [period.month]);
+    // The active branch is part of the key: a switch fetches again.
+  }, [period.month, branch?.id]);
 
   const dayBs = report && period.view === "day" ? report.month.days[period.day - 1]?.bs_date : undefined;
   useEffect(() => {
@@ -96,7 +97,7 @@ export function ReportMobile() {
     return () => {
       cancelled = true;
     };
-  }, [dayBs]);
+  }, [dayBs, branch?.id]);
 
   const go = useCallback(
     (next: Period) => {

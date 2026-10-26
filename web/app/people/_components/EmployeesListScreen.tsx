@@ -1,5 +1,6 @@
 "use client";
 
+import { PageBranchSelect } from "@/components/PageBranchSelect";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useMemo, useState, type MouseEvent } from "react";
@@ -37,7 +38,7 @@ export function EmployeesListScreen() {
 
   // The ONE active branch (switched in the shell; the server scopes the list to it).
   const branchScope = useReportBranch();
-  const rows = usePayroll(() => listEmployeeRows(), []);
+  const rows = usePayroll(() => listEmployeeRows(), [branchScope.branchId]);
   const all = useMemo(() => rows.data ?? [], [rows.data]);
   const filtered = useMemo(
     () => all.filter((r) => (department === "all" || r.employee.department?.id === department) && matchesEmployee(r.employee, query)),
@@ -61,6 +62,7 @@ export function EmployeesListScreen() {
         subtitle="All employees with their department. Click a row to open their account."
         actions={
           <div className={shared.row}>
+            <PageBranchSelect />
             <button type="button" className="btn btn--primary" onClick={() => setAddOpen(true)}>
               <Icon name="plus" size={16} />
               Add employee

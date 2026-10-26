@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useBranch } from "@/lib/branchContext";
+import { useActiveBranch } from "@/lib/branchContext";
 import { useSession } from "@/lib/session";
 import { listPaymentModes } from "@/app/people/api";
 import type { PaymentMode } from "@/app/people/types";
@@ -212,7 +212,7 @@ export interface MarkState {
 export function useMarkState(options: { phone: boolean }): MarkState {
   const { phone } = options;
   const { can } = useSession();
-  const { branch: activeBranch } = useBranch();
+  const { branch: activeBranch } = useActiveBranch();
   // The shell's active branch; switching it remounts the page (AppShell), so this never changes here.
   const branchId = activeBranch?.id ?? 0;
   const branchName = activeBranch?.name ?? "";

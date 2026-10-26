@@ -14,6 +14,7 @@ import {
   apiFetch,
   errorMessage,
   type ActiveBranch,
+  type BranchOption,
   isAbortError,
   setCsrfToken,
   type Access,
@@ -35,8 +36,10 @@ export interface Session {
   branchId: number | null;
   /** That branch's name ("Main branch"); null without a branch. */
   branchName: string | null;
-  /** The ONE branch every screen works on - read it through useBranch() (lib/branch.tsx). */
+  /** The ONE branch every screen works on - read it through useActiveBranch() (lib/branch.tsx). */
   activeBranch: ActiveBranch | null;
+  /** see_other_branches: the active branches A-Z with their staff (empty for everyone else). */
+  branchOptions: BranchOption[];
   /** Take a fresh /api/auth/me body (after a branch switch) without reloading the shell. */
   applyAuth: (body: AuthResponse) => void;
   /** Effective permissions from /api/auth/me (role preset + per-user switches). */
@@ -76,6 +79,7 @@ async function loadSession(signal: AbortSignal) {
     branchId: meBody.branch_id ?? null,
     branchName: meBody.branch_name ?? null,
     activeBranch: meBody.active_branch ?? null,
+    branchOptions: meBody.branches ?? [],
     access: meBody.access ?? {},
     modules: modulesFromNav(modulesBody?.nav ?? []),
     enabled: modulesBody?.enabled ?? [],
@@ -93,6 +97,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [branchId, setBranchId] = useState<number | null>(null);
   const [branchName, setBranchName] = useState<string | null>(null);
   const [activeBranch, setActiveBranch] = useState<ActiveBranch | null>(null);
+  const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
   const [access, setAccess] = useState<Access>({});
   const [modules, setModules] = useState<Module[]>([]);
   const [enabled, setEnabled] = useState<string[]>([]);
@@ -112,6 +117,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setBranchId(result.branchId);
         setBranchName(result.branchName);
         setActiveBranch(result.activeBranch);
+        setBranchOptions(result.branchOptions);
         setAccess(result.access);
         setModules(result.modules);
         setEnabled(result.enabled);
@@ -136,6 +142,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setBranchId(body.branch_id ?? null);
     setBranchName(body.branch_name ?? null);
     setActiveBranch(body.active_branch ?? null);
+    setBranchOptions(body.branches ?? []);
     setAccess(body.access ?? {});
     if (body.csrf_token) setCsrfToken(body.csrf_token);
   }, []);
@@ -154,6 +161,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setBranchId(null);
       setBranchName(null);
       setActiveBranch(null);
+      setBranchOptions([]);
       setAccess({});
       setModules([]);
       setEnabled([]);
@@ -176,6 +184,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       branchId,
       branchName,
       activeBranch,
+      branchOptions,
       applyAuth,
       access,
       can,
@@ -193,6 +202,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       branchId,
       branchName,
       activeBranch,
+      branchOptions,
       applyAuth,
       access,
       can,

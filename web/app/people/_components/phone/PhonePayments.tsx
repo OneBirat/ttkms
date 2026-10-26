@@ -65,7 +65,7 @@ export function PhonePayments() {
   const branchScope = useReportBranch();
   const register = usePayroll(
     () => listPayments({ ...range, type, department_id: departmentId, sort, show_voided: showVoided }),
-    [type, departmentId, sort, showVoided],
+    [type, departmentId, sort, showVoided, branchScope.branchId],
   );
   const data = register.data;
   const rows = data?.rows ?? [];

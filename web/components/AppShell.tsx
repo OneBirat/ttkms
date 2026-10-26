@@ -9,7 +9,7 @@ import { PhoneDrawer } from "@/components/PhoneDrawer";
 import { Sidebar } from "@/components/Sidebar";
 import { rolePlace } from "@/components/UserFooter";
 import { SET_PASSWORD_PATH, type Module, type User } from "@/lib/api";
-import { BranchProvider, useBranch } from "@/lib/branch";
+import { BranchProvider, useActiveBranch } from "@/lib/branch";
 import { useSession } from "@/lib/session";
 import { ShellProvider, useShell } from "@/lib/shell";
 import styles from "./AppShell.module.css";
@@ -84,7 +84,7 @@ function ShellFrame({
   children: ReactNode;
 }) {
   const { menuOpen, openMenu, closeMenu, ownHeader } = useShell();
-  const { version, branch } = useBranch();
+  const { version, branch } = useActiveBranch();
   // "Admin · Main branch": the active branch, never "all branches".
   const place = rolePlace(user, branch?.name ?? null);
   const pathname = usePathname();

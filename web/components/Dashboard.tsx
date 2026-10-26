@@ -1,6 +1,6 @@
 "use client";
 
-import { useBranch, withBranch } from "@/lib/branchContext";
+import { useActiveBranch, withBranch } from "@/lib/branchContext";
 import { DateLine } from "@/components/DateLine";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -70,7 +70,7 @@ export function statCards(counts: TodayCounts | null): StatCardProps[] {
 export function Dashboard() {
   const { today: sessionToday, enabled } = useSession();
   // Everything here is the ONE active branch (the server scopes /api/today and the cards).
-  const { branch } = useBranch();
+  const { branch } = useActiveBranch();
   const todayQuery = useApi<Today>("/api/today");
   const today = todayQuery.data ?? sessionToday;
   const { data, error, loading, reload } = useApi<DashboardResponse>("/api/dashboard");

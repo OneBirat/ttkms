@@ -1,32 +1,44 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { apiFetch, errorMessage, type ActiveBranch, type AuthResponse } from "@/lib/api";
-import { BRANCH_CHANNEL, BranchContext, activeBranchesAZ, type BranchRow, type BranchState } from "@/lib/branchContext";
+import { usePathname, useRouter } from "next/navigation";
+import { apiFetch, errorMessage, type AuthResponse } from "@/lib/api";
+import { BRANCH_CHANNEL, BranchContext, branchFromUrl, type ActiveBranchState } from "@/lib/branchContext";
 import { useSession } from "@/lib/session";
 
-export { BRANCH_CHANNEL, BranchContext, activeBranchesAZ, useBranch, withBranch, type BranchState } from "@/lib/branchContext";
+export {
+  BRANCH_CHANNEL,
+  BranchContext,
+  branchFromUrl,
+  useActiveBranch,
+  useBranch,
+  withBranch,
+  type ActiveBranchState,
+  type BranchState,
+} from "@/lib/branchContext";
 
 /**
- * ONE active branch for the whole app (no page on another branch, no "all branches"). The single
- * source of truth is /api/auth/me `active_branch` (kept on the user, so it survives logins); the
- * server scopes every branch-aware endpoint to it, so pages do not send a branch at all.
+ * ONE active branch for the whole app (never "all branches"). The single source of truth is the
+ * session's `active_branch` (/api/auth/me; kept on the user, so it survives reloads and logins);
+ * the server scopes every branch-aware endpoint to it.
  *
- * Users with `see_other_branches` switch it (PATCH /api/auth/me/active-branch): the session takes
- * the answer, `version` goes up - AppShell keys the page on it, so the current page refetches -
- * and the other open tabs hear it on a BroadcastChannel (and re-check /me when they get focus).
- * Everyone else sees their own branch's name and nothing to switch.
+ * setActiveBranch(id): PUT /api/me/active-branch, the session takes the answer, `version` goes up
+ * (AppShell keys the page on it and screens put the branch id in their fetch keys, so everything is
+ * fetched again), router.refresh(), and the other open tabs hear it on a BroadcastChannel (they
+ * also re-check /me when they get focus). `?branch=<id>` in a URL is applied once (when the user may
+ * see that branch) and removed from the URL.
  */
 export function BranchProvider({ children }: { children: ReactNode }) {
-  const { activeBranch, applyAuth, can } = useSession();
+  const { activeBranch, branchOptions, applyAuth, can } = useSession();
+  const router = useRouter();
+  const pathname = usePathname();
   const canSwitch = can("see_other_branches");
-  const [branches, setBranches] = useState<ActiveBranch[]>([]);
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   const current = useRef<number | null>(activeBranch?.id ?? null);
 
-  // Any change of the active branch - from here, another tab or a focus re-check - bumps version.
+  // Any change of the active branch - here, another tab or a focus re-check - bumps version.
   useEffect(() => {
     const id = activeBranch?.id ?? null;
     if (current.current !== id) {
@@ -35,29 +47,17 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     }
   }, [activeBranch?.id]);
 
-  useEffect(() => {
-    if (!canSwitch) {
-      setBranches([]);
-      return;
-    }
-    const controller = new AbortController();
-    apiFetch<BranchRow[]>("/api/core/branches?active=true", { signal: controller.signal })
-      .then((rows) => setBranches(activeBranchesAZ(rows)))
-      .catch(() => {
-        /* the switcher then lists only the active branch */
-      });
-    return () => controller.abort();
-  }, [canSwitch]);
-
-  // Other tabs: a switch there is heard here; focus re-checks /me in case a message was missed.
   const recheck = useCallback(async () => {
     try {
       const me = await apiFetch<AuthResponse>("/api/auth/me");
-      if ((me.active_branch?.id ?? null) !== current.current) applyAuth(me);
+      if ((me.active_branch?.id ?? null) !== current.current) {
+        applyAuth(me);
+        router.refresh();
+      }
     } catch {
       /* a 401 redirects to /login inside apiFetch */
     }
-  }, [applyAuth]);
+  }, [applyAuth, router]);
 
   const channel = useRef<BroadcastChannel | null>(null);
   useEffect(() => {
@@ -86,9 +86,9 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     };
   }, [recheck]);
 
-  const switchTo = useCallback(
+  const setActiveBranch = useCallback(
     async (branchId: number) => {
-      if (!canSwitch || branchId === current.current) return;
+      if (branchId === current.current) return;
       setSwitching(true);
       setError(null);
       try {
@@ -98,26 +98,39 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         });
         applyAuth(me);
         channel.current?.postMessage({ branchId: me.active_branch?.id ?? branchId });
+        router.refresh();
       } catch (err) {
         setError(errorMessage(err));
       } finally {
         setSwitching(false);
       }
     },
-    [canSwitch, applyAuth],
+    [applyAuth, router],
   );
 
-  const value = useMemo<BranchState>(
+  // ?branch=<id>: make it the active branch (when allowed), then drop it from the URL.
+  useEffect(() => {
+    const { branch, url } = branchFromUrl(window.location.href, {
+      branchId: current.current,
+      canSwitch,
+      options: branchOptions,
+    });
+    if (url === null) return;
+    router.replace(url, { scroll: false });
+    if (branch !== null) void setActiveBranch(branch);
+  }, [pathname, canSwitch, branchOptions, router, setActiveBranch]);
+
+  const value = useMemo<ActiveBranchState>(
     () => ({
       branch: activeBranch,
-      branches: branches.length ? branches : activeBranch ? [activeBranch] : [],
+      branches: canSwitch ? branchOptions : [],
       canSwitch,
+      setActiveBranch,
       switching,
       error,
       version,
-      switchTo,
     }),
-    [activeBranch, branches, canSwitch, switching, error, version, switchTo],
+    [activeBranch, branchOptions, canSwitch, setActiveBranch, switching, error, version],
   );
   return <BranchContext.Provider value={value}>{children}</BranchContext.Provider>;
 }

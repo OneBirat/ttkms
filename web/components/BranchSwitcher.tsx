@@ -1,7 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/icons";
-import { useBranch } from "@/lib/branchContext";
+import { useActiveBranch } from "@/lib/branchContext";
 import styles from "./BranchSwitcher.module.css";
 
 /**
@@ -11,7 +11,7 @@ import styles from "./BranchSwitcher.module.css";
  * `see_other_branches` it is just the branch's name - nothing to open.
  */
 export function BranchSwitcher({ variant = "sidebar" }: { variant?: "sidebar" | "bar" }) {
-  const { branch, branches, canSwitch, switching, error, switchTo } = useBranch();
+  const { branch, branches, canSwitch, switching, error, setActiveBranch } = useActiveBranch();
   const name = branch?.name ?? "No branch";
   if (!canSwitch || branches.length < 2) {
     return (
@@ -34,7 +34,7 @@ export function BranchSwitcher({ variant = "sidebar" }: { variant?: "sidebar" | 
           data-testid="branch-switcher"
           value={branch?.id ?? ""}
           disabled={switching}
-          onChange={(e) => void switchTo(Number(e.target.value))}
+          onChange={(e) => void setActiveBranch(Number(e.target.value))}
         >
           {branches.map((b) => (
             <option key={b.id} value={b.id}>

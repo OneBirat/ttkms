@@ -22,7 +22,7 @@ export function PhoneSalaryReport() {
   const [month, setMonth] = useState(currentMonth());
   const [filter, setFilter] = useState<Filter>("all");
   const branchScope = useReportBranch();
-  const report = usePayroll(() => getSalaryReport(month, null), [month.bs_year, month.bs_month]);
+  const report = usePayroll(() => getSalaryReport(month, null), [month.bs_year, month.bs_month, branchScope.branchId]);
   const rows = report.data?.rows ?? [];
   const shown = rows.filter((r) => (filter === "all" ? true : filter === "due" ? r.ledger.due > 0 : r.ledger.due === 0));
   const oldest = months.data?.[months.data.length - 1] ?? null;
