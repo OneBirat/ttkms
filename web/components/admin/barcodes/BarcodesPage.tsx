@@ -1,5 +1,6 @@
 "use client";
 
+import { useBranch, withBranch } from "@/lib/branchContext";
 import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -72,6 +73,8 @@ function Sticker({ employee, height }: { employee: BarcodeEmployee; height: numb
 }
 
 function BarcodesScreen() {
+  // Stickers for the ONE active branch (the server lists and prints only its staff).
+  const { branch } = useBranch();
   const data = useLoader(loadBarcodes);
   const { toast, show, dismiss } = useToast();
   const [q, setQ] = useState("");
@@ -164,7 +167,7 @@ function BarcodesScreen() {
       <style>{PRINT_CSS}</style>
       <div className={styles.noPrint}>
         <PageHeader
-          title="Employee barcodes"
+          title={withBranch("Employee barcodes", branch)}
           subtitle={SUBTITLE}
           actions={
             <>

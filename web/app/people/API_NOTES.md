@@ -84,15 +84,17 @@ summary and the month's payments (`ledgerFor` in api.ts shows the exact derivati
 | GET | /photo-tokens/{token} | → PhotoTokenInfo (no session; 410 when expired) |
 | POST | /photo-tokens/{token}/photo | multipart image, no session → Employee |
 
-## Branch selection (Employees, Payment reports, Salary report; one branch since 2026-10-25)
+## Branch: ONE active branch for the whole app (2026-10-26)
 
-`_lib/branchScope.ts` (tested) + `useReportBranch`: always exactly one branch, never "All branches". With
-`see_other_branches` a Branch drop-down (house icon) of every active branch A-Z, left of the month/date
-controls (phone: the header pill); default = the session's own branch, else the first branch. Without it no
-drop-down: the page is locked to the session `branchId` and shows the branch name as a small label.
-`?branch=` sits in the URL next to `?dept=&sort=`; the UI always sends `branch_id` (screens wait with
-`waitForBranch()` until it is known); department chip counts, tiles and exports follow the branch, and the
-PDF title / file name name it. The API still answers `by_branch`; the UI does not show it.
+No page picks a branch any more and nothing sends `?branch=` / `branch_id`: the server scopes every
+request to the user's active branch (`core.users.active_branch_id`, /api/auth/me `active_branch`).
+It is switched only in the shell (`components/BranchSwitcher.tsx`: sidebar under the logo, phone
+drawer, phone top bar / the screens' own phone headers) by users with `see_other_branches`
+(PATCH /api/auth/me/active-branch); everyone else sees their own branch's name. `lib/branch.tsx`
+BranchProvider is the single source of truth; a switch remounts the page (AppShell keys `<main>` on
+the context's `version`), so it refetches, and other tabs follow (BroadcastChannel + focus).
+`_lib/useBranchScope.ts` `useReportBranch()` only gives the screens the name for titles
+("Employees · Main branch"). The API still answers `by_branch` (one entry); the UI does not show it.
 
 ## Employee account (`/people/employees/[id]`, 2026-10-25)
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useBranch, withBranch } from "@/lib/branchContext";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -61,8 +62,10 @@ function project(rows: readonly ReportRow[], indices: readonly number[], retotal
 }
 
 export function ReportPage() {
-  const { user, branchId: homeBranch, can } = useSession();
-  const canPickBranch = can("see_other_branches");
+  const { user } = useSession();
+  // The ONE active branch (lib/branch.tsx); switching it in the shell remounts this page.
+  const { branch } = useBranch();
+  const branchId = branch?.id ?? null;
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -73,7 +76,6 @@ export function ReportPage() {
   const [monthKey, setMonthKey] = useState(() => monthFromParams(params) ?? "");
   const [onlyEmployee, setOnlyEmployee] = useState<EmployeeRef | null>(null);
   const monthReady = monthKey !== "";
-  const [branchId, setBranchId] = useState<number | null>(homeBranch);
   const [view, setView] = useState<View>("month");
   const [weekIndex, setWeekIndex] = useState(1);
   const [dayIndex, setDayIndex] = useState(0);
@@ -106,8 +108,7 @@ export function ReportPage() {
     };
   }, []);
 
-  // The one employee: name for the chip, and their branch (a user who may pick branches is moved
-  // to it; everyone else is scoped to their own branch by the server anyway).
+  // The one employee: name for the chip (only on their branch: another branch's employee is a 403).
   useEffect(() => {
     if (employeeParam === null || !monthKey) {
       setOnlyEmployee(null);
@@ -118,7 +119,6 @@ export function ReportPage() {
       .then((m) => {
         if (cancelled) return;
         setOnlyEmployee(m.employee);
-        if (canPickBranch) setBranchId(m.employee.branch_id);
       })
       .catch(() => {
         if (!cancelled) setOnlyEmployee(null);
@@ -128,7 +128,7 @@ export function ReportPage() {
     };
     // Only when the URL's employee changes or the first month is known (then months are browsed freely).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employeeParam, monthReady, canPickBranch]);
+  }, [employeeParam, monthReady]);
 
   const clearEmployee = () => {
     const next = new URLSearchParams(params.toString());
@@ -144,13 +144,10 @@ export function ReportPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getReport(monthKey, branchId)
+    getReport(monthKey)
       .then((body) => {
         if (cancelled) return;
         setReport(body);
-        // Everyone reports on one branch: their own (session.branchId); an admin without
-        // one starts on the first branch until they pick another.
-        if (branchId === null && body.branches.length) setBranchId(homeBranch ?? body.branches[0].id);
         setLoading(false);
       })
       .catch((err: unknown) => {
@@ -162,7 +159,7 @@ export function ReportPage() {
     return () => {
       cancelled = true;
     };
-  }, [monthKey, branchId, homeBranch]);
+  }, [monthKey]);
 
   const monthName = report ? bsMonthName(report.month.bs_month) : "";
   const allDays = useMemo(() => report?.month.days ?? [], [report]);
@@ -327,7 +324,6 @@ export function ReportPage() {
         })),
       ]
     : [];
-  const branch = report?.branches.find((b) => b.id === branchId) ?? report?.branches[0];
 
   // Grouped: the legend sits in the first department heading, after its attendance rate.
   const legendInGrid = Boolean(gridGroups?.length);
@@ -383,7 +379,7 @@ export function ReportPage() {
   return (
     <>
       <PageHeader
-        title="Attendance report"
+        title={withBranch("Attendance report", branch)}
         subtitle={subtitle}
         actions={
           <div className={styles.headerActions}>
@@ -501,38 +497,11 @@ export function ReportPage() {
       <div className={styles.controls}>
         <div className={styles.topRow}>
           <div className={styles.branchRow}>
-            {canPickBranch ? (
-              <label className={styles.branchButton} data-single={(report?.branches.length ?? 0) > 1 ? undefined : "true"}>
-                <Icon name="home" size={16} />
-                <select
-                  aria-label="Branch"
-                  value={branchId ?? ""}
-                  onChange={(e) => {
-                    setBranchId(Number(e.target.value));
-                    setDepartmentId(null);
-                    resetPage();
-                  }}
-                >
-                  {(report?.branches ?? []).map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                {/* Only a choice to make with more than one branch. */}
-                {(report?.branches.length ?? 0) > 1 ? (
-                  <span className={styles.branchChevron} aria-hidden="true">
-                    <Icon name="chevron-down" size={20} />
-                  </span>
-                ) : null}
-              </label>
-            ) : (
-              <span className={styles.branchButton} data-locked="true" title="Ask an admin for 'See other branches' access" data-testid="branch-lock">
-                <Icon name="home" size={16} />
-                <span className={styles.branchName}>{branch?.name ?? "…"}</span>
-                <span className={styles.branchPillSub}>your branch</span>
-              </span>
-            )}
+            {/* The ONE active branch - switched in the sidebar, not here. */}
+            <span className={styles.branchButton} data-locked="true" title="Switch branch in the sidebar" data-testid="page-branch">
+              <Icon name="home" size={16} />
+              <span className={styles.branchName}>{branch?.name ?? "…"}</span>
+            </span>
             {employeeParam !== null ? (
               <span className={styles.onlyChip} data-testid="only-employee">
                 Showing {onlyEmployee?.name ?? report?.rows.find((r) => r.employee.id === employeeParam)?.employee.name ?? "one employee"} ·

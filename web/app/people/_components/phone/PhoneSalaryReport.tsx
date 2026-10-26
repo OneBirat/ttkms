@@ -3,13 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PhoneFrame } from "./PhoneFrame";
-import { useReportBranch, waitForBranch } from "../../_lib/useBranchScope";
-import { currentMonth, getSalaryReport, listBranches, listMonths } from "../../api";
+import { useReportBranch } from "../../_lib/useBranchScope";
+import { currentMonth, getSalaryReport, listMonths } from "../../api";
 import { formatAdRange } from "@/lib/bs";
 import { addMonths, compareMonths, monthEnd, monthLabel, monthStart, sameMonth } from "../../_lib/months";
 import { formatAmount } from "../../_lib/helpers";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
-import type { SalaryReport } from "../../types";
 import { monthStatusText } from "../../_lib/settle";
 import styles from "./phone.module.css";
 import shared from "../payroll.module.css";
@@ -19,16 +18,11 @@ type Filter = "all" | "due" | "paid";
 /** Phone: salary report for one BS month (design PayrollMobile, report screen). */
 export function PhoneSalaryReport() {
   const router = useRouter();
-  const branches = usePayroll(listBranches, []);
   const months = usePayroll(listMonths, []);
   const [month, setMonth] = useState(currentMonth());
   const [filter, setFilter] = useState<Filter>("all");
-  const branchScope = useReportBranch(branches.data ?? []);
-  const report = usePayroll(
-    () => (branchScope.ready ? getSalaryReport(month, null, branchScope.branchId) : waitForBranch<SalaryReport>()),
-    [month.bs_year, month.bs_month, branchScope.branchId, branchScope.ready],
-  );
-  const picker = branchScope.picker;
+  const branchScope = useReportBranch();
+  const report = usePayroll(() => getSalaryReport(month, null), [month.bs_year, month.bs_month]);
   const rows = report.data?.rows ?? [];
   const shown = rows.filter((r) => (filter === "all" ? true : filter === "due" ? r.ledger.due > 0 : r.ledger.due === 0));
   const oldest = months.data?.[months.data.length - 1] ?? null;
@@ -39,7 +33,7 @@ export function PhoneSalaryReport() {
     <PhoneFrame
       title="Salary report"
       subtitle={`${branchScope.label} · ${rows.length} staff`}
-      branch={picker}
+      branch
       headerExtra={
         <div className={styles.monthNav}>
           <button type="button" aria-label="Previous month" className={styles.monthNavButton} disabled={Boolean(oldest && compareMonths(month, oldest) <= 0)} onClick={() => setMonth(addMonths(month, -1))}>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useBranch } from "@/lib/branchContext";
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Modal } from "@/components/ui/Modal";
 import type { Role } from "@/lib/api";
@@ -77,6 +78,7 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
   const [phone, setPhone] = useState("");
   const [phoneAlt, setPhoneAlt] = useState("");
   const [address, setAddress] = useState("");
+  const { branch: activeBranch } = useBranch();
   const [branchId, setBranchId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [designation, setDesignation] = useState("");
@@ -107,7 +109,8 @@ export function AddEmployeeDialog({ open, onClose, onCreated }: AddEmployeeDialo
     setPhone("");
     setPhoneAlt("");
     setAddress("");
-    setBranchId("");
+    // New staff go to the active branch unless someone picks another one here.
+    setBranchId(activeBranch ? String(activeBranch.id) : "");
     setDepartmentId("");
     setDesignation("");
     setPayType("monthly");

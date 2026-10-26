@@ -1,5 +1,6 @@
 "use client";
 
+import { withBranch } from "@/lib/branchContext";
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BSDate } from "@/components/date";
@@ -73,8 +74,8 @@ export function MarkDesktop({ state }: { state: MarkState }) {
   return (
     <>
       <PageHeader
-        title="Mark attendance"
-        subtitle="Pick a branch, narrow down and mark. Each mark is saved as soon as you confirm it."
+        title={withBranch("Mark attendance", state.branchName ? { name: state.branchName } : null)}
+        subtitle="Narrow down and mark. Each mark is saved as soon as you confirm it. The branch is switched in the sidebar."
         actions={
           <div className={styles.dateCol}>
             <BSDate
@@ -92,26 +93,6 @@ export function MarkDesktop({ state }: { state: MarkState }) {
       />
 
       <section aria-label="Filters" className={`card ${styles.filters}`}>
-        <div className={styles.filterCol}>
-          <label htmlFor="mark-branch" className={shared.label}>
-            Branch
-          </label>
-          <div className={shared.field}>
-            <select
-              id="mark-branch"
-              value={state.branchId}
-              disabled={!state.canPickBranch}
-              title={state.canPickBranch ? undefined : "Your branch. Ask an admin for 'See other branches' access."}
-              onChange={(e) => state.setBranch(Number(e.target.value))}
-            >
-              {(data?.branches ?? [{ id: state.branchId, name: "Loading…", headcount: 0 }]).map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name} ({b.headcount})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
         <div className={`${styles.filterCol} ${styles.filterSearch}`}>
           <label htmlFor="mark-search" className={shared.label}>
             Search

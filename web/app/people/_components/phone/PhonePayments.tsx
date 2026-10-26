@@ -4,17 +4,16 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { BottomSheet } from "./BottomSheet";
 import { PhoneFrame } from "./PhoneFrame";
-import { useReportBranch, waitForBranch } from "../../_lib/useBranchScope";
+import { useReportBranch } from "../../_lib/useBranchScope";
 import { listDepartments, listPayments, receiptUrl } from "../../api";
 import { VoidedNote } from "../VoidPaymentDialog";
 import { monthLabel } from "../../_lib/months";
 import shared from "../payroll.module.css";
-import { listBranches } from "../../api";
 import { formatBsDay } from "@/lib/bs";
 import { rangeFor, today } from "../../_lib/months";
 import { formatAmount, groupBy, initials } from "../../_lib/helpers";
 import { REGISTER_SORTS, groupRowsByDepartment, isRegisterSort, type RegisterGroup } from "../../_lib/register";
-import type { PaymentsRegister, RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
+import type { RegisterRow, RegisterSort, RegisterTypeFilter } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import { monthsText } from "../../_lib/settle";
 import styles from "./phone.module.css";
@@ -41,7 +40,6 @@ export function PhonePayments() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const branches = usePayroll(listBranches, []);
   const departments = usePayroll(listDepartments, []);
   const [type, setType] = useState<RegisterTypeFilter>("all");
   const [sortOpen, setSortOpen] = useState(false);
@@ -64,15 +62,11 @@ export function PhonePayments() {
   );
 
   const range = useMemo(() => rangeFor("last_3"), []);
-  const branchScope = useReportBranch(branches.data ?? []);
+  const branchScope = useReportBranch();
   const register = usePayroll(
-    () =>
-      branchScope.ready
-        ? listPayments({ ...range, type, branch_id: branchScope.branchId, department_id: departmentId, sort, show_voided: showVoided })
-        : waitForBranch<PaymentsRegister>(),
-    [type, branchScope.branchId, branchScope.ready, departmentId, sort, showVoided],
+    () => listPayments({ ...range, type, department_id: departmentId, sort, show_voided: showVoided }),
+    [type, departmentId, sort, showVoided],
   );
-  const picker = branchScope.picker;
   const data = register.data;
   const rows = data?.rows ?? [];
   const t = today().bs;
@@ -160,7 +154,7 @@ export function PhonePayments() {
     <PhoneFrame
       title="Payment reports"
       subtitle={`${branchScope.label}${data?.department ? ` · ${data.department.name}` : ""} · advances & salary paid`}
-      branch={picker}
+      branch
     >
       <div className={styles.chips} role="group" aria-label="Type">
         {CHIPS.map((c) => (

@@ -11,12 +11,12 @@ import { AddEmployeeDialog } from "./AddEmployeeDialog";
 import { Avatar } from "./Avatar";
 import { ManageDepartmentsDialog } from "./ManageDepartmentsDialog";
 import { TodayPill } from "./TodayPill";
-import { listBranches, listDepartments, listEmployeeRows } from "../api";
+import { listDepartments, listEmployeeRows } from "../api";
 import { formatAmount, formatRs, matchesEmployee, thumbUrl } from "../_lib/helpers";
 import type { EmployeeListRow } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
-import { useReportBranch, waitForBranch } from "../_lib/useBranchScope";
-import { BranchSwitcher } from "./BranchSwitcher";
+import { useReportBranch } from "../_lib/useBranchScope";
+import { withBranch } from "@/lib/branchContext";
 import styles from "./employees.module.css";
 import shared from "./payroll.module.css";
 
@@ -26,8 +26,6 @@ const DEPT_TONES = ["ok", "ot", "advance", "purple", "neutral"] as const;
 export function EmployeesListScreen() {
   const router = useRouter();
   const searchId = useId();
-  const branchId = useId();
-  const branches = usePayroll(listBranches, []);
   const departments = usePayroll(listDepartments, []);
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState<number | "all">("all");
@@ -37,14 +35,9 @@ export function EmployeesListScreen() {
   const canManage = can("manage_employees");
   const canMoney = can("salary_advances");
 
-  // Everyone sees their own branch (session.branchId); `see_other_branches` adds the drop-down.
-  const branchList = branches.data ?? [];
-  const branchScope = useReportBranch(branchList);
-  const activeBranch = branchScope.branchId;
-  const rows = usePayroll(
-    () => (branchScope.ready ? listEmployeeRows(activeBranch) : waitForBranch<EmployeeListRow[]>()),
-    [activeBranch, branchScope.ready],
-  );
+  // The ONE active branch (switched in the shell; the server scopes the list to it).
+  const branchScope = useReportBranch();
+  const rows = usePayroll(() => listEmployeeRows(), []);
   const all = useMemo(() => rows.data ?? [], [rows.data]);
   const filtered = useMemo(
     () => all.filter((r) => (department === "all" || r.employee.department?.id === department) && matchesEmployee(r.employee, query)),
@@ -64,11 +57,10 @@ export function EmployeesListScreen() {
   return (
     <>
       <PageHeader
-        title="Employees"
+        title={withBranch("Employees", { name: branchScope.label })}
         subtitle="All employees with their department. Click a row to open their account."
         actions={
           <div className={shared.row}>
-            <BranchSwitcher scope={branchScope} id={branchId} />
             <button type="button" className="btn btn--primary" onClick={() => setAddOpen(true)}>
               <Icon name="plus" size={16} />
               Add employee

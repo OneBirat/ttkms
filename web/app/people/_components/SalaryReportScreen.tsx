@@ -7,10 +7,10 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Icon } from "@/components/icons";
-import { currentMonth, getSalaryReport, listBranches, listDepartments, listMonths, salaryReportExportUrl } from "../api";
-import { BranchSwitcher } from "./BranchSwitcher";
+import { currentMonth, getSalaryReport, listDepartments, listMonths, salaryReportExportUrl } from "../api";
 import { MonthStatusPill } from "./MonthStatusPill";
-import { useReportBranch, waitForBranch } from "../_lib/useBranchScope";
+import { useReportBranch } from "../_lib/useBranchScope";
+import { withBranch } from "@/lib/branchContext";
 import { monthKey, monthLabel, monthName, parseMonthKey, sameMonth } from "../_lib/months";
 import {
   formatAmount,
@@ -48,9 +48,8 @@ export function SalaryReportScreen() {
   const monthSelectId = useId();
   const searchId = useId();
   const sortId = useId();
-  const branchSelectId = useId();
-  const branches = usePayroll(listBranches, []);
-  const branchScope = useReportBranch(branches.data ?? []);
+  // The ONE active branch (switched in the shell; the server scopes the report to it).
+  const branchScope = useReportBranch();
 
   const month = parseMonthKey(params.get("month") ?? "") ?? currentMonth();
   const deptParam = params.get("dept");
@@ -83,8 +82,8 @@ export function SalaryReportScreen() {
   const months = usePayroll(listMonths, []);
   const departments = usePayroll(listDepartments, []);
   const report = usePayroll(
-    () => (branchScope.ready ? getSalaryReport(month, department, branchScope.branchId) : waitForBranch<SalaryReport>()),
-    [monthKey(month), department, branchScope.branchId, branchScope.ready],
+    () => getSalaryReport(month, department),
+    [monthKey(month), department],
   );
 
   const data = report.data;
@@ -100,11 +99,10 @@ export function SalaryReportScreen() {
   return (
     <>
       <PageHeader
-        title="Salary report"
+        title={withBranch("Salary report", { name: branchScope.label })}
         subtitle={`${monthLabel(month)} payroll`}
         actions={
           <div className={`${shared.row} ${styles.noPrint}`}>
-            <BranchSwitcher scope={branchScope} id={branchSelectId} />
             <label htmlFor={monthSelectId} className={shared.srOnly}>
               Month (BS)
             </label>
@@ -118,11 +116,11 @@ export function SalaryReportScreen() {
                 ))}
               </select>
             </div>
-            <button type="button" className="btn" disabled={!data} onClick={() => window.location.assign(salaryReportExportUrl(month, "xlsx", department, branchScope.branchId))}>
+            <button type="button" className="btn" disabled={!data} onClick={() => window.location.assign(salaryReportExportUrl(month, "xlsx", department))}>
               <Icon name="download" size={16} />
               Excel
             </button>
-            <button type="button" className="btn" disabled={!data} onClick={() => window.open(salaryReportExportUrl(month, "pdf", department, branchScope.branchId), "_blank", "noopener")}>
+            <button type="button" className="btn" disabled={!data} onClick={() => window.open(salaryReportExportUrl(month, "pdf", department), "_blank", "noopener")}>
               <Icon name="print" size={16} />
               PDF
             </button>

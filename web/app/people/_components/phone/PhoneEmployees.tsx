@@ -7,11 +7,10 @@ import { useSession } from "@/lib/session";
 import { ManageDepartmentsDialog } from "../ManageDepartmentsDialog";
 import { PhoneFrame } from "./PhoneFrame";
 import { TodayPill } from "../TodayPill";
-import { listBranches, listDepartments, listEmployeeRows } from "../../api";
+import { listDepartments, listEmployeeRows } from "../../api";
 import { formatAmount, initials, matchesEmployee, thumbUrl } from "../../_lib/helpers";
-import { useReportBranch, waitForBranch } from "../../_lib/useBranchScope";
+import { useReportBranch } from "../../_lib/useBranchScope";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
-import type { EmployeeListRow } from "../../types";
 import styles from "./phone.module.css";
 
 export const AVATAR_TONES = ["#6e5a4b", "#4f6d7a", "#7a5c61", "#5b7553", "#7a6a4f"];
@@ -24,20 +23,13 @@ export function avatarTone(id: number): string {
 export function PhoneEmployees() {
   const router = useRouter();
   const searchId = useId();
-  const branches = usePayroll(listBranches, []);
   const departments = usePayroll(listDepartments, []);
   const [query, setQuery] = useState("");
   const [dept, setDept] = useState<number | "all">("all");
   const [manageOpen, setManageOpen] = useState(false);
   const canManage = useSession().can("manage_employees");
-  const branchList = branches.data ?? [];
-  const branchScope = useReportBranch(branchList);
-  const activeBranch = branchScope.branchId;
-  const picker = branchScope.picker;
-  const rows = usePayroll(
-    () => (branchScope.ready ? listEmployeeRows(activeBranch) : waitForBranch<EmployeeListRow[]>()),
-    [activeBranch, branchScope.ready],
-  );
+  const branchScope = useReportBranch();
+  const rows = usePayroll(() => listEmployeeRows(), []);
   const all = useMemo(() => rows.data ?? [], [rows.data]);
   const shown = useMemo(
     () => all.filter((r) => (dept === "all" || r.employee.department?.id === dept) && matchesEmployee(r.employee, query)).sort((a, b) => a.employee.full_name.localeCompare(b.employee.full_name)),
@@ -54,7 +46,7 @@ export function PhoneEmployees() {
     <PhoneFrame
       title="Employees"
       subtitle={`${branchName} · ${all.length} staff`}
-      branch={picker}
+      branch
       headerExtra={
         <div className={styles.headerTiles}>
           <div className={styles.headerTile}>

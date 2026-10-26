@@ -1,10 +1,10 @@
 "use client";
 
-import { useId, type CSSProperties } from "react";
+import { useId, type CSSProperties, type ReactNode } from "react";
 import { WEEKDAYS_SHORT_EN, formatAdShort, kathmanduTime } from "@/lib/bs";
 import { filterReportRows } from "./exportModel";
 import { computeTotals, groupByDepartment, sortRows, type DepartmentGroup } from "./helpers";
-import { ChevronDownIcon, MenuIcon } from "./icons";
+import { MenuIcon } from "./icons";
 import {
   MOBILE_VIEWS,
   PALE_COLOUR,
@@ -18,7 +18,7 @@ import {
   type CellLook,
   type MobileView,
 } from "./reportPeriod";
-import type { AttendanceRecord, BranchRef, DayHeader, MonthReport, ReportFilters, ReportRow } from "./types";
+import type { AttendanceRecord, DayHeader, MonthReport, ReportFilters, ReportRow } from "./types";
 import { useDialog } from "./useDialog";
 import { FaceContent } from "./Face";
 import styles from "./reportMobile.module.css";
@@ -88,11 +88,8 @@ export function paleStyle(look: CellLook, isToday: boolean): CSSProperties {
 
 export interface MobileHeaderProps {
   subtitle: string;
-  /** see_other_branches: the branch pill lists every branch; without it there is no pill. */
-  canPickBranch: boolean;
-  branches: BranchRef[];
-  branchId: number | null;
-  onBranch: (id: number) => void;
+  /** The shell's active-branch switcher (BranchSwitcher): this screen hides the shell's bar. */
+  branchSwitcher?: ReactNode;
   onMenu: () => void;
   onDownload: () => void;
   title: string;
@@ -106,7 +103,6 @@ export interface MobileHeaderProps {
 }
 
 export function MobileHeader(props: MobileHeaderProps) {
-  const branch = props.branches.find((b) => b.id === props.branchId);
   return (
     <header className={styles.header}>
       <div className={styles.headerRow}>
@@ -117,19 +113,7 @@ export function MobileHeader(props: MobileHeaderProps) {
           <span className={styles.title}>Attendance report</span>
           <span className={styles.subtitle}>{props.subtitle}</span>
         </div>
-        {props.canPickBranch ? (
-          <label className={styles.branchPill} data-testid="branch-pill">
-            {branch?.name ?? "…"}
-            <ChevronDownIcon className={styles.branchCaret} />
-            <select aria-label="Branch" value={props.branchId ?? ""} onChange={(e) => props.onBranch(Number(e.target.value))}>
-              {props.branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
+        {props.branchSwitcher ?? null}
         <button type="button" aria-label="Download report" className={styles.iconBtn} onClick={props.onDownload}>
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />

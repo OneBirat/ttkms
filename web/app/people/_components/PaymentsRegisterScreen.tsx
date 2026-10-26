@@ -8,15 +8,15 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { Icon } from "@/components/icons";
-import { currentMonth, listBranches, listDepartments, listPayments, receiptUrl, registerExportUrl } from "../api";
-import { BranchSwitcher } from "./BranchSwitcher";
-import { useReportBranch, waitForBranch } from "../_lib/useBranchScope";
+import { currentMonth, listDepartments, listPayments, receiptUrl, registerExportUrl } from "../api";
+import { useReportBranch } from "../_lib/useBranchScope";
+import { withBranch } from "@/lib/branchContext";
 import { formatBs, isValidBs } from "@/lib/bs";
 import { monthLabel, monthName, monthStart, rangeFor } from "../_lib/months";
 import { formatAmount, formatRs, matchesEmployee, paginate } from "../_lib/helpers";
 import { REGISTER_SORTS, displayRows, isRegisterSort } from "../_lib/register";
 import { monthsText } from "../_lib/settle";
-import type { DateRange, PaymentsRegister, RegisterSort, RegisterTypeFilter } from "../types";
+import type { DateRange, RegisterSort, RegisterTypeFilter } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import { VoidedNote } from "./VoidPaymentDialog";
 import styles from "./report.module.css";
@@ -47,9 +47,8 @@ export function PaymentsRegisterScreen() {
   const pathname = usePathname();
   const params = useSearchParams();
   const searchId = useId();
-  const branchSelectId = useId();
-  const branches = usePayroll(listBranches, []);
-  const branchScope = useReportBranch(branches.data ?? []);
+  // The ONE active branch (switched in the shell; the server scopes the register to it).
+  const branchScope = useReportBranch();
 
   const defaults = useMemo(() => rangeFor("last_30"), []);
   const from_bs = params.get("from") ?? defaults.from_bs;
@@ -108,18 +107,15 @@ export function PaymentsRegisterScreen() {
   const departments = usePayroll(listDepartments, []);
   const register = usePayroll(
     () =>
-      !branchScope.ready
-        ? waitForBranch<PaymentsRegister>()
-        : listPayments({
+      listPayments({
         from_bs: validRange && !rangeBad ? from_bs : null,
         to_bs: validRange && !rangeBad ? to_bs : null,
         type,
-        branch_id: branchScope.branchId,
         department_id: departmentId,
         sort,
         show_voided: showVoided,
       }),
-    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, branchScope.branchId, branchScope.ready, departmentId, sort, showVoided],
+    [validRange && !rangeBad ? from_bs : "", validRange && !rangeBad ? to_bs : "", type, departmentId, sort, showVoided],
   );
   const data = register.data;
   const rows = useMemo(() => (data ? data.rows.filter((r) => matchesEmployee(r.employee, query)) : []), [data, query]);
@@ -144,7 +140,7 @@ export function PaymentsRegisterScreen() {
     setAsk(null);
     if (r.from_bs !== from_bs || r.to_bs !== to_bs) setRange(r);
     const url = registerExportUrl(
-      { from_bs: r.from_bs, to_bs: r.to_bs, type, branch_id: branchScope.branchId, department_id: departmentId, sort },
+      { from_bs: r.from_bs, to_bs: r.to_bs, type, department_id: departmentId, sort },
       ext,
     );
     const dept = data.department;
@@ -167,7 +163,7 @@ export function PaymentsRegisterScreen() {
   return (
     <>
       <PageHeader
-        title="Payment reports"
+        title={withBranch("Payment reports", { name: branchScope.label })}
         subtitle="Every salary and advance payment in one place. Payments are recorded from each employee's account (Pay salary / Give advance)."
         actions={
           <div className={styles.downloads}>
@@ -278,7 +274,6 @@ export function PaymentsRegisterScreen() {
             </div>
 
             <div className={styles.rangeRow}>
-              <BranchSwitcher scope={branchScope} id={branchSelectId} />
               <BSDateRangePicker value={{ from: from_bs, to: to_bs }} onChange={(r) => setRange({ from_bs: r.from, to_bs: r.to })} size="sm" />
               {rangeBad ? <span className={shared.warn}>&quot;From&quot; is after &quot;To&quot; — swap the dates.</span> : null}
               {!validRange ? <span className={shared.warn}>Pick both dates.</span> : null}

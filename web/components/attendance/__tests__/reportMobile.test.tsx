@@ -162,13 +162,10 @@ describe("phone report: departments and search", () => {
 
 // ------------------------------------------------------------ header
 
-const header = (canPickBranch: boolean) => {
+const header = (withSwitcher: boolean) => {
   const props: MobileHeaderProps = {
     subtitle: "Main branch · all departments",
-    canPickBranch,
-    branches: report.branches,
-    branchId: 1,
-    onBranch: () => {},
+    branchSwitcher: withSwitcher ? createElement("span", { "data-testid": "shell-switcher" }, "Main branch ▾") : undefined,
     onMenu: () => {},
     onDownload: () => {},
     title: "Kartik 2083",
@@ -184,18 +181,13 @@ const header = (canPickBranch: boolean) => {
 };
 
 describe("phone report: header", () => {
-  it("no branch pill without see_other_branches", () => {
-    const html = header(false);
-    assert.doesNotMatch(html, /branch-pill/);
-    assert.doesNotMatch(html, /Branch 2/);
-    assert.match(html, /Main branch · all departments/);
-  });
-
-  it("branch pill lists every branch (no All branches) with see_other_branches", () => {
+  it("no page-level branch dropdown: the shell's switcher goes in the header", () => {
+    const bare = header(false);
+    assert.doesNotMatch(bare, /<select/);
+    assert.match(bare, /Main branch · all departments/);
     const html = header(true);
-    assert.match(html, /data-testid="branch-pill"/);
-    assert.match(html, /<option value="1"[^>]*>Main branch<\/option><option value="2"[^>]*>Branch 2<\/option><\/select>/);
-    assert.doesNotMatch(html, /All branches/);
+    assert.match(html, /data-testid="shell-switcher"/);
+    assert.doesNotMatch(html, /All branches|branch-pill/);
   });
 
   it("dims › at the limit and marks the selected view", () => {

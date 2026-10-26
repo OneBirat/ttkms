@@ -148,7 +148,7 @@ export interface MarkRow {
 }
 
 /**
- * GET /api/attendance/day?date_bs=&branch=
+ * GET /api/attendance/day?date_bs= (the user's ONE active branch)
  * Every active employee of the branch with that day's record (the web UI
  * filters by department / search / "only not marked" and pages locally so the
  * counts and "mark remaining" cover the whole scope and unsaved marks survive
@@ -294,7 +294,7 @@ export interface ReportRow {
   totals: AttendanceTotals;
 }
 
-/** GET /api/attendance/report?bs_year=&bs_month=&branch=  (week / day / dept are sliced client-side) */
+/** GET /api/attendance/report?bs_year=&bs_month= - the active branch (week / day / dept are sliced client-side) */
 export interface MonthReport {
   month: BsMonthRef;
   settings: AttendanceSettings;

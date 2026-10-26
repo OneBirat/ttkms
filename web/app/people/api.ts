@@ -123,9 +123,10 @@ export async function listEmployees(): Promise<Employee[]> {
   return rows.map((r) => r.employee);
 }
 
-/** GET /api/payroll/employees?branch_id= - today's mark and the balance due (null without salary_advances). */
-export async function listEmployeeRows(branch_id: number | null = null): Promise<EmployeeListRow[]> {
-  return apiFetch<EmployeeListRow[]>(`/api/payroll/employees${qs({ branch_id })}`);
+/** GET /api/payroll/employees - the ONE active branch's staff (lib/branch.tsx), today's mark and the
+ *  balance due (null without salary_advances). */
+export async function listEmployeeRows(): Promise<EmployeeListRow[]> {
+  return apiFetch<EmployeeListRow[]>("/api/payroll/employees");
 }
 
 /** GET /api/payroll/employees/{id} */
@@ -288,8 +289,6 @@ export interface PaymentsQuery {
   to_bs: string | null;
   type: RegisterTypeFilter;
   employee_id?: number | null;
-  /** Only payments of employees in this branch (null / omitted = all branches the caller may see). */
-  branch_id?: number | null;
   department_id?: number | null;
   /** Row order; "date" (newest first) when omitted. */
   sort?: RegisterSort;
@@ -303,14 +302,13 @@ function registerQuery(query: PaymentsQuery, forExport = false): string {
     to: query.to_bs,
     type: query.type === "all" ? null : query.type,
     employee_id: query.employee_id,
-    branch_id: query.branch_id,
     department_id: query.department_id,
     sort: query.sort,
     show_voided: !forExport && query.show_voided ? "true" : null,
   });
 }
 
-/** GET /api/payroll/payments?from=&to=&type=&employee_id=&branch_id=&department_id=&sort= */
+/** GET /api/payroll/payments?from=&to=&type=&employee_id=&department_id=&sort= - the active branch. */
 export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegister> {
   return apiFetch<PaymentsRegister>(`/api/payroll/payments${registerQuery(query)}`);
 }
@@ -342,14 +340,14 @@ export async function getAccountSummary(employee_id: number): Promise<AccountSum
 
 // ----------------------------------------------------------------- report
 
-/** GET /api/payroll/report/{YYYY-MM}?department_id=&branch_id= */
-export async function getSalaryReport(month: BsMonth, department_id: number | null = null, branch_id: number | null = null): Promise<SalaryReport> {
-  return apiFetch<SalaryReport>(`/api/payroll/report/${key(month)}${qs({ department_id, branch_id })}`);
+/** GET /api/payroll/report/{YYYY-MM}?department_id= - the active branch. */
+export async function getSalaryReport(month: BsMonth, department_id: number | null = null): Promise<SalaryReport> {
+  return apiFetch<SalaryReport>(`/api/payroll/report/${key(month)}${qs({ department_id })}`);
 }
 
 /** URL of the salary report's Excel / PDF file for the same filters. */
-export function salaryReportExportUrl(month: BsMonth, ext: "xlsx" | "pdf", department_id: number | null = null, branch_id: number | null = null): string {
-  return `/api/payroll/report/${key(month)}.${ext}${qs({ department_id, branch_id })}`;
+export function salaryReportExportUrl(month: BsMonth, ext: "xlsx" | "pdf", department_id: number | null = null): string {
+  return `/api/payroll/report/${key(month)}.${ext}${qs({ department_id })}`;
 }
 
 // ------------------------------------------------------------------ photo

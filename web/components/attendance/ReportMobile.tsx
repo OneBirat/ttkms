@@ -1,5 +1,7 @@
 "use client";
 
+import { BranchSwitcher } from "@/components/BranchSwitcher";
+import { useBranch } from "@/lib/branchContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { WEEKDAYS_SHORT_EN } from "@/lib/bs";
@@ -19,15 +21,16 @@ const COMPANY = "TTK"; // as ReportPage. TODO backend: company name from core.se
 // ------------------------------------------------------------ screen
 
 /**
- * Phone layout (< 640px) of the Attendance report: dark header with menu, branch pill (only with
- * see_other_branches), download sheet, ‹ period › and Month | Week | Day; search, department chips
+ * Phone layout (< 640px) of the Attendance report: dark header with menu, the shell's
+ * active-branch switcher (the report is always the ONE active branch), download sheet, ‹ period › and Month | Week | Day; search, department chips
  * and staff cards grouped by department. Same report endpoint and exports as the desktop
  * ReportPage; the Day view also reads /day for when and how each mark was made. Period and view
  * live in the URL (?view=&bs_year=&bs_month=&week=&day=). No payment information here.
  */
 export function ReportMobile() {
-  const { user, branchId: homeBranch, can } = useSession();
-  const canPickBranch = can("see_other_branches");
+  const { user } = useSession();
+  // The ONE active branch (lib/branch.tsx); switching it remounts the page (AppShell).
+  const { branch } = useBranch();
   const { openMenu } = useShell();
   const params = useSearchParams();
   const router = useRouter();
@@ -38,7 +41,6 @@ export function ReportMobile() {
   const bounds = useMemo<PeriodBounds>(() => ({ months: listMonths().map((m) => m.key), today: todayRef().bs_date }), []);
   const period = useMemo(() => periodFromParams(new URLSearchParams(params.toString()), bounds), [params, bounds]);
 
-  const [branchId, setBranchId] = useState<number | null>(homeBranch);
   const [departmentId, setDepartmentId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<number | null>(employeeParam);
@@ -61,11 +63,10 @@ export function ReportMobile() {
   useEffect(() => {
     let cancelled = false;
     setError(null);
-    getReport(period.month, branchId)
+    getReport(period.month)
       .then((body) => {
         if (cancelled) return;
         setReport(body);
-        if (branchId === null && body.branches.length) setBranchId(homeBranch ?? body.branches[0].id);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -75,16 +76,16 @@ export function ReportMobile() {
     return () => {
       cancelled = true;
     };
-  }, [period.month, branchId, homeBranch]);
+  }, [period.month]);
 
   const dayBs = report && period.view === "day" ? report.month.days[period.day - 1]?.bs_date : undefined;
   useEffect(() => {
-    if (!dayBs || branchId === null) {
+    if (!dayBs) {
       setDayRecords(new Map());
       return;
     }
     let cancelled = false;
-    getDay(dayBs, branchId)
+    getDay(dayBs)
       .then((body) => {
         if (cancelled) return;
         setDayRecords(new Map(body.rows.flatMap((r) => (r.record ? [[r.employee.id, r.record] as const] : []))));
@@ -95,7 +96,7 @@ export function ReportMobile() {
     return () => {
       cancelled = true;
     };
-  }, [dayBs, branchId]);
+  }, [dayBs]);
 
   const go = useCallback(
     (next: Period) => {
@@ -115,8 +116,6 @@ export function ReportMobile() {
   const indices = periodIndices(period).filter((i) => i < days.length);
   const groups = shown ? mobileGroups(shown, departmentId, query, employeeParam) : [];
   const chips = shown ? departmentChips(shown) : [];
-  const branches = report?.branches ?? [];
-  const branch = branches.find((b) => b.id === branchId) ?? branches[0];
   const department = report?.departments.find((d) => d.id === departmentId);
   const subtitle = `${branch?.name ?? "…"} · ${department ? department.name : "all departments"}`;
   const scope = `${head.title.replace(" · आज", "")} · ${branch?.name ?? "…"}${department ? ` · ${department.name}` : ""}`;
@@ -128,7 +127,7 @@ export function ReportMobile() {
     try {
       const filters: ReportFilters = {
         month: period.month,
-        branch_id: branchId,
+        branch_id: branch?.id ?? null,
         department_id: departmentId,
         query,
         sort: "dept",
@@ -163,13 +162,7 @@ export function ReportMobile() {
     <div className={styles.screen} data-testid="report-mobile">
       <MobileHeader
         subtitle={subtitle}
-        canPickBranch={canPickBranch}
-        branches={branches}
-        branchId={branchId}
-        onBranch={(id) => {
-          setBranchId(id);
-          setDepartmentId(null);
-        }}
+        branchSwitcher={<BranchSwitcher variant="bar" />}
         onMenu={openMenu}
         onDownload={() => setSheet(true)}
         title={head.title}

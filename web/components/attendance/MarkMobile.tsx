@@ -1,10 +1,11 @@
 "use client";
 
+import { BranchSwitcher } from "@/components/BranchSwitcher";
 import { FaceContent } from "./Face";
 import { useEffect } from "react";
 import { formatAdShort, formatBs, toNepaliDigits, validBs } from "@/lib/bs";
 import { useShell } from "@/lib/shell";
-import { ChevronDownIcon, MenuIcon, ScanIcon, SearchIcon } from "./icons";
+import { MenuIcon, ScanIcon, SearchIcon } from "./icons";
 import { draftText, type Draft, type StatusFilter } from "./helpers";
 import type { CellStatus, MarkRow } from "./types";
 import type { MarkState } from "./useMarkState";
@@ -31,8 +32,6 @@ export function MarkMobile({ state }: { state: MarkState }) {
   const { data, counts, listRows, limit, draftOf, statusOf } = state;
   const shown = listRows.slice(0, limit);
   const remaining = Math.max(0, listRows.length - limit);
-  const branch = data?.branches.find((b) => b.id === state.branchId);
-  const branchShort = branch ? branch.name.replace(/\s*branch$/i, "") || branch.name : "…";
 
   // The page scrolls inside its own panel; keep the shell behind it still.
   useEffect(() => {
@@ -69,19 +68,8 @@ export function MarkMobile({ state }: { state: MarkState }) {
           <div className={styles.titleBlock}>
             <span className={styles.title}>Mark attendance</span>
           </div>
-          {state.canPickBranch ? (
-            <label className={styles.branchChip}>
-              {branchShort}
-              <ChevronDownIcon className={styles.branchCaret} />
-              <select aria-label="Branch" value={state.branchId} onChange={(e) => state.setBranch(Number(e.target.value))}>
-                {(data?.branches ?? [{ id: state.branchId, name: "…", headcount: 0 }]).map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
+          {/* The shell's active-branch switcher (this screen hides the shell's phone bar). */}
+          <BranchSwitcher variant="bar" />
         </div>
         <div className={styles.tiles}>
           <div className={styles.dayCard}>

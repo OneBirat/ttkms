@@ -69,9 +69,9 @@ export async function getToday(): Promise<TodayRef> {
 
 // ------------------------------------------------------------ marking
 
-/** GET /api/attendance/day?date_bs=&branch= -> DayAttendance (the branch is ignored without see_other_branches). */
-export async function getDay(dateBs: string, branchId: number): Promise<DayAttendance> {
-  return apiFetch<DayAttendance>(`/api/attendance/day${qs({ date_bs: dateBs, branch: branchId })}`);
+/** GET /api/attendance/day?date_bs= -> DayAttendance for the user's ONE active branch (lib/branch.tsx). */
+export async function getDay(dateBs: string): Promise<DayAttendance> {
+  return apiFetch<DayAttendance>(`/api/attendance/day${qs({ date_bs: dateBs })}`);
 }
 
 /** POST /api/attendance/mark -> MarkOneResponse (upsert on employee + day). */
@@ -130,10 +130,10 @@ export async function listMonths(): Promise<MonthOption[]> {
   return calendarMonths();
 }
 
-/** GET /api/attendance/report?bs_year=&bs_month=&branch= -> MonthReport (null branch = every branch, admins). */
-export async function getReport(monthKey: string, branchId: number | null = null): Promise<MonthReport> {
+/** GET /api/attendance/report?bs_year=&bs_month= -> MonthReport for the user's ONE active branch. */
+export async function getReport(monthKey: string): Promise<MonthReport> {
   const { year, month } = monthParts(monthKey);
-  return apiFetch<MonthReport>(`/api/attendance/report${qs({ bs_year: year, bs_month: month, branch: branchId })}`);
+  return apiFetch<MonthReport>(`/api/attendance/report${qs({ bs_year: year, bs_month: month })}`);
 }
 
 /** GET /api/attendance/employees/{id}/month?bs_year=&bs_month= -> EmployeeMonth (attendance record sheet). */
@@ -143,10 +143,10 @@ export async function getEmployeeMonth(employeeId: number, monthKey: string): Pr
 }
 
 /** GET /api/attendance/marked-days -> BS dates with a mark (BSDatePicker dots). */
-export async function getMarkedDays(monthKey: string, options: { branchId?: number; employeeId?: number } = {}): Promise<string[]> {
+export async function getMarkedDays(monthKey: string, options: { employeeId?: number } = {}): Promise<string[]> {
   const { year, month } = monthParts(monthKey);
   const body = await apiFetch<{ marked_days: string[] }>(
-    `/api/attendance/marked-days${qs({ bs_year: year, bs_month: month, branch: options.branchId, employee_id: options.employeeId })}`,
+    `/api/attendance/marked-days${qs({ bs_year: year, bs_month: month, employee_id: options.employeeId })}`,
   );
   return body.marked_days;
 }
@@ -156,7 +156,7 @@ export async function getMarkedDays(monthKey: string, options: { branchId?: numb
  * The PDF variant is a print-ready HTML document (A4 landscape) the caller opens and prints.
  */
 export async function exportReport(format: "xlsx" | "pdf", filters: ReportFilters, context: ExportContext): Promise<ExportFile> {
-  const report = await getReport(filters.month, filters.branch_id);
+  const report = await getReport(filters.month);
   const model = buildExportModel(report, filters, context);
   const slug = report.month.label.replace(/\s+/g, "_");
   if (format === "xlsx") {

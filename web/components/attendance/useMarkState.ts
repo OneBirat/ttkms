@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useBranch } from "@/lib/branchContext";
 import { useSession } from "@/lib/session";
 import { listPaymentModes } from "@/app/people/api";
 import type { PaymentMode } from "@/app/people/types";
@@ -61,7 +62,6 @@ const beep = (kind: "ok" | "error" | "skip") => {
   }
 };
 
-export const DEFAULT_BRANCH = 1;
 /** Desktop table page size (design: "10 per page"). */
 export const DESKTOP_PAGE = 10;
 /** Phone list: first batch and each "Show more". */
@@ -112,8 +112,8 @@ export interface BulkMessage {
 
 export interface MarkState {
   // who
-  /** True when the user holds `see_other_branches` and may switch branch. */
-  canPickBranch: boolean;
+  /** The ONE active branch (lib/branch.tsx) the day list is for; switched in the shell only. */
+  branchName: string;
   // calendar / scope
   today: TodayRef | null;
   date: string;
@@ -129,7 +129,6 @@ export interface MarkState {
   /** BS dates of the shown month and the one before with any mark in the branch (date picker dots). */
   markedDays: string[];
   branchId: number;
-  setBranch: (id: number) => void;
   departmentId: number | null;
   setDepartment: (id: number | null) => void;
   query: string;
@@ -212,8 +211,11 @@ export interface MarkState {
 
 export function useMarkState(options: { phone: boolean }): MarkState {
   const { phone } = options;
-  const { branchId: homeBranch, can } = useSession();
-  const canPickBranch = can("see_other_branches");
+  const { can } = useSession();
+  const { branch: activeBranch } = useBranch();
+  // The shell's active branch; switching it remounts the page (AppShell), so this never changes here.
+  const branchId = activeBranch?.id ?? 0;
+  const branchName = activeBranch?.name ?? "";
   const canPay = can("salary_advances");
   const canPayRef = useRef(canPay);
   canPayRef.current = canPay;
@@ -235,8 +237,6 @@ export function useMarkState(options: { phone: boolean }): MarkState {
 
   const [today, setToday] = useState<TodayRef | null>(null);
   const [date, setDateRaw] = useState("");
-  // Everyone starts on their own branch (session.branchId from admin.user_access).
-  const [branchId, setBranchId] = useState(homeBranch ?? DEFAULT_BRANCH);
   const [departmentId, setDepartmentIdRaw] = useState<number | null>(null);
   const [query, setQueryRaw] = useState("");
   const [statusFilter, setStatusFilterRaw] = useState<StatusFilter>("");
@@ -278,7 +278,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getDay(date, branchId)
+    getDay(date)
       .then((body) => {
         if (cancelled) return;
         setData(body);
@@ -304,7 +304,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     let cancelled = false;
     const [y, m] = monthOfDate.split("-").map(Number);
     const previous = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
-    Promise.all([monthOfDate, previous].map((key) => getMarkedDays(key, { branchId }).catch(() => [] as string[])))
+    Promise.all([monthOfDate, previous].map((key) => getMarkedDays(key).catch(() => [] as string[])))
       .then((lists) => {
         if (!cancelled) setMarkedDays(lists.flat());
       })
@@ -344,12 +344,11 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   );
   const paged = useMemo(() => paginate(listRows, page, DESKTOP_PAGE), [listRows, page]);
 
-  const branch = data?.branches.find((b) => b.id === branchId);
   const department = data?.departments.find((d) => d.id === departmentId);
   const filterWord = { "": "staff", N: "not marked", P: "present", O: "overtime", A: "absent", W: "weekly off" }[statusFilter];
   const scopeLabel = phone
     ? `${department ? department.name : "All departments"} · ${listRows.length} ${filterWord}`
-    : `${branch?.name ?? "…"}, ${department ? department.name : "all departments"} · ${scopeRows.length} staff`;
+    : `${branchName || "…"}, ${department ? department.name : "all departments"} · ${scopeRows.length} staff`;
 
   const resetList = () => {
     setPage(1);
@@ -377,12 +376,6 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     if (value === date) return;
     setDateRaw(value);
     if (isValidBs(value)) resetList();
-  };
-  const setBranch = (id: number) => {
-    if (id === branchId) return;
-    setBranchId(id);
-    setDepartmentIdRaw(null);
-    resetList();
   };
   const setDepartment = (id: number | null) => {
     setDepartmentIdRaw(id);
@@ -692,7 +685,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   };
 
   return {
-    canPickBranch,
+    branchName,
     today,
     date,
     setDate,
@@ -708,7 +701,6 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     setCalendarOpen,
     markedDays,
     branchId,
-    setBranch,
     departmentId,
     setDepartment,
     query,
