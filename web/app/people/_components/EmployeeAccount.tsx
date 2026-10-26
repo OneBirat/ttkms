@@ -151,7 +151,7 @@ export function EmployeeAccount({ id, tab, onTab }: EmployeeAccountProps) {
         <>
           {canAttendance || canMoney ? (
             <div className={styles.twoCards}>
-              {canAttendance ? <AttendanceCalendarCard key={person.id} employee={person} structure={current} /> : null}
+              {canAttendance ? <AttendanceCalendarCard key={person.id} employee={person} structure={current} showDue={canMoney} /> : null}
               {canMoney ? <LastPaymentsCard ledger={ledger.data ?? []} onOpenLedger={() => onTab("ledger")} /> : null}
             </div>
           ) : null}

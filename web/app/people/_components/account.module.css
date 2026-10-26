@@ -173,6 +173,24 @@
   text-decoration: underline;
 }
 
+.duePill {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fbe9e4;
+  color: #b42318;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.duePill[data-owing="false"] {
+  background: #e6f5f3;
+  color: #1e9e4a;
+  font-family: inherit;
+}
+
 .payCard {
   flex: 1 1 280px;
   min-width: 0;

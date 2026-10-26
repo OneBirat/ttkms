@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { formatBs } from "@/lib/bs";
-import { currentMonth, getAttendanceMonth } from "../api";
-import { attendanceReportHref, calendarBounds, calendarChips, calendarWeeks, stepMonth, type CalendarDay } from "../_lib/account";
+import { currentMonth, getAttendanceMonth, getSalaryDues } from "../api";
+import { calendarBounds, calendarChips, calendarWeeks, stepMonth, type CalendarDay } from "../_lib/account";
 import { compareMonths, monthLabel, today } from "../_lib/months";
 import { formatAmount } from "../_lib/helpers";
 import type { Employee, SalaryStructure } from "../types";
@@ -17,9 +16,19 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /**
  * Salary tab, left card: the employee's attendance for one BS month as a Sun-Sat grid (data from
  * the attendance module's employee month), ‹ › from the joining month to the running month. No
- * money from attendance; the bottom line is the salary structure.
+ * money from attendance; the bottom line is the salary structure and, for salary_advances, the
+ * employee's total due (DuePill).
  */
-export function AttendanceCalendarCard({ employee, structure }: { employee: Employee; structure: SalaryStructure | null }) {
+export function AttendanceCalendarCard({
+  employee,
+  structure,
+  showDue,
+}: {
+  employee: Employee;
+  structure: SalaryStructure | null;
+  /** salary_advances: the total-due pill in the footer. */
+  showDue: boolean;
+}) {
   const now = currentMonth();
   const bounds = calendarBounds(employee.joined.bs, now);
   const [month, setMonth] = useState(now);
@@ -107,9 +116,7 @@ export function AttendanceCalendarCard({ employee, structure }: { employee: Empl
             ? `${structure.pay_type === "daily" ? "Wage" : "Salary"} Rs ${formatAmount(structure.pay_type === "daily" ? structure.basic : structure.gross)} / ${structure.pay_type === "daily" ? "day" : "month"} · OT Rs ${formatAmount(structure.ot_rate)} / h`
             : "No salary set up yet"}
         </span>
-        <Link href={attendanceReportHref(employee.id, month)} className={styles.calLink}>
-          View all ›
-        </Link>
+        {showDue ? <DuePill employeeId={employee.id} /> : null}
       </div>
     </section>
   );
@@ -130,5 +137,25 @@ function DayCell({ day }: { day: CalendarDay }) {
         </span>
       ) : null}
     </div>
+  );
+}
+
+/** "Due 28,230" (red) or "No dues ✓" (green). */
+export function duePill(total: number): { text: string; owing: boolean } {
+  return total > 0 ? { text: `Due ${formatAmount(total)}`, owing: true } : { text: "No dues ✓", owing: false };
+}
+
+/**
+ * The employee's total due - the same figure as the Pay salary dialog (GET .../salary-dues
+ * total_due: every past month still due + the running month up to earned so far − everything paid).
+ */
+export function DuePill({ employeeId }: { employeeId: number }) {
+  const dues = usePayroll(() => getSalaryDues(employeeId), [employeeId]);
+  if (!dues.data) return null;
+  const pill = duePill(dues.data.total_due);
+  return (
+    <span className={styles.duePill} data-owing={pill.owing} data-testid="due-pill">
+      {pill.text}
+    </span>
   );
 }
