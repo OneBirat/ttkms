@@ -23,7 +23,7 @@ export function BranchSwitcher({ variant = "sidebar" }: { variant?: "sidebar" | 
   }
   return (
     <div className={styles.wrap} data-variant={variant}>
-      <label className={styles.branch} data-variant={variant} data-busy={switching || undefined}>
+      <label className={styles.branch} data-variant={variant} data-busy={switching || undefined} title="Every page uses this branch until you change it.">
         <Icon name="home" size={16} />
         <span className={styles.name}>{switching ? "Switching…" : name}</span>
         <span className={styles.caret} aria-hidden="true">

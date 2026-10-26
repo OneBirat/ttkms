@@ -60,7 +60,8 @@ export function statCards(counts: TodayCounts | null): StatCardProps[] {
 }
 
 /**
- * Dashboard (docs/design/Main.dc.html): page header with today's date, the
+ * Dashboard (docs/design/Main.dc.html, design/dashboard-branch): everything is the ONE active
+ * branch - "Dashboard · Main branch", "Attendance today · Main branch". Page header with today's date, the
  * stat row (from /api/today), then the modules' cards - "Attendance today" and
  * "Payments today" - stacked full-width in sidebar order. Cards of a module
  * that is not in ENABLED_MODULES are never rendered (the API does not send
@@ -107,7 +108,7 @@ export function Dashboard() {
           {widgets.map((widget, index) => (
             <WidgetRenderer
               key={`${widget.module}:${widget.kind}:${index}`}
-              widget={widget}
+              widget={{ ...widget, title: withBranch(widget.title, branch) }}
             />
           ))}
         </div>

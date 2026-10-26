@@ -18,13 +18,13 @@ const user = {
 } as const;
 
 describe("sidebar footer", () => {
-  it("initials, and role · branch (all branches for an admin without one)", () => {
+  it("initials, and role · the active branch (never all branches)", () => {
     assert.equal(initialsOf("Ram Bahadur Thapa"), "RT");
     assert.equal(initialsOf("Administrator"), "AD");
     assert.equal(initialsOf("  "), "?");
-    assert.equal(rolePlace(user, "Main branch", false), "Manager · Main branch");
-    assert.equal(rolePlace({ role_label: "Admin" }, null, true), "Admin · all branches");
-    assert.equal(rolePlace(user, null, false), "Manager");
+    assert.equal(rolePlace(user, "Main branch"), "Manager · Main branch");
+    assert.equal(rolePlace({ role_label: "Admin" }, "Branch 2"), "Admin · Branch 2");
+    assert.equal(rolePlace(user, null), "Manager");
   });
 
   it("renders the avatar, name, place and a Log out button", () => {

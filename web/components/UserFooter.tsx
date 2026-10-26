@@ -12,10 +12,9 @@ export function initialsOf(name: string): string {
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
-/** "Admin · Main branch"; "Admin · all branches" without a branch but with see_other_branches. */
-export function rolePlace(user: Pick<User, "role_label">, branchName: string | null, allBranches: boolean): string {
-  if (branchName) return `${user.role_label} · ${branchName}`;
-  return allBranches ? `${user.role_label} · all branches` : user.role_label;
+/** "Admin · Main branch": the role and the ONE active branch (just the role without one). */
+export function rolePlace(user: Pick<User, "role_label">, activeBranch: string | null): string {
+  return activeBranch ? `${user.role_label} · ${activeBranch}` : user.role_label;
 }
 
 /**

@@ -84,9 +84,9 @@ function ShellFrame({
   children: ReactNode;
 }) {
   const { menuOpen, openMenu, closeMenu, ownHeader } = useShell();
-  const { branchName, can } = useSession();
-  const { version } = useBranch();
-  const place = rolePlace(user, branchName, can("see_other_branches"));
+  const { version, branch } = useBranch();
+  // "Admin · Main branch": the active branch, never "all branches".
+  const place = rolePlace(user, branch?.name ?? null);
   const pathname = usePathname();
   // Navigating closes the drawer (a link in it was followed, or Back was used).
   useEffect(() => {
