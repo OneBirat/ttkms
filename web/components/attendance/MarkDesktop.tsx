@@ -229,35 +229,6 @@ export function MarkDesktop({ state }: { state: MarkState }) {
         </label>
       </section>
 
-      {bulk ? (
-        <section aria-label="Bulk mark" className={styles.bulkBar}>
-          <span className={styles.bulkText}>
-            <strong>{counts.not_marked}</strong> not marked · <strong>{selectedOpen}</strong> selected
-          </span>
-          <span className={styles.bulkSpacer} />
-          <button
-            type="button"
-            className={styles.bulkSelBtn}
-            disabled={selectedOpen === 0 || state.bulkBusy || weeklyOff}
-            onClick={state.markSelected}
-          >
-            Mark selected as Present ({selectedOpen})
-          </button>
-          {canAll ? (
-            <button
-              type="button"
-              className={styles.bulkAllBtn}
-              disabled={state.bulkBusy || counts.not_marked === 0 || weeklyOff}
-              onClick={state.markDepartment}
-            >
-              Mark all {counts.not_marked} in {department?.name ?? ""} as Present
-            </button>
-          ) : (
-            <span className={styles.bulkHint}>Pick a department to select or mark everyone at once</span>
-          )}
-        </section>
-      ) : null}
-
       {state.bulkMessage ? (
         <div role="status" className={styles.bulkMsg}>
           <div className={styles.bulkMsgHead}>
@@ -302,7 +273,7 @@ export function MarkDesktop({ state }: { state: MarkState }) {
             <thead>
               <tr>
                 {bulk ? (
-                  <th scope="col" className={styles.selectCol}>
+                  <th scope="col" className={styles.selectCol} title={canAll ? undefined : "Pick a department to select everyone on the page"}>
                     {canAll ? (
                       <input
                         type="checkbox"
@@ -315,7 +286,37 @@ export function MarkDesktop({ state }: { state: MarkState }) {
                   </th>
                 ) : null}
                 <th scope="col">Employee</th>
-                <th scope="col">Status</th>
+                <th scope="col">
+                  {bulk ? (
+                    <span className={styles.statusHead}>
+                      Status
+                      <span className={styles.bulkSpacer} />
+                      <span className={styles.bulkCount} aria-live="polite">
+                        <strong>{selectedOpen}</strong> selected
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.bulkSelBtn}
+                        disabled={selectedOpen === 0 || state.bulkBusy || weeklyOff}
+                        onClick={state.markSelected}
+                      >
+                        Mark selected as Present
+                      </button>
+                      {canAll ? (
+                        <button
+                          type="button"
+                          className={styles.bulkAllBtn}
+                          disabled={state.bulkBusy || counts.not_marked === 0 || weeklyOff}
+                          onClick={state.markDepartment}
+                        >
+                          Mark all {counts.not_marked} in {department?.name ?? ""} as Present
+                        </button>
+                      ) : null}
+                    </span>
+                  ) : (
+                    "Status"
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>

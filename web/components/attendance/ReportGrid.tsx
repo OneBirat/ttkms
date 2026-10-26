@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import { WEEKDAYS_EN, formatAdShort, weekdayInitial } from "@/lib/bs";
 import { bsDayLabel, cellText, formatRate, initials, isLowPresence, type DepartmentGroup } from "./helpers";
 import { photoTint } from "./MarkRow";
@@ -30,6 +30,8 @@ export interface ReportGridProps {
   mode: GridMode;
   photos: boolean;
   payIcons: boolean;
+  /** Shown in the first department heading, after its attendance rate. */
+  legend?: ReactNode;
   emptyText?: string;
 }
 
@@ -138,6 +140,7 @@ export function ReportGrid({
   mode,
   photos,
   payIcons,
+  legend = null,
   emptyText = "No employees match this filter.",
 }: ReportGridProps) {
   const wide = mode !== "month";
@@ -228,15 +231,18 @@ export function ReportGrid({
         </thead>
         <tbody>
           {groups
-            ? groups.map((group) => (
+            ? groups.map((group, gi) => (
                 <Fragment key={group.department_id}>
                   <tr>
                     <th scope="rowgroup" colSpan={span} className={styles.deptHead}>
-                      <span style={{ fontWeight: 600 }}>{group.department_name}</span>
-                      <span>
-                        {" "}
-                        · {group.count} {group.count === 1 ? "employee" : "employees"} ·{" "}
-                        {formatRate(group.rate)} attendance
+                      <span className={styles.deptHeadInner}>
+                        <span style={{ fontWeight: 600 }}>{group.department_name}</span>
+                        <span>
+                          {" "}
+                          · {group.count} {group.count === 1 ? "employee" : "employees"} ·{" "}
+                          {formatRate(group.rate)} attendance
+                        </span>
+                        {gi === 0 ? legend : null}
                       </span>
                     </th>
                   </tr>

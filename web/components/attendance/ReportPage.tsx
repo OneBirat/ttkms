@@ -10,6 +10,7 @@ import { WEEKDAYS_EN, formatAdRange, formatAdShort, monthName as bsMonthName } f
 import { downloadFile, openPrintWindow, writePrintDocument } from "./download";
 import { filterReportRows } from "./exportModel";
 import { SearchIcon } from "./icons";
+import { Icon } from "@/components/icons";
 import { Pager } from "./Pager";
 import { AdvanceGlyph, ReportGrid, SalaryGlyph, type GridGroup, type GridMode } from "./ReportGrid";
 import {
@@ -328,6 +329,57 @@ export function ReportPage() {
     : [];
   const branch = report?.branches.find((b) => b.id === branchId) ?? report?.branches[0];
 
+  // Grouped: the legend sits in the first department heading, after its attendance rate.
+  const legendInGrid = Boolean(gridGroups?.length);
+  const legend = (
+    <div className={legendInGrid ? styles.legendInRow : styles.legend} aria-label="Legend">
+      <span className={styles.key}>
+        <span className={styles.cell} data-status="P" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12.5l4.5 4.5L19 7.5" />
+          </svg>
+        </span>
+        Present
+      </span>
+      <span className={styles.key}>
+        <span className={styles.cell} data-status="O" aria-hidden="true">
+          2h
+        </span>
+        Overtime (hours)
+      </span>
+      <span className={styles.key}>
+        <span className={styles.cell} data-status="A" aria-hidden="true">
+          A
+        </span>
+        Absent
+      </span>
+      {!hideOff ? (
+        <span className={styles.key}>
+          <span className={styles.cell} data-status="W" aria-hidden="true">
+            –
+          </span>
+          Weekly off (Sat)
+        </span>
+      ) : null}
+      {payIcons ? (
+        <>
+          <span className={styles.key}>
+            <span className={`${styles.payBadge} ${styles.payBadgeAdv} ${styles.payBadgeKey}`} aria-hidden="true">
+              <AdvanceGlyph />
+            </span>
+            Advance taken
+          </span>
+          <span className={styles.key}>
+            <span className={`${styles.payBadge} ${styles.payBadgeSal} ${styles.payBadgeKey}`} aria-hidden="true">
+              <SalaryGlyph />
+            </span>
+            Salary taken
+          </span>
+        </>
+      ) : null}
+    </div>
+  );
+
   return (
     <>
       <PageHeader
@@ -445,210 +497,179 @@ export function ReportPage() {
         }
       />
 
-      <div className={styles.branchRow}>
-        <span className={styles.branchLabel}>Branch</span>
-        {canPickBranch ? (
-          <div className={`${shared.field} ${styles.branchField}`}>
-            <select
-              aria-label="Branch"
-              value={branchId ?? ""}
-              onChange={(e) => {
-                setBranchId(Number(e.target.value));
-                setDepartmentId(null);
-                resetPage();
-              }}
-            >
-              {(report?.branches ?? []).map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+      {/* Branch + summary, filters, legend, departments: tighter together than the page sections on desktop. */}
+      <div className={styles.controls}>
+        <div className={styles.topRow}>
+          <div className={styles.branchRow}>
+            {canPickBranch ? (
+              <label className={styles.branchButton} data-single={(report?.branches.length ?? 0) > 1 ? undefined : "true"}>
+                <Icon name="home" size={16} />
+                <select
+                  aria-label="Branch"
+                  value={branchId ?? ""}
+                  onChange={(e) => {
+                    setBranchId(Number(e.target.value));
+                    setDepartmentId(null);
+                    resetPage();
+                  }}
+                >
+                  {(report?.branches ?? []).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                {/* Only a choice to make with more than one branch. */}
+                {(report?.branches.length ?? 0) > 1 ? (
+                  <span className={styles.branchChevron} aria-hidden="true">
+                    <Icon name="chevron-down" size={20} />
+                  </span>
+                ) : null}
+              </label>
+            ) : (
+              <span className={styles.branchButton} data-locked="true" title="Ask an admin for 'See other branches' access" data-testid="branch-lock">
+                <Icon name="home" size={16} />
+                <span className={styles.branchName}>{branch?.name ?? "…"}</span>
+                <span className={styles.branchPillSub}>your branch</span>
+              </span>
+            )}
+            {employeeParam !== null ? (
+              <span className={styles.onlyChip} data-testid="only-employee">
+                Showing {onlyEmployee?.name ?? report?.rows.find((r) => r.employee.id === employeeParam)?.employee.name ?? "one employee"} ·
+                <button type="button" className={styles.onlyClear} onClick={clearEmployee}>
+                  Clear
+                </button>
+              </span>
+            ) : null}
           </div>
-        ) : (
-          <span className={styles.branchPill} title="Ask an admin for 'See other branches' access">
-            {branch?.name ?? "…"} <span className={styles.branchPillSub}>· your branch</span>
-          </span>
-        )}
-        {employeeParam !== null ? (
-          <span className={styles.onlyChip} data-testid="only-employee">
-            Showing {onlyEmployee?.name ?? report?.rows.find((r) => r.employee.id === employeeParam)?.employee.name ?? "one employee"} ·
-            <button type="button" className={styles.onlyClear} onClick={clearEmployee}>
-              Clear
-            </button>
-          </span>
-        ) : null}
-      </div>
-
-      <section aria-label="Departments" className={styles.chips}>
-        {chips.map((chip) => (
-          <button
-            key={chip.key}
-            type="button"
-            className={styles.chip}
-            aria-pressed={chip.id === departmentId}
-            onClick={() => {
-              setDepartmentId(chip.id);
-              resetPage();
-            }}
-          >
-            <span className={styles.chipName}>{chip.name}</span>
-            <span>{chip.count}</span>
-            <span className={styles.chipRate}>{formatRate(chip.rate)}</span>
-          </button>
-        ))}
-      </section>
-
-      <section aria-label="Filters" className={styles.filters}>
-        <div className={`${shared.field} ${styles.search}`}>
-          <SearchIcon />
-          <input
-            type="search"
-            aria-label="Search employee name or ID"
-            placeholder="Search name or ID"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              resetPage();
-            }}
-          />
+          <section aria-label="Staff summary" className={styles.summary}>
+            <div className={`card ${styles.sumCard}`}>
+              <span className={styles.sumLabel}>Staff in view</span>
+              <span className={styles.sumValue}>{viewRows.length}</span>
+            </div>
+            <div className={`card ${styles.sumCard}`}>
+              <span className={styles.sumLabel} title="Present per working day">
+                Present / day
+              </span>
+              <span className={styles.sumValue}>
+                {presence.avg_present.toFixed(1)}{" "}
+                <span className={styles.sumSub}>avg · {formatRate(presence.rate)}</span>
+              </span>
+            </div>
+            <div className={`card ${styles.sumCard}`}>
+              <span className={styles.sumLabel}>Total present days</span>
+              <span className={styles.sumValue}>{presence.present_days}</span>
+            </div>
+            <div className={`card ${styles.sumCard}`}>
+              <span className={styles.sumLabel}>Overtime</span>
+              <span className={`${styles.sumValue} ${styles.sumOt}`}>{totals.overtime_hours} h</span>
+            </div>
+            <div className={`card ${styles.sumCard}`}>
+              <span className={styles.sumLabel}>Absences</span>
+              <span className={styles.sumValue}>{totals.absent}</span>
+            </div>
+          </section>
         </div>
-        <label className={styles.sortLabel}>
-          <span>Sort by</span>
-          <span className={`${shared.field} ${styles.sortField}`}>
-            <select
-              value={sort}
+
+        <section aria-label="Filters" className={styles.filters}>
+          <div className={`${shared.field} ${styles.search}`}>
+            <SearchIcon />
+            <input
+              type="search"
+              aria-label="Search employee name or ID"
+              placeholder="Search name or ID"
+              value={query}
               onChange={(e) => {
-                setSort(e.target.value as ReportSort);
+                setQuery(e.target.value);
                 resetPage();
               }}
-            >
-              <option value="dept">Department, then name</option>
-              <option value="name">Name</option>
-              <option value="absent">Most absences</option>
-              <option value="overtime">Most overtime</option>
-            </select>
-          </span>
-        </label>
-        <label className={shared.check}>
-          <input
-            type="checkbox"
-            checked={group}
-            onChange={(e) => {
-              setGroup(e.target.checked);
-              resetPage();
-            }}
-          />
-          Group by department
-        </label>
-        <label className={shared.check}>
-          <input type="checkbox" checked={photos} onChange={(e) => setPhotos(e.target.checked)} />
-          Show employee photos
-        </label>
-        <label className={shared.check}>
-          <input type="checkbox" checked={payIcons} onChange={(e) => setPayIcons(e.target.checked)} />
-          Show payment icons
-        </label>
-        <label className={shared.check}>
-          <input type="checkbox" checked={hideOff} onChange={(e) => setHideOff(e.target.checked)} />
-          Hide holidays (Saturdays)
-        </label>
-      </section>
-
-      <section aria-label="Staff summary" className={styles.summary}>
-        <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Staff in view</span>
-          <span className={styles.sumValue}>{viewRows.length}</span>
-        </div>
-        <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Present per working day</span>
-          <span className={styles.sumValue}>
-            {presence.avg_present.toFixed(1)}{" "}
-            <span className={styles.sumSub}>avg · {formatRate(presence.rate)}</span>
-          </span>
-        </div>
-        <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Total present days</span>
-          <span className={styles.sumValue}>{presence.present_days}</span>
-        </div>
-        <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Overtime</span>
-          <span className={`${styles.sumValue} ${styles.sumOt}`}>{totals.overtime_hours} h</span>
-        </div>
-        <div className={`card ${styles.sumCard}`}>
-          <span className={styles.sumLabel}>Absences</span>
-          <span className={styles.sumValue}>{totals.absent}</span>
-        </div>
-      </section>
-
-      <div className={styles.legend} aria-label="Legend">
-        <span className={styles.key}>
-          <span className={styles.cell} data-status="P" aria-hidden="true">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12.5l4.5 4.5L19 7.5" />
-            </svg>
-          </span>
-          Present
-        </span>
-        <span className={styles.key}>
-          <span className={styles.cell} data-status="O" aria-hidden="true">
-            2h
-          </span>
-          Overtime (hours)
-        </span>
-        <span className={styles.key}>
-          <span className={styles.cell} data-status="A" aria-hidden="true">
-            A
-          </span>
-          Absent
-        </span>
-        {!hideOff ? (
-          <span className={styles.key}>
-            <span className={styles.cell} data-status="W" aria-hidden="true">
-              –
+            />
+          </div>
+          <label className={styles.sortLabel}>
+            <span>Sort by</span>
+            <span className={`${shared.field} ${styles.sortField}`}>
+              <select
+                value={sort}
+                onChange={(e) => {
+                  setSort(e.target.value as ReportSort);
+                  resetPage();
+                }}
+              >
+                <option value="dept">Department, then name</option>
+                <option value="name">Name</option>
+                <option value="absent">Most absences</option>
+                <option value="overtime">Most overtime</option>
+              </select>
             </span>
-            Weekly off (Sat)
-          </span>
+          </label>
+          <label className={shared.check}>
+            <input
+              type="checkbox"
+              checked={group}
+              onChange={(e) => {
+                setGroup(e.target.checked);
+                resetPage();
+              }}
+            />
+            Group by department
+          </label>
+          <label className={shared.check}>
+            <input type="checkbox" checked={photos} onChange={(e) => setPhotos(e.target.checked)} />
+            Show employee photos
+          </label>
+          <label className={shared.check}>
+            <input type="checkbox" checked={payIcons} onChange={(e) => setPayIcons(e.target.checked)} />
+            Show payment icons
+          </label>
+          <label className={shared.check} title="Hide holidays (Saturdays)">
+            <input type="checkbox" checked={hideOff} onChange={(e) => setHideOff(e.target.checked)} />
+            Hide Saturdays
+          </label>
+        </section>
+
+        {legendInGrid ? null : legend}
+
+        {view === "day" ? (
+          <section role="group" aria-label="Show" className={styles.dayChips}>
+            <span className={styles.dayChipsLabel}>Show</span>
+            {DAY_CHIPS.map((c) => (
+              <button
+                key={c.key || "all"}
+                type="button"
+                className={styles.dayChip}
+                data-filter={c.key || "all"}
+                aria-pressed={dayFilter === c.key}
+                onClick={() => {
+                  setDayFilter(c.key);
+                  resetPage();
+                }}
+              >
+                <span>{c.label}</span>
+                <b>{dayCounts[c.key]}</b>
+              </button>
+            ))}
+          </section>
         ) : null}
-        {payIcons ? (
-          <>
-            <span className={styles.key}>
-              <span className={`${styles.payBadge} ${styles.payBadgeAdv} ${styles.payBadgeKey}`} aria-hidden="true">
-                <AdvanceGlyph />
-              </span>
-              Advance taken
-            </span>
-            <span className={styles.key}>
-              <span className={`${styles.payBadge} ${styles.payBadgeSal} ${styles.payBadgeKey}`} aria-hidden="true">
-                <SalaryGlyph />
-              </span>
-              Salary taken
-            </span>
-          </>
-        ) : null}
-      </div>
 
-      {view === "day" ? (
-        <section role="group" aria-label="Show" className={styles.dayChips}>
-          <span className={styles.dayChipsLabel}>Show</span>
-          {DAY_CHIPS.map((c) => (
+        <section aria-label="Departments" className={styles.chips}>
+          {chips.map((chip) => (
             <button
-              key={c.key || "all"}
+              key={chip.key}
               type="button"
-              className={styles.dayChip}
-              data-filter={c.key || "all"}
-              aria-pressed={dayFilter === c.key}
+              className={styles.chip}
+              aria-pressed={chip.id === departmentId}
               onClick={() => {
-                setDayFilter(c.key);
+                setDepartmentId(chip.id);
                 resetPage();
               }}
             >
-              <span>{c.label}</span>
-              <b>{dayCounts[c.key]}</b>
+              <span className={styles.chipName}>{chip.name}</span>
+              <span>{chip.count}</span>
+              <span className={styles.chipRate}>{formatRate(chip.rate)}</span>
             </button>
           ))}
         </section>
-      ) : null}
+      </div>
 
       {error ? (
         <div className={styles.messages}>
@@ -675,6 +696,7 @@ export function ReportPage() {
             mode={view}
             photos={photos}
             payIcons={payIcons}
+            legend={legendInGrid ? legend : null}
           />
           <Pager
             page={paged.page}

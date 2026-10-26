@@ -187,34 +187,38 @@
 
 /* ---- bulk ---- */
 
-.bulkBar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border: 1px solid #ebcb9a;
-  border-radius: 12px;
-  background: #fff8ec;
-}
 
-.bulkText {
-  font-size: 14px;
-  color: #6e3504;
-}
 
 .bulkSpacer {
   flex: 1;
 }
 
+/* Bulk marking lives in the Status header: "3 selected" right next to its button. */
+.statusHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.bulkCount {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 .bulkSelBtn {
-  min-height: 42px;
-  padding: 0 16px;
+  min-height: 34px;
+  padding: 0 14px;
   border: none;
   border-radius: 10px;
   background: var(--color-primary);
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
+  letter-spacing: normal;
+  text-transform: none;
   font-weight: 600;
   cursor: pointer;
 }
@@ -226,13 +230,15 @@
 }
 
 .bulkAllBtn {
-  min-height: 42px;
-  padding: 0 16px;
+  min-height: 34px;
+  padding: 0 14px;
   border: 1px solid var(--color-primary);
   border-radius: 10px;
   background: var(--color-card);
   color: var(--color-primary);
-  font-size: 14px;
+  font-size: 13px;
+  letter-spacing: normal;
+  text-transform: none;
   font-weight: 600;
   cursor: pointer;
 }
@@ -242,10 +248,6 @@
   cursor: not-allowed;
 }
 
-.bulkHint {
-  font-size: 12px;
-  color: #8a4205;
-}
 
 .bulkMsg {
   display: flex;
