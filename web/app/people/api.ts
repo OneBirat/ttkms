@@ -277,6 +277,11 @@ export async function voidPayment(payment_id: number, reason: string): Promise<P
   return mutate(apiFetch<Payment>(`/api/payroll/payments/${payment_id}/void`, { method: "POST", json: { reason } }));
 }
 
+/** PATCH /api/payroll/payments/{id}/note - the human note for the whole payment group; "" clears it. */
+export async function updatePaymentNote(payment_id: number, note: string): Promise<Payment> {
+  return mutate(apiFetch<Payment>(`/api/payroll/payments/${payment_id}/note`, { method: "PATCH", json: { note } }));
+}
+
 export interface PaymentsQuery {
   /** BS dates, inclusive; null = no bound. */
   from_bs: string | null;

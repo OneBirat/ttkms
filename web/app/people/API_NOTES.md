@@ -37,8 +37,9 @@ payroll.salary_history   id, employee_id, effective_bs, effective_ad, pay_type, 
                          ot_rate, paid_by, reason, created_at
 payroll.payments         id, receipt_no "ADV-0412"/"SAL-0410", employee_id, bs_year, bs_month,
                          type salary|advance, amount, payment_mode_id (admin.payment_modes, Cash default),
-                         reference, note, date_bs, date_ad, recorded_by (core.users), source account|scan,
-                         created_at
+                         reference, system_remark (server-written at creation, read-only), note (human,
+                         editable) + note_updated_by / note_updated_at (payroll_0004), date_bs, date_ad,
+                         recorded_by (core.users), source account|scan, created_at
 payroll.photo_tokens     token, employee_id, expires_at  (or keep in the session store)
 ```
 
@@ -68,7 +69,8 @@ summary and the month's payments (`ledgerFor` in api.ts shows the exact derivati
 | POST | /payments | PaymentInput → PaymentResult (422 + field when amount is 0 / above due / future) |
 | GET | /employees/{id}/salary-dues | → SalaryDues: oldest month with anything due → running month (cleared months in between, with `cleared_on`), `total_due`, `past_due`, `running_due` |
 | POST | /salary-payments | SalaryPaymentInput → 201 SalaryPaymentResult: one amount split oldest month first in ONE transaction - one salary row per month, one receipt number, one `payment_group_id`; 422 `over_total` (+ `cap`) above the total due; the running month only up to earned so far |
-| GET | /employees/{id}/transactions | → EmployeeLedger (running balance) |
+| GET | /employees/{id}/transactions | → EmployeeLedger (running balance): earned rows name their month ("Ashwin salary · 31 days", "Ashwin · 1 day(s) × Rs 800", "Ashwin · 6 h × Rs 100"); ONE row per payment group (a bulk salary payment = one row on its payment date with the group total, `group_months` [{for_year, for_month, amount, cleared}]); `payment.system_remark` / `note` per row |
+| PATCH | /payments/{id}/note | { note } (salary_advances) → Payment: the human note of the whole group; "" clears it; audit `payment_note` old → new; the system remark cannot be sent (422) |
 | GET | /employees/{id}/summary | → AccountSummary (Give advance / Pay salary) |
 | GET | /payments?from_bs&to_bs&type&employee_id&branch_id&department_id&sort | → PaymentsRegister (BS date range; `branch_id` (omitted = all branches; users without `see_other_branches` are always scoped to their own branch) and `department_id` scope rows, tiles, by_employee and the `by_department` chip counts; `sort` = date (default, newest first) \| branch (A-Z) \| department (A-Z, inside each branch when all branches) \| employee (A-Z) \| amount (high → low); `by_branch` = salary / advances / total / count per branch of the range; 404 unknown branch or department) |
 | GET | /payments/{id}/receipt.pdf | → PDF |

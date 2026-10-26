@@ -24,6 +24,7 @@ from sqlalchemy import (
     Sequence,
     SmallInteger,
     String,
+    Text,
     func,
     text,
 )
@@ -31,6 +32,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.models import Employee, User, _enum_values
 from app.db import Base
+from app.modules.payroll.remarks import remark_default
 
 SCHEMA = "payroll"
 
@@ -140,7 +142,16 @@ class Payment(Base):
     )
     #: Bank / cheque reference; null for cash.
     reference: Mapped[str | None] = mapped_column(String(80))
-    note: Mapped[str | None] = mapped_column(String(200))
+    #: Written by the server when the payment is created (remarks.py), identical on every row of
+    #: a group, never accepted from a client and never edited.
+    system_remark: Mapped[str] = mapped_column(Text, nullable=False, default=remark_default)
+    #: The human note (PATCH /payments/{id}/note, salary_advances; audit-logged); identical on
+    #: every row of a group. Null = no note.
+    note: Mapped[str | None] = mapped_column(Text)
+    note_updated_by: Mapped[int | None] = mapped_column(
+        ForeignKey("core.users.id", ondelete="SET NULL")
+    )
+    note_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     source: Mapped[PaymentSource] = mapped_column(
         _enum(PaymentSource, "payment_source"), nullable=False
     )
@@ -162,6 +173,7 @@ class Payment(Base):
     employee: Mapped[Employee] = relationship(lazy="selectin")
     recorder: Mapped[User | None] = relationship(lazy="selectin", foreign_keys=[recorded_by])
     voider: Mapped[User | None] = relationship(lazy="selectin", foreign_keys=[voided_by])
+    note_editor: Mapped[User | None] = relationship(lazy="selectin", foreign_keys=[note_updated_by])
 
     @property
     def voided(self) -> bool:

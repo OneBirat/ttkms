@@ -1,0 +1,138 @@
+/* Payment remarks under ledger rows: grey read-only System remark + pale yellow human note. */
+
+.remarks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  max-width: 560px;
+}
+
+.system {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 6px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #f1f3f0;
+  color: #3e4a52;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.systemLabel {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  color: var(--color-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.systemText {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
+}
+
+.clearedChip {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #e6f5f3;
+  color: #0a5454;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 9px;
+  border: 1px solid #f1df9a;
+  border-radius: 8px;
+  background: #fffaeb;
+  color: #3d3215;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.noteText {
+  white-space: pre-wrap;
+}
+
+.noteFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.noteMeta {
+  color: #7a6a3a;
+  font-size: 11px;
+}
+
+.noteEdit,
+.addNote {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addNote {
+  align-self: flex-start;
+  min-height: 24px;
+}
+
+.noteEdit:hover,
+.addNote:hover {
+  text-decoration: underline;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 56px;
+  padding: 6px 9px;
+  border: 1px solid var(--color-input-border);
+  border-radius: 8px;
+  background: #fffaeb;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.error {
+  color: var(--pill-danger-fg, #8e2f12);
+  font-size: 12px;
+}

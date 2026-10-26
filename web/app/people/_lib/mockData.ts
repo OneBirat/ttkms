@@ -9,7 +9,7 @@
 import type { Role } from "@/lib/api";
 import { dailyPay, defaultOtRate, monthlyPay, roundRs, settle } from "./calc";
 import { adToBs, isoBs, monthDays } from "@/lib/bs";
-import { addMonths, dateBoth, daysInMonth, monthKey, thisMonth, today } from "./months";
+import { addMonths, dateBoth, daysInMonth, monthKey, monthName, thisMonth, today } from "./months";
 import { transliterateName } from "./devanagari";
 import { barcodeFor, employeeCode, receiptNo } from "./helpers";
 import type {
@@ -339,6 +339,7 @@ export function buildSeedState(now: Date = new Date()): MockState {
           month,
           kind,
           amount: clean,
+          system_remark: `${kind === "advance" ? "Advance" : "Salary"} for ${monthName(month)}`,
           payment_mode_id: modeId,
           payment_mode: modeRef(paymentMode),
           reference: paymentMode.type === "bank" ? bankRef(employee.id, month) : null,

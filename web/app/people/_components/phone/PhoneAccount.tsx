@@ -18,6 +18,7 @@ import { formatAmount, formatRs } from "../../_lib/helpers";
 import type { Employee, LedgerEntry, LedgerEntryType, MonthLedger, PaymentType } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import { monthStatusText } from "../../_lib/settle";
+import { PaymentRemarks, bulkMonths } from "../PaymentRemarks";
 import styles from "./phone.module.css";
 import shared from "../payroll.module.css";
 
@@ -261,6 +262,7 @@ function SalaryTab({ id }: { id: number }) {
 
 function LedgerTab({ id }: { id: number }) {
   const ledger = usePayroll(() => getEmployeeLedger(id), [id]);
+  const { can } = useSession();
   const [filter, setFilter] = useState<"all" | LedgerEntryType>("all");
   if (!ledger.data) return <p className={styles.empty}>Loading…</p>;
   const entries = [...ledger.data.entries].reverse().filter((e) => filter === "all" || e.type === filter || (filter === "salary" && e.type === "absence"));
@@ -317,12 +319,20 @@ function LedgerTab({ id }: { id: number }) {
                     <span className={styles.txLine}>
                       <span className={styles.txWhen}>
                         {formatBs(e.date.bs)}
-                        {e.paid > 0 ? ` · for ${monthName(e.month)}` : ""}
+                        {bulkMonths(e) ? ` · Bulk · ${bulkMonths(e)} months` : e.payment ? ` · for ${monthName(e.month)}` : ""}
                         {e.in_progress ? " · so far" : ""}
                       </span>
                       <span className={styles.txBalance}>Balance {formatAmount(e.balance)}</span>
                     </span>
                     <span className={styles.txDet}>{e.details}</span>
+                    {e.payment ? (
+                      <PaymentRemarks
+                        key={`${e.payment.id}-${e.payment.note ?? ""}`}
+                        payment={e.payment}
+                        months={e.group_months}
+                        canEdit={can("salary_advances")}
+                      />
+                    ) : null}
                   </span>
                 </div>
               ))}

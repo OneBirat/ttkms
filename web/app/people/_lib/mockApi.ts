@@ -13,7 +13,7 @@
 import type { Role } from "@/lib/api";
 import { PAY_DAYS, dailyPay, defaultOtRate, monthlyPay, paymentError, settle } from "./calc";
 import { isValidBs } from "@/lib/bs";
-import { addMonths, compareMonths, dateBoth, monthEnd, monthKey, monthLabel, monthStart, parseMonthKey, sameMonth, thisMonth, today } from "./months";
+import { addMonths, compareMonths, dateBoth, monthEnd, monthKey, monthLabel, monthName, monthStart, parseMonthKey, sameMonth, thisMonth, today } from "./months";
 import { barcodeFor, employeeCode, normalizeName, normalizePhone, receiptNo, sumBy, totalsFor } from "./helpers";
 import { groupTotals, sortRegisterRows } from "./register";
 import {
@@ -697,6 +697,7 @@ export async function recordPayment(input: PaymentInput): Promise<PaymentResult>
     month,
     kind: input.kind,
     amount,
+    system_remark: `${input.kind === "advance" ? "Advance" : "Salary"} for ${monthName(month)}`,
     payment_mode_id: mode.id,
     payment_mode: modeRef(mode),
     reference: mode.type === "cash" ? null : cleanOptional(input.reference),

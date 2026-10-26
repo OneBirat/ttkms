@@ -115,6 +115,20 @@ def cleared_on(net: int, payments: Iterable[Payment]) -> date | None:
     return None
 
 
+def cleared_by(net: int, payments: Iterable[Payment]) -> int | None:
+    """Id of the payment (date, then id order) that brought the paid total up to ``net``."""
+    if net <= 0:
+        return None
+    total = 0
+    for p in sorted(payments, key=lambda p: (p.date, p.id)):
+        if p.voided_at is not None:
+            continue
+        total += p.amount
+        if total >= net:
+            return p.id
+    return None
+
+
 def rate_of(structure: SalaryHistory) -> int:
     return (
         structure.basic + structure.allowances

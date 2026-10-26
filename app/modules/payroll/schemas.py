@@ -6,7 +6,7 @@ import datetime as dt
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.contracts import TodayStatus
 from app.core import bsdate
@@ -282,7 +282,14 @@ class PaymentOut(BaseModel):
     payment_mode_id: int
     payment_mode: PaymentModeRef
     reference: str | None
+    #: Written by the server at creation ("Salary for Kartik", "Bulk salary payment · ..."),
+    #: identical on every row of a group; read-only.
+    system_remark: str
+    #: The human note (PATCH /payments/{id}/note); null = none.
     note: str | None
+    #: Who last wrote the note (username) and when.
+    note_updated_by: str | None = None
+    note_updated_at: datetime | None = None
     date: DateBothOut
     paid_at: datetime
     #: Username of who recorded it ("" when that user is gone).
@@ -490,6 +497,20 @@ class SalaryDuesOut(BaseModel):
     today: DateBothOut
 
 
+class PaymentNoteIn(BaseModel):
+    """PATCH /payments/{id}/note - the human note; "" (or only spaces) clears it. There is no
+    way to send the system remark."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    note: str = Field(max_length=500)
+
+    @field_validator("note")
+    @classmethod
+    def _strip(cls, value: str) -> str:
+        return value.strip()
+
+
 class SalaryPaymentIn(BaseModel):
     """POST /salary-payments - one amount, applied to the salary due oldest month first."""
 
@@ -630,6 +651,14 @@ class PaymentsRegisterOut(BaseModel):
 LedgerEntryType = Literal["salary", "absence", "overtime", "advance", "salary_paid"]
 
 
+class LedgerGroupMonthOut(BaseModel):
+    for_year: int
+    for_month: int
+    amount: int
+    #: This payment is the one that brought the month's paid total up to its net pay.
+    cleared: bool
+
+
 class LedgerEntryOut(BaseModel):
     id: str
     date: DateBothOut
@@ -644,6 +673,9 @@ class LedgerEntryOut(BaseModel):
     #: A voided payment: listed struck through with "Voided — reason"; ``paid`` is 0 so the
     #: running balance and the totals ignore it (the amount is on ``payment``).
     voided: bool = False
+    #: Payment rows: the months the payment counts for, oldest first (several = a bulk salary
+    #: payment, one ledger row). ``payment`` is the group's first row carrying the group total.
+    group_months: list[LedgerGroupMonthOut] | None = None
 
 
 class LedgerTotalsOut(BaseModel):

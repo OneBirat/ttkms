@@ -44,6 +44,7 @@ from app.modules.payroll.schemas import (
     MonthLedgerOut,
     NextCodeOut,
     PaymentIn,
+    PaymentNoteIn,
     PaymentOut,
     PaymentResultOut,
     PaymentsRegisterOut,
@@ -518,6 +519,22 @@ async def void_payment(
     export or payments-per-month figure."""
     payment = await payments.get_payment(db, payment_id)
     return await payments.void_payment(db, me, payment, payload.reason)
+
+
+@router.patch(
+    "/payments/{payment_id}/note",
+    response_model=PaymentOut,
+    responses=ERRORS,
+    name="payroll:payment_note",
+)
+async def payment_note(
+    payment_id: int, me: CanPay, db: DbSession, payload: PaymentNoteIn
+) -> PaymentOut:
+    """Add, change or clear ("") the human note of a payment - for the whole salary payment
+    group. The system remark cannot be sent or changed. Audit-logged (old -> new)."""
+    payment = await payments.get_payment(db, payment_id)
+    await _visible(db, me, payment.employee_id)
+    return await payments.set_note(db, me, payment, payload.note or None)
 
 
 # ------------------------------------------------------------------------------- photos

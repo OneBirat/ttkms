@@ -21,7 +21,7 @@ from app.core import bsdate
 from app.core.models import Branch, Department, Employee, EmployeeStatus, User
 from app.core.services import record_audit
 from app.modules.admin.models import PaymentMode
-from app.modules.payroll import ledgers, rules, services
+from app.modules.payroll import ledgers, remarks, rules, services
 from app.modules.payroll.ledgers import MonthLedger
 from app.modules.payroll.models import Payment, PaymentKind, PaymentSource
 from app.modules.payroll.reports import ledger_out, month_label, payment_out
@@ -33,6 +33,7 @@ from app.modules.payroll.schemas import (
     EmployeeLedgerOut,
     EmployeeMonthAttendanceOut,
     LedgerEntryOut,
+    LedgerGroupMonthOut,
     LedgerTotalsOut,
     MonthBalanceOut,
     MonthLedgerOut,
@@ -220,9 +221,9 @@ async def record_payment(
         payment_mode_id=mode.id,
         date=day,
         reference=None if mode.type == "cash" else data.reference,
-        note=data.note,
         source=PaymentSource(data.source),
         recorded_by=actor.id if actor else None,
+        **note_fields(data.note, actor),
     )
     db.add(payment)
     await db.flush()
@@ -348,6 +349,14 @@ async def pay_salary(
     receipt_no = await next_receipt_no(db, "salary")
     due_before = {(r.year, r.month): r.due for r in rows}
     parts = allocate(data.amount, [((r.year, r.month), r.due) for r in rows])
+    reference = None if mode.type == "cash" else data.reference
+    remark = (
+        remarks.bulk_remark(
+            [remarks.BulkPart(m, part, due_before[(y, m)] - part) for (y, m), part in parts]
+        )
+        if len(parts) > 1
+        else remarks.single_remark("salary", parts[0][0][1], reference)
+    )
     created: list[Payment] = []
     for (year, month), part in parts:
         payment = Payment(
@@ -359,10 +368,11 @@ async def pay_salary(
             amount=part,
             payment_mode_id=mode.id,
             date=day,
-            reference=None if mode.type == "cash" else data.reference,
-            note=data.note,
+            reference=reference,
+            system_remark=remark,
             source=PaymentSource(data.source),
             recorded_by=actor.id if actor else None,
+            **note_fields(data.note, actor),
         )
         db.add(payment)
         created.append(payment)
@@ -447,6 +457,48 @@ async def group_rows(db: AsyncSession, payment: Payment) -> list[Payment]:
             .order_by(Payment.for_year, Payment.for_month, Payment.id)
         )
     )
+
+
+def note_fields(note: str | None, actor: User | None) -> dict:
+    """The human note given when a payment is recorded, with who / when."""
+    if not note:
+        return {"note": None}
+    return {
+        "note": note,
+        "note_updated_by": actor.id if actor else None,
+        "note_updated_at": func.now(),
+    }
+
+
+async def set_note(db: AsyncSession, actor: User, payment: Payment, note: str | None) -> PaymentOut:
+    """Add, change or clear (None) the human note of a payment - on every row of its group. The
+    system remark is never touched. Audit-logged old -> new."""
+    rows = await group_rows(db, payment)
+    before = payment.note
+    if before == note:
+        return payment_out(payment, await services.modes_by_id(db))
+    for row in rows:
+        row.note = note
+        row.note_updated_by = actor.id
+        row.note_updated_at = func.now()
+    await db.flush()
+    await record_audit(
+        db,
+        module=MODULE,
+        action="payment_note",
+        entity="payment",
+        entity_id=payment.payment_group_id or payment.id,
+        user_id=actor.id,
+        data={
+            "before": {"note": before},
+            "after": {"note": note},
+            "receipt_no": payment.receipt_no,
+            "payment_ids": [r.id for r in rows],
+        },
+    )
+    await db.commit()
+    await db.refresh(payment)
+    return payment_out(payment, await services.modes_by_id(db))
 
 
 # --------------------------------------------------------------------------- register
@@ -789,6 +841,9 @@ def _rs(value: int) -> str:
 
 
 async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOut:
+    """Earned rows per month (named in the details) and ONE row per payment: a bulk salary
+    payment (a payment group over several months) is a single row on its payment date with the
+    group's total; ``group_months`` lists its months for the ✓ chips."""
     structures, payments = await employee_data(db, employee, include_voided=True)
     modes = await services.modes_by_id(db)
     months = await ledgers.ledgers_kept(
@@ -796,12 +851,19 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
     )
     today = bsdate.today_ad()
     entries: list[LedgerEntryOut] = []
+    groups: dict[int, list[Payment]] = {}
+    #: (year, month) -> id of the payment that brought the month's paid total up to its net.
+    cleared_by: dict[tuple[int, int], int | None] = {}
     for ledger in months:
         earned_on = today if ledger.in_progress else ledger.ends
         so_far = " · so far" if ledger.in_progress else ""
         key = f"{ledger.year}-{ledger.month:02d}"
         m = month_out(ledger.year, ledger.month)
+        name = bsdate.bs_month_name(ledger.month)
         pay_type = ledger.structure.pay_type.value
+        cleared_by[(ledger.year, ledger.month)] = (
+            ledgers.cleared_by(ledger.net, ledger.payments) if ledger.due == 0 else None
+        )
         entries.append(
             LedgerEntryOut(
                 id=f"{key}-salary",
@@ -810,10 +872,10 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
                 type="salary",
                 details=(
                     (
-                        f"Monthly salary · {min(ledger.attendance.days_counted, rules.PAY_DAYS)}"
+                        f"{name} salary · {min(ledger.attendance.days_counted, rules.PAY_DAYS)}"
                         f" of {rules.PAY_DAYS} days{so_far}"
                         if ledger.in_progress
-                        else f"Monthly salary · {ledger.attendance.days_in_month} days"
+                        else f"{name} salary · {ledger.attendance.days_in_month} days"
                     )
                     + (
                         f" · incl. {ledger.attendance.saturday_days_worked} Saturday(s) worked"
@@ -821,7 +883,8 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
                         else ""
                     )
                     if pay_type == "monthly"
-                    else f"Daily wage {_rs(ledger.rate)} × {ledger.pay.paid_days} days{so_far}"
+                    else f"{name} · daily wage Rs {_rs(ledger.rate)} × {ledger.pay.paid_days} days"
+                    f"{so_far}"
                 ),
                 earned=ledger.pay.gross_salary,
                 paid=0,
@@ -838,7 +901,7 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
                     date=services.date_both(earned_on),
                     month=m,
                     type="absence",
-                    details=f"{ledger.attendance.absent} day(s) × Rs {_rs(per_day)}",
+                    details=f"{name} · {ledger.attendance.absent} day(s) × Rs {_rs(per_day)}",
                     earned=-ledger.pay.absence_deduction,
                     paid=0,
                     balance=0,
@@ -848,14 +911,13 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
             )
         if ledger.pay.overtime_pay > 0:
             hours = ledger.attendance.overtime_hours + ledger.attendance.saturday_ot_hours
-            details = f"{hours} h × Rs {_rs(ledger.structure.ot_rate)}"
             entries.append(
                 LedgerEntryOut(
                     id=f"{key}-overtime",
                     date=services.date_both(earned_on),
                     month=m,
                     type="overtime",
-                    details=details,
+                    details=f"{name} · {hours} h × Rs {_rs(ledger.structure.ot_rate)}",
                     earned=ledger.pay.overtime_pay,
                     paid=0,
                     balance=0,
@@ -864,30 +926,44 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
                 )
             )
         for p in [*ledger.payments, *ledger.voided]:
-            out = payment_out(p, modes)
-            details = out.payment_mode.name
-            if out.reference:
-                details += f" · {out.reference}"
-            if out.note:
-                details += f" · {out.note}"
-            details += f" · by {out.recorded_by or 'system'}"
-            if out.voided:
-                details = f"Voided — {out.void_reason} · {details}"
-            entries.append(
-                LedgerEntryOut(
-                    id=f"pay-{p.id}",
-                    date=out.date,
-                    month=m,
-                    type="advance" if p.kind == PaymentKind.advance else "salary_paid",
-                    details=details,
-                    earned=0,
-                    paid=0 if out.voided else p.amount,
-                    balance=0,
-                    payment=out,
-                    in_progress=False,
-                    voided=out.voided,
-                )
+            groups.setdefault(p.payment_group_id or p.id, []).append(p)
+    for rows in groups.values():
+        rows.sort(key=lambda p: (p.for_year, p.for_month, p.id))
+        first = rows[0]
+        total = sum(p.amount for p in rows)
+        out = payment_out(first, modes).model_copy(update={"amount": total})
+        details = out.payment_mode.name
+        if first.kind == PaymentKind.advance and out.reference:
+            details += f" · {out.reference}"
+        details += f" · by {out.recorded_by or 'system'} · receipt {out.receipt_no}"
+        if out.voided:
+            details = f"Voided — {out.void_reason} · {details}"
+        last = rows[-1]
+        entries.append(
+            LedgerEntryOut(
+                id=f"pay-{first.id}",
+                date=out.date,
+                month=month_out(last.for_year, last.for_month),
+                type="advance" if first.kind == PaymentKind.advance else "salary_paid",
+                details=details,
+                earned=0,
+                paid=0 if out.voided else total,
+                balance=0,
+                payment=out,
+                in_progress=False,
+                voided=out.voided,
+                group_months=[
+                    LedgerGroupMonthOut(
+                        for_year=p.for_year,
+                        for_month=p.for_month,
+                        amount=p.amount,
+                        cleared=not out.voided
+                        and cleared_by.get((p.for_year, p.for_month)) == p.id,
+                    )
+                    for p in rows
+                ],
             )
+        )
     order = {"salary": 0, "absence": 1, "overtime": 2, "advance": 3, "salary_paid": 4}
     entries.sort(key=lambda e: (e.date.ad, order[e.type], e.payment.id if e.payment else 0))
     running = 0

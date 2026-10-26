@@ -190,7 +190,14 @@ export interface Payment {
   payment_mode: PaymentModeRef;
   /** Bank / cheque reference; null for cash. */
   reference: string | null;
+  /** Written by the server when the payment was created ("Salary for Kartik", "Advance for
+   *  Kartik", "Bulk salary payment · …"); read-only for everyone. */
+  system_remark: string;
+  /** The human note (PATCH /payments/{id}/note); null = none. */
   note: string | null;
+  /** Who last wrote the note (name) and when (ISO). */
+  note_updated_by?: string | null;
+  note_updated_at?: string | null;
   date: DateBoth;
   /** When it was recorded (ISO). */
   paid_at: string;
@@ -583,6 +590,17 @@ export interface LedgerEntry {
   in_progress: boolean;
   /** A voided payment: struck through, `paid` is 0 (the amount is on `payment`). */
   voided?: boolean;
+  /** Payment rows: the months it counts for, oldest first; several = a bulk salary payment (one
+   *  row, `payment` = the group's first row carrying the group total). */
+  group_months?: LedgerGroupMonth[] | null;
+}
+
+export interface LedgerGroupMonth {
+  for_year: number;
+  for_month: number;
+  amount: number;
+  /** This payment brought the month's paid total up to its net pay. */
+  cleared: boolean;
 }
 
 export interface LedgerTotals {
