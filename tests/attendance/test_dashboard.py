@@ -89,8 +89,8 @@ async def test_admin_sees_only_the_active_branch(client, db, make_user, login, w
     counts = (await client.get("/api/today")).json()["counts"]
     assert counts["total"] == 3 and counts["present"] == 0
     h = {"X-CSRF-Token": (await client.get("/api/auth/csrf")).json()["csrf_token"]}
-    switched = await client.patch(
-        "/api/auth/me/active-branch", json={"branch_id": world.second.id}, headers=h
+    switched = await client.put(
+        "/api/me/active-branch", json={"branch_id": world.second.id}, headers=h
     )
     assert switched.status_code == 200, switched.text
     data = await _widget(client)

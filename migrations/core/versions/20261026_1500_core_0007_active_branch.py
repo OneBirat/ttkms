@@ -5,8 +5,9 @@ Every branch-aware screen and endpoint uses it when no branch is asked for. User
 held to their own branch (``admin.user_access.branch_id``) whatever is stored here.
 
 Existing users get their own branch from ``admin.user_access`` when the admin module's table is
-there (it is migrated after core, so on a fresh database it is not yet), else the first active
-branch created (lowest id - normally the main branch).
+there (it is migrated after core, so on a fresh database it is not yet). Everyone else keeps NULL:
+the server then uses their own branch, else the first active branch A-Z
+(``admin.permissions.active_branch_for_user``).
 
 Revision ID: core_0007
 Revises: core_0006
@@ -51,15 +52,6 @@ def upgrade() -> None:
             WHERE a.user_id = u.id AND a.branch_id IS NOT NULL
             """
         )
-    op.execute(
-        """
-        UPDATE core.users
-        SET active_branch_id = (
-            SELECT id FROM core.branches WHERE is_active ORDER BY id LIMIT 1
-        )
-        WHERE active_branch_id IS NULL
-        """
-    )
 
 
 def downgrade() -> None:

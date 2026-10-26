@@ -268,8 +268,8 @@ async def test_branch_scoping(client, login, user_in, world):
     assert (
         await client.post("/api/attendance/mark", json=_mark(mina), headers=h)
     ).status_code == 403
-    switched = await client.patch(
-        "/api/auth/me/active-branch", json={"branch_id": world.second.id}, headers=h
+    switched = await client.put(
+        "/api/me/active-branch", json={"branch_id": world.second.id}, headers=h
     )
     assert switched.status_code == 200
     day = (await client.get("/api/attendance/day", params={"date_bs": BS_DAY})).json()

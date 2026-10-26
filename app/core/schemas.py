@@ -134,8 +134,16 @@ class ActiveBranchOut(BaseModel):
     name: str
 
 
+class BranchOptionOut(BaseModel):
+    """A branch the user may switch to: name and active staff."""
+
+    id: int
+    name: str
+    staff: int
+
+
 class ActiveBranchIn(BaseModel):
-    """PATCH /api/auth/me/active-branch."""
+    """PUT /api/me/active-branch."""
 
     branch_id: int
 
@@ -151,10 +159,13 @@ class SessionOut(BaseModel):
     branch_id: int | None = None
     #: That branch's name (the sidebar footer's "role · branch"); ``None`` without a branch.
     branch_name: str | None = None
-    #: The ONE branch every screen works on (switched with PATCH /api/auth/me/active-branch by
-    #: users with ``see_other_branches``; everyone else always gets their own branch). ``None``
-    #: only for a user without a branch who may not switch.
+    #: The ONE branch every screen works on (switched with PUT /api/me/active-branch by users
+    #: with ``see_other_branches``; everyone else always gets their own branch). ``None`` only
+    #: for a user without a branch who may not switch.
     active_branch: ActiveBranchOut | None = None
+    #: ``see_other_branches`` only: every active branch A-Z with its active staff count (the
+    #: switcher's menu, the dashboard's tabs); ``None`` for everyone else.
+    branches: list[BranchOptionOut] | None = None
     #: Effective access, ``{permission: on}`` - role preset + per-user switches.
     access: dict[str, bool] = Field(default_factory=dict)
 

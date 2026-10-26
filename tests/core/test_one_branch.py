@@ -140,8 +140,8 @@ async def test_switching_branch_changes_what_every_endpoint_returns(client, db, 
     before = await _snapshot(client, people)
     assert before == {**MAIN_VIEW, "barcodes": ["Anita"]}
 
-    switched = await client.patch(
-        "/api/auth/me/active-branch", json={"branch_id": second.id}, headers=await _csrf(client)
+    switched = await client.put(
+        "/api/me/active-branch", json={"branch_id": second.id}, headers=await _csrf(client)
     )
     assert switched.status_code == 200
     after = await _snapshot(client, people)
@@ -177,9 +177,7 @@ async def test_without_see_other_branches_nobody_switches_or_reads_another_branc
     # Asking for Branch 2 everywhere changes nothing: it is ignored.
     assert await _snapshot(client, people, second.id, admin=False) == MAIN_VIEW
     h = await _csrf(client)
-    refused = await client.patch(
-        "/api/auth/me/active-branch", json={"branch_id": second.id}, headers=h
-    )
+    refused = await client.put("/api/me/active-branch", json={"branch_id": second.id}, headers=h)
     assert refused.status_code == 403
     mina = people["Mina"]
     for path in (

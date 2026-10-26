@@ -24,14 +24,24 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.config import settings
 from app.core.csrf import get_csrf_token, rotate_csrf_token
-from app.core.models import Branch, Role, User, is_phone, normalize_phone, normalize_username
+from app.core.models import (
+    Branch,
+    Employee,
+    EmployeeStatus,
+    Role,
+    User,
+    is_phone,
+    normalize_phone,
+    normalize_username,
+)
 from app.core.schemas import (
     ActiveBranchIn,
     ActiveBranchOut,
+    BranchOptionOut,
     ChangePasswordIn,
     CsrfOut,
     ErrorOut,
@@ -153,8 +163,26 @@ async def session_out(db, user: User, csrf_token: str) -> SessionOut:
         branch_id=branch_id,
         branch_name=branch.name if branch else None,
         active_branch=ActiveBranchOut(id=active.id, name=active.name) if active else None,
+        branches=await branch_options(db) if access.get("see_other_branches") else None,
         access=access,
     )
+
+
+async def branch_options(db) -> list[BranchOptionOut]:
+    """Every active branch A-Z with its active staff count."""
+    staff = dict(
+        (
+            await db.execute(
+                select(Employee.branch_id, func.count())
+                .where(Employee.status == EmployeeStatus.active)
+                .group_by(Employee.branch_id)
+            )
+        ).all()
+    )
+    rows = await db.scalars(
+        select(Branch).where(Branch.is_active.is_(True)).order_by(Branch.name, Branch.id)
+    )
+    return [BranchOptionOut(id=b.id, name=b.name, staff=int(staff.get(b.id, 0))) for b in rows]
 
 
 def require_role(*roles: str | Role):
@@ -234,48 +262,6 @@ async def me(request: Request, db: DbSession, user: CurrentUser) -> SessionOut:
     return await session_out(db, user, get_csrf_token(request))
 
 
-@router.patch(
-    "/me/active-branch",
-    response_model=SessionOut,
-    responses={401: {"model": ErrorOut}, 403: {"model": ErrorOut}, 422: {"model": ErrorOut}},
-)
-async def set_active_branch(
-    request: Request, db: DbSession, user: CurrentUser, payload: ActiveBranchIn
-) -> SessionOut:
-    """Switch the ONE branch the whole app works on - only with ``see_other_branches`` (everyone
-    else is always on their own branch). The branch must exist and be active. Kept on the user,
-    so it survives logins and applies to every tab; audit-logged."""
-    from app.modules.admin.permissions import (
-        OTHER_BRANCHES,
-        access_for_user,
-        active_branch_for_user,
-    )
-
-    access = await access_for_user(db, user)
-    if not access.get(OTHER_BRANCHES):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, detail="You can only work in your own branch."
-        )
-    branch = await db.get(Branch, payload.branch_id)
-    if branch is None or not branch.is_active:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Pick one of the active branches."
-        )
-    before = await active_branch_for_user(db, user, access)
-    user.active_branch_id = branch.id
-    await record_audit(
-        db,
-        module="core",
-        action="active_branch",
-        entity="user",
-        entity_id=user.id,
-        user_id=user.id,
-        data={"before": {"branch_id": before}, "after": {"branch_id": branch.id}},
-    )
-    await db.commit()
-    return await session_out(db, user, get_csrf_token(request))
-
-
 @router.post(
     "/change-password",
     response_model=SessionOut,
@@ -319,3 +305,50 @@ async def logout(request: Request, db: DbSession) -> Response:
         await db.commit()
     request.session.clear()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+#: ``/api/me/...``: the signed-in user's own settings.
+me_router = APIRouter(prefix="/api/me", tags=["auth"])
+
+
+@me_router.put(
+    "/active-branch",
+    response_model=SessionOut,
+    responses={401: {"model": ErrorOut}, 403: {"model": ErrorOut}, 422: {"model": ErrorOut}},
+)
+async def set_active_branch(
+    request: Request, db: DbSession, user: CurrentUser, payload: ActiveBranchIn
+) -> SessionOut:
+    """Switch the ONE branch the whole app works on. With ``see_other_branches`` any active
+    branch; without it only their own (403 for any other). Unknown or inactive branch: 422. Kept
+    on the user (survives logins, every tab); audit-logged. Returns the updated session."""
+    from app.modules.admin.permissions import (
+        OTHER_BRANCHES,
+        access_for_user,
+        active_branch_for_user,
+        branch_for_user,
+    )
+
+    access = await access_for_user(db, user)
+    branch = await db.get(Branch, payload.branch_id)
+    if branch is None or not branch.is_active:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Pick one of the active branches."
+        )
+    if not access.get(OTHER_BRANCHES) and branch.id != await branch_for_user(db, user):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="You can only work in your own branch."
+        )
+    before = await active_branch_for_user(db, user, access)
+    user.active_branch_id = branch.id
+    await record_audit(
+        db,
+        module="core",
+        action="active_branch",
+        entity="user",
+        entity_id=user.id,
+        user_id=user.id,
+        data={"before": {"branch_id": before}, "after": {"branch_id": branch.id}},
+    )
+    await db.commit()
+    return await session_out(db, user, get_csrf_token(request))

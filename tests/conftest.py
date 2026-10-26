@@ -40,7 +40,7 @@ from sqlalchemy.pool import NullPool
 from app.config import BASE_DIR, settings
 from app.core import bsdate
 from app.core.auth import hash_password
-from app.core.models import Role, User
+from app.core.models import Branch, Role, User
 from app.db import get_db
 from app.main import app, create_app
 
@@ -211,13 +211,24 @@ def make_user(db: AsyncSession) -> MakeUser:
         role: Role | str = Role.admin,
         full_name: str | None = None,
         is_active: bool = True,
+        active_branch_id: int | None | str = "first",
     ) -> User:
+        """``active_branch_id="first"`` (the default): an admin starts with a saved active branch,
+        the first branch the test created - as if they had picked it (the tests' "Main branch").
+        Pass ``None`` to test the server's fallback (own branch, else the first active A-Z)."""
+        if active_branch_id == "first":
+            active_branch_id = (
+                await db.scalar(select(Branch.id).order_by(Branch.id))
+                if Role(role) == Role.admin
+                else None
+            )
         user = User(
             username=username,
             password_hash=hash_password(password),
             full_name=full_name or username.replace("_", " ").title(),
             role=Role(role),
             is_active=is_active,
+            active_branch_id=active_branch_id,
         )
         db.add(user)
         await db.flush()

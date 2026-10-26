@@ -92,8 +92,8 @@ export function BranchProvider({ children }: { children: ReactNode }) {
       setSwitching(true);
       setError(null);
       try {
-        const me = await apiFetch<AuthResponse>("/api/auth/me/active-branch", {
-          method: "PATCH",
+        const me = await apiFetch<AuthResponse>("/api/me/active-branch", {
+          method: "PUT",
           json: { branch_id: branchId },
         });
         applyAuth(me);

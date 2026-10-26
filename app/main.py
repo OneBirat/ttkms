@@ -67,6 +67,7 @@ def create_app(modules: list[Module] | None = None) -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(auth.router)
+    app.include_router(auth.me_router)
     app.include_router(routes.router)
     app.include_router(branches.router)
     app.include_router(departments.router)
