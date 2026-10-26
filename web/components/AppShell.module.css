@@ -58,6 +58,11 @@
   text-decoration: none;
 }
 
+.phoneBranch {
+  margin-left: auto;
+  min-width: 0;
+}
+
 .phoneBrand:hover {
   color: #fff;
 }

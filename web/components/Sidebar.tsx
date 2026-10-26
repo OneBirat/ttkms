@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BranchSwitcher } from "@/components/BranchSwitcher";
 import { Icon } from "@/components/icons";
 import { UserFooter } from "@/components/UserFooter";
 import type { Module, User } from "@/lib/api";
@@ -52,7 +53,7 @@ function NavLink({
  * Payment reports), Admin (Users, Barcodes, Payment modes). The backend has already
  * filtered the entries to the user's effective permissions and left out
  * modules with nothing visible, so a section never shows a placeholder link.
- * Beside the page it is sticky and exactly the viewport high: the links scroll
+ * Under the logo: the ONE active branch (BranchSwitcher). Beside the page it is sticky and exactly the viewport high: the links scroll
  * inside it and the footer (user + Log out) always stays at the bottom.
  */
 export function Sidebar({ user, place, modules, onLogout }: SidebarProps) {
@@ -70,6 +71,9 @@ export function Sidebar({ user, place, modules, onLogout }: SidebarProps) {
           <span className={styles.brandSub}>Attendance &amp; payroll</span>
         </span>
       </Link>
+      <div className={styles.branch}>
+        <BranchSwitcher />
+      </div>
 
       <div className={styles.scroll}>
         <ul className={styles.list}>

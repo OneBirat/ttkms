@@ -141,3 +141,8 @@
     transform: none;
   }
 }
+
+/* The active branch under the brand (components/BranchSwitcher.tsx). */
+.branch {
+  padding: 0 4px 12px;
+}

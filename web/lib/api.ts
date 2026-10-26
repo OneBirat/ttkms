@@ -51,9 +51,17 @@ export interface AuthResponse {
   csrf_token: string;
   /** The user's own branch (admin.user_access.branch_id); null for admins and unassigned users. */
   branch_id: number | null;
-  /** That branch's name (sidebar footer); null without a branch. */
+  /** That branch's name; null without a branch. */
   branch_name?: string | null;
+  /** The ONE branch every screen works on (lib/branch.tsx); null only for a user without a branch
+   *  who may not switch. Switched with PATCH /api/auth/me/active-branch (see_other_branches). */
+  active_branch?: ActiveBranch | null;
   access: Access;
+}
+
+export interface ActiveBranch {
+  id: number;
+  name: string;
 }
 
 export interface CsrfResponse {

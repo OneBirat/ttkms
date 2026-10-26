@@ -3,11 +3,13 @@
 import { useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { BranchSwitcher } from "@/components/BranchSwitcher";
 import { Icon } from "@/components/icons";
 import { PhoneDrawer } from "@/components/PhoneDrawer";
 import { Sidebar } from "@/components/Sidebar";
 import { rolePlace } from "@/components/UserFooter";
 import { SET_PASSWORD_PATH, type Module, type User } from "@/lib/api";
+import { BranchProvider, useBranch } from "@/lib/branch";
 import { useSession } from "@/lib/session";
 import { ShellProvider, useShell } from "@/lib/shell";
 import styles from "./AppShell.module.css";
@@ -60,11 +62,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ShellProvider>
-      <ShellFrame user={user} modules={modules} onLogout={() => void logout()}>
-        {children}
-      </ShellFrame>
-    </ShellProvider>
+    <BranchProvider>
+      <ShellProvider>
+        <ShellFrame user={user} modules={modules} onLogout={() => void logout()}>
+          {children}
+        </ShellFrame>
+      </ShellProvider>
+    </BranchProvider>
   );
 }
 
@@ -81,6 +85,7 @@ function ShellFrame({
 }) {
   const { menuOpen, openMenu, closeMenu, ownHeader } = useShell();
   const { branchName, can } = useSession();
+  const { version } = useBranch();
   const place = rolePlace(user, branchName, can("see_other_branches"));
   const pathname = usePathname();
   // Navigating closes the drawer (a link in it was followed, or Back was used).
@@ -109,8 +114,13 @@ function ShellFrame({
           </span>
           TTK Attendance
         </Link>
+        <span className={styles.phoneBranch}>
+          <BranchSwitcher variant="bar" />
+        </span>
       </header>
-      <main id="main" className={styles.main} tabIndex={-1}>
+      {/* Keyed on the active branch: a switch (here or in another tab) remounts the page, so
+          everything on it is fetched again for the new branch. */}
+      <main key={version} id="main" className={styles.main} tabIndex={-1}>
         {children}
       </main>
       {menuOpen ? (

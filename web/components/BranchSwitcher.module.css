@@ -1,0 +1,75 @@
+/* Active-branch switcher (components/BranchSwitcher.tsx): sidebar under the logo, phone drawer
+   and phone top bar. A native <select> lies over the pill so keyboard and screen readers work. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.branch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: var(--color-sidebar-active);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.branch[data-locked] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-sidebar-text);
+  cursor: default;
+}
+
+.branch[data-variant="bar"] {
+  min-height: 36px;
+  max-width: 170px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.branch[data-busy] {
+  opacity: 0.7;
+}
+
+.branch:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.caret {
+  display: flex;
+  flex: none;
+  color: var(--color-sidebar-muted);
+}
+
+.branch select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.error {
+  color: #f3b3a4;
+  font-size: 12px;
+}

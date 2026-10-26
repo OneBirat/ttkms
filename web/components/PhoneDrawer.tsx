@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BranchSwitcher } from "@/components/BranchSwitcher";
 import { Icon } from "@/components/icons";
 import { isActivePath } from "@/components/Sidebar";
 import { UserFooter } from "@/components/UserFooter";
@@ -90,6 +91,9 @@ export function PhoneDrawer({ user, place, modules, onClose, onLogout }: PhoneDr
           >
             <Icon name="close" size={20} />
           </button>
+        </div>
+        <div className={styles.branch}>
+          <BranchSwitcher />
         </div>
 
         <div className={styles.scroll}>

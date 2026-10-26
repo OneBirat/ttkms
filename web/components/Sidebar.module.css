@@ -19,6 +19,10 @@
   text-decoration: none;
 }
 
+.branch {
+  padding: 0 4px 14px;
+}
+
 .brand:hover {
   color: inherit;
 }
