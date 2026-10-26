@@ -20,6 +20,7 @@ import { monthsText } from "../_lib/settle";
 import type { DateRange, RegisterSort, RegisterTypeFilter } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import { VoidedNote } from "./VoidPaymentDialog";
+import { Avatar } from "./Avatar";
 import styles from "./report.module.css";
 import shared from "./payroll.module.css";
 
@@ -345,10 +346,13 @@ export function PaymentsRegisterScreen() {
                           <BSDateText value={p.date.bs} />
                         </td>
                         <td>
-                          <Link href={`/people/employees/${employee.id}`} className={styles.empCell}>
-                            <span className={styles.empName}>{employee.full_name}</span>
-                            <span className={styles.empSub}>
-                              {employee.code} · {employee.department?.name ?? "—"}
+                          <Link href={`/people/employees/${employee.id}`} className={`${styles.empCell} ${styles.empCellPhoto}`}>
+                            <Avatar name={employee.full_name} photoUrl={employee.photo_thumb_url ?? employee.photo_url} size={32} />
+                            <span className={styles.empText}>
+                              <span className={styles.empName}>{employee.full_name}</span>
+                              <span className={styles.empSub}>
+                                {employee.code} · {employee.department?.name ?? "—"}
+                              </span>
                             </span>
                           </Link>
                         </td>

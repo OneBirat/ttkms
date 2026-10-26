@@ -731,6 +731,14 @@
   background: #2f4e8c;
 }
 
+.payAvatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
 /* bottom sheet */
 
 .sheetWrap {

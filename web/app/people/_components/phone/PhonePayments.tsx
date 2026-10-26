@@ -100,7 +100,12 @@ export function PhonePayments() {
       }}
     >
       <span className={styles.payAvatar} data-type={p.kind}>
-        {initials(e.full_name)}
+        {e.photo_thumb_url ?? e.photo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element -- signed-in photo endpoint, cached a year
+          <img src={(e.photo_thumb_url ?? e.photo_url)!} alt="" width={40} height={40} loading="lazy" />
+        ) : (
+          initials(e.full_name)
+        )}
       </span>
       <span className={styles.txText}>
         <span className={styles.txLine}>
