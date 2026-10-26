@@ -583,45 +583,12 @@
   gap: 8px;
 }
 
-.miniTables {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.mini {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-}
-
 .miniTitle {
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-muted);
   padding-bottom: 6px;
-}
-
-.mini .kv {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--color-border-soft);
-  font-size: 13px;
-}
-
-.mini .kv:last-child {
-  border-bottom: none;
-}
-
-.mini .kvTotal {
-  font-weight: 600;
-  border-top: 1px solid var(--color-input-border);
 }
 
 .payments {
@@ -1273,4 +1240,61 @@
 
 .stripEmp:hover {
   background: #f1f4f2;
+}
+
+/* ---- Salary tab · month detail: one pay table (ledger-touch item 2) */
+
+.payBox {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 4px 14px 6px;
+}
+
+.payTable {
+  max-width: 680px;
+}
+
+.payTable th[scope="row"] {
+  font-weight: 400;
+  color: var(--color-text);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 14px;
+}
+
+.paySection th {
+  padding-top: 12px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.payRow[data-kind="total"] th,
+.payRow[data-kind="total"] td {
+  font-weight: 700;
+}
+
+.payRow[data-kind="net"] th,
+.payRow[data-kind="net"] td {
+  background: #e6f5f3;
+  color: #0a5454;
+  font-weight: 700;
+}
+
+.payRow[data-kind="due"] th,
+.payRow[data-kind="due"] td {
+  font-weight: 700;
+}
+
+.payRow[data-owing="true"] th,
+.payRow[data-owing="true"] td {
+  background: #fbefe2;
+  color: #8a4205;
+}
+
+.payRow[data-owing="false"] td {
+  color: #1e9e4a;
 }

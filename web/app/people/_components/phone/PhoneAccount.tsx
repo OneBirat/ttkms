@@ -18,6 +18,7 @@ import { formatAmount, formatRs } from "../../_lib/helpers";
 import type { Employee, LedgerEntry, LedgerEntryType, MonthLedger, PaymentType } from "../../types";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import { monthStatusText } from "../../_lib/settle";
+import { monthDetailRows } from "../../_lib/monthDetail";
 import { PaymentRemarks, bulkMonths } from "../PaymentRemarks";
 import styles from "./phone.module.css";
 import shared from "../payroll.module.css";
@@ -223,33 +224,37 @@ function SalaryTab({ id }: { id: number }) {
             </button>
             {on ? (
               <div className={styles.monthDetail}>
-                <div className={styles.kvLine}>
-                  <span>{l.pay_type === "monthly" ? "Monthly salary" : `Daily wage × ${l.paid_days} days`}</span>
-                  <span className="mono">Rs {formatAmount(l.gross_salary)}</span>
-                </div>
-                <div className={styles.kvLine} style={{ color: "#7a5600" }}>
-                  <span>Overtime {l.attendance.overtime_hours} h</span>
-                  <span className="mono">+{formatAmount(l.overtime_pay)}</span>
-                </div>
-                <div className={styles.kvLine} style={{ color: "var(--pill-danger-fg)" }}>
-                  <span>Absence {l.attendance.absent} d</span>
-                  <span className="mono">−{formatAmount(l.absence_deduction)}</span>
-                </div>
-                <div className={`${styles.kvLine} ${styles.kvTotal}`}>
-                  <span>Net pay</span>
-                  <span className="mono">Rs {formatAmount(l.net)}</span>
-                </div>
+                {monthDetailRows(l).map((row) =>
+                  row.kind === "section" ? (
+                    <div key={row.label} className={styles.paySection}>
+                      {row.label}
+                    </div>
+                  ) : row.kind === "paid" || row.kind === "due" ? null : (
+                    <div key={row.label} className={`${styles.kvLine} ${row.kind === "total" ? styles.kvTotal : ""}`} data-kind={row.kind}>
+                      <span>
+                        {row.label}
+                        {row.qty || row.rate ? <span className={styles.rowSub}> · {[row.qty, row.rate].filter(Boolean).join(" · ")}</span> : null}
+                      </span>
+                      <span className="mono">{row.amount}</span>
+                    </div>
+                  ),
+                )}
                 {l.payments.map((p) => (
                   <div key={p.id} className={styles.kvLine} style={{ color: "var(--pill-leave-fg)" }}>
                     <span>
                       {formatBsShort(p.date.bs)} · {p.kind === "advance" ? "Advance" : "Paid"} ({p.payment_mode.name})
+                      {p.voided ? " · voided" : ""}
                     </span>
-                    <span className="mono">−{formatAmount(p.amount)}</span>
+                    <span className={`mono ${p.voided ? shared.voidedAmount : ""}`}>−{formatAmount(p.amount)}</span>
                   </div>
                 ))}
-                <div className={`${styles.kvLine} ${styles.kvTotal}`} style={{ borderTop: "none", paddingTop: 0, color: l.due ? "var(--pill-danger-fg)" : "var(--color-muted)" }}>
-                  <span>Still due</span>
-                  <span className="mono">Rs {formatAmount(l.due)}</span>
+                <div className={styles.kvLine} data-kind="paid">
+                  <span>Paid (salary + advances)</span>
+                  <span className="mono">{l.paid > 0 ? `−${formatAmount(l.paid)}` : "0"}</span>
+                </div>
+                <div className={`${styles.kvLine} ${styles.kvTotal}`} data-kind="due" data-owing={String(l.due > 0)}>
+                  <span>Due</span>
+                  <span className="mono">{formatAmount(l.due)}</span>
                 </div>
               </div>
             ) : null}

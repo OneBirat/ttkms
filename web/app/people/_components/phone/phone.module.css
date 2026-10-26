@@ -948,3 +948,35 @@
     opacity: 1;
   }
 }
+
+/* Salary tab · month detail (same rows as the desktop pay table) */
+.paySection {
+  padding: 8px 0 2px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.kvLine[data-kind="net"] {
+  margin: 4px -8px 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #e6f5f3;
+  color: #0a5454;
+  font-weight: 700;
+}
+
+.kvLine[data-kind="due"] {
+  margin: 0 -8px;
+  padding: 6px 8px;
+  border-top: none;
+  border-radius: 8px;
+  color: #1e9e4a;
+}
+
+.kvLine[data-kind="due"][data-owing="true"] {
+  background: #fbefe2;
+  color: #8a4205;
+}

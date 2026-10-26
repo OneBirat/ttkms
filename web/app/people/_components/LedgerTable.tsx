@@ -6,14 +6,8 @@ import { BSDateText } from "@/components/date";
 import { formatMonthRange, monthLabel } from "../_lib/months";
 import { payslipUrl, receiptUrl } from "../api";
 import { downloadText, ledgerCsv, modeLabel } from "../_lib/exports";
-import {
-  formatAddition,
-  formatAmount,
-  formatDays,
-  formatDeduction,
-  formatPaidDays,
-  formatRs,
-} from "../_lib/helpers";
+import { formatAddition, formatAmount, formatDeduction, formatPaidDays, formatRs } from "../_lib/helpers";
+import { monthDetailRows } from "../_lib/monthDetail";
 import type { BsMonth, Employee, MonthLedger, Payment } from "../types";
 import { VoidPaymentDialog, VoidedNote, useCanVoid } from "./VoidPaymentDialog";
 import { MonthStatusPill } from "./MonthStatusPill";
@@ -188,8 +182,6 @@ interface LedgerDetailProps {
 
 function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceipt, onVoid }: LedgerDetailProps) {
   const countedPayments = l.payments.filter((p) => !p.voided).length;
-  const perDay = l.attendance.days_in_month ? l.rate / l.attendance.days_in_month : 0;
-  const a = l.attendance;
   return (
     <div className={styles.detail}>
       <div className={styles.detailTop}>
@@ -227,61 +219,7 @@ function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceip
         </div>
       </div>
 
-      <div className={styles.miniTables}>
-        <div className={styles.mini}>
-          <span className={styles.miniTitle}>Attendance</span>
-          <div className={styles.kv}>
-            <span>Days in month</span>
-            <span className={shared.num}>{a.days_in_month}</span>
-          </div>
-          <div className={styles.kv}>
-            <span>Present</span>
-            <span className={shared.num}>{formatDays(a.present)}</span>
-          </div>
-          <div className={styles.kv}>
-            <span>Absent</span>
-            <span className={shared.num}>{a.absent}</span>
-          </div>
-          <div className={styles.kv}>
-            <span>Overtime</span>
-            <span className={shared.num}>
-              {a.overtime_days} d · {a.overtime_hours} h
-            </span>
-          </div>
-          <div className={styles.kv}>
-            <span>Weekly off (Sat)</span>
-            <span className={shared.num}>{a.weekly_off}</span>
-          </div>
-        </div>
-        <div className={styles.mini}>
-          <span className={styles.miniTitle}>Earnings</span>
-          <div className={styles.kv}>
-            <span>{l.pay_type === "monthly" ? "Salary" : `Wage ${formatRs(l.rate)} × ${formatDays(l.paid_days)} days`}</span>
-            <span className={shared.num}>{formatAmount(l.gross_salary)}</span>
-          </div>
-          <div className={styles.kv}>
-            <span>
-              Overtime {a.overtime_hours} h × {formatRs(l.ot_rate)}
-            </span>
-            <span className={shared.num}>{formatAmount(l.overtime_pay)}</span>
-          </div>
-          <div className={`${styles.kv} ${styles.kvTotal}`}>
-            <span>Total earnings</span>
-            <span className={shared.num}>{formatAmount(l.earnings)}</span>
-          </div>
-        </div>
-        <div className={styles.mini}>
-          <span className={styles.miniTitle}>Deductions</span>
-          <div className={styles.kv}>
-            <span>{l.pay_type === "monthly" ? `Absence ${a.absent} × ${formatRs(perDay)}/day` : "Absence (daily wage: none)"}</span>
-            <span className={shared.num}>{formatDeduction(l.absence_deduction)}</span>
-          </div>
-          <div className={`${styles.kv} ${styles.kvTotal}`}>
-            <span>Net salary</span>
-            <span className={shared.num}>{formatAmount(l.net)}</span>
-          </div>
-        </div>
-      </div>
+      <MonthDetailTable ledger={l} />
 
       <div className={styles.payments}>
         <div className={styles.paymentsHead}>
@@ -353,6 +291,49 @@ function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceip
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** The month's pay as one table: Earnings, Deductions, Net salary, Paid, Due (no attendance or tax lines). */
+export function MonthDetailTable({ ledger }: { ledger: MonthLedger }) {
+  return (
+    <div className={`${shared.tableWrap} ${styles.payBox}`}>
+      <table className={`${shared.table} ${styles.payTable}`} data-testid="month-detail">
+        <caption className={shared.srOnly}>Pay for {monthLabel(ledger.month)}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Description</th>
+            <th scope="col" className={shared.num}>
+              Days / hours
+            </th>
+            <th scope="col" className={shared.num}>
+              Rate (Rs)
+            </th>
+            <th scope="col" className={shared.num}>
+              Amount (Rs)
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {monthDetailRows(ledger).map((row) =>
+            row.kind === "section" ? (
+              <tr key={row.label} className={styles.paySection}>
+                <th scope="rowgroup" colSpan={4}>
+                  {row.label}
+                </th>
+              </tr>
+            ) : (
+              <tr key={row.label} className={styles.payRow} data-kind={row.kind} data-owing={row.kind === "due" ? String(!!row.owing) : undefined}>
+                <th scope="row">{row.label}</th>
+                <td className={shared.num}>{row.qty}</td>
+                <td className={shared.num}>{row.rate}</td>
+                <td className={`${shared.num} mono`}>{row.amount}</td>
+              </tr>
+            ),
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
