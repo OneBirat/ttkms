@@ -486,3 +486,106 @@ a.personName:hover {
   border-top: 1px solid var(--color-border-soft);
   font-size: 14px;
 }
+
+/* ---- phone (< 640px): tabs become a scrolling chip row, tiles 2 × 2, cards stack */
+
+@media (max-width: 639px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin: 0 -16px;
+    padding: 2px 16px;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .tab {
+    min-height: 38px;
+    padding: 0 14px;
+    border: 1px solid var(--color-input-border);
+    border-radius: 999px;
+    background: var(--color-card);
+    font-size: 13px;
+  }
+
+  .tab[aria-selected="true"] {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: #fff;
+    box-shadow: none;
+  }
+
+  .tab[aria-selected="true"] .tabCount {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+  }
+
+  .tiles,
+  .tiles[data-count="3"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .tile {
+    padding: 12px 14px;
+  }
+
+  .tileValue {
+    font-size: 24px;
+  }
+
+  .cards[data-two],
+  .compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card,
+  .cmpCard {
+    padding: 14px 14px;
+  }
+
+  .legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dept {
+    display: none;
+  }
+
+  .money {
+    gap: 6px;
+  }
+
+  .moneyTile {
+    padding: 8px 9px;
+  }
+
+  .moneyValue {
+    font-size: 15px;
+  }
+
+  .cmpHead {
+    flex-wrap: wrap;
+  }
+
+  .cmpTitle {
+    font-size: 17px;
+  }
+
+  .cmpOpen {
+    width: 100%;
+  }
+
+  .cmpTiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

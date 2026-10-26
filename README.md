@@ -163,6 +163,10 @@ transaction. `tests/__init__.py` pins `ENABLED_MODULES` to the default set so `.
 what the suite asserts; `client_for("attendance,admin")` builds an app with another module set.
 The core downgrade/upgrade round-trip test uses a further throwaway database (`..._roundtrip`).
 
+Browser check of the ONE active branch (headless Chrome over CDP, against running dev servers; not
+part of `make test`): `cd web && E2E_ADMIN=user:pass E2E_STAFF=user:pass npm run e2e:branch` - the
+admin needs `see_other_branches` and two active branches, the staff user must not have it.
+
 Skipped until their inputs exist: the BS round-trip tests (need the calendar table, below) and the
 PDF tests (need pango). The frontend is checked with `make web-lint` and `make web-build`.
 

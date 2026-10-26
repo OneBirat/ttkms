@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --import ./test/register.mjs --test \"lib/**/*.test.{ts,tsx,mjs}\" \"components/**/*.test.{ts,tsx,mjs}\" \"app/**/*.test.{ts,tsx,mjs}\""
+    "test": "node --experimental-strip-types --import ./test/register.mjs --test \"lib/**/*.test.{ts,tsx,mjs}\" \"components/**/*.test.{ts,tsx,mjs}\" \"app/**/*.test.{ts,tsx,mjs}\"",
+    "e2e:branch": "node e2e/active-branch.e2e.mjs"
   },
   "dependencies": {
     "next": "15.5.28",
