@@ -12,6 +12,7 @@ from app.core import bsdate
 from app.core.models import Branch, Department, Employee
 from app.modules.payroll import exports
 from app.modules.payroll.models import PayType, SalaryHistory
+from tests.attendance_days import attend_kept
 
 pytestmark = pytest.mark.anyio
 
@@ -47,6 +48,7 @@ async def _start(client, db, make_user, login):
         )
     )
     await db.flush()
+    await attend_kept(db, anita)
     await make_user("admin", role="admin")
     await login("admin")
     headers = {"X-CSRF-Token": (await client.get("/api/auth/csrf")).json()["csrf_token"]}

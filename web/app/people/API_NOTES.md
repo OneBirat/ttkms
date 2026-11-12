@@ -215,3 +215,29 @@ is ignored. Branches (`GET/POST /api/core/branches`) are still mock.
   for the "Today" column and tiles (mocked by `todayStatusFor()` in `_lib/mockData.ts`).
 - Double-click on the attendance sheet opens `/people/employees/[id]?dept=<id or name>`.
 - The scan pop-up records through `POST /api/payroll/payments` with `payment_mode_id`.
+
+## Not marked days are unpaid (2026-11-12)
+
+**Bug:** monthly pay was `salary − salary ÷ 30 × absent` and paid days were `days − absent`, so a working
+day without any attendance record was paid as if present. **Now** the attendance summary
+(`app/contracts.py` `MonthSummary`, `app/modules/attendance/contract.py` `summarise`) is the one place
+that counts paid and unpaid days, and payroll only reads it:
+
+- `attendance.not_marked` (every `MonthLedger`, the report rows, pay slips, `salary-dues` months): working
+  days (not the weekly off) without a record, **before today** (Kathmandu), from the joining date (and up
+  to the leaving day of an inactive employee). Computed on every read, never stored - no `A` rows are
+  inserted; marking the day later (the super admin, with a reason) takes it out again.
+- Today and future days are never not marked or absent. `paid_days = present + overtime_days +
+  weekly_off` (weekly off only for elapsed days inside the active period) - never `days − absent`.
+- Monthly staff: `absence_deduction = salary ÷ 30 × unpaid_days`, `unpaid_days = absent + not_marked`
+  (new field on the ledger). Overtime (salary ÷ 30 ÷ 8) and advances are unchanged. Daily staff were
+  always paid for the days worked only.
+- Report `totals.not_marked_days` / `totals.not_marked_staff` → the Salary report line "N employees have
+  unmarked days this month" linking to `/attendance/mark?status=N` (the Not marked filter).
+- UI: `AttendanceCounts` (Present · Overtime · Absent · **Not marked** in red) on the Salary report rows,
+  the expanded salary month (desktop and phone) and the pay slip; the month detail has its own red
+  "Not marked" deduction line (`monthDetail.ts` `deductionSplit`).
+- `python -m app.cli unmarked-paid` (read-only) lists the months already paid that have unmarked days:
+  old net, new net, paid, overpaid.
+- Days outside the employment period are neither deducted nor counted: someone who joins mid-month still
+  earns the monthly salary less absent / not marked days from the joining day (unchanged, open question).

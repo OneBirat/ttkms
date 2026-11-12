@@ -294,7 +294,11 @@ function OverviewTab({ employee: e, structure, ledger }: { employee: Employee; s
         </div>
         {running ? (
           <span className={shared.note} style={{ fontSize: 13 }}>
-            {monthLabel(running.month)} so far: {formatDays(running.attendance.present)} present, {running.attendance.absent} absent, net{" "}
+            {monthLabel(running.month)} so far: {formatDays(running.attendance.present)} present, {running.attendance.absent} absent
+            {running.attendance.not_marked > 0 ? (
+              <b className={shared.danger}>, {running.attendance.not_marked} not marked (unpaid)</b>
+            ) : null}
+            , net{" "}
             {formatRs(running.net)} of which {formatRs(running.paid)} already paid.
           </span>
         ) : null}

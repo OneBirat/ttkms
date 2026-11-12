@@ -311,6 +311,12 @@ export interface DayCell {
   status: CellStatus;
   /** Overtime hours when status is "O", else 0. */
   ot_hours: number;
+  /**
+   * An "N" cell that counts as a not-marked day: a working day before today, from the joining
+   * date, without a record. Unpaid (payroll deducts it like an absence) and shown red. False /
+   * absent for today, future days and days before joining.
+   */
+  not_marked?: boolean;
   /** Rupees of advance / salary paid that day (report payment icons); absent or 0 when none. */
   advance?: number;
   salary?: number;

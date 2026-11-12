@@ -13,6 +13,7 @@ from app.core import bsdate
 from app.core.models import AuditLog, Branch, Department, Employee
 from app.modules.admin.models import UserAccess
 from app.modules.payroll.models import Payment, PayType, SalaryHistory
+from tests.attendance_days import attend_kept
 
 pytestmark = pytest.mark.anyio
 
@@ -40,6 +41,7 @@ async def _anita(db):
         )
     )
     await db.flush()
+    await attend_kept(db, anita)
     return branch, anita
 
 

@@ -236,6 +236,10 @@ class CellOverride(BaseModel):
 class DayCell(BaseModel):
     status: CellStatus
     ot_hours: int = 0
+    #: An "N" cell that counts as a not-marked day: a working day before today, inside the
+    #: employee's active period, without a record. Unpaid (payroll deducts it like an absence);
+    #: the screens show it red. False for today, future days and days before joining.
+    not_marked: bool = False
     #: Set when the super admin changed this day after it locked; left out otherwise.
     override: CellOverride | None = None
     #: Rupees paid that day (payments counting for this month); left out when none.
@@ -245,7 +249,9 @@ class DayCell(BaseModel):
 
 class AttendanceTotals(BaseModel):
     """``computeTotals`` in web/components/attendance/helpers.ts: a Saturday worked counts in
-    present / overtime_days; the saturday_* fields count it again on its own."""
+    present / overtime_days; the saturday_* fields count it again on its own. ``not_marked``
+    is the payroll figure (MonthSummary.not_marked): past working days without a record, from
+    joining - never today, a future day or a day before joining."""
 
     present: int = 0
     overtime_days: int = 0

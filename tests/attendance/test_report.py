@@ -93,6 +93,7 @@ async def test_month_report_cells_totals_and_badges(client, db, login, user_in, 
     assert cells[WORKDAYS[1].isoformat()] == {
         "status": "O",
         "ot_hours": 3,
+        "not_marked": False,
         "advance": 1500,
         "salary": None,
         "override": None,
@@ -101,12 +102,16 @@ async def test_month_report_cells_totals_and_badges(client, db, login, user_in, 
     assert cells[SATURDAYS[0].isoformat()] == {
         "status": "O",
         "ot_hours": 5,
+        "not_marked": False,
         "advance": None,
         "salary": None,
         "override": None,
     }
     assert cells[SATURDAYS[1].isoformat()]["status"] == "W"
+    # A past working day without a record: not marked (red, unpaid). A Saturday never is.
     assert cells[WORKDAYS[3].isoformat()]["status"] == "N"
+    assert cells[WORKDAYS[3].isoformat()]["not_marked"] is True
+    assert cells[SATURDAYS[1].isoformat()]["not_marked"] is False
     assert anita["totals"] == {
         "present": 1,
         "overtime_days": 2,
@@ -120,6 +125,12 @@ async def test_month_report_cells_totals_and_badges(client, db, login, user_in, 
         "saturday_days_worked": 1,
         "saturday_ot_hours": 5,
     }
+    # The same count payroll deducts for (one source: the attendance summary).
+    from app.contracts import get_attendance_summary
+
+    summary = await get_attendance_summary().for_month(world.people["Anita"].id, *PREVIOUS)
+    assert summary.not_marked == anita["totals"]["not_marked"] == len(WORKDAYS) - 3
+    assert summary.paid_days == anita["totals"]["paid_days"]
     first = month["days"].index(next(d for d in month["days"] if d["ad_date"] == str(WORKDAYS[0])))
     assert report["staff_present"][first] == 3  # Anita, Bikash, Old Hari
     assert report["branch_id"] == world.main.id

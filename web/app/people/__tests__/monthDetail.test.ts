@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { absencePerDay, monthDetailRows } from "../_lib/monthDetail";
+import { UNMARKED_HREF, absencePerDay, deductionSplit, monthDetailRows, unmarkedWarningText } from "../_lib/monthDetail";
 import type { MonthLedger } from "../types";
 
 function ledger(over: Partial<MonthLedger> = {}, attendance: Partial<MonthLedger["attendance"]> = {}): MonthLedger {
@@ -65,5 +65,30 @@ describe("salary tab month detail: one table", () => {
   it("per absent day = what was deducted ÷ absent days, else salary ÷ 30", () => {
     assert.equal(absencePerDay(ledger({ absence_deduction: 1600 }, { absent: 2 })), 800);
     assert.equal(absencePerDay(ledger({ absence_deduction: 0 }, { absent: 0 })), 800);
+  });
+});
+
+describe("not marked days", () => {
+  it("get their own red deduction line beside Absence; the two add up to the deduction", () => {
+    // 1 absent + 3 not marked at 800 / day = 3,200.
+    const l = ledger({ absence_deduction: 3200, net: 21400 }, { present: 25, not_marked: 3 });
+    assert.deepEqual(flat(l).slice(4, 7), [
+      "# Deductions",
+      "line | Absence | 1 day | 800 / day | −800",
+      "line | Not marked | 3 days | 800 / day | −2,400",
+    ]);
+    const line = monthDetailRows(l).find((r) => r.kind !== "section" && r.label === "Not marked");
+    assert.equal(line && line.kind !== "section" && line.danger, true);
+    assert.deepEqual(deductionSplit(l), { absent: 800, not_marked: 2400 });
+    assert.equal(absencePerDay(l), 800);
+    // No line at all when every past day is marked.
+    assert.ok(!flat(ledger({}, { not_marked: 0 })).some((r) => r.includes("Not marked")));
+  });
+
+  it("Salary report warning: how many employees, and the link to Mark attendance · Not marked", () => {
+    assert.equal(unmarkedWarningText({ not_marked_staff: 0 }), null);
+    assert.equal(unmarkedWarningText({ not_marked_staff: 1 }), "1 employee has unmarked days this month.");
+    assert.equal(unmarkedWarningText({ not_marked_staff: 4 }), "4 employees have unmarked days this month.");
+    assert.equal(UNMARKED_HREF, "/attendance/mark?status=N");
   });
 });

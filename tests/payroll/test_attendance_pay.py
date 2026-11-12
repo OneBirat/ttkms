@@ -79,10 +79,13 @@ async def _report_net(client, employee, month):
     return row["ledger"]
 
 
-async def test_marking_absent_lowers_the_month_by_salary_over_30(client, db, make_user, login):
+async def test_marking_absent_lowers_the_month_by_salary_over_30(
+    client, db, make_user, login, attended
+):
     anita = await _anita(db)
     await _admin(client, make_user, login)
-    assert await _earned(client, anita, PREVIOUS) == 30000
+    # Present on every working day but one, which is marked absent next.
+    await attended(anita, PREVIOUS, skip=[WORKDAY])
     # A past day is locked for marking through the API (tests/attendance/test_lock.py); the
     # absence is stored directly.
     db.add(_rec(anita, WORKDAY, "A"))
@@ -93,9 +96,10 @@ async def test_marking_absent_lowers_the_month_by_salary_over_30(client, db, mak
     assert ledger["attendance"]["absent"] == 1 and ledger["attendance"]["days_counted"] == len(DAYS)
 
 
-async def test_running_month_is_earned_so_far(client, db, make_user, login):
+async def test_running_month_is_earned_so_far(client, db, make_user, login, attended):
     anita = await _anita(db)
     await _admin(client, make_user, login)
+    await attended(anita, CURRENT)  # every working day before today; today itself is open
     expected = round(30000 * min(TODAY.day, 30) / 30)
     assert await _earned(client, anita, CURRENT) == expected
     ledger = await _report_net(client, anita, CURRENT)
@@ -105,9 +109,10 @@ async def test_running_month_is_earned_so_far(client, db, make_user, login):
 
 
 @pytest.mark.parametrize(("rule", "extra"), [("overtime_only", 0), ("extra_day", 1000)])
-async def test_saturday_work_rule(client, db, make_user, login, rule, extra):
+async def test_saturday_work_rule(client, db, make_user, login, attended, rule, extra):
     anita = await _anita(db)
     h = await _admin(client, make_user, login)
+    await attended(anita, PREVIOUS)
     db.add(_rec(anita, SATURDAY, "O", 4))
     await db.flush()
     saved = await client.put(

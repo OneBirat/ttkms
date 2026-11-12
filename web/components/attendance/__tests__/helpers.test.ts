@@ -120,7 +120,9 @@ describe("calendar", () => {
 describe("statuses and paid days", () => {
   it("paid days = present + overtime days + weekly off; absent unpaid", () => {
     assert.equal(paidDays({ present: 20, overtime_days: 3, weekly_off: 4 }), 27);
-    const t = computeTotals([cell("P"), cell("O", 2), cell("A"), cell("W"), cell("N")]);
+    // "N" counts as not marked only when the server flags it (a past working day from joining):
+    // today, future days and days before joining are plain "N" cells.
+    const t = computeTotals([cell("P"), cell("O", 2), cell("A"), cell("W"), { ...cell("N"), not_marked: true }, cell("N")]);
     assert.equal(t.paid_days, 3);
     assert.equal(t.absent, 1);
     assert.equal(t.overtime_hours, 2);
@@ -296,5 +298,16 @@ describe("search and pagination", () => {
     assert.deepEqual(paginate(items, 3, 10).items, [21, 22, 23, 24, 25, 26, 27]);
     assert.equal(paginate(items, 9, 10).page, 3);
     assert.equal(paginate([], 1, 10).pages, 1);
+  });
+});
+
+describe("Mark attendance opened from the Salary report", () => {
+  it("?status=N turns the Not marked filter on; anything else shows everyone", async () => {
+    const { statusFilterFromSearch } = await import("../helpers");
+    assert.equal(statusFilterFromSearch("?status=N"), "N");
+    assert.equal(statusFilterFromSearch("?date=2083-07-01&status=A"), "A");
+    assert.equal(statusFilterFromSearch(""), "");
+    assert.equal(statusFilterFromSearch("?status=W"), "");
+    assert.equal(statusFilterFromSearch("?status=nope"), "");
   });
 });

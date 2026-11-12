@@ -9,6 +9,7 @@
     <tr><td class="nm">Present</td><td class="num">{{ a.present }}</td></tr>
     <tr><td class="nm">Overtime days · hours</td><td class="num">{{ a.overtime_days }} · {{ a.overtime_hours }} h</td></tr>
     <tr><td class="nm">Absent</td><td class="num">{{ a.absent }}</td></tr>
+    <tr><td class="nm"{% if a.not_marked %} style="color: #b42318"{% endif %}>Not marked (unpaid)</td><td class="num"{% if a.not_marked %} style="color: #b42318; font-weight: 700"{% endif %}>{{ a.not_marked }}</td></tr>
     <tr><td class="nm">Weekly off (paid)</td><td class="num">{{ a.weekly_off }}</td></tr>
   </tbody>
 </table>
@@ -23,7 +24,7 @@
 <table class="pg" style="width: 60%">
   <thead><tr><th class="nm">Deductions</th><th class="num">Rs</th></tr></thead>
   <tbody>
-    <tr><td class="nm">{% if ledger.pay_type == "monthly" %}Absence {{ a.absent }} × Rs {{ "{:,}".format(per_day) }} per day{% else %}Absence{% endif %}</td><td class="num">{% if ledger.absence_deduction %}− {{ "{:,}".format(ledger.absence_deduction) }}{% else %}0{% endif %}</td></tr>
+    <tr><td class="nm">{% if ledger.pay_type == "monthly" %}{% if a.not_marked %}Absent {{ a.absent }} + not marked {{ a.not_marked }} = {{ a.absent + a.not_marked }}{% else %}Absence {{ a.absent }}{% endif %} × Rs {{ "{:,}".format(per_day) }} per day{% else %}Absence{% endif %}</td><td class="num">{% if ledger.absence_deduction %}− {{ "{:,}".format(ledger.absence_deduction) }}{% else %}0{% endif %}</td></tr>
     <tr><td class="nm"><b>Net salary</b></td><td class="num"><b>{{ "{:,}".format(ledger.net) }}</b></td></tr>
   </tbody>
 </table>

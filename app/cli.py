@@ -354,6 +354,29 @@ async def cmd_photos_upgrade(args: argparse.Namespace) -> int:
     return 0
 
 
+async def cmd_unmarked_paid(args: argparse.Namespace) -> int:
+    """Months already paid whose pay is lower now that not-marked days are unpaid (read-only)."""
+    import app.modules.attendance  # noqa: F401  (registers the real attendance summary)
+    from app.modules.payroll.audit import unmarked_paid_months
+
+    async with SessionLocal() as db:
+        rows = await unmarked_paid_months(db)
+    if not rows:
+        print("No paid month has unmarked days.")
+        return 0
+    print(f"{'Emp ID':<8} {'Name':<24} {'Month':<16} {'Not marked':>10} {'Old net':>10} "
+          f"{'New net':>10} {'Paid':>10} {'Overpaid':>10}")  # fmt: skip
+    for r in rows:
+        print(f"{r.code:<8} {r.name[:24]:<24} {r.label:<16} {r.not_marked:>10} {r.old_net:>10,} "
+              f"{r.net:>10,} {r.paid:>10,} {r.overpaid:>10,}")  # fmt: skip
+    overpaid = [r for r in rows if r.overpaid > 0]
+    print(
+        f"{len(rows)} paid month(s) have unmarked days; {len(overpaid)} of them are paid above "
+        f"the new net pay (Rs {sum(r.overpaid for r in overpaid):,} in all)."
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -388,6 +411,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="convert photos stored as employees/<id>.jpg to the two-size layout (run once)",
     )
     photos.set_defaults(func=cmd_photos_upgrade)
+
+    unmarked = sub.add_parser(
+        "unmarked-paid",
+        help="list months already paid that have unmarked past days (read-only)",
+    )
+    unmarked.set_defaults(func=cmd_unmarked_paid)
     return parser
 
 

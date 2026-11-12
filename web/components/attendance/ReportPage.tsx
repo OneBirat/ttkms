@@ -350,6 +350,10 @@ export function ReportPage() {
         </span>
         Absent
       </span>
+      <span className={styles.key}>
+        <span className={styles.cell} data-status="N" data-unmarked="true" aria-hidden="true" />
+        Not marked (unpaid)
+      </span>
       {!hideOff ? (
         <span className={styles.key}>
           <span className={styles.cell} data-status="W" aria-hidden="true">
@@ -535,6 +539,12 @@ export function ReportPage() {
               <span className={styles.sumLabel}>Absences</span>
               <span className={styles.sumValue}>{totals.absent}</span>
             </div>
+            <div className={`card ${styles.sumCard}`}>
+              <span className={styles.sumLabel}>Not marked</span>
+              <span className={styles.sumValue} style={totals.not_marked > 0 ? { color: "#b42318" } : undefined}>
+                {totals.not_marked}
+              </span>
+            </div>
           </section>
         </div>
 
@@ -677,8 +687,8 @@ export function ReportPage() {
             }
           />
           <p className={styles.rule}>
-            Paid days = P + O + W (Saturdays). Absent is unpaid. Overtime hours are paid on top at the rate set
-            per employee.
+            Paid days = P + O + W (Saturdays). Absent and Not marked (NM: a past working day without a record)
+            are unpaid. Overtime hours are paid on top at the rate set per employee.
           </p>
         </>
       ) : null}

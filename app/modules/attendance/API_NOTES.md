@@ -208,3 +208,17 @@ Marking P / O on a Saturday is allowed and stored. Payroll applies one setting,
 Daily-wage staff always get the day's wage plus the hours for Saturday work, whatever the setting.
 Revisit once the business decides; the setting and both code paths are tested
 (`tests/payroll/test_attendance_pay.py`, `tests/payroll/test_rules.py`).
+
+## Not marked days (2026-11-12)
+
+`MonthSummary.not_marked` (app/contracts.py; `contract.summarise`): working days without a record, before
+today (Kathmandu), from the joining date (up to the leaving day of an inactive employee). It is the count
+payroll deducts for, like `absent`; it is computed, never stored (no `A` rows), and today / future days /
+days before joining never count. `paid_days = present + overtime_days + weekly_off`.
+
+The report follows the same rule: an `N` cell carries `not_marked: true` when it is such a day (the grid
+shows a red empty cell; other `N` cells - today, future, before joining - stay neutral) and
+`totals.not_marked` counts only those cells. The grid has a red **NM** total column; the Excel export
+writes `NM` in those cells and has a "Not marked" column on Daily grid and By department plus a Summary
+line; the PDF has the red empty cell, an NM column and a "Not marked days" box.
+`/attendance/mark?status=N` opens Mark attendance on the Not marked filter.

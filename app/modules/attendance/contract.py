@@ -6,7 +6,11 @@ today (Kathmandu), so payroll's "earned so far" and the advance room follow the 
 worked; a month that has not started counts nothing. Saturday (the weekly off) is counted in
 ``weekly_off`` whether or not the person came in; a Saturday mark (P / O) goes into
 ``saturday_days_worked`` / ``saturday_ot_hours`` only, never into present / overtime. Days
-before the joining date count for nothing.
+before the joining date (and after an inactive employee's leaving date) count for nothing.
+
+``not_marked``: working days without a record BEFORE today, inside that period. They are
+unpaid like absent days - computed here and nowhere else, never stored as ``A`` rows; today
+and future days are never counted.
 """
 
 from __future__ import annotations
@@ -20,7 +24,7 @@ from sqlalchemy import select
 from app import contracts
 from app.contracts import MonthSummary, TodayStatus
 from app.core import bsdate
-from app.core.models import Employee
+from app.core.models import Employee, EmployeeStatus
 from app.db import SessionLocal
 from app.modules.attendance import services
 from app.modules.attendance.models import Record
@@ -36,9 +40,16 @@ def session():
 
 
 def summarise(
-    start: date, end: date, today: date, joined: date | None, records: Iterable
+    start: date,
+    end: date,
+    today: date,
+    joined: date | None,
+    records: Iterable,
+    left: date | None = None,
 ) -> MonthSummary:
-    """The month ``start..end`` as seen on ``today`` (pure; unit-tested)."""
+    """The month ``start..end`` as seen on ``today`` (pure; unit-tested). ``joined`` / ``left``
+    bound the employee's active period (``left`` only for an inactive employee)."""
+    records = list(records)
     days_in_month = (end - start).days + 1
     if start > today:
         upto, days_counted = start - timedelta(days=1), 0
@@ -47,10 +58,20 @@ def summarise(
     else:
         upto, days_counted = end, days_in_month
     first = max(start, joined) if joined else start
+    last = min(upto, left) if left else upto
     weekly_off = sum(
         1
-        for i in range((upto - first).days + 1)
+        for i in range((last - first).days + 1)
         if services.is_weekly_off(first + timedelta(days=i))
+    )
+    # Not marked: working days without a record, before today, inside the active period.
+    marked = {r.date for r in records}
+    last_past = min(last, today - timedelta(days=1))
+    not_marked = sum(
+        1
+        for i in range((last_past - first).days + 1)
+        if not services.is_weekly_off(first + timedelta(days=i))
+        and first + timedelta(days=i) not in marked
     )
     present = overtime_days = overtime_hours = absent = sat_days = sat_hours = 0
     for r in records:
@@ -78,7 +99,16 @@ def summarise(
         days_counted=days_counted,
         saturday_days_worked=sat_days,
         saturday_ot_hours=sat_hours,
+        not_marked=not_marked,
     )
+
+
+def left_on(employee: Employee) -> date | None:
+    """The last day of an inactive employee's active period (Kathmandu day of the
+    deactivation); None while active."""
+    if employee.status != EmployeeStatus.active and employee.deactivated_at is not None:
+        return bsdate.kathmandu_date(employee.deactivated_at)
+    return None
 
 
 @dataclass(frozen=True)
@@ -111,8 +141,8 @@ async def month_if(
         changed.append(WhatIfMark(ad, status, hours))
     today = services.today()
     return (
-        summarise(start, end, today, employee.joined_ad, records),
-        summarise(start, end, today, employee.joined_ad, changed),
+        summarise(start, end, today, employee.joined_ad, records, left_on(employee)),
+        summarise(start, end, today, employee.joined_ad, changed, left_on(employee)),
         current,
     )
 
@@ -121,7 +151,7 @@ class AttendanceSummaryService:
     async def for_month(self, employee_id: int, bs_year: int, bs_month: int) -> MonthSummary:
         start, end = bsdate.bs_month_range(bs_year, bs_month)
         async with session() as db:
-            joined = await db.scalar(select(Employee.joined_ad).where(Employee.id == employee_id))
+            employee = await db.get(Employee, employee_id)
             records = list(
                 await db.scalars(
                     select(Record).where(
@@ -131,7 +161,9 @@ class AttendanceSummaryService:
                     )
                 )
             )
-        return summarise(start, end, services.today(), joined, records)
+        joined = employee.joined_ad if employee else None
+        left = left_on(employee) if employee else None
+        return summarise(start, end, services.today(), joined, records, left)
 
     async def today(
         self, employee_ids: Iterable[int], day: date | None = None

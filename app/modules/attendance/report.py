@@ -19,6 +19,7 @@ from app.core import bsdate
 from app.core.models import Department, Employee, EmployeeStatus
 from app.modules.attendance import schemas, services
 from app.modules.attendance.access import Scope, one_branch, other_branch
+from app.modules.attendance.contract import left_on
 from app.modules.attendance.models import Record, RecordChange
 
 
@@ -154,16 +155,23 @@ def cells_for(
     paid: dict[date, dict[str, int]],
     joined: date,
     overrides: dict[date, schemas.CellOverride] | None = None,
+    left: date | None = None,
 ) -> list[schemas.DayCell]:
+    """``left``: the last day of an inactive employee (contract.left_on). An "N" cell is
+    flagged ``not_marked`` by the same rule as MonthSummary.not_marked (contract.summarise)."""
+    today = services.today()
     cells = []
     for day in days:
         record = records.get(day.ad_date)
+        active = day.ad_date >= joined and (left is None or day.ad_date <= left)
         if record is not None:
             cell = schemas.DayCell(status=record.status, ot_hours=record.overtime_hours)
         elif day.is_weekly_off and day.ad_date >= joined:
             cell = schemas.DayCell(status="W")
         else:
-            cell = schemas.DayCell(status="N")
+            cell = schemas.DayCell(
+                status="N", not_marked=active and day.ad_date < today and not day.is_weekly_off
+            )
         money = paid.get(day.ad_date)
         if money:
             cell.advance = money["advance"] or None
@@ -188,7 +196,7 @@ def totals_of(
             t.absent += 1
         elif cell.status == "W":
             t.weekly_off += 1
-        else:
+        elif cell.not_marked:
             t.not_marked += 1
         if day.is_weekly_off and cell.status in ("P", "O"):
             t.saturday_days_worked += 1
@@ -263,6 +271,7 @@ async def month_report(
             payments_by_day(payments.get(e.id, [])),
             e.joined_ad,
             overrides.get(e.id),
+            left_on(e),
         )
         rows.append(
             schemas.ReportRow(
@@ -312,7 +321,14 @@ async def employee_month(
         else []
     )
     overrides = (await month_overrides(db, start, end, [employee.id])).get(employee.id)
-    cells = cells_for(month.days, records, payments_by_day(payments), employee.joined_ad, overrides)
+    cells = cells_for(
+        month.days,
+        records,
+        payments_by_day(payments),
+        employee.joined_ad,
+        overrides,
+        left_on(employee),
+    )
     return schemas.EmployeeMonth(
         employee=services.employee_ref(employee),
         month=month,

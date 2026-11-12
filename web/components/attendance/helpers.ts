@@ -118,7 +118,8 @@ export function computeTotals(cells: readonly DayCell[]): AttendanceTotals {
         t.weekly_off += 1;
         break;
       default:
-        t.not_marked += 1;
+        // Only the days the server flags (past working days from joining): never today or later.
+        if (cell.not_marked) t.not_marked += 1;
     }
   }
   t.marked_days = t.present + t.overtime_days + t.absent;
@@ -415,6 +416,15 @@ export function countMarks(drafts: readonly Draft[]): MarkCounts {
 
 /** Status filter of the Mark screens: "" = all, else one status, "N" = not marked. */
 export type StatusFilter = "" | CellStatus;
+
+/**
+ * The status filter a link asks for: `/attendance/mark?status=N` opens the screen on "Not
+ * marked" (the Salary report's "N employees have unmarked days" line). Anything else = all.
+ */
+export function statusFilterFromSearch(search: string): StatusFilter {
+  const value = new URLSearchParams(search).get("status");
+  return value === "N" || value === "P" || value === "O" || value === "A" ? value : "";
+}
 
 /** Does a day status pass the filter? The Present pill counts overtime days too. */
 export function matchesStatusFilter(status: CellStatus, filter: StatusFilter): boolean {

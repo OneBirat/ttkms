@@ -269,6 +269,8 @@ class MonthSummaryOut(BaseModel):
     days_counted: int
     saturday_days_worked: int = 0
     saturday_ot_hours: int = 0
+    #: Past working days without a record (from joining, before today): unpaid like absent.
+    not_marked: int = 0
 
 
 class PaymentOut(BaseModel):
@@ -326,7 +328,9 @@ class MonthLedgerOut(BaseModel):
     gross_salary: int
     overtime_pay: int
     earnings: int
+    #: Monthly: salary / 30 x ``unpaid_days`` (absent + not marked days). Daily: 0.
     absence_deduction: int
+    unpaid_days: int = 0
     tds: int
     net: int
     #: Monthly staff with payroll.saturday_work_rule = extra_day: salary / 30 per Saturday worked.
@@ -356,6 +360,9 @@ class ReportTotalsOut(BaseModel):
     gross: int
     absence_deduction: int
     absent_days: int
+    #: Not marked days of the rows, and how many employees have any.
+    not_marked_days: int = 0
+    not_marked_staff: int = 0
     overtime_pay: int
     overtime_hours: int
     advance_paid: int

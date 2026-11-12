@@ -25,9 +25,13 @@ export interface Workbook {
   sheets: Sheet[];
 }
 
-export const PAID_RULE = "Paid days = P + O + W (weekly off). Absent is unpaid; overtime hours are paid on top.";
+export const PAID_RULE =
+  "Paid days = P + O + W (weekly off). Absent and Not marked (NM) are unpaid; overtime hours are paid on top.";
 
-/** Grid cell as the Excel sample shows it: ✓ present, overtime hours as a number, A absent, – weekly off, blank unmarked. */
+/**
+ * Grid cell as the Excel sample shows it: ✓ present, overtime hours as a number, A absent, – weekly off,
+ * NM a past working day without a record (not marked, unpaid), blank for today / future / before joining.
+ */
 export function sheetCode(cell: DayCell): SheetCell {
   switch (cell.status) {
     case "P":
@@ -39,7 +43,7 @@ export function sheetCode(cell: DayCell): SheetCell {
     case "W":
       return "–";
     default:
-      return "";
+      return cell.not_marked ? "NM" : "";
   }
 }
 
@@ -52,12 +56,13 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
   const titleRow = [`${model.company} · Attendance report · ${m.label} (${model.ad_range})`];
   const summaryLine =
     `${model.filter_label} · ${s.staff} staff · avg ${s.avg_present.toFixed(1)} present per ` +
-    `working day (${formatRate(s.rate)}) · ${s.overtime_hours}h overtime · ${s.absent} absences`;
-  const totalsHead = ["P", "O", "A", "W", "Paid"];
+    `working day (${formatRate(s.rate)}) · ${s.overtime_hours}h overtime · ${s.absent} absences · ${s.not_marked} not marked`;
+  const totalsHead = ["P", "O", "A", "Not marked", "W", "Paid"];
   const totalsOf = (r: ExportModel["rows"][number]) => [
     r.totals.present + r.totals.overtime_days,
     r.totals.overtime_hours,
     r.totals.absent,
+    r.totals.not_marked,
     r.totals.weekly_off,
     r.totals.paid_days,
   ];
@@ -87,9 +92,10 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
       ["Overtime days", s.overtime_days],
       ["Overtime hours", s.overtime_hours],
       ["Absences", s.absent],
+      ["Not marked days (unpaid)", s.not_marked],
       [],
-      ["Daily grid: ✓ present · number = overtime hours (present + overtime) · A absent · – weekly off (Saturday)."],
-      ["P counts overtime days too. O = overtime hours. W = weekly-off days."],
+      ["Daily grid: ✓ present · number = overtime hours (present + overtime) · A absent · NM not marked · – weekly off (Saturday)."],
+      ["P counts overtime days too. O = overtime hours. W = weekly-off days. Not marked = past working days without a record."],
       [PAID_RULE],
       [`Generated ${model.printed_at_ad} by ${model.printed_by}`],
     ],
@@ -98,7 +104,7 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
   const grid: Sheet = {
     name: "Daily grid",
     freezeRows: 4,
-    colWidths: [8, 22, 14, ...m.days.map(() => 4.5), 4, 4, 4, 4, 6],
+    colWidths: [8, 22, 14, ...m.days.map(() => 4.5), 4, 4, 4, 11, 4, 6],
     rows: [
       titleRow,
       [summaryLine],
@@ -118,24 +124,25 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
   const byDept: Sheet = {
     name: "By department",
     freezeRows: 4,
-    colWidths: [18, 8, 8, 8, 8, 8, 10, 12],
+    colWidths: [18, 8, 8, 8, 8, 11, 8, 10, 12],
     rows: [
       titleRow,
       [summaryLine],
       [],
-      ["Department", "Staff", "P", "O", "A", "W", "Paid days", "Attendance"],
+      ["Department", "Staff", "P", "O", "A", "Not marked", "W", "Paid days", "Attendance"],
       ...model.groups.map((g) => {
         const t = g.rows.reduce(
           (acc, r) => ({
             present: acc.present + r.totals.present + r.totals.overtime_days,
             hours: acc.hours + r.totals.overtime_hours,
             absent: acc.absent + r.totals.absent,
+            unmarked: acc.unmarked + r.totals.not_marked,
             off: acc.off + r.totals.weekly_off,
             paid: acc.paid + r.totals.paid_days,
           }),
-          { present: 0, hours: 0, absent: 0, off: 0, paid: 0 },
+          { present: 0, hours: 0, absent: 0, unmarked: 0, off: 0, paid: 0 },
         );
-        return [g.department_name, g.rows.length, t.present, t.hours, t.absent, t.off, t.paid, formatRate(g.rate)];
+        return [g.department_name, g.rows.length, t.present, t.hours, t.absent, t.unmarked, t.off, t.paid, formatRate(g.rate)];
       }),
       [
         "All in filter",
@@ -143,6 +150,7 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
         model.rows.reduce((a, r) => a + r.totals.present + r.totals.overtime_days, 0),
         model.rows.reduce((a, r) => a + r.totals.overtime_hours, 0),
         model.rows.reduce((a, r) => a + r.totals.absent, 0),
+        model.rows.reduce((a, r) => a + r.totals.not_marked, 0),
         model.rows.reduce((a, r) => a + r.totals.weekly_off, 0),
         model.rows.reduce((a, r) => a + r.totals.paid_days, 0),
         formatRate(model.rate_all),

@@ -10,6 +10,7 @@ from app.core import bsdate
 from app.core.models import Branch, Department, Employee
 from app.modules.attendance.models import Record
 from app.modules.payroll.models import PayType, SalaryHistory
+from tests.attendance_days import attend
 
 pytestmark = pytest.mark.anyio
 
@@ -135,6 +136,7 @@ async def _override(client, h, employee, day, status, hours=0, reason=REASON):
 async def test_the_due_changes_after_an_override(client, db, make_user, login):
     anita = await _employee(db)
     await _old_mark(db, anita, WORKDAY)
+    await attend(db, anita, PREVIOUS)  # present on every other working day
     h = await _sign_in(client, db, make_user, login, anita)
     await _pay_salary(client, h, anita, 25000)
     before = await _balance(client, anita)
@@ -157,6 +159,7 @@ async def test_an_override_can_leave_a_paid_month_overpaid_and_is_not_blocked(
 ):
     anita = await _employee(db)
     await _old_mark(db, anita, WORKDAY)
+    await attend(db, anita, PREVIOUS)  # present on every other working day
     h = await _sign_in(client, db, make_user, login, anita)
     await _pay_salary(client, h, anita, 30000)
     assert (await _balance(client, anita))["status"] == "paid"
@@ -172,6 +175,7 @@ async def test_an_override_can_leave_a_paid_month_overpaid_and_is_not_blocked(
 async def test_preview_warns_when_the_month_is_already_paid(client, db, make_user, login):
     anita = await _employee(db)
     await _old_mark(db, anita, WORKDAY)
+    await attend(db, anita, PREVIOUS)  # present on every other working day
     h = await _sign_in(client, db, make_user, login, anita)
     await _pay_salary(client, h, anita, 25000)
     response = await _preview(client, h, WORKDAY, (anita, "A", 0))
@@ -216,6 +220,7 @@ async def test_preview_warns_when_the_month_is_already_paid(client, db, make_use
 async def test_preview_says_when_the_month_ends_up_overpaid(client, db, make_user, login):
     anita = await _employee(db)
     await _old_mark(db, anita, WORKDAY)
+    await attend(db, anita, PREVIOUS)  # present on every other working day
     h = await _sign_in(client, db, make_user, login, anita)
     await _pay_salary(client, h, anita, 30000)
     body = (await _preview(client, h, WORKDAY, (anita, "A", 0))).json()
@@ -229,6 +234,7 @@ async def test_preview_says_when_the_month_ends_up_overpaid(client, db, make_use
 async def test_preview_overtime_and_removal(client, db, make_user, login):
     anita = await _employee(db)
     await _old_mark(db, anita, WORKDAY, "A")
+    await attend(db, anita, PREVIOUS)  # present on every other working day
     h = await _sign_in(client, db, make_user, login, anita)
     await _pay_salary(client, h, anita, 10000)
     overtime = (await _preview(client, h, WORKDAY, (anita, "O", 4))).json()
@@ -239,19 +245,24 @@ async def test_preview_overtime_and_removal(client, db, make_user, login):
     removed = (await _preview(client, h, WORKDAY, (anita, None, 0))).json()
     item = removed["items"][0]
     assert (item["old_status"], item["new_status"]) == ("A", "N")
-    assert item["payroll"]["net_change"] == 1000 and "Rs +1,000" in removed["warning"]
+    # An absent day with its mark removed is "not marked": unpaid either way, the pay stays.
+    assert item["payroll"]["net_change"] == 0 and removed["warning"] is None
+    # A present day with its mark removed becomes unpaid.
+    lost = (await _preview(client, h, OTHER_DAY, (anita, None, 0))).json()
+    assert lost["items"][0]["payroll"]["net_change"] == -1000 and "Rs -1,000" in lost["warning"]
 
 
 async def test_no_warning_when_nothing_is_paid_or_nothing_changes(client, db, make_user, login):
     anita = await _employee(db)
     await _old_mark(db, anita, WORKDAY)
+    await attend(db, anita, PREVIOUS)  # present on every other working day
     h = await _sign_in(client, db, make_user, login, anita)
     unpaid = (await _preview(client, h, WORKDAY, (anita, "A", 0))).json()
     assert unpaid["warning"] is None
     payroll = unpaid["items"][0]["payroll"]
     assert payroll["warning"] is None and payroll["net_change"] == -1000 and payroll["paid"] == 0
     await _pay_salary(client, h, anita, 25000)
-    # Not marked -> Present on another day: a monthly salary does not move.
+    # Present -> Present on another day: nothing moves, nothing to warn about.
     same = (await _preview(client, h, OTHER_DAY, (anita, "P", 0))).json()
     assert same["warning"] is None and same["items"][0]["payroll"]["net_change"] == 0
 

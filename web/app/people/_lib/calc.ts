@@ -48,6 +48,8 @@ export interface PayResult {
   overtime_pay: number;
   earnings: number;
   absence_deduction: number;
+  /** Monthly: the days absence_deduction covers (absent + not marked). Daily: 0. */
+  unpaid_days: number;
   tds: number;
   net: number;
   /** Monthly with "extra_day": salary ÷ 30 × Saturdays worked, already inside gross_salary. */
@@ -60,23 +62,29 @@ export interface PayOptions {
   saturday_rule?: SaturdayWorkRule;
 }
 
-/** Monthly salary: full salary (prorated so far), minus salary ÷ 30 × absent days, plus overtime. */
+/**
+ * Monthly salary: full salary (prorated so far), minus salary ÷ 30 × unpaid days (absent + not
+ * marked - both counted by the attendance summary), plus overtime. Twin of rules.py monthly_pay.
+ */
 export function monthlyPay(salary: number, ot_rate: number, s: MonthSummary, options: PayOptions = {}): PayResult {
   const counted = s.days_counted ?? s.days_in_month;
   const perDay = salary / PAY_DAYS;
   const base = roundRs(options.so_far ? (salary * Math.min(Math.max(0, counted), PAY_DAYS)) / PAY_DAYS : salary);
-  const absence = Math.min(roundRs(perDay * Math.max(0, s.absent)), base);
+  const unpaid_days = Math.max(0, s.absent) + Math.max(0, s.not_marked ?? 0);
+  const absence = Math.min(roundRs(perDay * unpaid_days), base);
   const overtime = overtimePay(s.overtime_hours + (s.saturday_ot_hours ?? 0), ot_rate);
   const saturday_pay =
     options.saturday_rule === "extra_day" ? roundRs(perDay * Math.max(0, s.saturday_days_worked ?? 0)) : 0;
   const gross_salary = base + saturday_pay;
   const tds = 0; // placeholder: tax rules are out of scope for now
   return {
-    paid_days: Math.max(0, (options.so_far ? counted : s.days_in_month) - s.absent),
+    // The summary's own count (present + overtime days + weekly off): never month − absent.
+    paid_days: Math.max(0, s.paid_days),
     gross_salary,
     overtime_pay: overtime,
     earnings: gross_salary + overtime,
     absence_deduction: absence,
+    unpaid_days,
     tds,
     net: roundRs(gross_salary - absence + overtime - tds),
     saturday_pay,
@@ -95,6 +103,7 @@ export function dailyPay(wage: number, ot_rate: number, s: MonthSummary): PayRes
     overtime_pay: overtime,
     earnings: gross_salary + overtime,
     absence_deduction: 0,
+    unpaid_days: 0,
     tds,
     net: roundRs(gross_salary + overtime - tds),
     saturday_pay: 0,

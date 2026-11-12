@@ -212,6 +212,12 @@ describe("phone report: cell colours per status", () => {
     assert.equal(cellLook({ status: "P", ot_hours: 0 }, sat, bounds.today), "P");
     assert.equal(cellLook({ status: "N", ot_hours: 0 }, sun, bounds.today), "N");
     assert.equal(cellLook({ status: "N", ot_hours: 0 }, future, bounds.today), "F");
+    // Red "not marked" = a past working day the server counts as unpaid (or today, still open);
+    // an unmarked day before the employee joined is blank, like a future day.
+    const past = kartik.days[0];
+    assert.ok(past.bs_date < bounds.today);
+    assert.equal(cellLook({ status: "N", ot_hours: 0, not_marked: true }, past, bounds.today), "N");
+    assert.equal(cellLook({ status: "N", ot_hours: 0 }, past, bounds.today), "F");
   });
 
   it("texts: calendar, week box and day pill", () => {

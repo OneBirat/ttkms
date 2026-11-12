@@ -60,10 +60,10 @@ export function overMessage(dues: SalaryDues): string {
   return `More than the total due (${formatRs(dues.total_due)}). ${monthName(dues.running_month)} can only be paid up to what is earned so far.`;
 }
 
-/** Under the month in the dues table: "31 days · 2 absent" / "running · earned so far". */
+/** Under the month in the dues table: "31 days · 2 absent[ · 3 not marked]" / "running · earned so far". */
 export function dueMonthSub(month: SalaryDueMonth): string {
   if (month.in_progress) return "running · earned so far";
-  return `${month.days_in_month} days · ${month.absent} absent`;
+  return `${month.days_in_month} days · ${month.absent} absent${(month.not_marked ?? 0) > 0 ? ` · ${month.not_marked} not marked` : ""}`;
 }
 
 /** "Cleared Kartik 8" from a BS date. */

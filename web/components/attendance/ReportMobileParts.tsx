@@ -169,6 +169,11 @@ function Pills({ row }: { row: ReportRow }) {
       >
         A {t.absent}
       </span>
+      {t.not_marked > 0 ? (
+        <span className={styles.pill} style={{ background: "#FFFFFF", color: "#B42318", boxShadow: "inset 0 0 0 1px #C0392B" }} title="Not marked days (unpaid)">
+          NM {t.not_marked}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -213,6 +218,7 @@ export function MonthCalendar({ row, days, today }: { row: ReportRow; days: DayH
       </div>
       <div className={styles.calSummary}>
         Present {t.present} · Overtime {t.overtime_days} days ({t.overtime_hours} h) · Absent {t.absent}
+        {t.not_marked > 0 ? <b style={{ color: "#B42318" }}> · Not marked {t.not_marked}</b> : null}
       </div>
     </div>
   );
@@ -265,6 +271,7 @@ export function WeekRow({ row, days, indices, today }: { row: ReportRow; days: D
         <span className={styles.weekName}>{row.employee.name}</span>
         <span className={styles.weekSum}>
           P {t.present} · O {t.overtime_days} · A {t.absent}
+          {t.not_marked > 0 ? <b style={{ color: "#B42318" }}> · NM {t.not_marked}</b> : null}
         </span>
       </span>
       {weekSlots(days, indices).map((i, slot) => {

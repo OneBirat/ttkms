@@ -43,6 +43,23 @@ test("monthly: absent days deduct salary ÷ 30 × absent", () => {
   assert.equal(r.paid_days, 28);
 });
 
+test("monthly: not marked days are unpaid like absent days; paid days come from the summary", () => {
+  // 3 past working days without a record + 1 absent: 4 × (30,000 ÷ 30).
+  const r = monthlyPay(30000, 125, summary({ present: 22, absent: 1, not_marked: 3, paid_days: 26 }));
+  assert.equal(r.unpaid_days, 4);
+  assert.equal(r.absence_deduction, 4000);
+  assert.equal(r.net, 26000);
+  // Counted by attendance (present + overtime days + weekly off), never days − absent (29 here).
+  assert.equal(r.paid_days, 26);
+  // Overtime is untouched; the running month prorates first, then deducts.
+  assert.equal(monthlyPay(30000, 125, summary({ not_marked: 3, overtime_hours: 4 })).overtime_pay, 500);
+  const soFar = monthlyPay(30000, 125, summary({ days_counted: 10, not_marked: 2, paid_days: 7 }), { so_far: true });
+  assert.equal(soFar.gross_salary, 10000);
+  assert.equal(soFar.net, 8000);
+  // Daily staff are paid for the days worked only: nothing to deduct.
+  assert.equal(dailyPay(800, 100, summary({ present: 20, not_marked: 6 })).absence_deduction, 0);
+});
+
 test("monthly: overtime adds hours × rate; overtime days alone add nothing", () => {
   const r = monthlyPay(30000, 125, summary({ overtime_days: 1, overtime_hours: 6 }));
   assert.equal(r.overtime_pay, 750);

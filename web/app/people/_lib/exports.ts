@@ -7,7 +7,7 @@
 import { bsToAd, formatAd, formatAdRange, formatBs, formatBsRange } from "@/lib/bs";
 import { PAY_DAYS } from "./calc";
 import { formatMonthRange, monthLabel } from "./months";
-import { formatAmount, formatDays, formatRs, toCsv } from "./helpers";
+import { formatAmount, formatDays, formatRs, toCsv, unpaidDaysText } from "./helpers";
 import { monthStatusText } from "./settle";
 import { XLSX_MIME, buildXlsx, cellRef, type Cell, type Sheet } from "./xlsx";
 import { groupRowsByDepartment, type RegisterGroup } from "./register";
@@ -158,6 +158,7 @@ ${line("Days in month", String(l.attendance.days_in_month))}
 ${line("Present", String(l.attendance.present))}
 ${line("Overtime days · hours", `${l.attendance.overtime_days} · ${l.attendance.overtime_hours} h`)}
 ${line("Absent", String(l.attendance.absent))}
+${line("Not marked (unpaid)", String(l.attendance.not_marked ?? 0))}
 ${line("Weekly off (paid)", String(l.attendance.weekly_off))}
 </table>
 <h3>Earnings</h3>
@@ -168,7 +169,7 @@ ${line("Total earnings", formatRs(l.earnings), true)}
 </table>
 <h3>Deductions</h3>
 <table>
-${line(l.pay_type === "monthly" ? `Absence ${l.attendance.absent} × ${formatRs(perDay)} per day` : "Absence", l.absence_deduction ? `− ${formatRs(l.absence_deduction)}` : "Rs 0")}
+${line(l.pay_type === "monthly" ? `${unpaidDaysText({ absent: l.attendance.absent, not_marked: l.attendance.not_marked ?? 0 })} × ${formatRs(perDay)} per day` : "Absence", l.absence_deduction ? `− ${formatRs(l.absence_deduction)}` : "Rs 0")}
 ${line("Net salary", formatRs(l.net), true)}
 </table>
 <h3>Payments</h3>

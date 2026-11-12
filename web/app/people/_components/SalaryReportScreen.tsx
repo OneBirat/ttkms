@@ -28,6 +28,8 @@ import {
 } from "../_lib/helpers";
 import type { ReportSort, SalaryReport } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
+import { AttendanceCounts } from "./AttendanceCounts";
+import { UNMARKED_HREF, unmarkedWarningText } from "../_lib/monthDetail";
 import styles from "./report.module.css";
 import shared from "./payroll.module.css";
 
@@ -164,6 +166,7 @@ export function SalaryReportScreen() {
       ) : (
         <>
           <Totals data={data} />
+          <UnmarkedWarning data={data} />
           <div className={styles.charts}>
             <TrendChart data={data} />
             <DepartmentChart data={data} selected={department} />
@@ -253,7 +256,10 @@ export function SalaryReportScreen() {
                           </Link>
                         </td>
                         <td>{employee.department?.name ?? "—"}</td>
-                        <td className={shared.num}>{formatPaidDays(ledger.paid_days, ledger.attendance.days_in_month)}</td>
+                        <td className={shared.num}>
+                          {formatPaidDays(ledger.paid_days, ledger.attendance.days_in_month)}
+                          <AttendanceCounts attendance={ledger.attendance} short className={styles.rowCounts} />
+                        </td>
                         <td className={shared.num} title={ledger.overtime_pay ? `incl. overtime ${formatRs(ledger.overtime_pay)}` : undefined}>
                           {formatAmount(ledger.earnings)}
                         </td>
@@ -292,7 +298,8 @@ export function SalaryReportScreen() {
               </div>
             ) : null}
             <span className={styles.sheetNote}>
-              Gross includes overtime. Monthly staff: absence = salary ÷ 30 × absent days (a fixed 30); Saturdays are paid.
+              Gross includes overtime. Monthly staff: absence = salary ÷ 30 × (absent + not marked days) (a fixed 30); Saturdays are
+              paid. Not marked = a past working day without an attendance record: it is not paid until someone marks it.
               Daily wage: wage × days present. Advances already paid are part of the net; the status compares net
               with every payment of the month. Exports include everyone in the current filter.
             </span>
@@ -321,7 +328,10 @@ function Totals({ data }: { data: SalaryReport }) {
       <div className={`card ${styles.total}`}>
         <span className={styles.totalLabel}>Absence deductions</span>
         <span className={`${styles.totalValue} ${shared.danger}`}>− {formatAmount(t.absence_deduction)}</span>
-        <span className={styles.totalHint}>{t.absent_days} absent days</span>
+        <span className={styles.totalHint}>
+          {t.absent_days} absent days
+          {t.not_marked_days > 0 ? <b className={shared.danger}> · {t.not_marked_days} not marked days</b> : null}
+        </span>
       </div>
       <div className={`card ${styles.total}`}>
         <span className={styles.totalLabel}>Advances paid</span>
@@ -336,6 +346,20 @@ function Totals({ data }: { data: SalaryReport }) {
         </span>
       </div>
     </section>
+  );
+}
+
+/** "3 employees have unmarked days this month" + the way to Mark attendance (Not marked filter). */
+function UnmarkedWarning({ data }: { data: SalaryReport }) {
+  const text = unmarkedWarningText(data.totals);
+  if (!text) return null;
+  return (
+    <p role="status" className={shared.unmarkedWarning} data-testid="unmarked-warning">
+      <span>
+        {text} They are not paid for those days ({data.totals.not_marked_days} in all) until the days are marked.
+      </span>
+      <Link href={UNMARKED_HREF}>Mark attendance · Not marked</Link>
+    </p>
   );
 }
 

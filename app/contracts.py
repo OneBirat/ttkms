@@ -27,7 +27,10 @@ class MonthSummary:
     """One employee's attendance for one BS month, the way payroll needs it. Past months count
     the whole month; the running month counts the days up to today ("so far"), and
     ``days_counted`` says how many days that is. Saturday work is counted on its own
-    (``saturday_*``) and never in present / overtime_days / overtime_hours."""
+    (``saturday_*``) and never in present / overtime_days / overtime_hours.
+
+    This is the ONE place that says which days are paid: payroll pays ``paid_days`` and deducts
+    ``absent + not_marked`` - it never derives either from the month's length."""
 
     days_in_month: int
     #: Days marked P (not Saturdays).
@@ -38,9 +41,10 @@ class MonthSummary:
     overtime_hours: int
     #: Days marked A (unpaid).
     absent: int
-    #: Weekly-off days (Saturdays) counted - worked or not, they are paid.
+    #: Weekly-off days (Saturdays) counted - worked or not, they are paid. Only days up to
+    #: today, from the joining date (and up to the leaving date of an inactive employee).
     weekly_off: int
-    #: present + overtime_days + weekly_off.
+    #: present + overtime_days + weekly_off. Never days_in_month - absent.
     paid_days: int
     #: Days the figures cover: days_in_month for a past month, today's BS day for the running
     #: month, 0 for a month that has not started.
@@ -49,6 +53,11 @@ class MonthSummary:
     saturday_days_worked: int = 0
     #: Overtime hours marked on those Saturdays.
     saturday_ot_hours: int = 0
+    #: Working days (not the weekly off) without any record, BEFORE today (Kathmandu), from the
+    #: joining date (and up to the leaving date of an inactive employee). Unpaid, like absent.
+    #: Computed, never stored: marking the day later takes it out. Today and future days are
+    #: never counted.
+    not_marked: int = 0
 
 
 #: How payroll pays Saturday work to monthly staff - a core.settings key set on admin Settings.
@@ -108,6 +117,8 @@ class FakeAttendanceSummary:
         overtime_days = (seed + employee_id) % 4
         overtime_hours = overtime_days * (2 + seed % 3)
         present = working - absent - not_marked - overtime_days
+        # The fake keeps paying its "not marked" days (not_marked=0 in the summary): the
+        # sample figures payroll's own tests were written against do not move.
         return MonthSummary(
             days_in_month=days,
             present=present,

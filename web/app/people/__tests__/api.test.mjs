@@ -29,10 +29,11 @@ test("seed: 25 employees, codes and barcodes, both pay types, next code E-026", 
 test("mock attendance has the contract shape: no late / half / leave", () => {
   const s = mockAttendance(1, PREVIOUS, NOW);
   assert.deepEqual(Object.keys(s).sort(), [
-    "absent", "days_in_month", "overtime_days", "overtime_hours", "paid_days", "present", "weekly_off",
+    "absent", "days_in_month", "not_marked", "overtime_days", "overtime_hours", "paid_days", "present", "weekly_off",
   ]);
-  assert.equal(s.present + s.absent + s.weekly_off, s.days_in_month);
-  assert.equal(s.paid_days, s.days_in_month - s.absent);
+  assert.equal(s.present + s.absent + s.not_marked + s.weekly_off, s.days_in_month);
+  // Paid days are counted (present + weekly off), not derived from the month's length.
+  assert.equal(s.paid_days, s.present + s.weekly_off);
   assert.ok(Number.isInteger(s.overtime_hours));
   const running = mockAttendance(1, CURRENT, NOW);
   assert.ok(running.present + running.absent + running.weekly_off <= 7);

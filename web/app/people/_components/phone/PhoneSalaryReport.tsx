@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PhoneFrame } from "./PhoneFrame";
@@ -11,6 +12,7 @@ import { formatAmount, initials, thumbUrl } from "../../_lib/helpers";
 import { avatarTone } from "./PhoneEmployees";
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import { monthStatusText } from "../../_lib/settle";
+import { UNMARKED_HREF, unmarkedWarningText } from "../../_lib/monthDetail";
 import styles from "./phone.module.css";
 import shared from "../payroll.module.css";
 
@@ -80,6 +82,12 @@ export function PhoneSalaryReport() {
           </button>
         ))}
       </div>
+      {report.data && unmarkedWarningText(report.data.totals) ? (
+        <p role="status" className={shared.unmarkedWarning} style={{ margin: "0 12px 10px", fontSize: 13 }}>
+          <span>{unmarkedWarningText(report.data.totals)}</span>
+          <Link href={UNMARKED_HREF}>Mark attendance · Not marked</Link>
+        </p>
+      ) : null}
       {report.error ? <p className={styles.empty}>{payrollErrorMessage(report.error)}</p> : null}
       {!report.data && !report.error ? <p className={styles.empty}>Loading…</p> : null}
       {report.data ? (
@@ -101,7 +109,14 @@ export function PhoneSalaryReport() {
                 </span>
                 <span className={styles.rowSub}>
                   {e.department?.name ?? "—"}
-                  {" "}· {l.attendance.absent ? `${l.attendance.absent} d absent` : "full month"} · OT {l.attendance.overtime_hours} h
+                  {" "}· {l.attendance.absent ? `${l.attendance.absent} d absent` : l.attendance.not_marked ? "" : "full month"}
+                  {l.attendance.not_marked ? (
+                    <b style={{ color: "var(--pill-danger-fg)" }}>
+                      {l.attendance.absent ? " · " : ""}
+                      {l.attendance.not_marked} d not marked
+                    </b>
+                  ) : null}
+                  {" "}· OT {l.attendance.overtime_hours} h
                 </span>
               </span>
               <span className={styles.rowRight}>

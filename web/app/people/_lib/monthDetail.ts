@@ -6,7 +6,7 @@
  */
 
 import { formatAmount } from "./helpers";
-import type { MonthLedger } from "../types";
+import type { MonthLedger, ReportTotals } from "../types";
 
 export type MonthDetailRow =
   | { kind: "section"; label: string }
@@ -18,14 +18,25 @@ export type MonthDetailRow =
       amount: string;
       /** "due" rows: something is still to pay (orange) or nothing (green). */
       owing?: boolean;
+      /** The "Not marked" deduction: red. */
+      danger?: boolean;
     };
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** Per absent day: what was actually deducted ÷ absent days (salary ÷ 30 when none). */
+/** Per unpaid day (absent or not marked): what was actually deducted ÷ those days (salary ÷ 30 when none). */
 export function absencePerDay(l: Pick<MonthLedger, "rate" | "absence_deduction" | "attendance">): number {
-  const absent = l.attendance.absent;
-  return absent > 0 ? Math.round(l.absence_deduction / absent) : Math.round(l.rate / 30);
+  const unpaid = l.attendance.absent + (l.attendance.not_marked ?? 0);
+  return unpaid > 0 ? Math.round(l.absence_deduction / unpaid) : Math.round(l.rate / 30);
+}
+
+/** The deduction split between absent and not marked days (they add up to absence_deduction). */
+export function deductionSplit(l: Pick<MonthLedger, "absence_deduction" | "attendance">): { absent: number; not_marked: number } {
+  const notMarked = l.attendance.not_marked ?? 0;
+  const unpaid = l.attendance.absent + notMarked;
+  if (unpaid <= 0 || notMarked <= 0) return { absent: l.absence_deduction, not_marked: 0 };
+  const part = Math.round((l.absence_deduction * notMarked) / unpaid);
+  return { absent: l.absence_deduction - part, not_marked: part };
 }
 
 export function monthDetailRows(l: MonthLedger): MonthDetailRow[] {
@@ -52,6 +63,8 @@ export function monthDetailRows(l: MonthLedger): MonthDetailRow[] {
   });
   rows.push({ kind: "total", label: "Total earnings", qty: "", rate: "", amount: formatAmount(l.earnings) });
   rows.push({ kind: "section", label: "Deductions" });
+  const notMarked = a.not_marked ?? 0;
+  const split = deductionSplit(l);
   rows.push(
     l.pay_type === "monthly"
       ? {
@@ -59,10 +72,25 @@ export function monthDetailRows(l: MonthLedger): MonthDetailRow[] {
           label: "Absence",
           qty: plural(a.absent, "day"),
           rate: `${formatAmount(absencePerDay(l))} / day`,
-          amount: l.absence_deduction > 0 ? `−${formatAmount(l.absence_deduction)}` : "0",
+          amount: split.absent > 0 ? `−${formatAmount(split.absent)}` : "0",
         }
       : { kind: "line", label: "Absence", qty: plural(a.absent, "day"), rate: "not paid", amount: "0" },
   );
+  // Past working days without a record: unpaid like absent (its own red line when there are any).
+  if (notMarked > 0) {
+    rows.push(
+      l.pay_type === "monthly"
+        ? {
+            kind: "line",
+            label: "Not marked",
+            qty: plural(notMarked, "day"),
+            rate: `${formatAmount(absencePerDay(l))} / day`,
+            amount: split.not_marked > 0 ? `−${formatAmount(split.not_marked)}` : "0",
+            danger: true,
+          }
+        : { kind: "line", label: "Not marked", qty: plural(notMarked, "day"), rate: "not paid", amount: "0", danger: true },
+    );
+  }
   rows.push({ kind: "net", label: "Net salary", qty: "", rate: "", amount: formatAmount(l.net) });
   rows.push({
     kind: "paid",
@@ -73,4 +101,14 @@ export function monthDetailRows(l: MonthLedger): MonthDetailRow[] {
   });
   rows.push({ kind: "due", label: "Due", qty: "", rate: "", amount: formatAmount(l.due), owing: l.due > 0 });
   return rows;
+}
+
+/** Mark attendance with the "Not marked" filter on. */
+export const UNMARKED_HREF = "/attendance/mark?status=N";
+
+/** Salary report warning: "3 employees have unmarked days this month"; null when nobody has any. */
+export function unmarkedWarningText(totals: Pick<ReportTotals, "not_marked_staff">): string | null {
+  const n = totals.not_marked_staff ?? 0;
+  if (n <= 0) return null;
+  return `${n} employee${n === 1 ? " has" : "s have"} unmarked days this month.`;
 }

@@ -306,7 +306,7 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
             [
                 "Absence deductions",
                 num(t.absence_deduction),
-                Styled(f"{t.absent_days} absent days", "muted"),
+                Styled(unpaid_days_hint(t), "muted"),
             ],
             [Styled("Net payable", "bold"), Styled(t.net, "number_bold")],
             [
@@ -327,8 +327,9 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
             [],
             [
                 Styled(
-                    "Monthly: net = salary − salary ÷ 30 × absent days + overtime. "
-                    "Daily: wage × days present + overtime. Saturdays are paid. No SSF.",
+                    "Monthly: net = salary − salary ÷ 30 × (absent + not marked days) "
+                    "+ overtime. Daily: wage × days present + overtime. Saturdays are paid. "
+                    "No SSF.",
                     "muted",
                 )
             ],
@@ -337,6 +338,14 @@ def salary_report_sheets(data: ReportData) -> list[Sheet]:
     )
     sheets.append(summary)
     return sheets
+
+
+def unpaid_days_hint(t) -> str:
+    """ "4 absent days", plus " · 3 not marked days (2 staff)" when there are any."""
+    text = f"{t.absent_days} absent days"
+    if t.not_marked_days:
+        text += f" · {t.not_marked_days} not marked days ({t.not_marked_staff} staff)"
+    return text
 
 
 def salary_report_xlsx(data: ReportData) -> bytes:
@@ -357,12 +366,12 @@ def salary_report_pdf(data: ReportData, printed_by: str) -> bytes:
         "status_label": STATUS_LABEL,
         "status_text": status_text,
         "legend_text": (
-            "Monthly: net = salary − salary ÷ 30 × absent days + overtime · "
+            "Monthly: net = salary − salary ÷ 30 × (absent + not marked days) + overtime · "
             "Daily: wage × days present + overtime · Saturdays paid · no SSF"
         ),
         "stats": [
             ("Gross", f"Rs {t.gross:,}", f"{t.staff} staff · overtime Rs {t.overtime_pay:,}"),
-            ("Absence", f"− Rs {t.absence_deduction:,}", f"{t.absent_days} absent days"),
+            ("Absence", f"− Rs {t.absence_deduction:,}", unpaid_days_hint(t)),
             ("Advances paid", f"Rs {t.advance_paid:,}", "part of salary"),
             (
                 "Net payable",

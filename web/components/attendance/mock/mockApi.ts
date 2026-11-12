@@ -199,7 +199,10 @@ function monthCells(employeeId: number, month: MonthReport["month"]): DayCell[] 
     const record = getRecord(employeeId, day);
     const cell: DayCell = record
       ? { status: record.status, ot_hours: record.ot_hours }
-      : { status: day.is_weekly_off ? "W" : "N", ot_hours: 0 };
+      : day.is_weekly_off
+        ? { status: "W", ot_hours: 0 }
+        : // A past working day without a record is "not marked" (unpaid); today and later are not.
+          { status: "N", ot_hours: 0, not_marked: day.bs_date < todayRef().bs_date };
     const money = paid.get(day.bs_date);
     if (money?.advance) cell.advance = money.advance;
     if (money?.salary) cell.salary = money.salary;

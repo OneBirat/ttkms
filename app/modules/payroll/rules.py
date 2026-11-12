@@ -2,12 +2,15 @@
 
 Decided rules (the brief overrides any older design text):
 
-* Monthly: ``net = salary - (salary / 30 * absent) + overtime - TDS`` - a fixed 30-day divisor
-  whatever the BS month's real length. Saturdays (the weekly off) are paid. No half days, no
-  leave.
+* Monthly: ``net = salary - (salary / 30 * unpaid days) + overtime - TDS`` - a fixed 30-day
+  divisor whatever the BS month's real length. Unpaid days = absent + not marked (a past
+  working day without any record is unpaid, exactly like a day marked absent); both counts come
+  from the MonthSummary and are never derived here. Saturdays (the weekly off) are paid. No
+  half days, no leave.
 * Running month ("earned so far", which also caps advances): the salary is prorated as
-  ``salary * min(days_counted, 30) / 30`` (days_counted = today's BS day), then the absences and
-  overtime so far apply as above. Past months are never prorated.
+  ``salary * min(days_counted, 30) / 30`` (days_counted = today's BS day), then the unpaid days
+  and overtime so far apply as above (today itself is never "not marked"). Past months are
+  never prorated.
 * Saturday work (PENDING BUSINESS DECISION, setting ``payroll.saturday_work_rule``): monthly
   staff are paid the Saturday overtime hours (``overtime_only``, the default), or also salary /
   30 per Saturday worked (``extra_day``). Daily staff always get the day's wage plus the hours
@@ -77,13 +80,15 @@ class PayResult:
     overtime_pay: int
     #: gross_salary + overtime_pay (the report's "Gross").
     earnings: int
-    #: Monthly: salary / 30 x absent days. Daily: 0.
+    #: Monthly: salary / 30 x unpaid days (absent + not marked). Daily: 0.
     absence_deduction: int
     tds: int
     net: int
     #: Monthly with ``extra_day``: salary / 30 x Saturdays worked - already inside gross_salary
     #: (so gross - absence + overtime = net everywhere). Else 0.
     saturday_pay: int = 0
+    #: Monthly: the days ``absence_deduction`` covers (absent + not marked). Daily: 0.
+    unpaid_days: int = 0
 
 
 def monthly_pay(
@@ -98,16 +103,17 @@ def monthly_pay(
     at 30)."""
     per_day = salary / PAY_DAYS
     base = round_rs(salary * min(max(0, s.days_counted), PAY_DAYS) / PAY_DAYS if so_far else salary)
-    absence = min(round_rs(per_day * max(0, s.absent)), base)
+    unpaid = max(0, s.absent) + max(0, s.not_marked)
+    absence = min(round_rs(per_day * unpaid), base)
     overtime = overtime_pay(s.overtime_hours + s.saturday_ot_hours, ot_rate)
     saturday = (
         round_rs(per_day * max(0, s.saturday_days_worked)) if saturday_rule == "extra_day" else 0
     )
     gross = base + saturday
     tds = 0
-    days = s.days_counted if so_far else s.days_in_month
     return PayResult(
-        paid_days=max(0, days - s.absent),
+        # The summary's own count (present + overtime days + weekly off): never month − absent.
+        paid_days=max(0, s.paid_days),
         gross_salary=gross,
         overtime_pay=overtime,
         earnings=gross + overtime,
@@ -115,6 +121,7 @@ def monthly_pay(
         tds=tds,
         net=round_rs(gross - absence + overtime - tds),
         saturday_pay=saturday,
+        unpaid_days=unpaid,
     )
 
 

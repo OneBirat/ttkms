@@ -98,6 +98,7 @@ def ledger_out(ledger: ledgers.MonthLedger, modes: dict[int, PaymentMode]) -> Mo
         overtime_pay=pay.overtime_pay,
         earnings=pay.earnings,
         absence_deduction=pay.absence_deduction,
+        unpaid_days=pay.unpaid_days,
         tds=pay.tds,
         net=pay.net,
         saturday_pay=pay.saturday_pay,
@@ -122,6 +123,8 @@ def totals_for(rows: Iterable[ledgers.MonthLedger]) -> ReportTotalsOut:
         gross=sum(r.pay.earnings for r in rows),
         absence_deduction=sum(r.pay.absence_deduction for r in rows),
         absent_days=sum(r.attendance.absent for r in rows),
+        not_marked_days=sum(r.attendance.not_marked for r in rows),
+        not_marked_staff=sum(1 for r in rows if r.attendance.not_marked > 0),
         overtime_pay=sum(r.pay.overtime_pay for r in rows),
         overtime_hours=sum(
             r.attendance.overtime_hours + r.attendance.saturday_ot_hours for r in rows

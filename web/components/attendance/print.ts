@@ -18,11 +18,12 @@ const esc = (s: string | number) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export const PDF_LEGEND =
-  "✓ present · number = overtime hours (present + overtime) · A absent · – weekly off (Saturday). " +
-  "P counts overtime days too. Paid days = P + W; overtime hours are paid on top.";
+  "✓ present · number = overtime hours (present + overtime) · A absent · red empty box = not marked (NM, unpaid) · " +
+  "– weekly off (Saturday). P counts overtime days too. Paid days = P + W; overtime hours are paid on top.";
 export const PDF_LEGEND_NO_SATURDAY =
-  "✓ present · number = overtime hours (present + overtime) · A absent. Saturdays (weekly off) are hidden but " +
-  "still counted in W. P counts overtime days too. Paid days = P + W; overtime hours are paid on top.";
+  "✓ present · number = overtime hours (present + overtime) · A absent · red empty box = not marked (NM, unpaid). " +
+  "Saturdays (weekly off) are hidden but still counted in W. P counts overtime days too. Paid days = P + W; " +
+  "overtime hours are paid on top.";
 
 type Line = { kind: "head"; group: DepartmentGroup } | { kind: "row"; row: ReportRow };
 
@@ -41,7 +42,7 @@ export function paginateLines(lines: Line[], capacity = PAGE_CAPACITY): Line[][]
 }
 
 /** Column widths from the mock-up (px); the name column takes what is left. */
-export const PDF_COLUMNS = { day: 24, p: 26, o: 30, a: 24, w: 24, paid: 34 };
+export const PDF_COLUMNS = { day: 24, p: 26, o: 30, a: 24, nm: 26, w: 24, paid: 34 };
 
 /** Cell text + inline style for a working day (Saturdays are merged separately). */
 export function pdfCell(cell: DayCell): { text: string; style: string } {
@@ -55,7 +56,10 @@ export function pdfCell(cell: DayCell): { text: string; style: string } {
     case "W":
       return { text: "–", style: "background:#EEF0EC;color:#6B757B" };
     default:
-      return { text: "", style: "color:#9AA3A9" };
+      // Not marked (a past working day without a record, unpaid): a red empty cell.
+      return cell.not_marked
+        ? { text: "", style: "background:#FDF0EB;box-shadow:inset 0 0 0 1.5px #C0392B" }
+        : { text: "", style: "color:#9AA3A9" };
   }
 }
 
@@ -123,6 +127,7 @@ function boxesHtml(m: ExportModel): string {
   <div class="box"><span>Total present days</span><span>${s.present_days}</span></div>
   <div class="box"><span>Overtime</span><span class="ot">${s.overtime_hours}h</span></div>
   <div class="box"><span>Absent days</span><span>${s.absent}</span></div>
+  <div class="box"><span>Not marked days</span><span${s.not_marked > 0 ? ' style="color:#B42318"' : ""}>${s.not_marked}</span></div>
 </div>`;
 }
 
@@ -189,12 +194,12 @@ function saturdayBandCell(rows: number): string {
 
 function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
   const days = pdfDays(m);
-  const span = days.length + 6;
+  const span = days.length + 7;
   const c = PDF_COLUMNS;
   const colgroup =
     `<colgroup><col>` +
     days.map(() => `<col style="width:${c.day}px">`).join("") +
-    `<col style="width:${c.p}px"><col style="width:${c.o}px"><col style="width:${c.a}px"><col style="width:${c.w}px"><col style="width:${c.paid}px"></colgroup>`;
+    `<col style="width:${c.p}px"><col style="width:${c.o}px"><col style="width:${c.a}px"><col style="width:${c.nm}px"><col style="width:${c.w}px"><col style="width:${c.paid}px"></colgroup>`;
   const head =
     `<thead><tr><th class="nm">Employee</th>` +
     days
@@ -203,7 +208,7 @@ function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
           `<th${day.is_weekly_off ? ' class="sat"' : ""}>${day.bs_day}<br><span class="wd">${weekdayInitial(day.weekday)}</span></th>`,
       )
       .join("") +
-    `<th>P</th><th>O</th><th>A</th><th>W</th><th>Paid</th></tr></thead>`;
+    `<th>P</th><th>O</th><th>A</th><th title="Not marked">NM</th><th>W</th><th>Paid</th></tr></thead>`;
   const spans = saturdaySpans(lines);
   const body = lines
     .map((line, li) => {
@@ -227,7 +232,8 @@ function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
         `<tr><th scope="row" class="nm">${esc(r.employee.name)}</th>` +
         cells +
         `<td class="tt">${t.present + t.overtime_days}</td><td class="tt" style="color:#7A5600">${t.overtime_hours}h</td>` +
-        `<td class="tt">${t.absent}</td><td class="tt">${t.weekly_off}</td><td class="tt" style="font-weight:700">${t.paid_days}</td></tr>`
+        `<td class="tt">${t.absent}</td><td class="tt"${t.not_marked > 0 ? ' style="color:#B42318;font-weight:700"' : ""}>${t.not_marked}</td>` +
+        `<td class="tt">${t.weekly_off}</td><td class="tt" style="font-weight:700">${t.paid_days}</td></tr>`
       );
     })
     .join("");
@@ -243,7 +249,7 @@ function tableHtml(m: ExportModel, lines: Line[], withFooter: boolean): string {
               : `<td class="tt${isLowPresence(n, m.summary.staff) ? " low" : ""}" style="font-weight:700">${n}</td>`;
         })
         .join("") +
-      `<td colspan="5" style="font-size:9px;color:#4A555C">avg ${m.summary.avg_present.toFixed(1)} / day</td></tr></tfoot>`
+      `<td colspan="6" style="font-size:9px;color:#4A555C">avg ${m.summary.avg_present.toFixed(1)} / day</td></tr></tfoot>`
     : "";
   return `<table>${colgroup}${head}<tbody>${body}</tbody>${foot}</table>`;
 }

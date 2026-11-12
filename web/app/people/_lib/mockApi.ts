@@ -14,7 +14,7 @@ import type { Role } from "@/lib/api";
 import { PAY_DAYS, dailyPay, defaultOtRate, monthlyPay, paymentError, settle } from "./calc";
 import { isValidBs } from "@/lib/bs";
 import { addMonths, compareMonths, dateBoth, monthEnd, monthKey, monthLabel, monthName, monthStart, parseMonthKey, sameMonth, thisMonth, today } from "./months";
-import { barcodeFor, employeeCode, normalizeName, normalizePhone, receiptNo, sumBy, totalsFor } from "./helpers";
+import { barcodeFor, employeeCode, normalizeName, normalizePhone, receiptNo, sumBy, totalsFor, unpaidDaysText } from "./helpers";
 import { groupTotals, sortRegisterRows } from "./register";
 import {
   CASH_MODE_ID,
@@ -857,7 +857,7 @@ export async function getEmployeeLedger(employee_id: number): Promise<EmployeeLe
         date: earnedOn,
         month: l.month,
         type: "absence",
-        details: `${l.attendance.absent} day(s) × Rs ${formatRsPlain(perDay)}`,
+        details: `${unpaidDaysText(l.attendance)} × Rs ${formatRsPlain(perDay)}`,
         earned: -l.absence_deduction,
         paid: 0,
         balance: 0,

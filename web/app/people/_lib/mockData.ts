@@ -175,7 +175,10 @@ export function mockAttendance(employee_id: number, month: BsMonth, now: Date = 
     overtime_hours,
     absent,
     weekly_off,
-    paid_days: Math.max(0, upTo - absent),
+    // present + weekly_off (the mock's overtime day is one of the present days).
+    paid_days: present + weekly_off,
+    // The mock marks every past working day: nothing is "not marked".
+    not_marked: 0,
   };
 }
 

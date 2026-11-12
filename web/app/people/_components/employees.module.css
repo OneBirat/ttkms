@@ -1298,3 +1298,16 @@
 .payRow[data-owing="false"] td {
   color: #1e9e4a;
 }
+
+/* Expanded month: the attendance counts above the pay table, and the red "Not marked" line. */
+.payCounts {
+  display: flex;
+  padding: 8px 12px 4px;
+  font-size: 13px;
+}
+
+.payRow[data-danger] th,
+.payRow[data-danger] td {
+  color: var(--pill-danger-fg);
+  font-weight: 600;
+}

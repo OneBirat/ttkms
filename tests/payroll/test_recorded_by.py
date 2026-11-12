@@ -11,6 +11,7 @@ from app.core import bsdate
 from app.core.models import Branch, Department, Employee, User
 from app.modules.payroll.models import PayType, SalaryHistory
 from app.modules.payroll.services import user_label
+from tests.attendance_days import attend_kept
 
 pytestmark = pytest.mark.anyio
 
@@ -52,6 +53,8 @@ async def test_register_receipt_and_exports_show_the_full_name(client, db, make_
             effective_ad=date(2026, 1, 1),
         )
     )
+    await db.flush()
+    await attend_kept(db, anita)
     # The recorder logs in with a phone number as username.
     recorder = await make_user("9867301683", role="admin", full_name="Hari Prasad")
     recorder.phone = "9867301683"

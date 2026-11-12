@@ -131,6 +131,13 @@ Other commands, run as `ttk` with the config loaded:
 sudo runuser -u ttk -- bash -c 'set -a; . /etc/ttk/app.env; set +a; cd /opt/ttk/app && /opt/ttk/venv/bin/python -m app.cli photos-upgrade'
 ```
 
+After the "not marked days are unpaid" fix (2026-11-12), list the months that were already paid
+with the old figures (read-only; a past working day without an attendance record used to be paid):
+
+```sh
+sudo runuser -u ttk -- bash -c 'set -a; . /etc/ttk/app.env; set +a; cd /opt/ttk/app && /opt/ttk/venv/bin/python -m app.cli unmarked-paid'
+```
+
 `seed-demo` refuses to run in production (`APP_ENV=prod`). Backups are not part of this setup yet;
 `setup-postgres.sh` installs a nightly database dump (`/var/backups/ttk`), and the uploads folder
 and Caddy's CA (`/var/lib/caddy/.local/share/caddy/pki`) are not backed up.

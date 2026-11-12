@@ -134,7 +134,8 @@ def test_running_month_is_prorated_by_days_counted_capped_at_30():
         1000,
         250,
     )
-    assert so_far.net == 9250 and so_far.paid_days == 9
+    # Paid days are the summary's own count, never days − absent.
+    assert so_far.net == 9250 and so_far.paid_days == 24
     late = monthly_pay(30000, 125, _sat(days=32, counted=32), so_far=True)
     assert late.gross_salary == 30000  # min(32, 30) / 30
     short = monthly_pay(30000, 125, _sat(days=29, counted=29), so_far=True)
@@ -176,3 +177,23 @@ def test_daily_staff_get_the_wage_for_saturday_work_whatever_the_rule():
     for rule in ("overtime_only", "extra_day"):
         pay = pay_for("daily", 800, 100, s, saturday_rule=rule)
         assert pay.gross_salary == 800 * 12 and pay.overtime_pay == 500
+
+
+def test_not_marked_days_are_unpaid_like_absent_days():
+    """A past working day without a record costs salary / 30, exactly like a day marked A; the
+    count comes from the summary (never from the month's length)."""
+    marked = _sat()
+    unmarked = _sat(absent=1)
+    unmarked.not_marked = 3
+    full = monthly_pay(30000, 125, marked)
+    pay = monthly_pay(30000, 125, unmarked)
+    assert (full.net, full.absence_deduction, full.unpaid_days) == (30000, 0, 0)
+    assert (pay.absence_deduction, pay.unpaid_days, pay.net) == (4000, 4, 26000)
+    assert pay.paid_days == unmarked.paid_days == 24
+    # Overtime is untouched, and a month of nothing but unmarked days never goes below zero.
+    assert pay.overtime_pay == full.overtime_pay
+    empty = _sat()
+    empty.not_marked = 40
+    assert monthly_pay(30000, 125, empty).net == 0
+    # Daily staff are paid for the days worked only: nothing to deduct.
+    assert daily_pay(650, 100, unmarked).absence_deduction == 0

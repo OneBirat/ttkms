@@ -11,6 +11,7 @@ from sqlalchemy import select
 
 from app.core.models import AuditLog, Branch, Department, Employee
 from app.modules.payroll.models import Payment, PayType, SalaryHistory
+from tests.attendance_days import attend_kept
 
 pytestmark = pytest.mark.anyio
 
@@ -36,6 +37,7 @@ async def _setup(db):
         )
     )
     await db.flush()
+    await attend_kept(db, anita)
     return old, new, anita
 
 

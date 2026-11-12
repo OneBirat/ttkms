@@ -19,6 +19,7 @@ import type { Employee, LedgerEntry, LedgerEntryType, MonthLedger, PaymentType }
 import { payrollErrorMessage, usePayroll } from "../../_lib/usePayroll";
 import { monthStatusText } from "../../_lib/settle";
 import { monthDetailRows } from "../../_lib/monthDetail";
+import { AttendanceCounts } from "../AttendanceCounts";
 import { PaymentRemarks, bulkMonths } from "../PaymentRemarks";
 import styles from "./phone.module.css";
 import shared from "../payroll.module.css";
@@ -224,13 +225,14 @@ function SalaryTab({ id }: { id: number }) {
             </button>
             {on ? (
               <div className={styles.monthDetail}>
+                <AttendanceCounts attendance={l.attendance} />
                 {monthDetailRows(l).map((row) =>
                   row.kind === "section" ? (
                     <div key={row.label} className={styles.paySection}>
                       {row.label}
                     </div>
                   ) : row.kind === "paid" || row.kind === "due" ? null : (
-                    <div key={row.label} className={`${styles.kvLine} ${row.kind === "total" ? styles.kvTotal : ""}`} data-kind={row.kind}>
+                    <div key={row.label} className={`${styles.kvLine} ${row.kind === "total" ? styles.kvTotal : ""}`} data-kind={row.kind} style={row.danger ? { color: "var(--pill-danger-fg)", fontWeight: 600 } : undefined}>
                       <span>
                         {row.label}
                         {row.qty || row.rate ? <span className={styles.rowSub}> · {[row.qty, row.rate].filter(Boolean).join(" · ")}</span> : null}

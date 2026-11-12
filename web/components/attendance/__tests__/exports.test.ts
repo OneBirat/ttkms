@@ -63,22 +63,22 @@ describe("Excel workbook", () => {
     const model = buildExportModel(await getReport("2083-06"), filters, context);
     const wb = buildReportWorkbook(model);
     assert.deepEqual(wb.sheets.map((s) => s.name), ["Summary", "Daily grid", "By department"]);
-    assert.match(String(wb.sheets[0].rows[1][0]), /\d+h overtime · \d+ absences$/);
+    assert.match(String(wb.sheets[0].rows[1][0]), /\d+h overtime · \d+ absences · \d+ not marked$/);
     const grid = wb.sheets[1];
     assert.equal(grid.freezeRows, 4);
     assert.match(String(grid.rows[0][0]), /^TTK · Attendance report · Ashwin 2083/);
     assert.deepEqual(grid.rows[3].slice(0, 3), ["Emp ID", "Name", "Department"]);
     assert.equal(grid.rows[3][3], "1 बि");
-    assert.deepEqual(grid.rows[3].slice(-5), ["P", "O", "A", "W", "Paid"]);
-    assert.equal(grid.rows[3].length, 3 + 31 + 5);
+    assert.deepEqual(grid.rows[3].slice(-6), ["P", "O", "A", "Not marked", "W", "Paid"]);
+    assert.equal(grid.rows[3].length, 3 + 31 + 6);
     const codes = new Set(grid.rows.slice(4, -1).flatMap((r) => r.slice(3, 3 + 31).map(String)));
-    for (const c of codes) assert.match(c, /^(✓|\d{1,2}|A|–|)$/); // number = overtime hours, blank = never marked
+    for (const c of codes) assert.match(c, /^(✓|\d{1,2}|A|–|NM|)$/); // number = overtime hours, NM = not marked (unpaid), blank = not counted
     assert.ok(codes.has("✓"));
     const last = grid.rows[grid.rows.length - 1];
     assert.equal(last[0], "Staff present");
     assert.equal(last[3 + 2], "–"); // Ashwin 3 is a Saturday
     assert.equal(grid.rows.length, 4 + model.rows.length + 1);
-    assert.deepEqual(wb.sheets[2].rows[3], ["Department", "Staff", "P", "O", "A", "W", "Paid days", "Attendance"]);
+    assert.deepEqual(wb.sheets[2].rows[3], ["Department", "Staff", "P", "O", "A", "Not marked", "W", "Paid days", "Attendance"]);
     assert.equal(wb.sheets[2].rows.length, 4 + 5 + 1);
   });
   it("writes a zip whose first bytes are a local file header", async () => {
@@ -100,9 +100,9 @@ describe("PDF print document", () => {
     assert.match(html, /17 Sep – 17 Oct 2026 · All departments · 28 staff · 26 working days/);
     assert.match(html, /Generated 20 Oct 2026, 16:20 by Admin/);
     assert.match(html, /<span>Overtime<\/span><span class="ot">\d+h<\/span>/);
-    assert.match(html, /<th>P<\/th><th>O<\/th><th>A<\/th><th>W<\/th><th>Paid<\/th>/);
+    assert.match(html, /<th>P<\/th><th>O<\/th><th>A<\/th><th title="Not marked">NM<\/th><th>W<\/th><th>Paid<\/th>/);
     assert.match(html, /<col><col style="width:24px">/);
-    assert.match(html, /<col style="width:26px"><col style="width:30px"><col style="width:24px"><col style="width:24px"><col style="width:34px">/);
+    assert.match(html, /<col style="width:26px"><col style="width:30px"><col style="width:24px"><col style="width:26px"><col style="width:24px"><col style="width:34px">/);
     assert.match(html, /<td rowspan="7" class="satband" style="font-size:8.5px"><div style="max-height:129px;overflow:hidden;margin:0 auto">SATURDAY<\/div><\/td>/); // Store has 7 staff on page 1
     assert.match(html, /style="color:#1E9E4A;font-weight:700">✓</);
     assert.match(html, /Store <span>· 7 staff/);

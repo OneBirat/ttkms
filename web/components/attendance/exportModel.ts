@@ -35,6 +35,8 @@ export interface ExportSummary {
   overtime_days: number;
   overtime_hours: number;
   absent: number;
+  /** Past working days without a record (unpaid), over the rows. */
+  not_marked: number;
   working_days: number;
 }
 
@@ -118,6 +120,7 @@ export function buildExportModel(
       overtime_days: totals.overtime_days,
       overtime_hours: totals.overtime_hours,
       absent: totals.absent,
+      not_marked: totals.not_marked,
       working_days: report.month.working_days,
     },
     groups: groupByDepartment(rows),

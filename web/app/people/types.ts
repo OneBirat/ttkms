@@ -128,8 +128,13 @@ export interface MonthSummary {
   overtime_hours: number;
   absent: number;
   weekly_off: number;
-  /** Monthly: days_in_month − absent. Daily: present + overtime_days. */
+  /** present + overtime_days + weekly_off - counted by attendance, never days − absent. */
   paid_days: number;
+  /**
+   * Working days BEFORE today without any record, from the joining date: unpaid, like absent.
+   * Computed by the attendance summary, never stored; today and future days never count.
+   */
+  not_marked: number;
   /** Days the figures cover: the whole month when past, today's BS day for the running month. */
   days_counted?: number;
   /** Saturdays marked P or O - never inside present / overtime_days (app/contracts.py). */
@@ -249,8 +254,10 @@ export interface MonthLedger {
   overtime_pay: number;
   /** gross_salary + overtime_pay (the report's "Gross"). */
   earnings: number;
-  /** Monthly: gross_salary ÷ days in month × absent days. Daily: 0. */
+  /** Monthly: salary ÷ 30 × unpaid_days (absent + not marked). Daily: 0. */
   absence_deduction: number;
+  /** Monthly: the days the deduction covers (absent + not marked). Daily: 0. */
+  unpaid_days: number;
   /** Tax placeholder, 0 for now. */
   tds: number;
   /** earnings − absence_deduction − tds */
@@ -334,6 +341,8 @@ export interface SalaryDueMonth {
   /** The running month: days counted so far. */
   days_counted: number;
   absent: number;
+  /** Past working days without a record: unpaid like absent. */
+  not_marked?: number;
   net: number;
   /** Salary + advances paid (voided left out). */
   paid: number;
@@ -405,6 +414,9 @@ export interface ReportTotals {
   gross: number;
   absence_deduction: number;
   absent_days: number;
+  /** Not marked days of the rows, and how many employees have any. */
+  not_marked_days: number;
+  not_marked_staff: number;
   overtime_pay: number;
   overtime_hours: number;
   /** Advances already paid against this month (part of the salary). */

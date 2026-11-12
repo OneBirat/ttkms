@@ -55,6 +55,8 @@ def test_past_month_counts_everything():
         days_counted=30,
         saturday_days_worked=2,
         saturday_ot_hours=5,
+        # 26 working days, 4 of them marked (19, 20, 21 Oct and 2 Nov).
+        not_marked=22,
     )
 
 
@@ -70,6 +72,29 @@ def test_future_month_and_joining_mid_month():
     assert (future.days_counted, future.weekly_off, future.present, future.absent) == (0, 0, 0, 0)
     joined = contract.summarise(START, END, date(2026, 12, 1), date(2026, 11, 1), [])
     assert joined.weekly_off == 2 and joined.days_counted == 30
+
+
+def test_not_marked_is_past_working_days_without_a_record_inside_the_active_period():
+    joined = date(2026, 1, 1)
+    # Seen on Kartik 8 (25 Oct): Kartik 1-7 are past; the 24th is a Saturday; 19, 20, 21 are
+    # marked -> 18, 22 and 23 Oct are not marked. Today (25th) and later days never count.
+    running = contract.summarise(START, END, date(2026, 10, 25), joined, RECORDS)
+    assert running.not_marked == 3
+    # On the 1st of the month nothing is past yet; a month that has not started has nothing.
+    assert contract.summarise(START, END, START, joined, []).not_marked == 0
+    assert contract.summarise(START, END, date(2026, 10, 1), joined, []).not_marked == 0
+    # The whole month without a record: every working day.
+    assert contract.summarise(START, END, date(2026, 12, 1), joined, []).not_marked == 26
+    # Joined 1 Nov: 1-16 Nov has 2 Saturdays -> 14 working days; earlier days are ignored.
+    late = contract.summarise(START, END, date(2026, 12, 1), date(2026, 11, 1), [])
+    assert (late.not_marked, late.weekly_off) == (14, 2)
+    # Left on 23 Oct (inactive): 18-23 Oct, no Saturday, nothing after it.
+    gone = contract.summarise(START, END, date(2026, 12, 1), joined, [], date(2026, 10, 23))
+    assert (gone.not_marked, gone.weekly_off) == (6, 0)
+    # An absent mark is absent, not "not marked"; paid days are counted, never month − absent.
+    s = contract.summarise(START, END, date(2026, 12, 1), joined, RECORDS)
+    assert s.paid_days == s.present + s.overtime_days + s.weekly_off == 6
+    assert s.present + s.overtime_days + s.absent + s.not_marked + s.weekly_off == 30
 
 
 async def test_for_month_and_today_from_the_database(db, world, monkeypatch):

@@ -31,6 +31,7 @@ import {
   matchesStatusFilter,
   paginate,
   recordStatus,
+  statusFilterFromSearch,
   type Draft,
   type MarkCounts,
   type StatusFilter,
@@ -284,6 +285,11 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const [departmentId, setDepartmentIdRaw] = useState<number | null>(null);
   const [query, setQueryRaw] = useState("");
   const [statusFilter, setStatusFilterRaw] = useState<StatusFilter>("");
+  // ?status=N (the Salary report's "unmarked days" link): open on the Not marked filter.
+  useEffect(() => {
+    const asked = statusFilterFromSearch(window.location.search);
+    if (asked) setStatusFilterRaw(asked);
+  }, []);
   const [photos, setPhotos] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [page, setPage] = useState(1);

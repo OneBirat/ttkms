@@ -271,3 +271,15 @@ def on_branch(db: AsyncSession):
         await db.flush()
 
     return _on_branch
+
+
+@pytest.fixture
+def attended(db: AsyncSession):
+    """``await attended(employee, (2083, 6), ..., skip=[date])``: Present on every past working
+    day of those BS months (tests/attendance_days.py)."""
+    from tests.attendance_days import attend
+
+    async def _attended(employee, *months: tuple[int, int], skip=()) -> None:
+        await attend(db, employee, *months, skip=skip)
+
+    return _attended

@@ -8,6 +8,7 @@ import { payslipUrl, receiptUrl } from "../api";
 import { downloadText, ledgerCsv, modeLabel } from "../_lib/exports";
 import { formatAddition, formatAmount, formatDeduction, formatPaidDays, formatRs } from "../_lib/helpers";
 import { monthDetailRows } from "../_lib/monthDetail";
+import { AttendanceCounts } from "./AttendanceCounts";
 import type { BsMonth, Employee, MonthLedger, Payment } from "../types";
 import { VoidPaymentDialog, VoidedNote, useCanVoid } from "./VoidPaymentDialog";
 import { MonthStatusPill } from "./MonthStatusPill";
@@ -299,6 +300,7 @@ function LedgerDetail({ ledger: l, onClose, onRecordPayment, onPayslip, onReceip
 export function MonthDetailTable({ ledger }: { ledger: MonthLedger }) {
   return (
     <div className={`${shared.tableWrap} ${styles.payBox}`}>
+      <AttendanceCounts attendance={ledger.attendance} className={styles.payCounts} />
       <table className={`${shared.table} ${styles.payTable}`} data-testid="month-detail">
         <caption className={shared.srOnly}>Pay for {monthLabel(ledger.month)}</caption>
         <thead>
@@ -324,7 +326,7 @@ export function MonthDetailTable({ ledger }: { ledger: MonthLedger }) {
                 </th>
               </tr>
             ) : (
-              <tr key={row.label} className={styles.payRow} data-kind={row.kind} data-owing={row.kind === "due" ? String(!!row.owing) : undefined}>
+              <tr key={row.label} className={styles.payRow} data-kind={row.kind} data-owing={row.kind === "due" ? String(!!row.owing) : undefined} data-danger={row.danger || undefined}>
                 <th scope="row">{row.label}</th>
                 <td className={shared.num}>{row.qty}</td>
                 <td className={shared.num}>{row.rate}</td>

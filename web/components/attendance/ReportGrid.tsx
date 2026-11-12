@@ -107,7 +107,7 @@ function Cell({
   const pay = payIcons && cell.status !== "W" && cell.status !== "N" && (!!cell.advance || !!cell.salary);
   if (wide) {
     return (
-      <span className={styles.wcell} data-status={cell.status} title={title}>
+      <span className={styles.wcell} data-status={cell.status} data-unmarked={cell.not_marked || undefined} title={title}>
         <span className={styles.wcellMain}>
           {cell.status === "P" ? <Tick size={14} /> : null}
           <span>
@@ -122,7 +122,7 @@ function Cell({
     );
   }
   return (
-    <span className={styles.cell} data-status={cell.status} title={title}>
+    <span className={styles.cell} data-status={cell.status} data-unmarked={cell.not_marked || undefined} title={title}>
       <span aria-hidden="true" className={styles.cellCode}>
         {cell.status === "P" ? (pay ? null : <Tick />) : cell.status === "O" ? `${cell.ot_hours}h` : cell.status === "A" ? "A" : cell.status === "W" ? "–" : "·"}
       </span>
@@ -149,7 +149,7 @@ export function ReportGrid({
 }: ReportGridProps) {
   const wide = mode !== "month";
   const dayView = mode === "day";
-  const totalCols = dayView ? 2 : 5;
+  const totalCols = dayView ? 2 : 6;
   const span = days.length + 1 + totalCols;
   const renderRow = (row: ReportRow) => (
     <tr key={row.employee.id}>
@@ -178,6 +178,7 @@ export function ReportGrid({
       {!dayView ? (
         <>
           <td className={styles.tot}>{row.totals.absent}</td>
+          <td className={`${styles.tot} ${row.totals.not_marked > 0 ? styles.totUnmarked : ""}`}>{row.totals.not_marked}</td>
           <td className={styles.tot}>{row.totals.weekly_off}</td>
           <td className={`${styles.tot} ${styles.totPaid}`}>{row.totals.paid_days}</td>
         </>
@@ -222,6 +223,9 @@ export function ReportGrid({
               <>
                 <th scope="col" className={styles.tot} title="Absent days">
                   A
+                </th>
+                <th scope="col" className={styles.tot} title="Not marked: past working days without a record (not paid)">
+                  NM
                 </th>
                 <th scope="col" className={styles.tot} title="Weekly off days">
                   W

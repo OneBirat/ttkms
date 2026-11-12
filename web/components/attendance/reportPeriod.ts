@@ -193,12 +193,18 @@ export function periodIndices(period: Period): number[] {
 
 // ------------------------------------------------------------ cells
 
-/** What a day cell looks like: a mark, Saturday, not marked yet, or a future day. */
+/**
+ * What a day cell looks like: a mark, Saturday, not marked (red), or blank ("F": a future day,
+ * or a day before the employee joined).
+ */
 export type CellLook = "P" | "O" | "A" | "W" | "N" | "F";
 
 export function cellLook(cell: DayCell | undefined, day: DayHeader, today: string): CellLook {
   if (day.bs_date > today) return "F";
-  return cell?.status ?? (day.is_weekly_off ? "W" : "N");
+  const status = cell?.status ?? (day.is_weekly_off ? "W" : "N");
+  // Red "not marked": a past working day the server counts as unpaid, or today still open.
+  if (status === "N" && !cell?.not_marked && day.bs_date !== today) return "F";
+  return status;
 }
 
 /** Solid colours of the month strip and the legend. */

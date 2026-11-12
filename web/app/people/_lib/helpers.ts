@@ -192,6 +192,8 @@ export function totalsFor(ledgers: MonthLedger[]): ReportTotals {
     gross: sum((l) => l.earnings),
     absence_deduction: sum((l) => l.absence_deduction),
     absent_days: sum((l) => l.attendance.absent),
+    not_marked_days: sum((l) => l.attendance.not_marked),
+    not_marked_staff: ledgers.filter((l) => l.attendance.not_marked > 0).length,
     overtime_pay: sum((l) => l.overtime_pay),
     overtime_hours: sum((l) => l.attendance.overtime_hours),
     advance_paid: sum((l) => l.advance_paid),
@@ -273,4 +275,11 @@ export function groupBy<T, K extends string | number>(items: T[], keyOf: (item: 
 /** Lists, the side strip and avatars load the 128 px thumbnail (the 600 px photo when none). */
 export function thumbUrl(employee: { photo_url: string | null; photo_thumb_url?: string | null }): string | null {
   return employee.photo_thumb_url ?? employee.photo_url;
+}
+
+/** "2 absent + 3 not marked = 5 day(s)", or just "2 day(s)" / "3 not marked day(s)" (payments.py unpaid_days_text). */
+export function unpaidDaysText(a: { absent: number; not_marked: number }): string {
+  if (a.absent && a.not_marked) return `${a.absent} absent + ${a.not_marked} not marked = ${a.absent + a.not_marked} day(s)`;
+  if (a.not_marked) return `${a.not_marked} not marked day(s)`;
+  return `${a.absent} day(s)`;
 }

@@ -282,6 +282,7 @@ def due_month_out(ledger: MonthLedger) -> SalaryDueMonthOut:
         days_in_month=a.days_in_month,
         days_counted=a.days_counted,
         absent=a.absent,
+        not_marked=a.not_marked,
         net=ledger.net,
         paid=ledger.paid,
         due=ledger.due,
@@ -841,6 +842,16 @@ def _rs(value: int) -> str:
     return f"{value:,}"
 
 
+def unpaid_days_text(ledger: MonthLedger) -> str:
+    """ "2 absent + 3 not marked = 5 day(s)", or just "2 day(s)" / "3 not marked day(s)"."""
+    absent, not_marked = ledger.attendance.absent, ledger.attendance.not_marked
+    if absent and not_marked:
+        return f"{absent} absent + {not_marked} not marked = {absent + not_marked} day(s)"
+    if not_marked:
+        return f"{not_marked} not marked day(s)"
+    return f"{absent} day(s)"
+
+
 async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOut:
     """Earned rows per month (named in the details) and ONE row per payment: a bulk salary
     payment (a payment group over several months) is a single row on its payment date with the
@@ -902,7 +913,7 @@ async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOu
                     date=services.date_both(earned_on),
                     month=m,
                     type="absence",
-                    details=f"{name} · {ledger.attendance.absent} day(s) × Rs {_rs(per_day)}",
+                    details=f"{name} · {unpaid_days_text(ledger)} × Rs {_rs(per_day)}",
                     earned=-ledger.pay.absence_deduction,
                     paid=0,
                     balance=0,
