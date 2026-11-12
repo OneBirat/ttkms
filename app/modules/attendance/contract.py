@@ -12,6 +12,7 @@ before the joining date count for nothing.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import date, timedelta
 
 from sqlalchemy import select
@@ -35,7 +36,7 @@ def session():
 
 
 def summarise(
-    start: date, end: date, today: date, joined: date | None, records: Iterable[Record]
+    start: date, end: date, today: date, joined: date | None, records: Iterable
 ) -> MonthSummary:
     """The month ``start..end`` as seen on ``today`` (pure; unit-tested)."""
     days_in_month = (end - start).days + 1
@@ -77,6 +78,42 @@ def summarise(
         days_counted=days_counted,
         saturday_days_worked=sat_days,
         saturday_ot_hours=sat_hours,
+    )
+
+
+@dataclass(frozen=True)
+class WhatIfMark:
+    """A day's mark that is not stored (yet): :func:`summarise` only reads these three."""
+
+    date: date
+    status: str
+    overtime_hours: int
+
+
+async def month_if(
+    db, employee: Employee, ad: date, status: str | None, hours: int
+) -> tuple[MonthSummary, MonthSummary, Record | None]:
+    """The BS month of ``ad`` for one employee as it is, and as it would be with that day's
+    mark set to ``status`` / ``hours`` (``None`` = removed), plus the day's present record.
+    Nothing is written."""
+    bs = bsdate.ad_to_bs(ad)
+    start, end = bsdate.bs_month_range(bs.year, bs.month)
+    records = list(
+        await db.scalars(
+            select(Record).where(
+                Record.employee_id == employee.id, Record.date >= start, Record.date <= end
+            )
+        )
+    )
+    current = next((r for r in records if r.date == ad), None)
+    changed: list[Record | WhatIfMark] = [r for r in records if r.date != ad]
+    if status is not None:
+        changed.append(WhatIfMark(ad, status, hours))
+    today = services.today()
+    return (
+        summarise(start, end, today, employee.joined_ad, records),
+        summarise(start, end, today, employee.joined_ad, changed),
+        current,
     )
 
 

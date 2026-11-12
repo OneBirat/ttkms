@@ -262,6 +262,15 @@ class PayrollPayments(Protocol):
         are left out of the dict."""
         ...
 
+    async def what_if(
+        self, employee_id: int, bs_year: int, bs_month: int, attendance: MonthSummary | None
+    ) -> MonthBalance | None:
+        """The month's pay position if its attendance were ``attendance`` (``None`` = as it is
+        now): net pay, paid, due - nothing is written. ``None`` when the employee has no pay for
+        that month (no salary set up, before joining). Attendance asks this before the super
+        admin changes a past day, to warn when the month is already paid."""
+        ...
+
 
 def resolve_payment_date(payment: PaymentInput) -> tuple[dt.date, str]:
     """``(ad, bs)`` for a payment: from ``date_bs``, else ``date``, else today in Kathmandu."""
@@ -379,6 +388,12 @@ class FakePayrollPayments:
             paid=paid,
             due=max(0, earned - paid),
         )
+
+    async def what_if(
+        self, employee_id: int, bs_year: int, bs_month: int, attendance: MonthSummary | None
+    ) -> MonthBalance | None:
+        """The fake's pay does not depend on attendance: the balance as it is."""
+        return await self.balance(employee_id, bs_year, bs_month)
 
     async def record(self, payment: PaymentInput, recorded_by: int | None = None) -> PaymentResult:
         if not isinstance(payment.amount, int) or payment.amount <= 0:

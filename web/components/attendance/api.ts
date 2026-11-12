@@ -30,6 +30,8 @@ import type {
   MonthOption,
   MarkHistory,
   MonthReport,
+  OverrideChange,
+  OverridePreview,
   PaymentHistory,
   PaymentInput,
   PaymentKind,
@@ -90,6 +92,17 @@ export async function markOne(request: MarkOneRequest): Promise<MarkOneResponse>
 export async function clearMark(employeeId: number, dateBs: string, reason?: string): Promise<ClearMarkResponse> {
   return apiFetch<ClearMarkResponse>(`/api/attendance/mark${qs({ employee_id: employeeId, date_bs: dateBs, reason })}`, {
     method: "DELETE",
+  });
+}
+
+/**
+ * POST /api/attendance/override-preview -> what a super-admin change to a past day does to that
+ * month's pay, with the warning for a month that is already paid. Writes nothing.
+ */
+export async function previewOverride(dateBs: string, changes: OverrideChange[]): Promise<OverridePreview> {
+  return apiFetch<OverridePreview>("/api/attendance/override-preview", {
+    method: "POST",
+    json: { date_bs: dateBs, changes },
   });
 }
 

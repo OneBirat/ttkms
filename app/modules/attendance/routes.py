@@ -12,7 +12,7 @@ from app.core.models import User
 from app.core.schemas import ErrorOut, ModuleStatusOut
 from app.db import DbSession
 from app.modules.admin.permissions import require_any_access
-from app.modules.attendance import report, schemas, services
+from app.modules.attendance import preview, report, schemas, services
 from app.modules.attendance.access import (
     EMPLOYEES,
     MARK,
@@ -119,6 +119,16 @@ async def employee_month(
     return await report.employee_month(
         db, scope, employee_id, bs_year, bs_month, money=await sees_money(db, me)
     )
+
+
+@router.post("/override-preview", response_model=schemas.OverridePreview, responses=ERRORS)
+async def override_preview(
+    body: schemas.OverridePreviewRequest, me: CanMark, db: DbSession
+) -> schemas.OverridePreview:
+    """Before the super admin changes a past day: old -> new per person and what it does to
+    that month's pay - with a warning when the month's salary is already paid (fully or
+    partly). Nothing is written and nothing is blocked. Super admin only (it shows pay)."""
+    return await preview.override_preview(db, me, await scope_for(db, me, None), body)
 
 
 @router.get("/history", response_model=schemas.MarkHistory, responses=ERRORS)

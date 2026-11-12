@@ -19,6 +19,7 @@ import {
   getToday,
   lookupCode,
   markOne,
+  previewOverride,
   recordPayment,
   scanMark,
 } from "./api";
@@ -126,6 +127,12 @@ export interface OverrideAsk {
   reason: string;
   busy: boolean;
   error: string | null;
+  /** Which sheet this is (a late answer for an earlier sheet is dropped). */
+  token: number;
+  /** The payroll check is still running ("Change as super admin" waits for it). */
+  checking: boolean;
+  /** "{Month} salary is already paid. This changes the net pay by Rs X; the due will become Rs Y." */
+  warning: string | null;
 }
 
 export interface BulkMessage {
@@ -294,6 +301,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const [clearAsk, setClearAsk] = useState<ClearConfirm | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [override, setOverride] = useState<OverrideAsk | null>(null);
+  const overrideSeq = useRef(0);
 
   // Default date = today (BS).
   useEffect(() => {
@@ -358,6 +366,8 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const rowsRef = useRef(rowsById);
   rowsRef.current = rowsById;
 
+  const dataRef = useRef(data);
+  dataRef.current = data;
   const lock = data?.lock ?? null;
   const lockRef = useRef(lock);
   lockRef.current = lock;
@@ -377,6 +387,27 @@ export function useMarkState(options: { phone: boolean }): MarkState {
    * On a past day the super admin's changes go through the confirm sheet (old → new + reason)
    * instead of saving at once. True when the row is in override mode - the caller then stops.
    */
+  /**
+   * Open the confirm sheet and ask what the change does to that month's pay: when the month
+   * is already paid, the sheet warns (it never blocks). The check failing shows no warning.
+   */
+  const openOverride = useCallback(
+    (ask: Pick<OverrideAsk, "kind" | "employeeId" | "status" | "hours" | "previous" | "previousHours" | "bulk">, ids: number[]) => {
+      const token = ++overrideSeq.current;
+      const dateBs = dataRef.current?.day.bs_date ?? "";
+      const mine = (o: OverrideAsk | null, patch: Partial<OverrideAsk>) => (o && o.token === token ? { ...o, ...patch } : o);
+      setOverride({ ...ask, reason: "", busy: false, error: null, token, checking: ids.length > 0, warning: null });
+      if (!ids.length || !dateBs) return;
+      previewOverride(
+        dateBs,
+        ids.map((id) => ({ employee_id: id, status: ask.status, ot_hours: ask.status === "O" ? ask.hours : 0 })),
+      )
+        .then((preview) => setOverride((o) => mine(o, { checking: false, warning: preview.warning })))
+        .catch(() => setOverride((o) => mine(o, { checking: false })));
+    },
+    [],
+  );
+
   const beginOverride = useCallback((employeeId: number, status: MarkStatus | null, hours = 0): boolean => {
     if (accessNow(employeeId) !== "override") return false;
     const record = rowsRef.current.get(employeeId)?.record ?? null;
@@ -388,19 +419,12 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     setOtModal(null);
     setClearAsk(null);
     if (status === null ? !record : previous === status && previousHours === hours) return true; // nothing to change
-    setOverride({
-      kind: status === null ? "clear" : "mark",
-      employeeId,
-      status,
-      hours,
-      previous,
-      previousHours,
-      reason: "",
-      busy: false,
-      error: null,
-    });
+    openOverride(
+      { kind: status === null ? "clear" : "mark", employeeId, status, hours, previous, previousHours },
+      [employeeId],
+    );
     return true;
-  }, [accessNow]);
+  }, [accessNow, openOverride]);
 
   const statusOf = useCallback((row: MarkRow): CellStatus => recordStatus(row.record), []);
   const draftOf = useCallback((row: MarkRow): Draft => draftFromRecord(row.record), []);
@@ -681,21 +705,21 @@ export function useMarkState(options: { phone: boolean }): MarkState {
       return next;
     });
 
-  const runBulk = async (request: BulkMarkRequest, label: (n: number) => string, count = 0, scope = "") => {
+  const runBulk = async (request: BulkMarkRequest, label: (n: number) => string, ids: number[] = [], scope = "") => {
     if (lock?.mode === "override") {
       // A past day, the super admin: the same confirm sheet, for everyone picked at once.
-      setOverride({
-        kind: "bulk",
-        employeeId: null,
-        status: "P",
-        hours: 0,
-        previous: "N",
-        previousHours: 0,
-        bulk: { request, count, scope, done: label },
-        reason: "",
-        busy: false,
-        error: null,
-      });
+      openOverride(
+        {
+          kind: "bulk",
+          employeeId: null,
+          status: "P",
+          hours: 0,
+          previous: "N",
+          previousHours: 0,
+          bulk: { request, count: ids.length, scope, done: label },
+        },
+        ids,
+      );
       return;
     }
     setBulkBusy(true);
@@ -721,7 +745,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     void runBulk(
       { date_bs: data.day.bs_date, branch_id: branchId, employee_ids: ids },
       (n) => `Marked ${n} as Present`,
-      ids.length,
+      ids,
       `${ids.length} selected`,
     );
   };
@@ -731,7 +755,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     void runBulk(
       { date_bs: data.day.bs_date, branch_id: branchId, department_id: departmentId },
       (n) => `Marked ${n} in ${name} as Present`,
-      counts.not_marked,
+      scopeRows.filter((row) => statusOf(row) === "N").map((row) => row.employee.id),
       `${counts.not_marked} not marked in ${name}`,
     );
   };
@@ -742,7 +766,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const overrideCancel = () => setOverride((o) => (o?.busy ? o : null));
   const overrideConfirm = () => {
     const o = override;
-    if (!o || o.busy || !data) return;
+    if (!o || o.busy || o.checking || !data) return;
     const problem = reasonError(o.reason);
     if (problem) {
       setOverride({ ...o, error: problem });

@@ -145,15 +145,18 @@ async def ledger_for(
     payments: Iterable[Payment],
     *,
     saturday_rule: rules.SaturdayRule,
+    attendance: MonthSummary | None = None,
 ) -> MonthLedger | None:
     """None before the joining month or while the employee has no salary row yet. The running
-    month is "so far" (salary prorated by the days counted, rules.monthly_pay)."""
+    month is "so far" (salary prorated by the days counted, rules.monthly_pay). ``attendance``
+    replaces the month's real attendance for a what-if (PayrollPayments.what_if)."""
     if month_index(year, month) < month_index(*joined_month(employee)):
         return None
     structure = structure_for(structures, year, month)
     if structure is None:
         return None
-    attendance = await get_attendance_summary().for_month(employee.id, year, month)
+    if attendance is None:
+        attendance = await get_attendance_summary().for_month(employee.id, year, month)
     pay_type = structure.pay_type.value
     rate = rate_of(structure)
     in_progress = (year, month) == current_month()

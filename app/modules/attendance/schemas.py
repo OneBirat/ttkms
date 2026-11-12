@@ -310,6 +310,63 @@ class EmployeeMonth(BaseModel):
     payments: list[PaymentOut]
 
 
+class OverrideChange(BaseModel):
+    employee_id: int
+    #: The new mark; null = remove the mark.
+    status: MarkStatus | None
+    ot_hours: int = 0
+
+
+class OverridePreviewRequest(BaseModel):
+    """What the super admin is about to change on a past day (one person, or several for a
+    bulk "Mark as Present")."""
+
+    date_bs: str
+    changes: list[OverrideChange] = Field(min_length=1, max_length=500)
+
+
+class PayrollImpact(BaseModel):
+    """What the change does to the pay of the month of that day."""
+
+    #: "Ashwin 2083"
+    month_label: str
+    for_year: int
+    for_month: int
+    #: Already paid against the month (salary + advances, voided ones left out).
+    paid: int
+    net_before: int
+    net_after: int
+    #: net_after - net_before (negative = the net pay goes down).
+    net_change: int
+    due_before: int
+    due_after: int
+    #: Paid more than the new net pay by this much (0 when not).
+    overpaid: int
+    #: The sentence for the confirm sheet when the month is already paid (fully or partly) and
+    #: the net pay changes; null otherwise. It warns, it never blocks.
+    warning: str | None
+
+
+class OverridePreviewItem(BaseModel):
+    employee_id: int
+    name: str
+    old_status: Literal["P", "O", "A", "N"]
+    old_hours: int = 0
+    new_status: Literal["P", "O", "A", "N"]
+    new_hours: int = 0
+    #: null when payroll has nothing for that month (no salary set up, payroll paused).
+    payroll: PayrollImpact | None
+
+
+class OverridePreview(BaseModel):
+    date: date
+    date_bs: str
+    items: list[OverridePreviewItem]
+    #: Every item's warning, one per line (the employee's name in front when there are
+    #: several); null when nothing already paid changes.
+    warning: str | None
+
+
 class HistoryEntry(BaseModel):
     """One row of ``attendance.record_changes``: a mark created, changed or removed."""
 

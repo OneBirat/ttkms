@@ -139,6 +139,40 @@ class PayrollPaymentsService:
                 out.setdefault(p.employee_id, []).append(record_of(payments.payment_out(p, modes)))
             return out
 
+    async def what_if(
+        self,
+        employee_id: int,
+        bs_year: int,
+        bs_month: int,
+        attendance: contracts.MonthSummary | None,
+    ) -> contracts.MonthBalance | None:
+        async with session() as db:
+            employee = await db.get(Employee, employee_id)
+            if employee is None:
+                return None
+            structures, pays = await payments.employee_data(db, employee)
+            ledger = await ledgers.ledger_for(
+                employee,
+                bs_year,
+                bs_month,
+                structures,
+                pays,
+                saturday_rule=await ledgers.saturday_rule(db),
+                attendance=attendance,
+            )
+            if ledger is None:
+                return None
+            return contracts.MonthBalance(
+                employee_id=employee_id,
+                bs_year=bs_year,
+                bs_month=bs_month,
+                month_key=contracts.month_key(bs_year, bs_month),
+                month_label=contracts.month_label(bs_year, bs_month),
+                earned=ledger.net,
+                paid=ledger.paid,
+                due=ledger.due,
+            )
+
 
 PAYROLL_PAYMENTS = PayrollPaymentsService()
 

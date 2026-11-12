@@ -174,8 +174,24 @@
   color: var(--color-text);
 }
 
+.ovChecking {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.ovWarning p {
+  margin: 0;
+}
+
+.ovWarning p + p {
+  margin-top: 6px;
+}
+
 .ovWarning {
   margin: 0;
+  max-height: 180px;
+  overflow-y: auto;
   padding: 10px 12px;
   border: 1px solid #e6b3a1;
   border-radius: 10px;

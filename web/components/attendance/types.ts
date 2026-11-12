@@ -318,6 +318,50 @@ export interface DayCell {
   override?: CellOverride | null;
 }
 
+/** One person's change in POST /api/attendance/override-preview (status null = remove the mark). */
+export interface OverrideChange {
+  employee_id: number;
+  status: MarkStatus | null;
+  ot_hours: number;
+}
+
+/** What the change does to the pay of the month of that day (payroll recalculates from attendance). */
+export interface PayrollImpact {
+  /** "Ashwin 2083" */
+  month_label: string;
+  for_year: number;
+  for_month: number;
+  /** Already paid against the month. */
+  paid: number;
+  net_before: number;
+  net_after: number;
+  net_change: number;
+  due_before: number;
+  due_after: number;
+  overpaid: number;
+  /** Set when the month is already paid (fully or partly) and the net pay changes. */
+  warning: string | null;
+}
+
+/**
+ * POST /api/attendance/override-preview – asked when the super admin's confirm sheet opens.
+ * Nothing is written; `warning` is the sheet's payroll warning (one line per person), or null.
+ */
+export interface OverridePreview {
+  date: string;
+  date_bs: string;
+  items: {
+    employee_id: number;
+    name: string;
+    old_status: MarkStatus | "N";
+    old_hours: number;
+    new_status: MarkStatus | "N";
+    new_hours: number;
+    payroll: PayrollImpact | null;
+  }[];
+  warning: string | null;
+}
+
 /** GET /api/attendance/history?employee_id=&date_bs= – every change to one mark, oldest first. */
 export interface HistoryEntry {
   id: number;

@@ -101,6 +101,9 @@ async def test_fake_balance_is_deterministic_and_adds_up():
     assert [p.date_bs for p in history[3]] == ["2083-07-03", "2083-07-09", "2083-07-15"]
     assert all(isinstance(p, PaymentRecord) and p.payment_mode == "Cash" for p in history[3])
     assert history[3][2].receipt_no == "SAL-0303"
+    # The fake's pay does not depend on attendance: a what-if is the balance as it is.
+    assert await fake.what_if(4, 2083, 7, None) == first
+    assert isinstance(fake, contracts.PayrollPayments)
 
 
 async def test_fake_record_reduces_due_and_shows_in_the_month_lookup():
@@ -178,6 +181,11 @@ async def test_payroll_registry_returns_fake_until_payroll_registers():
             self, for_year: int, for_month: int, employee_ids=None
         ) -> dict[int, list[PaymentRecord]]:
             return {}
+
+        async def what_if(
+            self, employee_id: int, bs_year: int, bs_month: int, attendance=None
+        ) -> MonthBalance | None:
+            return None
 
     real = Real()
     assert isinstance(real, PayrollPayments)

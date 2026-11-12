@@ -78,6 +78,26 @@ old / new status and hours, `source`, `reason`, `is_override`.
 
 Tests: `tests/attendance/test_history.py`.
 
+## Payroll and overrides
+
+Salary and dues are never stored: payroll recalculates them from attendance on every read
+(`AttendanceSummary.for_month`), so an override moves that month's net pay and due by itself - also
+for a month that is already paid.
+
+`POST /override-preview` `{date_bs, changes: [{employee_id, status | null, ot_hours}]}` (super admin
+only; a future day is 403) is asked when the confirm sheet opens and writes nothing. Per person:
+old → new and `payroll {month_label, paid, net_before, net_after, net_change, due_before,
+due_after, overpaid, warning}` (null without a salary / with payroll paused). `warning` is set when
+the month of that day already has something paid (salary or advance, fully or partly) **and** the
+net pay changes: "Ashwin 2083 salary is already paid. This changes the net pay by Rs -1,000; the
+due will become Rs 4,000." (plus "Rs 1,000 is already paid above the new net pay." when it ends up
+overpaid). The top-level `warning` joins them, one line per person with the name in front for a
+bulk change. It warns; nothing is blocked. The figures come from payroll's
+`PayrollPayments.what_if(employee_id, year, month, MonthSummary)` (app/contracts.py) fed with
+`attendance.contract.month_if` - the month as it would be with that one day changed.
+
+Tests: `tests/payroll/test_override_pay.py`.
+
 ## Permissions (app/modules/admin/permissions.py)
 
 `mark_attendance` – day list, mark / change / clear, bulk, scan, lookup, marked-day dots, employee month.
@@ -135,6 +155,7 @@ Every response carries the AD `date` and the BS `date_bs` (records: `date_ad` / 
 | GET | `/lookup?employee_id=` | after payroll's `GET /api/payroll/employees/by-barcode/{code}` (TTK-E001, legacy TTK-E-001, E-001, 1) | `{code, employee, today: record \| null}` | mark |
 | POST | `/scan` | `{employee_id, action: present\|overtime, ot_hours}` | `{employee, record, previous}` – today, source scan | mark |
 | GET | `/employees/{id}/month?bs_year=&bs_month=` | | `EmployeeMonth`: cells (P/O/A/W/N + advance / salary paid that day), totals, payments newest first | mark, report or manage_employees |
+| POST | `/override-preview` | `{date_bs, changes: [{employee_id, status \| null, ot_hours}]}` | `OverridePreview`: old → new per person, the pay impact, the warning for a paid month | mark + super admin |
 | GET | `/history?employee_id=&date_bs=` | | `MarkHistory`: every change to that mark, oldest first | mark, report or manage_employees |
 | GET | `/marked-days?bs_year=&bs_month=&branch=\|employee_id=` | | `{marked_days: [BS dates]}` – BSDatePicker dots | mark or report |
 | GET | `/report?bs_year=&bs_month=&branch=` | branch left out = the caller's active branch (`?branch=` only with see_other_branches; never every branch) | `MonthReport`: month with days, rows (cells + totals incl. `saturday_days_worked` / `saturday_ot_hours`), `staff_present` per day, payment badges from `PayrollPayments.for_month`, `branch_id`, `today` | report |
@@ -156,7 +177,8 @@ future part of the running month), days before joining are `N`.
   `paid_days = present + overtime_days + weekly_off`.
 - `AttendanceSummary.today(employee_ids, day=None)` – present / overtime / absent / weekly_off /
   not_marked, for payroll's Today column.
-- Payroll's `PayrollPayments` (for the report badges, employee month and the day list's payment flags).
+- Payroll's `PayrollPayments` (for the report badges, employee month and the day list's payment
+  flags; `what_if` for the override preview).
 
 ## Dashboard
 

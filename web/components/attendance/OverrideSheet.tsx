@@ -18,8 +18,6 @@ export interface OverrideSheetProps {
   weeklyOff: boolean;
   /** Phone: a bottom sheet; desktop: a centred dialog. */
   phone: boolean;
-  /** Shown above the reason when the change touches a month that is already paid. */
-  warning?: string | null;
   onReason: (reason: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
@@ -27,7 +25,9 @@ export interface OverrideSheetProps {
 
 /**
  * The super admin's confirm sheet for a change on a past day: old → new, the required reason
- * (at least 5 characters, kept in the history), and "Change as super admin".
+ * (at least 5 characters, kept in the history), the payroll warning when that month's salary is
+ * already paid ("… This changes the net pay by Rs X; the due will become Rs Y." - it warns, it
+ * does not block), and "Change as super admin".
  */
 export function OverrideSheet({
   ask,
@@ -35,7 +35,6 @@ export function OverrideSheet({
   dateLabel,
   weeklyOff,
   phone,
-  warning,
   onReason,
   onConfirm,
   onCancel,
@@ -87,10 +86,16 @@ export function OverrideSheet({
             <span className={styles.ovNew}>{to}</span>
           </span>
         </div>
-        {warning ? (
-          <p role="note" className={styles.ovWarning}>
-            {warning}
+        {ask.checking ? (
+          <p role="status" className={styles.ovChecking}>
+            Checking this month&apos;s salary…
           </p>
+        ) : ask.warning ? (
+          <div role="alert" className={styles.ovWarning}>
+            {ask.warning.split("\n").map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
         ) : null}
         <div className={styles.ovField}>
           <label htmlFor={reasonId} className={styles.ovLabel}>
@@ -123,7 +128,7 @@ export function OverrideSheet({
           <button type="button" className={styles.ovCancel} disabled={ask.busy} onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className={styles.ovConfirm} disabled={ask.busy} onClick={onConfirm}>
+          <button type="button" className={styles.ovConfirm} disabled={ask.busy || ask.checking} onClick={onConfirm}>
             {ask.busy ? "Saving…" : "Change as super admin"}
           </button>
         </div>
