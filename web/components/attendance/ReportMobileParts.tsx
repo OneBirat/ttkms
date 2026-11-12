@@ -5,6 +5,7 @@ import { WEEKDAYS_SHORT_EN, formatAdShort, kathmanduTime } from "@/lib/bs";
 import { filterReportRows } from "./exportModel";
 import { computeTotals, groupByDepartment, sortRows, type DepartmentGroup } from "./helpers";
 import { MenuIcon } from "./icons";
+import { OverrideDot } from "./OverrideDot";
 import {
   MOBILE_VIEWS,
   PALE_COLOUR,
@@ -202,6 +203,7 @@ export function MonthCalendar({ row, days, today }: { row: ReportRow; days: DayH
           const look = cellLook(row.cells[i], d, today);
           return (
             <span key={d.bs_date} className={styles.calCell} data-look={look} style={paleStyle(look, d.bs_date === today)}>
+              {row.cells[i]?.override ? <OverrideDot text={row.cells[i].override!.text} /> : null}
               <b className={styles.calBs}>{d.bs_day}</b>
               <span className={styles.calAd}>{formatAdShort(d.ad_date, false)}</span>
               <span className={styles.calMark}>{calendarMark(look, row.cells[i]?.ot_hours ?? 0)}</span>
@@ -270,6 +272,7 @@ export function WeekRow({ row, days, indices, today }: { row: ReportRow; days: D
         const look = cellLook(row.cells[i], days[i], today);
         return (
           <span key={slot} className={styles.weekBox} data-look={look} style={paleStyle(look, days[i].bs_date === today)}>
+            {row.cells[i]?.override ? <OverrideDot text={row.cells[i].override!.text} /> : null}
             {weekMark(look, row.cells[i]?.ot_hours ?? 0)}
           </span>
         );
@@ -294,18 +297,21 @@ export function dayMeta(row: ReportRow, look: CellLook, record: AttendanceRecord
 export function DayRow({ row, day, index, today, record }: { row: ReportRow; day: DayHeader; index: number; today: string; record?: AttendanceRecord }) {
   const look = cellLook(row.cells[index], day, today);
   const pale = PALE_COLOUR[look];
+  const changed = row.cells[index]?.override;
   return (
     <div className={styles.dayRow}>
       <Avatar employee={row.employee} />
       <span className={styles.person}>
         <span className={styles.name}>{row.employee.name}</span>
         <span className={styles.meta}>{dayMeta(row, look, record)}</span>
+        {changed ? <span className={styles.dayChanged}>{changed.text}</span> : null}
       </span>
       <span
         className={styles.dayPill}
         data-look={look}
         style={{ background: pale.bg, color: pale.fg, border: look === "N" ? "1px dashed #C0392B" : undefined }}
       >
+        {changed ? <OverrideDot text={changed.text} className={styles.dayPillDot} /> : null}
         {dayPillText(look, row.cells[index]?.ot_hours ?? 0)}
       </span>
     </div>

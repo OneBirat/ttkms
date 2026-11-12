@@ -28,6 +28,7 @@ import type {
   MarkOneResponse,
   MonthBalance,
   MonthOption,
+  MarkHistory,
   MonthReport,
   PaymentHistory,
   PaymentInput,
@@ -90,6 +91,11 @@ export async function clearMark(employeeId: number, dateBs: string, reason?: str
   return apiFetch<ClearMarkResponse>(`/api/attendance/mark${qs({ employee_id: employeeId, date_bs: dateBs, reason })}`, {
     method: "DELETE",
   });
+}
+
+/** GET /api/attendance/history -> every create, change and removal of one mark (read-only). */
+export async function getMarkHistory(employeeId: number, dateBs: string): Promise<MarkHistory> {
+  return apiFetch<MarkHistory>(`/api/attendance/history${qs({ employee_id: employeeId, date_bs: dateBs })}`);
 }
 
 /** POST /api/attendance/bulk-mark -> BulkMarkResponse (Present for the still-unmarked only, one transaction). */

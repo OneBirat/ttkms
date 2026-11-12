@@ -215,9 +215,29 @@ class BsMonthRef(BaseModel):
     working_days: int
 
 
+class CellOverride(BaseModel):
+    """The latest super-admin change to this day (the report's and calendar's small dot)."""
+
+    #: Full name of the super admin who made it.
+    by: str
+    at: datetime
+    #: The Kathmandu BS day of ``at``, "2083-07-26".
+    at_bs: str
+    #: "N" = it was not marked before / the mark was removed.
+    old_status: Literal["P", "O", "A", "N"]
+    old_hours: int = 0
+    new_status: Literal["P", "O", "A", "N"]
+    new_hours: int = 0
+    reason: str
+    #: "Changed by Owner Shrestha on Kartik 26, 2083: P → A · Was on site"
+    text: str
+
+
 class DayCell(BaseModel):
     status: CellStatus
     ot_hours: int = 0
+    #: Set when the super admin changed this day after it locked; left out otherwise.
+    override: CellOverride | None = None
     #: Rupees paid that day (payments counting for this month); left out when none.
     advance: int | None = None
     salary: int | None = None
@@ -288,6 +308,34 @@ class EmployeeMonth(BaseModel):
     totals: AttendanceTotals
     #: Newest first.
     payments: list[PaymentOut]
+
+
+class HistoryEntry(BaseModel):
+    """One row of ``attendance.record_changes``: a mark created, changed or removed."""
+
+    id: int
+    #: "N" = not marked before / the mark was removed.
+    old_status: Literal["P", "O", "A", "N"]
+    old_hours: int = 0
+    new_status: Literal["P", "O", "A", "N"]
+    new_hours: int = 0
+    #: Who (full name at the time) and when.
+    by: str
+    at: datetime
+    at_bs: str
+    via: MarkedVia
+    #: True for a super-admin change to a past day; then ``reason`` is set.
+    is_override: bool
+    reason: str
+
+
+class MarkHistory(BaseModel):
+    """GET /history: every change to one employee's mark on one day, oldest first."""
+
+    employee_id: int
+    date: date
+    date_bs: str
+    entries: list[HistoryEntry]
 
 
 class MarkedDays(BaseModel):

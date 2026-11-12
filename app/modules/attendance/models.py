@@ -6,7 +6,8 @@
   person came in (P / O). The BS date is derived on output (docs/bs-calendar.md).
 * ``record_changes`` - the history: one row per insert, change or clear (``new_status``
   null), with who and when; a super-admin change to a past day also carries the reason and
-  ``is_override``.
+  ``is_override``. Append-only: database triggers (attendance_0004) refuse every UPDATE,
+  DELETE and TRUNCATE, so history rows cannot be edited or deleted.
 
 Employees live in ``core.employees`` (``ON DELETE RESTRICT``). Migration order: ``core`` ->
 ``admin`` -> ``payroll`` -> ``attendance`` (README).
@@ -110,7 +111,8 @@ class Record(Base):
 
 class RecordChange(Base):
     """One change to a day's mark. ``old_status`` null = it was not marked; ``new_status`` null
-    = the mark was cleared. ``record_id`` is kept as a plain number (a cleared record is gone)."""
+    = the mark was cleared. ``record_id`` is kept as a plain number (a cleared record is gone).
+    Rows are only ever inserted (the table's triggers refuse anything else)."""
 
     __tablename__ = "record_changes"
     __table_args__ = (
@@ -138,6 +140,10 @@ class RecordChange(Base):
     changed_by: Mapped[int | None] = mapped_column(ForeignKey("core.users.id", ondelete="SET NULL"))
     changed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    #: The person's name when they made the change (stays when the user row goes).
+    changed_by_name: Mapped[str] = mapped_column(
+        String(120), nullable=False, default="", server_default=text("''")
     )
     #: Why, for an override (required there); "" for an ordinary change.
     reason: Mapped[str] = mapped_column(

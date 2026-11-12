@@ -1569,6 +1569,19 @@
   font-weight: 700;
 }
 
+/* The dot on a day the super admin changed (tap the day to read who, when and why). */
+.recDot {
+  top: auto;
+  bottom: 4px;
+  left: 4px;
+}
+
+.recDotLeg {
+  position: static;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .recBadge {
   position: absolute;
   top: 3px;

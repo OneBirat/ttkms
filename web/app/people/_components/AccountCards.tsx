@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { OverrideDot } from "@/components/attendance/OverrideDot";
 import { formatBs } from "@/lib/bs";
 import { currentMonth, getAttendanceMonth, getSalaryDues } from "../api";
 import { calendarBounds, calendarChips, calendarWeeks, stepMonth, type CalendarDay } from "../_lib/account";
@@ -38,7 +39,12 @@ export function AttendanceCalendarCard({
     const m = data.data;
     if (!m) return [];
     return calendarWeeks(
-      m.month.days.map((d, i) => ({ ...d, status: m.cells[i]?.status ?? "N", ot_hours: m.cells[i]?.ot_hours ?? 0 })),
+      m.month.days.map((d, i) => ({
+        ...d,
+        status: m.cells[i]?.status ?? "N",
+        ot_hours: m.cells[i]?.ot_hours ?? 0,
+        changed: m.cells[i]?.override?.text ?? null,
+      })),
       todayBs,
       employee.joined.bs,
     );
@@ -124,9 +130,10 @@ export function AttendanceCalendarCard({
 
 function DayCell({ day }: { day: CalendarDay }) {
   const text = day.mark === "O" ? `O ${day.ot_hours}h` : day.mark;
-  const title = `${formatBs(day.bs_date)} · ${day.ad_date}${day.mark ? ` · ${text}` : ""}`;
+  const title = `${formatBs(day.bs_date)} · ${day.ad_date}${day.mark ? ` · ${text}` : ""}${day.changed ? ` · ${day.changed}` : ""}`;
   return (
     <div className={styles.calDay} data-today={day.today ? "true" : undefined} data-sat={day.saturday ? "true" : undefined} title={title} data-bs={day.bs_date}>
+      {day.changed ? <OverrideDot text={day.changed} className={styles.calDot} /> : null}
       <span className={styles.calNums}>
         <span className={styles.calBs}>{day.bs_day}</span>
         <span className={styles.calAd}>{day.ad_label}</span>

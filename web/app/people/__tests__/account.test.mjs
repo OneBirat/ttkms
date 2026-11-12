@@ -160,3 +160,11 @@ test("Last 6 payments: a salary payment split over months is one entry", () => {
   const html = renderToStaticMarkup(createElement(LastPaymentsCard, { ledger, onOpenLedger: () => {} }));
   assert.match(html, /for Bhadra 2083 – Ashwin 2083 · Cash/);
 });
+
+test("calendar: a day the super admin changed keeps the words for its dot", () => {
+  const text = "Changed by Owner Shrestha on Kartik 12, 2083: P → A · Was absent";
+  const withChange = days.map((d) => (d.bs_day === 5 ? { ...d, changed: text } : d));
+  const flat = calendarWeeks(withChange, "2083-07-15", "2083-07-03").flat().filter(Boolean);
+  assert.equal(flat.find((d) => d.bs_day === 5).changed, text);
+  assert.ok(flat.filter((d) => d.bs_day !== 5).every((d) => d.changed === null));
+});

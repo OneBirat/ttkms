@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildMonth } from "../calendar";
 import { computeTotals } from "../helpers";
-import { MobileHeader, MonthCalendar, MonthStrip, WeekRow, dayMeta, departmentChips, mobileGroups, type MobileHeaderProps } from "../ReportMobileParts";
+import { DayRow, MobileHeader, MonthCalendar, MonthStrip, WeekRow, dayMeta, departmentChips, mobileGroups, type MobileHeaderProps } from "../ReportMobileParts";
 import {
   STRIP_COLOUR,
   calendarMark,
@@ -256,6 +256,25 @@ describe("phone report: cell colours per status", () => {
     const last = renderToStaticMarkup(createElement(WeekRow, { row: anita, days: kartik.days, indices: [28, 29], today: bounds.today }));
     assert.equal([...last.matchAll(/data-look="F"/g)].length, 2);
     assert.equal([...last.matchAll(/weekEmpty/g)].length, 5);
+  });
+
+  it("a day the super admin changed carries a dot that says who, when, what and why", () => {
+    const text = "Changed by Owner Shrestha on Kartik 8, 2083: P → A · Was absent, marked by mistake";
+    const override = { by: "Owner Shrestha", at: "2026-10-25T04:00:00Z", at_bs: "2083-07-08", old_status: "P" as const, old_hours: 0, new_status: "A" as const, new_hours: 0, reason: "Was absent, marked by mistake", text };
+    const changed: ReportRow = { ...anita, cells: anita.cells.map((c, i) => (i === 2 ? { ...c, override } : c)) };
+    const label = `aria-label="${text}"`;
+    const calendar = renderToStaticMarkup(createElement(MonthCalendar, { row: changed, days: kartik.days, today: bounds.today }));
+    assert.equal([...calendar.matchAll(/data-override-dot/g)].length, 1);
+    assert.ok(calendar.includes(label));
+    const week = renderToStaticMarkup(createElement(WeekRow, { row: changed, days: kartik.days, indices: [0, 1, 2, 3, 4, 5, 6], today: bounds.today }));
+    assert.equal([...week.matchAll(/data-override-dot/g)].length, 1);
+    const day = renderToStaticMarkup(createElement(DayRow, { row: changed, day: kartik.days[2], index: 2, today: bounds.today }));
+    assert.ok(day.includes(label) && day.includes(`>${text}<`));
+    // No override, no dot.
+    const plain = renderToStaticMarkup(createElement(MonthCalendar, { row: anita, days: kartik.days, today: bounds.today }));
+    assert.equal(plain.includes("data-override-dot"), false);
+    const other = renderToStaticMarkup(createElement(DayRow, { row: changed, day: kartik.days[3], index: 3, today: bounds.today }));
+    assert.equal(other.includes("Changed by"), false);
   });
 
   it("day meta: marked time and how, absent, not marked, designation", () => {

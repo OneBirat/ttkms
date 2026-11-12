@@ -290,6 +290,23 @@ export interface ScanResponse {
 
 // ------------------------------------------------------------ report
 
+/** The latest super-admin change to a day after it locked (the small dot on the cell). */
+export interface CellOverride {
+  /** Full name of the super admin. */
+  by: string;
+  /** ISO timestamp, and its BS day ("2083-07-26"). */
+  at: string;
+  at_bs: string;
+  /** "N" = not marked before / the mark was removed. */
+  old_status: MarkStatus | "N";
+  old_hours: number;
+  new_status: MarkStatus | "N";
+  new_hours: number;
+  reason: string;
+  /** "Changed by Owner Shrestha on Kartik 26, 2083: P → A · Was on site" */
+  text: string;
+}
+
 export interface DayCell {
   status: CellStatus;
   /** Overtime hours when status is "O", else 0. */
@@ -297,6 +314,31 @@ export interface DayCell {
   /** Rupees of advance / salary paid that day (report payment icons); absent or 0 when none. */
   advance?: number;
   salary?: number;
+  /** Set when the super admin changed this day after it locked. */
+  override?: CellOverride | null;
+}
+
+/** GET /api/attendance/history?employee_id=&date_bs= – every change to one mark, oldest first. */
+export interface HistoryEntry {
+  id: number;
+  old_status: MarkStatus | "N";
+  old_hours: number;
+  new_status: MarkStatus | "N";
+  new_hours: number;
+  /** Who (full name at the time) and when. */
+  by: string;
+  at: string;
+  at_bs: string;
+  via: "manual" | "scan" | "bulk";
+  is_override: boolean;
+  reason: string;
+}
+
+export interface MarkHistory {
+  employee_id: number;
+  date: string;
+  date_bs: string;
+  entries: HistoryEntry[];
 }
 
 /** Per-employee counts over a range of days. */

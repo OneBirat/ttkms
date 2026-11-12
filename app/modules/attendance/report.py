@@ -19,7 +19,7 @@ from app.core import bsdate
 from app.core.models import Department, Employee, EmployeeStatus
 from app.modules.attendance import schemas, services
 from app.modules.attendance.access import Scope, one_branch, other_branch
-from app.modules.attendance.models import Record
+from app.modules.attendance.models import Record, RecordChange
 
 
 def month_or_404(bs_year: int, bs_month: int) -> tuple[date, date]:
@@ -59,11 +59,101 @@ def payments_by_day(payments: Iterable[PaymentRecord]) -> dict[date, dict[str, i
     return out
 
 
+def mark_code(status: str | None, hours: int) -> str:
+    """ "P", "O3", "A"; "Not marked" for no mark."""
+    if status is None:
+        return "Not marked"
+    return f"O{hours}" if status == "O" and hours else status
+
+
+def override_out(change: RecordChange) -> schemas.CellOverride:
+    at_bs = bsdate.ad_to_bs(change.changed_at)
+    by = change.changed_by_name or "the super admin"
+    return schemas.CellOverride(
+        by=by,
+        at=change.changed_at,
+        at_bs=at_bs.isoformat(),
+        old_status=change.old_status or "N",
+        old_hours=change.old_hours,
+        new_status=change.new_status or "N",
+        new_hours=change.new_hours,
+        reason=change.reason,
+        text=(
+            f"Changed by {by} on {at_bs.format()}: "
+            f"{mark_code(change.old_status, change.old_hours)} → "
+            f"{mark_code(change.new_status, change.new_hours)} · {change.reason}"
+        ),
+    )
+
+
+async def month_overrides(
+    db: AsyncSession, start: date, end: date, employee_ids: Iterable[int]
+) -> dict[int, dict[date, schemas.CellOverride]]:
+    """The latest override per employee and day of the month (the cells' dots)."""
+    ids = list(employee_ids)
+    out: dict[int, dict[date, schemas.CellOverride]] = defaultdict(dict)
+    if not ids:
+        return out
+    rows = await db.scalars(
+        select(RecordChange)
+        .where(
+            RecordChange.is_override.is_(True),
+            RecordChange.employee_id.in_(ids),
+            RecordChange.date >= start,
+            RecordChange.date <= end,
+        )
+        .order_by(RecordChange.id)
+    )
+    for change in rows:  # ascending: the last one per day wins
+        out[change.employee_id][change.date] = override_out(change)
+    return out
+
+
+def history_entry(change: RecordChange) -> schemas.HistoryEntry:
+    return schemas.HistoryEntry(
+        id=change.id,
+        old_status=change.old_status or "N",
+        old_hours=change.old_hours,
+        new_status=change.new_status or "N",
+        new_hours=change.new_hours,
+        by=change.changed_by_name,
+        at=change.changed_at,
+        at_bs=bsdate.ad_to_bs(change.changed_at).isoformat(),
+        via=change.source,
+        is_override=change.is_override,
+        reason=change.reason,
+    )
+
+
+async def mark_history(
+    db: AsyncSession, scope: Scope, employee_id: int, date_bs: str
+) -> schemas.MarkHistory:
+    """Every change to one employee's mark on one day, oldest first."""
+    employee = await db.get(Employee, employee_id)
+    if employee is None:
+        raise services.not_found("No such employee.")
+    if not scope.allows(employee.branch_id):
+        raise other_branch(employee)
+    ad = services.parse_day(date_bs)
+    rows = await db.scalars(
+        select(RecordChange)
+        .where(RecordChange.employee_id == employee.id, RecordChange.date == ad)
+        .order_by(RecordChange.id)
+    )
+    return schemas.MarkHistory(
+        employee_id=employee.id,
+        date=ad,
+        date_bs=services.bs_of(ad),
+        entries=[history_entry(c) for c in rows],
+    )
+
+
 def cells_for(
     days: Sequence[schemas.DayHeader],
     records: dict[date, Record],
     paid: dict[date, dict[str, int]],
     joined: date,
+    overrides: dict[date, schemas.CellOverride] | None = None,
 ) -> list[schemas.DayCell]:
     cells = []
     for day in days:
@@ -78,6 +168,8 @@ def cells_for(
         if money:
             cell.advance = money["advance"] or None
             cell.salary = money["salary"] or None
+        if overrides:
+            cell.override = overrides.get(day.ad_date)
         cells.append(cell)
     return cells
 
@@ -162,10 +254,15 @@ async def month_report(
     ids = [e.id for e in employees]
     records = await month_records(db, start, end, ids, branch_id)
     payments = await get_payroll_payments().for_month(bs_year, bs_month, ids) if money else {}
+    overrides = await month_overrides(db, start, end, ids)
     rows = []
     for e in employees:
         cells = cells_for(
-            month.days, records.get(e.id, {}), payments_by_day(payments.get(e.id, [])), e.joined_ad
+            month.days,
+            records.get(e.id, {}),
+            payments_by_day(payments.get(e.id, [])),
+            e.joined_ad,
+            overrides.get(e.id),
         )
         rows.append(
             schemas.ReportRow(
@@ -214,7 +311,8 @@ async def employee_month(
         if money
         else []
     )
-    cells = cells_for(month.days, records, payments_by_day(payments), employee.joined_ad)
+    overrides = (await month_overrides(db, start, end, [employee.id])).get(employee.id)
+    cells = cells_for(month.days, records, payments_by_day(payments), employee.joined_ad, overrides)
     return schemas.EmployeeMonth(
         employee=services.employee_ref(employee),
         month=month,

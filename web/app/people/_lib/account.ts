@@ -77,6 +77,8 @@ export interface CalendarDayIn {
   /** P / O / A / W / N from the attendance employee-month endpoint. */
   status: string;
   ot_hours: number;
+  /** "Changed by … on …: P → A · reason" when the super admin changed the day after it locked. */
+  changed?: string | null;
 }
 
 export interface CalendarDay {
@@ -89,6 +91,8 @@ export interface CalendarDay {
   ot_hours: number;
   saturday: boolean;
   today: boolean;
+  /** The super admin's change to this day (the small dot), else null. */
+  changed: string | null;
 }
 
 const AD_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -114,6 +118,7 @@ export function calendarWeeks(days: readonly CalendarDayIn[], todayBs: string, j
       ot_hours: mark === "O" ? d.ot_hours : 0,
       saturday: d.weekday === 6,
       today: d.bs_date === todayBs,
+      changed: d.changed ?? null,
     });
   });
   while (out.length % 7 !== 0) out.push(null);

@@ -10,12 +10,14 @@ import { bsMonthDays } from "../calendar";
 import { CheckIcon } from "../icons";
 import { draftText, formatAmount, formatRs } from "../helpers";
 import { photoTint } from "../MarkRow";
+import { OverrideDot } from "../OverrideDot";
 import type { DayCell, DayHeader, PaymentRecord, PaymentType } from "../types";
 import { useDialog } from "../useDialog";
 import type { MarkState } from "../useMarkState";
 import { useSecondsLeft } from "./useCountdown";
 import { AUTO_RETURN, amountError, amountOf, type Scan } from "./scanFlow";
 import { allocate } from "@/app/people/_lib/settle";
+import lockStyles from "../lock.module.css";
 import styles from "./scan.module.css";
 
 /** Quick overtime picks; anything longer goes through "Custom hours (4–12 h)". */
@@ -758,13 +760,13 @@ function AttendanceRecord({ scan, state, titleId }: StepProps<"attrec">) {
           const hasSal = d.payments.some((p) => p.kind === "salary");
           const label = `${monthName(month)} ${d.header.bs_day}: ${attendanceText(d.kind, d.cell)}${
             d.payments.length ? `, ${d.payments.length} ${d.payments.length === 1 ? "payment" : "payments"}` : ""
-          }`;
+          }${d.cell?.override ? `. ${d.cell.override.text}` : ""}`;
           return (
             <button
               key={d.header.bs_date}
               type="button"
               aria-label={label}
-              disabled={d.payments.length === 0}
+              disabled={d.payments.length === 0 && !d.cell?.override}
               className={styles.recCell}
               data-k={d.kind}
               data-pop={scan.dayPop === d.header.bs_day || undefined}
@@ -779,6 +781,9 @@ function AttendanceRecord({ scan, state, titleId }: StepProps<"attrec">) {
                 <span className={`${styles.recBadge} ${styles.recBadgeSal}`} title="Salary taken">
                   <SalaryIcon size={10} />
                 </span>
+              ) : null}
+              {d.cell?.override ? (
+                <OverrideDot text={d.cell.override.text} interactive={false} className={styles.recDot} />
               ) : null}
               <span lang="ne" className={styles.recCellNp}>
                 {toNepaliDigits(d.header.bs_day)}
@@ -801,6 +806,11 @@ function AttendanceRecord({ scan, state, titleId }: StepProps<"attrec">) {
         <span>
           <b className={styles.recLegOff}>Off</b> <span lang="ne">शनि</span>
         </span>
+        {days.some((d) => d.cell?.override) ? (
+          <span>
+            <OverrideDot text="" interactive={false} className={styles.recDotLeg} /> Changed by super admin
+          </span>
+        ) : null}
         <span>
           <span className={`${styles.recBadge} ${styles.recBadgeAdv} ${styles.recBadgeLeg}`}>
             <AdvanceIcon size={10} />
@@ -868,7 +878,13 @@ function DayDetail({
           <span>Attendance</span>
           <b>{attendanceText(day.kind, day.cell)}</b>
         </div>
-        <span className={styles.fieldLabel}>Money taken this day</span>
+        {day.cell?.override ? (
+          <p className={lockStyles.changedNote}>
+            <OverrideDot text={day.cell.override.text} interactive={false} />
+            {day.cell.override.text}
+          </p>
+        ) : null}
+        {day.payments.length ? <span className={styles.fieldLabel}>Money taken this day</span> : null}
         <div className={styles.dpList}>
           {day.payments.map((p) => {
             const sal = p.kind === "salary";
@@ -891,10 +907,12 @@ function DayDetail({
             );
           })}
         </div>
-        <div className={styles.dpTotal}>
-          <span>Total this day</span>
-          <b>Rs {formatAmount(total)}</b>
-        </div>
+        {day.payments.length ? (
+          <div className={styles.dpTotal}>
+            <span>Total this day</span>
+            <b>Rs {formatAmount(total)}</b>
+          </div>
+        ) : null}
         <button type="button" className={styles.histBackPrimary} onClick={onClose} data-autofocus="">
           Close
         </button>

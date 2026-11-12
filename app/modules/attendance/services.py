@@ -328,6 +328,7 @@ def change_row(
         new_note=record.note if record else "",
         source=source,
         changed_by=user.id if user else None,
+        changed_by_name=user.full_name if user else "",
         reason=override.reason if override else "",
         is_override=override is not None,
     )

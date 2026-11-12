@@ -95,6 +95,7 @@ async def test_month_report_cells_totals_and_badges(client, db, login, user_in, 
         "ot_hours": 3,
         "advance": 1500,
         "salary": None,
+        "override": None,
     }
     assert cells[WORKDAYS[2].isoformat()]["status"] == "A"
     assert cells[SATURDAYS[0].isoformat()] == {
@@ -102,6 +103,7 @@ async def test_month_report_cells_totals_and_badges(client, db, login, user_in, 
         "ot_hours": 5,
         "advance": None,
         "salary": None,
+        "override": None,
     }
     assert cells[SATURDAYS[1].isoformat()]["status"] == "W"
     assert cells[WORKDAYS[3].isoformat()]["status"] == "N"

@@ -441,6 +441,7 @@
 }
 
 .calCell {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -533,6 +534,7 @@
 }
 
 .weekBox {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -551,7 +553,20 @@
   padding: 10px 12px;
 }
 
+/* "Changed by … on …: P → A · reason" under the day row of a cell the super admin changed. */
+.dayChanged {
+  color: #4a2fa8;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.dayPillDot {
+  top: -2px;
+  left: -2px;
+}
+
 .dayPill {
+  position: relative;
   flex: none;
   padding: 4px 10px;
   border-radius: 999px;

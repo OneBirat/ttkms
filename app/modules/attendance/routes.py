@@ -121,6 +121,16 @@ async def employee_month(
     )
 
 
+@router.get("/history", response_model=schemas.MarkHistory, responses=ERRORS)
+async def mark_history(
+    me: MonthReader, db: DbSession, employee_id: int, date_bs: str
+) -> schemas.MarkHistory:
+    """Every create, change and removal of one employee's mark on one day: who, when, old ->
+    new, the reason and whether it was a super-admin override. Read-only: history rows cannot
+    be edited or deleted."""
+    return await report.mark_history(db, await scope_for(db, me, None), employee_id, date_bs)
+
+
 @router.get("/marked-days", response_model=schemas.MarkedDays, responses=ERRORS)
 async def marked_days(
     me: AnyAttendance,

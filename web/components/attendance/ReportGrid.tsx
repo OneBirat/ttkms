@@ -4,6 +4,7 @@ import { Fragment, type ReactNode } from "react";
 import { WEEKDAYS_EN, formatAdShort, weekdayInitial } from "@/lib/bs";
 import { bsDayLabel, cellText, formatRate, initials, isLowPresence, type DepartmentGroup } from "./helpers";
 import { photoTint } from "./MarkRow";
+import { OverrideDot } from "./OverrideDot";
 import type { DayCell, DayHeader, ReportRow } from "./types";
 import styles from "./report.module.css";
 
@@ -85,6 +86,7 @@ function cellTitle(monthName: string, day: DayHeader, cell: DayCell, payIcons: b
   let title = `${bsDayLabel(monthName, day)}: ${cellText(cell)}`;
   if (payIcons && cell.salary) title += ` · salary Rs ${cell.salary.toLocaleString("en-IN")}`;
   if (payIcons && cell.advance) title += ` · advance Rs ${cell.advance.toLocaleString("en-IN")}`;
+  if (cell.override) title += ` · ${cell.override.text}`;
   return title;
 }
 
@@ -114,6 +116,7 @@ function Cell({
         </span>
         {cell.status === "O" ? <span className={styles.wcellHours}>+{cell.ot_hours} h</span> : null}
         {pay ? <PayBadges cell={cell} /> : null}
+        {cell.override ? <OverrideDot text={cell.override.text} /> : null}
         <span className="sr-only">{title}</span>
       </span>
     );
@@ -124,6 +127,7 @@ function Cell({
         {cell.status === "P" ? (pay ? null : <Tick />) : cell.status === "O" ? `${cell.ot_hours}h` : cell.status === "A" ? "A" : cell.status === "W" ? "–" : "·"}
       </span>
       {pay ? <PayBadges cell={cell} /> : null}
+      {cell.override ? <OverrideDot text={cell.override.text} /> : null}
       <span className="sr-only">{title}</span>
     </span>
   );

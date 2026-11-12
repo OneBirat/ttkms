@@ -101,6 +101,7 @@
 }
 
 .calDay {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -108,6 +109,14 @@
   padding: 3px 4px;
   border: 1px solid var(--color-border-soft);
   border-radius: 6px;
+}
+
+/* The dot on a day the super admin changed: bottom-right, clear of the dates and the mark. */
+.calDot {
+  top: auto;
+  right: 3px;
+  bottom: 3px;
+  left: auto;
 }
 
 .calDay[data-today="true"] {

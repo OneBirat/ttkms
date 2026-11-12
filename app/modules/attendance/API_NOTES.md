@@ -19,7 +19,8 @@ branch scope), `services.py` (marking rules), `report.py` (report, employee mont
 - Employees come only from `core.employees`. Only **active** employees who have joined by that day can
   be marked (404 / 422); inactive staff keep their history and appear in the months they worked.
 - Every insert, change and clear writes `attendance.record_changes` (old → new status / hours / note,
-  who, when); a save that changes nothing writes nothing.
+  who, when, reason, override yes/no); a save that changes nothing writes nothing. That table is the
+  **history** and it is append-only (below).
 
 ## The lock (server-side; the screens only reflect it)
 
@@ -53,6 +54,29 @@ Tests: `tests/attendance/test_lock.py` (23 h / 24 h 01 min, the window is not ex
 future days, 00:30 Nepal time), `tests/attendance/test_override.py`. Web:
 `web/components/attendance/lock.ts`, `LockBanner.tsx`, `OverrideSheet.tsx` (old → new, the
 reason, "Change as super admin").
+
+## History (`attendance.record_changes`)
+
+The existing change log is the history: one row per create, change and removal of a mark, also for
+bulk and scan marks - `changed_by` + `changed_by_name` (the name at the time), `changed_at`,
+old / new status and hours, `source`, `reason`, `is_override`.
+
+- **Rows cannot be edited or deleted** (attendance_0004): a row trigger refuses every UPDATE and
+  DELETE and a statement trigger refuses TRUNCATE (`attendance.record_changes_append_only()`). The
+  one UPDATE let through is the foreign key's own `ON DELETE SET NULL` of `changed_by` when a user
+  row is removed, and only when nothing else changes; `changed_by_name` keeps the name. There is no
+  write endpoint for history.
+- `GET /history?employee_id=&date_bs=` → `{employee_id, date, date_bs, entries: [{id, old_status,
+  old_hours, new_status, new_hours, by, at, at_bs, via, is_override, reason}]}`, oldest first
+  (`"N"` = not marked / removed).
+- Report and employee-month **cells** carry `override` for a day the super admin changed after it
+  locked (the latest such change): `{by, at, at_bs, old_status, old_hours, new_status, new_hours,
+  reason, text}` with `text` = "Changed by Owner Shrestha on Kartik 26, 2083: P → A · reason". The
+  screens draw a small dot on the cell; hover or tap shows `text`
+  (`web/components/attendance/OverrideDot.tsx`: report grid, phone report, the attendance-record
+  calendar, the employee account's Attendance card).
+
+Tests: `tests/attendance/test_history.py`.
 
 ## Permissions (app/modules/admin/permissions.py)
 
@@ -91,6 +115,8 @@ attendance.record_changes
   changed_at; INDEX (employee_id, date)
   reason varchar(300) DEFAULT '', is_override bool DEFAULT false   -- attendance_0003;
   CHECK (NOT is_override OR char_length(btrim(reason)) >= 5)
+  changed_by_name varchar(120) DEFAULT ''                          -- attendance_0004
+  append-only: triggers refuse UPDATE / DELETE / TRUNCATE         -- attendance_0004
 ```
 
 The API keeps the frontend's names: `ot_hours` (= overtime_hours), `marked_via` (= source),
@@ -109,6 +135,7 @@ Every response carries the AD `date` and the BS `date_bs` (records: `date_ad` / 
 | GET | `/lookup?employee_id=` | after payroll's `GET /api/payroll/employees/by-barcode/{code}` (TTK-E001, legacy TTK-E-001, E-001, 1) | `{code, employee, today: record \| null}` | mark |
 | POST | `/scan` | `{employee_id, action: present\|overtime, ot_hours}` | `{employee, record, previous}` – today, source scan | mark |
 | GET | `/employees/{id}/month?bs_year=&bs_month=` | | `EmployeeMonth`: cells (P/O/A/W/N + advance / salary paid that day), totals, payments newest first | mark, report or manage_employees |
+| GET | `/history?employee_id=&date_bs=` | | `MarkHistory`: every change to that mark, oldest first | mark, report or manage_employees |
 | GET | `/marked-days?bs_year=&bs_month=&branch=\|employee_id=` | | `{marked_days: [BS dates]}` – BSDatePicker dots | mark or report |
 | GET | `/report?bs_year=&bs_month=&branch=` | branch left out = the caller's active branch (`?branch=` only with see_other_branches; never every branch) | `MonthReport`: month with days, rows (cells + totals incl. `saturday_days_worked` / `saturday_ot_hours`), `staff_present` per day, payment badges from `PayrollPayments.for_month`, `branch_id`, `today` | report |
 
