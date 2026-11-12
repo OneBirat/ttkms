@@ -90,6 +90,7 @@ async def test_login_success_then_me(client, make_user, login, db):
         "employee_id": None,
         "last_login_at": body["user"]["last_login_at"],
         "must_change_password": False,
+        "is_super_admin": False,
     }
     assert body["user"]["last_login_at"] is not None
     assert body["csrf_token"]

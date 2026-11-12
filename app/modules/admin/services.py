@@ -8,6 +8,8 @@ Rules the API enforces (the UI mirrors them):
 * at least one active admin must remain
 * an employee can be linked to one user only
 * managers and staff belong to one branch; admins see all branches
+* the super admin's account (``users.is_super_admin``, set only from the server command line)
+  can be edited, disabled or have its password reset by the super admin alone
 """
 
 from __future__ import annotations
@@ -31,7 +33,12 @@ from app.core.auth import hash_password
 from app.core.models import Branch, Employee, EmployeeStatus, Role, User
 from app.core.services import get_setting, norm_sql, record_audit, set_setting
 from app.modules.admin.models import PaymentMode, UserAccess
-from app.modules.admin.permissions import clean_overrides, effective_access, is_custom
+from app.modules.admin.permissions import (
+    all_access,
+    clean_overrides,
+    effective_access,
+    is_custom,
+)
 from app.modules.admin.schemas import (
     AdminUserOut,
     BarcodeEmployeeOut,
@@ -51,6 +58,7 @@ LAST_ADMIN = "There must always be at least one active admin."
 PHONE_TAKEN = "This phone already has a login."
 EMPLOYEE_TAKEN = "That employee is already linked to another user."
 BRANCH_REQUIRED = "Pick the branch this user works in."
+SUPER_ADMIN_PROTECTED = "Only the super admin can change this account."
 
 # Temporary passwords look like "Kmtp-4821x": no 0/O/1/l/I, easy to read out over the phone.
 _UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ"
@@ -128,13 +136,14 @@ def user_out(
         role_label=user.role_label,
         is_active=user.is_active,
         is_you=user.id == me.id,
+        is_super_admin=user.is_super_admin,
         must_change_password=user.must_change_password,
         branch=branch_ref(branch),
         employee=employee_ref(user.employee, user.id),
         last_login_at=user.last_login_at,
         last_login_at_bs=to_bs(user.last_login_at),
-        access=effective_access(user.role, overrides),
-        custom=is_custom(user.role, overrides),
+        access=all_access() if user.is_super_admin else effective_access(user.role, overrides),
+        custom=not user.is_super_admin and is_custom(user.role, overrides),
     )
 
 
@@ -198,6 +207,12 @@ async def user_options(db: AsyncSession) -> UserOptionsOut:
 
 
 # ----------------------------------------------------------------------------- guards
+
+
+def check_not_protected(actor: User, user: User) -> None:
+    """403 when anyone but the super admin tries to change the super admin's account."""
+    if user.is_super_admin and user.id != actor.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=SUPER_ADMIN_PROTECTED)
 
 
 async def count_active_admins(db: AsyncSession) -> int:
@@ -336,6 +351,7 @@ async def create_user(db: AsyncSession, actor: User, data: UserIn) -> tuple[User
 
 
 async def update_user(db: AsyncSession, actor: User, user: User, data: UserIn) -> User:
+    check_not_protected(actor, user)
     row = await db.get(UserAccess, user.id)
     before = snapshot(user, row)
     await check_role_change(db, actor, user, data.role, user.is_active)
@@ -359,6 +375,7 @@ async def update_user(db: AsyncSession, actor: User, user: User, data: UserIn) -
 
 
 async def set_user_active(db: AsyncSession, actor: User, user: User, is_active: bool) -> User:
+    check_not_protected(actor, user)
     if user.is_active == is_active:
         return user
     await check_role_change(db, actor, user, user.role, is_active)
@@ -374,6 +391,7 @@ async def set_user_active(db: AsyncSession, actor: User, user: User, is_active: 
 
 
 async def reset_password(db: AsyncSession, actor: User, user: User) -> str:
+    check_not_protected(actor, user)
     temporary = generate_temporary_password()
     user.password_hash = hash_password(temporary)
     user.must_change_password = True

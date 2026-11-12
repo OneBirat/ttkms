@@ -23,6 +23,8 @@ export interface User {
   last_login_at: string | null;
   /** True until the user replaces the temporary password an admin gave them. */
   must_change_password: boolean;
+  /** The one account that may change locked (past) attendance. Set only on the server. */
+  is_super_admin?: boolean;
 }
 
 export interface ChangePasswordRequest {

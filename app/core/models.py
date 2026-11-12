@@ -232,6 +232,13 @@ class User(Base, TimestampMixin):
             unique=True,
             postgresql_where=text("employee_id IS NOT NULL"),
         ),
+        # At most one super admin.
+        Index(
+            "ux_users_one_super_admin",
+            "is_super_admin",
+            unique=True,
+            postgresql_where=text("is_super_admin"),
+        ),
         {"schema": SCHEMA},
     )
 
@@ -263,6 +270,12 @@ class User(Base, TimestampMixin):
     #: are always held to their own branch). Kept across logins.
     active_branch_id: Mapped[int | None] = mapped_column(
         ForeignKey("core.branches.id", ondelete="SET NULL")
+    )
+
+    #: The ONE account that may change locked (past) attendance, and that other admins cannot
+    #: touch. Set only by ``python -m app.cli set-super-admin``; never by the API.
+    is_super_admin: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
     )
 
     employee: Mapped[Employee | None] = relationship(lazy="selectin")

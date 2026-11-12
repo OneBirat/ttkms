@@ -100,6 +100,11 @@ def effective_access(role: Role | str, overrides: Mapping[str, object] | None) -
     return access
 
 
+def all_access() -> Access:
+    """Every permission on: what the super admin holds, whatever their switches say."""
+    return dict.fromkeys(PERMISSIONS, True)
+
+
 def is_custom(role: Role | str, access: Mapping[str, object] | None) -> bool:
     """True when ``access`` differs from the role preset ("Custom" tag in the UI)."""
     return effective_access(role, access) != preset_for(role)
@@ -123,7 +128,10 @@ async def access_row_for_user(db, user: User) -> UserAccess | None:
 
 async def access_for_user(db, user: User) -> Access:
     """The user's effective access. With the admin module paused there is no ``user_access``
-    table to read overrides from, so everyone gets their role preset."""
+    table to read overrides from, so everyone gets their role preset. The super admin always
+    holds every permission."""
+    if user.is_super_admin:
+        return all_access()
     row = await access_row_for_user(db, user)
     return effective_access(user.role, row.access if row else None)
 

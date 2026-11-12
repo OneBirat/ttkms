@@ -61,6 +61,16 @@ the server's timezone is set to Asia/Kathmandu as well, so logs and cron match.
    refuses while an admin exists; `--force` adds another admin or makes an existing login admin
    again with a new password (for a forgotten admin password).
 
+   **Super admin** (optional, one account only): the one admin who may change attendance after
+   it locks (marks older than 24 hours, past days). Other admins cannot edit, disable or reset
+   that account. It can be set only here, on the server:
+
+   ```sh
+   sudo bash /opt/ttk/app/deploy/set-super-admin.sh <username or phone>
+   ```
+
+   It asks to confirm; when another user is the super admin, the flag moves to the new one.
+
 4. **Certificates on the devices**: install the CA once on every phone and PC (below), then open
    `https://SERVER_IP`.
 

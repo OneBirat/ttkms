@@ -65,3 +65,13 @@ export function canChangeRole(
 ): string | null {
   return blockedReason(users, target, { role, is_active: target.is_active }, actorId);
 }
+
+export const SUPER_ADMIN_PROTECTED = "Only the super admin can change this account.";
+
+/**
+ * The super admin's account is closed to every other admin: no edit, access change, password
+ * reset or disable (the API answers 403). The super admin's own row stays editable.
+ */
+export function isProtected(user: { is_super_admin?: boolean; is_you: boolean }): boolean {
+  return Boolean(user.is_super_admin) && !user.is_you;
+}

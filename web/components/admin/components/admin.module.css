@@ -1026,6 +1026,25 @@
   white-space: nowrap;
 }
 
+/* "Super admin" under the name: the one account other admins cannot change. */
+.superTag {
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #e8e4fb;
+  color: #4326a8;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.vTags .superTag {
+  align-self: center;
+  margin-top: 0;
+}
+
 .dotBtn {
   margin-left: 4px;
   width: 32px;

@@ -5,6 +5,7 @@ import {
   canChangeRole,
   canDeactivate,
   countActiveAdmins,
+  isProtected,
 } from "../../../web/components/admin/guards.ts";
 
 const users = [
@@ -47,4 +48,11 @@ test("the last active admin is protected", () => {
 test("non-admins are never blocked by the admin rules", () => {
   assert.equal(canDeactivate(users, users[2], 1), null);
   assert.equal(blockedReason(users, users[2], { role: "staff", is_active: false }, 1), null);
+});
+
+test("the super admin's account is closed to every other admin, not to themselves", () => {
+  assert.equal(isProtected({ is_super_admin: true, is_you: false }), true);
+  assert.equal(isProtected({ is_super_admin: true, is_you: true }), false);
+  assert.equal(isProtected({ is_super_admin: false, is_you: false }), false);
+  assert.equal(isProtected({ is_you: false }), false);
 });

@@ -11,7 +11,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Switch } from "../components/Switch";
 import { Toast, useToast } from "../components/Toast";
 import { useLoader } from "../components/useLoader";
-import { canDeactivate } from "../guards";
+import { canDeactivate, isProtected, SUPER_ADMIN_PROTECTED } from "../guards";
 import { formatPhone, initials } from "../phone";
 import {
   allowedCount,
@@ -256,8 +256,8 @@ function UsersScreen() {
                     <button
                       type="button"
                       className={styles.mCardBtn}
-                      aria-label={`Edit ${user.full_name}`}
-                      onClick={() => openEdit(user)}
+                      aria-label={`${isProtected(user) ? "View" : "Edit"} ${user.full_name}`}
+                      onClick={() => (isProtected(user) ? setView(user) : openEdit(user))}
                     >
                       <span
                         className={`${styles.avatar} ${styles.mAvatar} ${user.is_active ? "" : styles.avatarOff}`}
@@ -270,6 +270,9 @@ function UsersScreen() {
                           {user.full_name}
                           {user.is_you ? <span className={styles.you}>· You</span> : null}
                         </span>
+                        {user.is_super_admin ? (
+                          <span className={styles.superTag}>Super admin</span>
+                        ) : null}
                         <span className={styles.mPhone}>
                           {user.phone ? formatPhone(user.phone) : user.username}
                         </span>
@@ -279,8 +282,18 @@ function UsersScreen() {
                       checked={user.is_active}
                       onChange={() => void toggleActive(user)}
                       label={`${user.is_active ? "Disable" : "Enable"} ${user.full_name}`}
-                      disabled={user.is_you || Boolean(canDeactivate(all, user, -1) && user.is_active)}
-                      title={user.is_you ? "You cannot disable your own account." : undefined}
+                      disabled={
+                        user.is_you ||
+                        isProtected(user) ||
+                        Boolean(canDeactivate(all, user, -1) && user.is_active)
+                      }
+                      title={
+                        user.is_you
+                          ? "You cannot disable your own account."
+                          : isProtected(user)
+                            ? SUPER_ADMIN_PROTECTED
+                            : undefined
+                      }
                     />
                   </div>
                   <div className={styles.mMeta}>
@@ -289,14 +302,16 @@ function UsersScreen() {
                     <span>· {user.branch?.name ?? "All branches"}</span>
                     <span className={styles.mLast}>{lastSignIn(user)}</span>
                   </div>
-                  <div className={styles.mActions}>
-                    <button type="button" className={styles.mAction} onClick={() => openEdit(user)}>
-                      Edit
-                    </button>
-                    <button type="button" className={styles.mAction} onClick={() => setResetFor(user)}>
-                      Reset password
-                    </button>
-                  </div>
+                  {isProtected(user) ? null : (
+                    <div className={styles.mActions}>
+                      <button type="button" className={styles.mAction} onClick={() => openEdit(user)}>
+                        Edit
+                      </button>
+                      <button type="button" className={styles.mAction} onClick={() => setResetFor(user)}>
+                        Reset password
+                      </button>
+                    </div>
+                  )}
                 </article>
               ))}
               {!users.loading && list.length === 0 ? (
@@ -390,7 +405,12 @@ function UsersScreen() {
               <tbody>
                 {list.map((user) => {
                   const diff = new Set(changedKeys(user.role, user.access));
-                  const blocked = user.is_active ? canDeactivate(all, user, user.is_you ? user.id : -1) : null;
+                  const locked = isProtected(user);
+                  const blocked = locked
+                    ? SUPER_ADMIN_PROTECTED
+                    : user.is_active
+                      ? canDeactivate(all, user, user.is_you ? user.id : -1)
+                      : null;
                   return (
                     <tr key={user.id} className={user.is_active ? undefined : styles.rowOff}>
                       <td>
@@ -414,14 +434,19 @@ function UsersScreen() {
                               />
                               {user.custom ? <span className={styles.customTag}>Custom</span> : null}
                             </span>
+                            {user.is_super_admin ? (
+                              <span className={styles.superTag}>Super admin</span>
+                            ) : null}
                           </div>
-                          <UserMenu
-                            user={user}
-                            onView={() => setView(user)}
-                            onAccess={() => openEdit(user, "access")}
-                            onReset={() => setResetFor(user)}
-                            onEdit={() => openEdit(user)}
-                          />
+                          {locked ? null : (
+                            <UserMenu
+                              user={user}
+                              onView={() => setView(user)}
+                              onAccess={() => openEdit(user, "access")}
+                              onReset={() => setResetFor(user)}
+                              onEdit={() => openEdit(user)}
+                            />
+                          )}
                         </div>
                       </td>
                       {mode === "details" ? (
@@ -472,9 +497,15 @@ function UsersScreen() {
                         </>
                       )}
                       <td className={styles.cellEnd}>
-                        <button type="button" className={styles.editBtn} onClick={() => openEdit(user)}>
-                          Edit
-                        </button>
+                        {locked ? (
+                          <button type="button" className={styles.editBtn} onClick={() => setView(user)}>
+                            View
+                          </button>
+                        ) : (
+                          <button type="button" className={styles.editBtn} onClick={() => openEdit(user)}>
+                            Edit
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

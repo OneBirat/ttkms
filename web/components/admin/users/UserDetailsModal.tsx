@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { BSDateTimeText } from "@/components/date";
 import { Modal } from "@/components/ui/Modal";
 import { Pill } from "@/components/ui/Pill";
+import { isProtected, SUPER_ADMIN_PROTECTED } from "../guards";
 import { formatPhone, initials } from "../phone";
 import { allowedCount, PERMISSION_GROUPS, PERMISSIONS } from "../permissions";
 import type { AdminUser } from "../types";
@@ -46,7 +47,9 @@ export function UserDetailsModal({
       "Password",
       user.must_change_password
         ? "Temporary · must be changed at next sign-in"
-        : "Set by user · reset from ⋮ menu",
+        : isProtected(user)
+          ? "Set by user"
+          : "Set by user · reset from ⋮ menu",
     ],
   ];
 
@@ -60,6 +63,7 @@ export function UserDetailsModal({
           <div className={styles.vHeadText}>
             <div className={styles.vTags}>
               <Pill status={ROLE_TONE[user.role]} label={user.role_label} />
+              {user.is_super_admin ? <span className={styles.superTag}>Super admin</span> : null}
               {user.custom ? <span className={styles.customTag}>Custom access</span> : null}
               <Pill status={user.is_active ? "active" : "inactive"} label={user.is_active ? "Active" : "Disabled"} />
             </div>
@@ -108,16 +112,25 @@ export function UserDetailsModal({
             })}
           </div>
         ))}
+        {isProtected(user) ? (
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            {SUPER_ADMIN_PROTECTED}
+          </p>
+        ) : null}
         <div className={styles.formFoot}>
           <button type="button" className="btn" onClick={onClose}>
             Close
           </button>
-          <button type="button" className="btn" onClick={onEditDetails}>
-            Edit details
-          </button>
-          <button type="button" className="btn btn--primary" onClick={onEditAccess}>
-            Edit access
-          </button>
+          {isProtected(user) ? null : (
+            <>
+              <button type="button" className="btn" onClick={onEditDetails}>
+                Edit details
+              </button>
+              <button type="button" className="btn btn--primary" onClick={onEditAccess}>
+                Edit access
+              </button>
+            </>
+          )}
         </div>
       </div>
     </Modal>

@@ -49,6 +49,8 @@ class AdminUserOut(BaseModel):
     role_label: str
     is_active: bool
     is_you: bool
+    #: The one super admin: other admins cannot edit, disable or reset this account.
+    is_super_admin: bool = False
     must_change_password: bool
     branch: BranchRefOut | None
     employee: EmployeeRefOut | None

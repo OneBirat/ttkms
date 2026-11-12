@@ -59,6 +59,8 @@ export interface AdminUser {
   is_active: boolean;
   /** The signed-in admin's own row. */
   is_you: boolean;
+  /** The one super admin (set on the server only): other admins cannot change this account. */
+  is_super_admin?: boolean;
   must_change_password: boolean;
   /** null = all branches (always for admins). */
   branch: BranchRef | null;

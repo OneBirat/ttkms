@@ -101,6 +101,8 @@ class UserOut(BaseModel):
     last_login_at: datetime | None = None
     #: True until the user replaces the temporary password an admin gave them.
     must_change_password: bool = False
+    #: The one account that may change locked (past) attendance.
+    is_super_admin: bool = False
 
     @classmethod
     def from_user(cls, user: User) -> UserOut:
@@ -114,6 +116,7 @@ class UserOut(BaseModel):
             employee_id=user.employee_id,
             last_login_at=user.last_login_at,
             must_change_password=user.must_change_password,
+            is_super_admin=user.is_super_admin,
         )
 
 

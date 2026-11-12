@@ -4,13 +4,18 @@
     python -m app.cli seed [--no-input]     # branches, departments, 5 employees, settings, admin
     python -m app.cli seed-demo             # the 25 design employees + salaries + a month of
                                             # payments (APP_ENV=dev only; never automatic)
+    python -m app.cli set-super-admin <username> [--yes]
+                                            # give ONE admin the super-admin flag (asks first;
+                                            # moves it when another user holds it)
     python -m app.cli photos-upgrade        # old employees/<id>.jpg photos -> 600 px JPEG +
                                             # 128 px WebP, metadata stripped (run once)
 
 ``seed`` and ``seed-demo`` are idempotent development helpers; seed's admin credentials come from
 ADMIN_USERNAME / ADMIN_PASSWORD in .env (or the environment) when set, otherwise you are prompted.
 ``create-admin`` is the production one (deploy/create-admin.sh runs it as the ttk user): it always
-asks, and refuses while an admin exists unless ``--force``.
+asks, and refuses while an admin exists unless ``--force``. ``set-super-admin`` is the ONLY way
+to set ``users.is_super_admin`` (deploy/set-super-admin.sh runs it as the ttk user): no screen
+and no API endpoint can.
 """
 
 from __future__ import annotations
@@ -216,6 +221,55 @@ async def create_first_admin(
     return user, created_branch
 
 
+async def find_login(db: AsyncSession, login: str) -> User | None:
+    """A user by username, or by phone when ``login`` is one."""
+    user = await db.scalar(select(User).where(User.username == normalize_username(login)))
+    if user is None and is_phone(login):
+        user = await db.scalar(select(User).where(User.phone == normalize_phone(login)))
+    return user
+
+
+async def set_super_admin(
+    db: AsyncSession, login: str, *, confirm: Callable[[str], bool]
+) -> tuple[User, User | None]:
+    """Give ``login`` the super-admin flag; the user must be an active admin. ``confirm`` is
+    asked once (naming the current holder when the flag moves); a "no" raises. Returns (the new
+    super admin, the previous holder or None). Audited. Not committed."""
+    user = await find_login(db, login)
+    if user is None:
+        raise CliError(f"no user with the username or phone {login!r}")
+    if not user.is_active:
+        raise CliError(f"{user.username!r} is disabled; enable the account first")
+    if user.role != Role.admin:
+        raise CliError(
+            f"{user.username!r} is {user.role_label}, not an Admin; make them an Admin first"
+        )
+    current = await db.scalar(select(User).where(User.is_super_admin.is_(True)))
+    if current is not None and current.id == user.id:
+        raise CliError(f"{user.username!r} ({user.full_name}) is already the super admin")
+    question = f"Make {user.username!r} ({user.full_name}) the super admin"
+    if current is not None:
+        question += f" and take it away from {current.username!r} ({current.full_name})"
+    if not confirm(question + "? [y/N] "):
+        raise CliError("cancelled; nothing was changed")
+    if current is not None:
+        current.is_super_admin = False
+        await db.flush()  # the unique index allows one holder at a time
+    user.is_super_admin = True
+    await db.flush()
+    await record_audit(
+        db,
+        module="core",
+        action="cli_set_super_admin",
+        entity="user",
+        entity_id=user.id,
+        user_id=None,
+        data={"username": user.username, "previous": current.username if current else None},
+    )
+    await db.flush()
+    return user, current
+
+
 # --------------------------------------------------------------------------- commands
 
 
@@ -244,6 +298,22 @@ async def cmd_create_admin(args: argparse.Namespace) -> int:
     if branch is not None:
         print(f"Created branch {branch.name!r}.")
     print(f"Admin {user.username!r} ({user.full_name}) is ready. Sign in with it.")
+    return 0
+
+
+def _ask_yes(question: str) -> bool:
+    return input(question).strip().lower() in ("y", "yes")
+
+
+async def cmd_set_super_admin(args: argparse.Namespace) -> int:
+    async with SessionLocal() as db:
+        user, previous = await set_super_admin(
+            db, args.username, confirm=(lambda _q: True) if args.yes else _ask_yes
+        )
+        await db.commit()
+    if previous is not None:
+        print(f"{previous.username!r} ({previous.full_name}) is no longer the super admin.")
+    print(f"{user.username!r} ({user.full_name}) is now the super admin.")
     return 0
 
 
@@ -295,6 +365,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--force", action="store_true", help="add or reset an admin even when one already exists"
     )
     create.set_defaults(func=cmd_create_admin)
+
+    superadmin = sub.add_parser(
+        "set-super-admin",
+        help="give one admin the super-admin flag (moves it when another user holds it)",
+    )
+    superadmin.add_argument("username", help="the admin's username or phone")
+    superadmin.add_argument("--yes", action="store_true", help="do not ask to confirm")
+    superadmin.set_defaults(func=cmd_set_super_admin)
 
     seed = sub.add_parser("seed", help="load reference data, sample employees and the admin user")
     seed.add_argument("--no-input", action="store_true", help="never prompt; use env vars")

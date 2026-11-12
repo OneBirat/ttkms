@@ -82,7 +82,7 @@ app/
   main.py          app factory: session middleware, CSRF, error handlers, module loading
   config.py        pydantic-settings (reads this worktree's .env)
   db.py            async engine, get_db dependency, declarative Base
-  cli.py           create-admin, seed
+  cli.py           create-admin, set-super-admin, seed
   contracts.py     cross-module interfaces (AttendanceSummary, PayrollPayments + fakes + registries)
   core/
     models.py      users, branches, departments, employees, settings, audit_log  (schema core)
