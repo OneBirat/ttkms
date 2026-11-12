@@ -15,7 +15,7 @@ from app.core import bsdate
 from app.core.models import Branch, Employee, User
 from app.core.services import company_name
 from app.modules.admin.models import PaymentMode
-from app.modules.payroll import ledgers, reports, rules, services
+from app.modules.payroll import ledgers, reports, rules, services, slip_prints
 from app.modules.payroll.schemas import (
     BsMonthOut,
     PayslipDeductionOut,
@@ -23,6 +23,7 @@ from app.modules.payroll.schemas import (
     PayslipMonthOut,
     PayslipOut,
     PayslipPaymentOut,
+    PayslipPrintedOut,
     PayslipsOut,
 )
 
@@ -82,7 +83,11 @@ async def sheet_ledgers(
     return [on_sheet[i] for i in ids]
 
 
-def slip_out(ledger: ledgers.MonthLedger, modes: dict[int, PaymentMode]) -> PayslipOut:
+def slip_out(
+    ledger: ledgers.MonthLedger,
+    modes: dict[int, PaymentMode],
+    printed: slip_prints.LastPrint | None = None,
+) -> PayslipOut:
     e, a, pay, settled = ledger.employee, ledger.attendance, ledger.pay, ledger.settled
     pay_type = ledger.structure.pay_type.value
     reasons = rules.unpaid_reasons(a) if pay_type == "monthly" else []
@@ -131,6 +136,8 @@ def slip_out(ledger: ledgers.MonthLedger, modes: dict[int, PaymentMode]) -> Pays
         advances_total=settled.paid,
         balance_due=settled.due,
         unmarked_days=a.not_marked,
+        slip_printed_at=printed.at if printed else None,
+        slip_printed_by=printed.by if printed else None,
     )
 
 
@@ -141,10 +148,25 @@ async def payslips(
     rows = await sheet_ledgers(db, scope, year, month, ids)
     modes = await services.modes_by_id(db)
     branch = await db.get(Branch, scope.branch_id)
+    printed = await slip_prints.latest(db, ids, year, month)
     return PayslipsOut(
         business=await company_name(db),
         branch=reports.branch_ref(branch),
         month=BsMonthOut(bs_year=year, bs_month=month),
         today=services.date_both(bsdate.today_ad()),
-        slips=[slip_out(ledger, modes) for ledger in rows],
+        slips=[slip_out(ledger, modes, printed.get(ledger.employee.id)) for ledger in rows],
     )
+
+
+async def mark_printed(
+    db: AsyncSession, user: User, branch_id: int, year: int, month: int, ids: list[int]
+) -> list[PayslipPrintedOut]:
+    """Remember that these slips went to the printer: one history row each. The same branch
+    and sheet rules as reading the slips."""
+    ids = list(dict.fromkeys(ids))
+    scope = await slip_scope(db, user, branch_id)
+    await sheet_ledgers(db, scope, year, month, ids)
+    at = await slip_prints.record(db, user, ids, year, month)
+    await db.commit()
+    by = services.user_label(user)
+    return [PayslipPrintedOut(employee_id=i, slip_printed_at=at, slip_printed_by=by) for i in ids]

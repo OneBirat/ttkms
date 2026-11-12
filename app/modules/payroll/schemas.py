@@ -359,6 +359,9 @@ class MonthLedgerOut(BaseModel):
 class ReportRowOut(BaseModel):
     employee: EmployeeOut
     ledger: MonthLedgerOut
+    #: The latest print of this month's pay slip (payroll.payslip_prints); null = never printed.
+    slip_printed_at: datetime | None = None
+    slip_printed_by: str | None = None
 
 
 class ReportTotalsOut(BaseModel):
@@ -503,6 +506,19 @@ class PayslipsOut(BaseModel):
     today: DateBothOut
     #: In the order asked for.
     slips: list[PayslipOut]
+
+
+class PayslipsPrintedIn(BaseModel):
+    branch_id: int
+    #: "2083-07"
+    month: str
+    employee_ids: list[int] = Field(min_length=1)
+
+
+class PayslipPrintedOut(BaseModel):
+    employee_id: int
+    slip_printed_at: datetime
+    slip_printed_by: str
 
 
 # ---------------------------------------------------------------------------- payments

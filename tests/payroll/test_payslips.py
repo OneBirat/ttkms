@@ -4,6 +4,7 @@ deduction per reason, branch scoping and permission."""
 from datetime import date, timedelta
 
 import pytest
+from sqlalchemy import select
 
 from app.contracts import MonthSummary
 from app.core import bsdate
@@ -13,7 +14,14 @@ from app.modules.admin.permissions import effective_access
 from app.modules.attendance import services as attendance
 from app.modules.attendance.models import Record
 from app.modules.payroll import rules
-from app.modules.payroll.models import Payment, PaymentKind, PaymentSource, PayType, SalaryHistory
+from app.modules.payroll.models import (
+    Payment,
+    PaymentKind,
+    PaymentSource,
+    PayslipPrint,
+    PayType,
+    SalaryHistory,
+)
 
 pytestmark = pytest.mark.anyio
 
@@ -311,6 +319,109 @@ async def test_needs_the_salary_report_permission(client, db, make_user, login, 
     await db.flush()
     await login("boss")
     assert (await client.get(url)).status_code == 403
+
+
+async def test_printed_is_remembered_per_month(client, db, make_user, login, attended):
+    s = await _setup(db, attended)
+    main = s["main"]
+    await make_user("admin", role="admin", full_name="Asha Admin")
+    await login("admin")
+    headers = {"X-CSRF-Token": await _csrf(client)}
+
+    def body(employees, key=LAST_KEY, branch=main):
+        return {"branch_id": branch.id, "month": key, "employee_ids": [e.id for e in employees]}
+
+    async def report_rows(key=LAST_KEY):
+        rows = (await client.get(f"/api/payroll/report/{key}")).json()["rows"]
+        return {r["employee"]["full_name"]: r for r in rows}
+
+    before = await report_rows()
+    assert all(
+        r["slip_printed_at"] is None and r["slip_printed_by"] is None for r in before.values()
+    )
+
+    first = await client.post(
+        "/api/payroll/payslips/printed", json=body([s["anita"], s["ramesh"]]), headers=headers
+    )
+    assert first.status_code == 201, first.text
+    assert [x["employee_id"] for x in first.json()] == [s["anita"].id, s["ramesh"].id]
+    assert all(x["slip_printed_by"] == "Asha Admin" for x in first.json())
+
+    rows = await report_rows()
+    assert rows["Anita"]["slip_printed_at"] == first.json()[0]["slip_printed_at"]
+    assert rows["Anita"]["slip_printed_by"] == "Asha Admin"
+    assert rows["Ramesh"]["slip_printed_at"] is not None
+    assert rows["Bikash"]["slip_printed_at"] is None
+    # Per month: the running month's rows are not marked.
+    await attended(s["anita"], (TODAY.year, TODAY.month))
+    assert (await report_rows(THIS_KEY))["Anita"]["slip_printed_at"] is None
+    # The slips carry it too.
+    slips = (await client.get(_url(main, [s["anita"], s["bikash"]]))).json()["slips"]
+    assert slips[0]["slip_printed_at"] == rows["Anita"]["slip_printed_at"]
+    assert slips[0]["slip_printed_by"] == "Asha Admin" and slips[1]["slip_printed_at"] is None
+
+    # Printing again keeps the history and moves "printed" to the latest row.
+    again = await client.post(
+        "/api/payroll/payslips/printed", json=body([s["anita"]]), headers=headers
+    )
+    assert again.status_code == 201
+    history = list(
+        await db.scalars(
+            select(PayslipPrint)
+            .where(PayslipPrint.employee_id == s["anita"].id)
+            .order_by(PayslipPrint.id)
+        )
+    )
+    assert len(history) == 2 and (history[0].bs_year, history[0].bs_month) == LAST
+    assert history[1].printed_at >= history[0].printed_at
+    latest = (await report_rows())["Anita"]["slip_printed_at"]
+    assert latest == again.json()[0]["slip_printed_at"]
+
+
+async def test_printed_follows_the_slip_rules(client, db, make_user, login, attended):
+    s = await _setup(db, attended)
+    main, second = s["main"], s["second"]
+
+    def body(branch, employees, key=LAST_KEY):
+        return {"branch_id": branch.id, "month": key, "employee_ids": [e.id for e in employees]}
+
+    url = "/api/payroll/payslips/printed"
+    await make_user("admin", role="admin")
+    await login("admin")
+    headers = {"X-CSRF-Token": await _csrf(client)}
+    # Someone from another branch in the list: refused, and nothing is recorded for anyone.
+    mixed = await client.post(url, json=body(main, [s["anita"], s["mina"]]), headers=headers)
+    assert mixed.status_code == 403
+    assert (await client.post(url, json=body(main, []), headers=headers)).status_code == 422
+    bad_month = await client.post(url, json=body(main, [s["anita"]], "2083-13"), headers=headers)
+    assert bad_month.status_code == 422
+    assert list(await db.scalars(select(PayslipPrint))) == []
+
+    await client.post("/api/auth/logout", headers=headers)
+    boss = await make_user("boss", role="manager")
+    db.add(UserAccess(user_id=boss.id, branch_id=main.id, access=None))
+    cashier = await make_user("cashier", role="manager")
+    db.add(
+        UserAccess(
+            user_id=cashier.id,
+            branch_id=second.id,
+            access=effective_access("manager", {"salary_advances": True}),
+        )
+    )
+    await db.flush()
+    await login("boss")
+    headers = {"X-CSRF-Token": await _csrf(client)}
+    denied = await client.post(url, json=body(main, [s["anita"]]), headers=headers)
+    assert denied.status_code == 403
+    await client.post("/api/auth/logout", headers=headers)
+    await login("cashier")
+    headers = {"X-CSRF-Token": await _csrf(client)}
+    other = await client.post(url, json=body(main, [s["anita"]]), headers=headers)
+    assert other.status_code == 403
+    own = await client.post(url, json=body(second, [s["mina"]]), headers=headers)
+    assert own.status_code == 201
+    rows = list(await db.scalars(select(PayslipPrint)))
+    assert [(r.employee_id, r.printed_by) for r in rows] == [(s["mina"].id, cashier.id)]
 
 
 def _summary(**days: int) -> MonthSummary:

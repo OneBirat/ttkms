@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import bsdate
 from app.core.models import Branch, Department, Employee, EmployeeStatus, User
 from app.modules.admin.models import PaymentMode
-from app.modules.payroll import ledgers, services
+from app.modules.payroll import ledgers, services, slip_prints
 from app.modules.payroll.models import Payment
 from app.modules.payroll.schemas import (
     BranchNetTotalOut,
@@ -269,6 +269,8 @@ async def salary_report(
     salary_paid, advance_paid = paid_in_branch(rows, scope.branch_id)
     totals = totals.model_copy(update={"salary_paid": salary_paid, "advance_paid": advance_paid})
 
+    printed = await slip_prints.latest(db, [r.employee.id for r in rows], year, month)
+
     scope_text = branch.name if branch else "All branches"
     title_parts = [
         "Salary report",
@@ -284,6 +286,8 @@ async def salary_report(
             ReportRowOut(
                 employee=services.employee_out(r.employee, logins.get(r.employee.id)),
                 ledger=ledger_out(r, modes),
+                slip_printed_at=printed[r.employee.id].at if r.employee.id in printed else None,
+                slip_printed_by=printed[r.employee.id].by if r.employee.id in printed else None,
             )
             for r in rows
         ],

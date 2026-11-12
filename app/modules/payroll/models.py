@@ -194,6 +194,31 @@ class Payment(Base):
         )
 
 
+class PayslipPrint(Base):
+    """One row every time a pay slip is sent to the printer (history, never updated or
+    deleted). "Slip printed" on the Salary report = the latest row for employee + BS month."""
+
+    __tablename__ = "payslip_prints"
+    __table_args__ = (
+        CheckConstraint("bs_month BETWEEN 1 AND 12", name="bs_month_range"),
+        Index("ix_payslip_prints_employee_month", "employee_id", "bs_year", "bs_month"),
+        {"schema": SCHEMA},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    employee_id: Mapped[int] = mapped_column(
+        ForeignKey("core.employees.id", ondelete="RESTRICT"), nullable=False
+    )
+    bs_year: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    bs_month: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    printed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    printed_by: Mapped[int | None] = mapped_column(ForeignKey("core.users.id", ondelete="SET NULL"))
+
+    printer: Mapped[User | None] = relationship(lazy="selectin")
+
+
 class PhotoToken(Base):
     """A single-use, 15-minute link the QR code encodes so a phone can take the employee's photo
     without a session."""

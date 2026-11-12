@@ -57,7 +57,9 @@ from app.modules.payroll.schemas import (
     PaymentOut,
     PaymentResultOut,
     PaymentsRegisterOut,
+    PayslipPrintedOut,
     PayslipsOut,
+    PayslipsPrintedIn,
     PhotoTokenIn,
     PhotoTokenInfoOut,
     PhotoTokenOut,
@@ -307,6 +309,25 @@ async def get_payslips(
     year, month_no = reports.parse_month_key(month)
     ids = payslips.parse_ids(employee_ids)
     return await payslips.payslips(db, me, branch_id, year, month_no, ids)
+
+
+@router.post(
+    "/payslips/printed",
+    response_model=list[PayslipPrintedOut],
+    status_code=status.HTTP_201_CREATED,
+    responses=ERRORS,
+    name="payroll:payslips_printed",
+)
+async def payslips_printed(
+    me: CanPay, db: DbSession, payload: PayslipsPrintedIn
+) -> list[PayslipPrintedOut]:
+    """Called when the print page opens the browser's print dialog: one history row per
+    employee (payroll.payslip_prints). The Salary report then shows "Slip printed" - the latest
+    row per employee and month. Same permission, branch and sheet rules as GET /payslips."""
+    year, month_no = reports.parse_month_key(payload.month)
+    return await payslips.mark_printed(
+        db, me, payload.branch_id, year, month_no, payload.employee_ids
+    )
 
 
 # ------------------------------------------------------------------------------ account
