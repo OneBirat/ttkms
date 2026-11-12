@@ -243,3 +243,16 @@ that counts paid and unpaid days, and payroll only reads it:
   old net, new net, paid, overpaid.
 - Days outside the employment period are neither deducted nor counted: someone who joins mid-month still
   earns the monthly salary less absent / not marked days from the joining day (unchanged, open question).
+
+## Pay slips (Salary report → Preview / Print)
+
+Tick employees on the Salary report (desktop screen; the phone list has no ticks) and the print
+bar links to `/people/salary/payslips?branch&month=YYYY-MM&ids=3,1,2&per=4|6|8&office=0|1[&print=1]`
+- a page outside the shell (`_components/PayslipSheets.tsx`, `payslips.module.css`). It loads
+`GET /payslips` and lays the slips out on A4 sheets, 2 columns × 2 / 3 / 4 rows
+(`_lib/payslipModel.ts`: the text of a slip per layout, sheets, cut lines). With `print=1` it
+opens the browser's print dialog once and calls `POST /payslips/printed` at that moment; the
+report refetches its rows when its tab gets the focus back. Nothing on a slip is computed in the
+browser. `?branch=` here is the one exception to "no page keeps its own branch" (see
+`web/lib/oneBranch.test.ts`): the link names the branch the report was showing. A slip whose
+text is taller than its cell is scaled down until it fits, so a slip never splits or is cut.

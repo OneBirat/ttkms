@@ -1,0 +1,432 @@
+/* Pay slip print page (design/payslips/PaySlipSheet4 / 6 / 8). The mock-ups are drawn at
+   794 × 1123 px = A4 at 96 dpi; sizes here are the same in mm / pt. Printed: black text, no
+   fills, no images - only hairlines and the dashed cut lines between slips. */
+
+.page {
+  min-height: 100vh;
+  background: #e9ece8;
+  color: #000;
+}
+
+/* ---- toolbar (screen only) ---- */
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 12px;
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.per {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.seg {
+  display: inline-flex;
+}
+
+.segOption {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segOption + .segOption {
+  margin-left: -1px;
+}
+
+.segOption:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.segOption:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.segOption[aria-pressed="true"] {
+  position: relative;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.summary {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.printButton {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.warning {
+  margin: 10px 12px 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #e6b877;
+  background: var(--pill-low-bg);
+  color: var(--pill-low-fg);
+  font-size: 14px;
+}
+
+.message {
+  margin: 24px 16px;
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+@media (max-width: 520px) {
+  .perLabel {
+    display: none;
+  }
+}
+
+/* ---- sheets ---- */
+
+.sheets {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 8px 32px;
+  transform-origin: top center;
+}
+
+.sheet {
+  width: 210mm;
+  height: 297mm;
+  flex: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #fff;
+  color: #000;
+  font-family: var(--font-sans, "IBM Plex Sans", system-ui, sans-serif);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  box-shadow: 0 1px 6px rgba(23, 34, 42, 0.18);
+  break-inside: avoid;
+  break-after: page;
+}
+
+.sheet:last-child {
+  break-after: auto;
+}
+
+.sheet[data-per="4"] {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.sheet[data-per="6"] {
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+
+.sheet[data-per="8"] {
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+}
+
+.slip {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  break-inside: avoid;
+}
+
+/* Cut lines: light grey, dashed, only between two slips (never the paper's edge, never around
+   an empty cell). */
+.slip[data-cut-right] {
+  border-right: 1px dashed #9aa3a0;
+}
+
+.slip[data-cut-below] {
+  border-bottom: 1px dashed #9aa3a0;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2mm;
+}
+
+.amt,
+.balanceAmt,
+.stripValue {
+  font-family: var(--font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+}
+
+.headRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2.6mm;
+}
+
+.footRow {
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 2mm;
+}
+
+.rule {
+  flex: 1;
+  border-bottom: 1px solid #000;
+}
+
+.ruleDate {
+  width: 22mm;
+  border-bottom: 1px solid #000;
+}
+
+/* ---- 4 per A4: each slip is A6 ---- */
+
+.sheet[data-per="4"] .slip {
+  padding: 6.35mm 6.9mm;
+  gap: 2.4mm;
+}
+
+.sheet[data-per="4"] .line {
+  padding: 1.05mm 0;
+  border-bottom: 1px solid #d9ddd8;
+  font-size: 9.75pt;
+}
+
+.sheet[data-per="4"] .amt {
+  font-size: 9.75pt;
+}
+
+.sheet[data-per="4"] .sub {
+  font-size: 8.6pt;
+}
+
+.head4 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2.6mm;
+  border-bottom: 2px solid #000;
+  padding-bottom: 1.6mm;
+}
+
+.place4 {
+  font-size: 11.25pt;
+  font-weight: 700;
+}
+
+.sheet[data-per="4"] .name {
+  font-size: 11.25pt;
+  font-weight: 600;
+}
+
+.strip {
+  display: flex;
+  border: 1px solid #000;
+  border-radius: 5px;
+}
+
+.stripCell {
+  flex: 1;
+  min-width: 0;
+  padding: 1.05mm 2.1mm;
+  display: flex;
+  flex-direction: column;
+}
+
+.stripCell + .stripCell {
+  border-left: 1px solid #d9ddd8;
+}
+
+.stripValue {
+  font-size: 9.75pt;
+  font-weight: 600;
+}
+
+.sheet[data-per="4"] .earned4 {
+  font-weight: 600;
+  border-bottom-color: #000;
+}
+
+/* Balance due is the only bold amount on a slip. */
+.sheet[data-per="4"] .earned4 .amt {
+  font-weight: 400;
+}
+
+.balance4 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2mm;
+  padding: 1.6mm 2.6mm;
+  margin-top: 2.1mm;
+  border: 2px solid #000;
+  border-radius: 5px;
+  font-size: 10.5pt;
+  font-weight: 700;
+}
+
+.sheet[data-per="4"] .balanceAmt {
+  font-size: 12pt;
+  font-weight: 600;
+}
+
+.foot4 {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4.8mm;
+  padding-top: 5.8mm;
+}
+
+.sign {
+  border-top: 1px solid #000;
+  padding-top: 0.8mm;
+}
+
+/* ---- 6 per A4: ink saver - no boxes, no row underlines ---- */
+
+.sheet[data-per="6"] .slip {
+  padding: 5.3mm 6.35mm;
+  gap: 1.85mm;
+}
+
+.sheet[data-per="6"] .line {
+  padding: 0.8mm 0;
+  font-size: 9.4pt;
+}
+
+.sheet[data-per="6"] .amt {
+  font-size: 9.4pt;
+}
+
+.sheet[data-per="6"] .sub {
+  font-size: 8.25pt;
+}
+
+.sheet[data-per="6"] .name {
+  font-size: 10.5pt;
+  font-weight: 600;
+}
+
+/* The only solid rule: the hairline above Balance due. */
+.sheet[data-per="6"] .balanceRule {
+  border-top: 1px solid #000;
+  margin-top: 0.8mm;
+  padding-top: 1.3mm;
+}
+
+.sheet[data-per="6"] .balanceLabel {
+  font-size: 10.1pt;
+  font-weight: 600;
+}
+
+.sheet[data-per="6"] .balanceAmt {
+  font-size: 10.5pt;
+  font-weight: 600;
+}
+
+/* ---- 8 per A4: ink saver, smallest ---- */
+
+.sheet[data-per="8"] .slip {
+  padding: 4.2mm 5.8mm;
+  gap: 0.8mm;
+}
+
+.sheet[data-per="8"] .line {
+  padding: 0.5mm 0;
+  font-size: 9pt;
+}
+
+.sheet[data-per="8"] .amt {
+  font-size: 9pt;
+}
+
+.sheet[data-per="8"] .sub {
+  font-size: 7.9pt;
+}
+
+.sheet[data-per="8"] .name {
+  font-size: 10.1pt;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.lines8 {
+  margin-top: 0.5mm;
+}
+
+.sheet[data-per="8"] .balanceRule {
+  border-top: 1px solid #000;
+  margin-top: 0.5mm;
+  padding-top: 1.05mm;
+}
+
+.sheet[data-per="8"] .balanceLabel {
+  font-weight: 600;
+}
+
+.sheet[data-per="8"] .balanceAmt {
+  font-size: 9.75pt;
+  font-weight: 600;
+}
+
+/* ---- print: only the sheets, one per page ---- */
+
+@media print {
+  .page {
+    min-height: 0;
+    background: #fff;
+  }
+
+  .toolbar,
+  .warning,
+  .message {
+    display: none !important;
+  }
+
+  .sheets {
+    display: block;
+    padding: 0;
+    zoom: 1 !important;
+  }
+
+  .sheet {
+    box-shadow: none;
+    margin: 0;
+  }
+}

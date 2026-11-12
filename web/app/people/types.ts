@@ -416,6 +416,79 @@ export interface ReportRow {
   slip_printed_by?: string | null;
 }
 
+// ---------------------------------------------------------------- pay slips
+
+export type UnpaidReason = "absent" | "not_marked" | "after_leaving" | "unpaid_holiday";
+
+/** One payment of the month on a slip (advances and salary payments alike). */
+export interface PayslipPayment {
+  date: DateBoth;
+  kind: PaymentKind;
+  /** The payment mode's name ("Cash"). */
+  mode: string;
+  amount: number;
+}
+
+/** One unpaid-days line of a monthly slip; the amounts add up to `absence_deduction`. */
+export interface PayslipDeduction {
+  reason: UnpaidReason;
+  days: number;
+  amount: number;
+}
+
+/**
+ * GET /api/payroll/payslips: one employee's month. Every amount is the Salary report row's -
+ * nothing is computed in the browser: base_amount − absence_deduction + overtime_amount = earned,
+ * balance_due = the row's due.
+ */
+export interface Payslip {
+  employee: {
+    id: number;
+    code: string;
+    name: string;
+    role: string | null;
+    department: string | null;
+    pay_type: PayType;
+    /** Monthly: salary per month. Daily: wage per day. */
+    rate: number;
+  };
+  month: { bs_year: number; bs_month: number; name: string; days_in_month: number };
+  /** The running month: figures are "so far" (salary prorated by days_counted / 30). */
+  in_progress: boolean;
+  days_counted: number;
+  paid_days: number;
+  absent_days: number;
+  /** BS dates of the Absent days, ascending. */
+  absent_dates: string[];
+  overtime_hours: number;
+  overtime_amount: number;
+  overtime_rate: number;
+  base_amount: number;
+  /** Rupees per day to the paisa: salary ÷ 30, or the daily wage. */
+  day_rate: number;
+  absence_deduction: number;
+  deductions: PayslipDeduction[];
+  earned: number;
+  advances: PayslipPayment[];
+  advances_total: number;
+  balance_due: number;
+  /** Past working days without an attendance record (a warning only). */
+  unmarked_days: number;
+  slip_printed_at: string | null;
+  slip_printed_by: string | null;
+}
+
+export interface Payslips {
+  /** The company name from settings ("TTK"). */
+  business: string;
+  branch: Branch;
+  month: BsMonth;
+  /** Today in Kathmandu (the "Printed …" date). */
+  today: DateBoth;
+  /** In the order asked for. */
+  slips: Payslip[];
+}
+
 export interface ReportTotals {
   staff: number;
   /** Sum of earnings (salary + overtime). */

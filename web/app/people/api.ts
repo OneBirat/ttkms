@@ -27,6 +27,7 @@ import type {
   PaymentMode,
   PaymentResult,
   PaymentsRegister,
+  Payslips,
   PhotoToken,
   PhotoTokenInfo,
   RegisterSort,
@@ -346,6 +347,16 @@ export async function getSalaryReport(month: BsMonth, department_id: number | nu
 }
 
 /** URL of the salary report's Excel / PDF file for the same filters. */
+/** GET /api/payroll/payslips: the slips of `ids`, in that order, for one month of one branch. */
+export async function getPayslips(branch_id: number, month: BsMonth, ids: number[]): Promise<Payslips> {
+  return apiFetch<Payslips>(`/api/payroll/payslips${qs({ branch_id, month: key(month), employee_ids: ids.join(",") })}`);
+}
+
+/** POST /api/payroll/payslips/printed: remember that these slips went to the printer. */
+export async function markPayslipsPrinted(branch_id: number, month: BsMonth, ids: number[]): Promise<void> {
+  await mutate(apiFetch("/api/payroll/payslips/printed", { method: "POST", json: { branch_id, month: key(month), employee_ids: ids } }));
+}
+
 export function salaryReportExportUrl(month: BsMonth, ext: "xlsx" | "pdf", department_id: number | null = null): string {
   return `/api/payroll/report/${key(month)}.${ext}${qs({ department_id })}`;
 }
