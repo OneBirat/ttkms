@@ -3,6 +3,7 @@
 import { ActionSheet } from "./ActionSheet";
 import { AskModal } from "./AskModal";
 import { ClearMarkModal } from "./ClearMarkModal";
+import { LockNotice } from "./LockNotice";
 import { ManualDoneSheet } from "./ManualDoneSheet";
 import { MarkDesktop } from "./MarkDesktop";
 import { MarkMobile } from "./MarkMobile";
@@ -125,6 +126,7 @@ export function MarkPage() {
       ) : null}
       {phone && state.scan && !isListOrigin(state.scan) ? <ScanCamera state={state} /> : null}
       {isSheetStep(state.scan?.step) ? <ScanSheet state={state} phone={phone} /> : null}
+      <LockNotice message={state.lockNotice} onClose={state.closeLockNotice} />
     </>
   );
 }

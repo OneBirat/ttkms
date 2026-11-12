@@ -35,7 +35,7 @@ import {
   type MarkCounts,
   type StatusFilter,
 } from "./helpers";
-import { canBulk, isLockedError, reasonError, rowAccess, type RowAccess } from "./lock";
+import { LOCK_NOTICE_MS, canBulk, isLockedError, reasonError, rowAccess, type RowAccess } from "./lock";
 import type { Scan, ScanFlow } from "./scan/scanFlow";
 import { useScanFlow } from "./scan/useScanFlow";
 import { SPEECH, beep as rawBeep, speak as rawSpeak, unlockAudio } from "./speak";
@@ -172,6 +172,9 @@ export interface MarkState {
   loading: boolean;
   error: string | null;
   clearError: () => void;
+  /** The "… is locked" pop-up (a refused save on a locked mark); gone after 3 s. */
+  lockNotice: string | null;
+  closeLockNotice: () => void;
   // rows
   scopeRows: MarkRow[];
   listRows: MarkRow[];
@@ -289,6 +292,13 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const [data, setData] = useState<DayAttendance | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** "Attendance for … is locked": a pop-up that goes away by itself (LOCK_NOTICE_MS). */
+  const [lockNotice, setLockNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!lockNotice) return;
+    const timer = setTimeout(() => setLockNotice(null), LOCK_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [lockNotice]);
   const [pending, setPending] = useState<ReadonlySet<number>>(() => new Set());
   const [saved, setSaved] = useState<SavedConfirm | null>(null);
   const [ask, setAsk] = useState<AskConfirm | null>(null);
@@ -377,10 +387,18 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     const row = rowsRef.current.get(employeeId);
     return row ? rowAccess(lockRef.current, row.record) : "locked";
   }, []);
-  /** A refused save: say why; when the mark turned out to be locked, load the day again. */
+  /**
+   * A refused save: say why. When the mark turned out to be locked, the reason is a pop-up
+   * that disappears after 3 s (not a line on the page) and the day is loaded again.
+   */
   const failed = useCallback((err: unknown, fallback: string) => {
-    setError(err instanceof Error ? err.message : fallback);
-    if (isLockedError(err)) setReloadKey((k) => k + 1);
+    const message = err instanceof Error ? err.message : fallback;
+    if (isLockedError(err)) {
+      setLockNotice(message);
+      setReloadKey((k) => k + 1);
+    } else {
+      setError(message);
+    }
   }, []);
 
   /**
@@ -904,6 +922,8 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     loading,
     error,
     clearError: () => setError(null),
+    lockNotice,
+    closeLockNotice: () => setLockNotice(null),
     scopeRows,
     listRows,
     statusOf,

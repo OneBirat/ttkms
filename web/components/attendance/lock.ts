@@ -110,6 +110,9 @@ export function reasonError(reason: string): string | null {
     : null;
 }
 
+/** How long the "… is locked" pop-up stays on screen. */
+export const LOCK_NOTICE_MS = 3000;
+
 /** True for the API's 403 `attendance_locked` (the window closed while the screen was open). */
 export function isLockedError(error: unknown): boolean {
   return (
