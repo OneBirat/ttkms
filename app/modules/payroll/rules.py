@@ -4,8 +4,9 @@ Decided rules (the brief overrides any older design text):
 
 * Monthly: ``net = salary - (salary / 30 * unpaid days) + overtime - TDS`` - a fixed 30-day
   divisor whatever the BS month's real length. Unpaid days = absent + not marked (a past
-  working day without any record is unpaid, exactly like a day marked absent); both counts come
-  from the MonthSummary and are never derived here. Saturdays (the weekly off) are paid. No
+  working day without any record is unpaid, exactly like a day marked absent) + the days after
+  an inactive employee's leaving day; the counts come from the MonthSummary and are never
+  derived here. Saturdays (the weekly off) are paid. No
   half days, no leave.
 * Running month ("earned so far", which also caps advances): the salary is prorated as
   ``salary * min(days_counted, 30) / 30`` (days_counted = today's BS day), then the unpaid days
@@ -87,7 +88,8 @@ class PayResult:
     #: Monthly with ``extra_day``: salary / 30 x Saturdays worked - already inside gross_salary
     #: (so gross - absence + overtime = net everywhere). Else 0.
     saturday_pay: int = 0
-    #: Monthly: the days ``absence_deduction`` covers (absent + not marked). Daily: 0.
+    #: Monthly: the days ``absence_deduction`` covers (absent + not marked + after leaving).
+    #: Daily: 0.
     unpaid_days: int = 0
 
 
@@ -103,7 +105,7 @@ def monthly_pay(
     at 30)."""
     per_day = salary / PAY_DAYS
     base = round_rs(salary * min(max(0, s.days_counted), PAY_DAYS) / PAY_DAYS if so_far else salary)
-    unpaid = max(0, s.absent) + max(0, s.not_marked)
+    unpaid = max(0, s.absent) + max(0, s.not_marked) + max(0, s.days_after_leaving)
     absence = min(round_rs(per_day * unpaid), base)
     overtime = overtime_pay(s.overtime_hours + s.saturday_ot_hours, ot_rate)
     saturday = (

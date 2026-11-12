@@ -24,19 +24,26 @@ export type MonthDetailRow =
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** Per unpaid day (absent or not marked): what was actually deducted ÷ those days (salary ÷ 30 when none). */
+/** The days the deduction covers: absent + not marked + after leaving. */
+function unpaidDays(l: Pick<MonthLedger, "attendance">): number {
+  return l.attendance.absent + (l.attendance.not_marked ?? 0) + (l.attendance.days_after_leaving ?? 0);
+}
+
+/** Per unpaid day: what was actually deducted ÷ those days (salary ÷ 30 when none). */
 export function absencePerDay(l: Pick<MonthLedger, "rate" | "absence_deduction" | "attendance">): number {
-  const unpaid = l.attendance.absent + (l.attendance.not_marked ?? 0);
+  const unpaid = unpaidDays(l);
   return unpaid > 0 ? Math.round(l.absence_deduction / unpaid) : Math.round(l.rate / 30);
 }
 
-/** The deduction split between absent and not marked days (they add up to absence_deduction). */
-export function deductionSplit(l: Pick<MonthLedger, "absence_deduction" | "attendance">): { absent: number; not_marked: number } {
+/** The deduction split between absent, not marked and after-leaving days (they add up to absence_deduction). */
+export function deductionSplit(l: Pick<MonthLedger, "absence_deduction" | "attendance">): { absent: number; not_marked: number; after_leaving: number } {
   const notMarked = l.attendance.not_marked ?? 0;
-  const unpaid = l.attendance.absent + notMarked;
-  if (unpaid <= 0 || notMarked <= 0) return { absent: l.absence_deduction, not_marked: 0 };
-  const part = Math.round((l.absence_deduction * notMarked) / unpaid);
-  return { absent: l.absence_deduction - part, not_marked: part };
+  const after = l.attendance.days_after_leaving ?? 0;
+  const unpaid = unpaidDays(l);
+  if (unpaid <= 0 || notMarked + after <= 0) return { absent: l.absence_deduction, not_marked: 0, after_leaving: 0 };
+  const nm = Math.round((l.absence_deduction * notMarked) / unpaid);
+  const al = Math.round((l.absence_deduction * after) / unpaid);
+  return { absent: l.absence_deduction - nm - al, not_marked: nm, after_leaving: al };
 }
 
 export function monthDetailRows(l: MonthLedger): MonthDetailRow[] {
@@ -90,6 +97,18 @@ export function monthDetailRows(l: MonthLedger): MonthDetailRow[] {
           }
         : { kind: "line", label: "Not marked", qty: plural(notMarked, "day"), rate: "not paid", amount: "0", danger: true },
     );
+  }
+  // An employee who left: the days after the leaving day are unpaid too.
+  const afterLeaving = a.days_after_leaving ?? 0;
+  if (afterLeaving > 0 && l.pay_type === "monthly") {
+    rows.push({
+      kind: "line",
+      label: "After leaving",
+      qty: plural(afterLeaving, "day"),
+      rate: `${formatAmount(absencePerDay(l))} / day`,
+      amount: split.after_leaving > 0 ? `−${formatAmount(split.after_leaving)}` : "0",
+      danger: true,
+    });
   }
   rows.push({ kind: "net", label: "Net salary", qty: "", rate: "", amount: formatAmount(l.net) });
   rows.push({

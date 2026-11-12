@@ -135,6 +135,8 @@ export interface MonthSummary {
    * Computed by the attendance summary, never stored; today and future days never count.
    */
   not_marked: number;
+  /** Days after an inactive employee's leaving day (Saturdays included): unpaid. 0 while active. */
+  days_after_leaving?: number;
   /** Days the figures cover: the whole month when past, today's BS day for the running month. */
   days_counted?: number;
   /** Saturdays marked P or O - never inside present / overtime_days (app/contracts.py). */

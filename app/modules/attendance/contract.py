@@ -10,7 +10,8 @@ before the joining date (and after an inactive employee's leaving date) count fo
 
 ``not_marked``: working days without a record BEFORE today, inside that period. They are
 unpaid like absent days - computed here and nowhere else, never stored as ``A`` rows; today
-and future days are never counted.
+and future days are never counted. ``days_after_leaving``: the counted days after an inactive
+employee's leaving day - unpaid as well.
 """
 
 from __future__ import annotations
@@ -73,6 +74,8 @@ def summarise(
         if not services.is_weekly_off(first + timedelta(days=i))
         and first + timedelta(days=i) not in marked
     )
+    # After leaving: every counted day past the leaving day (Saturdays too) is unpaid.
+    after_leaving = max(0, (upto - max(left, start - timedelta(days=1))).days) if left else 0
     present = overtime_days = overtime_hours = absent = sat_days = sat_hours = 0
     for r in records:
         if not start <= r.date <= upto:
@@ -100,6 +103,7 @@ def summarise(
         saturday_days_worked=sat_days,
         saturday_ot_hours=sat_hours,
         not_marked=not_marked,
+        days_after_leaving=after_leaving,
     )
 
 

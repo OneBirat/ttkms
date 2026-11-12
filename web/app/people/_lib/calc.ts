@@ -70,7 +70,7 @@ export function monthlyPay(salary: number, ot_rate: number, s: MonthSummary, opt
   const counted = s.days_counted ?? s.days_in_month;
   const perDay = salary / PAY_DAYS;
   const base = roundRs(options.so_far ? (salary * Math.min(Math.max(0, counted), PAY_DAYS)) / PAY_DAYS : salary);
-  const unpaid_days = Math.max(0, s.absent) + Math.max(0, s.not_marked ?? 0);
+  const unpaid_days = Math.max(0, s.absent) + Math.max(0, s.not_marked ?? 0) + Math.max(0, s.days_after_leaving ?? 0);
   const absence = Math.min(roundRs(perDay * unpaid_days), base);
   const overtime = overtimePay(s.overtime_hours + (s.saturday_ot_hours ?? 0), ot_rate);
   const saturday_pay =

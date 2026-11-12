@@ -79,7 +79,11 @@ describe("not marked days", () => {
     ]);
     const line = monthDetailRows(l).find((r) => r.kind !== "section" && r.label === "Not marked");
     assert.equal(line && line.kind !== "section" && line.danger, true);
-    assert.deepEqual(deductionSplit(l), { absent: 800, not_marked: 2400 });
+    assert.deepEqual(deductionSplit(l), { absent: 800, not_marked: 2400, after_leaving: 0 });
+    // Someone who left: the days after the leaving day get their own line.
+    const gone = ledger({ absence_deduction: 9600, net: 15000 }, { absent: 0, not_marked: 0, days_after_leaving: 12 });
+    assert.ok(flat(gone).includes("line | After leaving | 12 days | 800 / day | −9,600"));
+    assert.deepEqual(deductionSplit(gone), { absent: 0, not_marked: 0, after_leaving: 9600 });
     assert.equal(absencePerDay(l), 800);
     // No line at all when every past day is marked.
     assert.ok(!flat(ledger({}, { not_marked: 0 })).some((r) => r.includes("Not marked")));

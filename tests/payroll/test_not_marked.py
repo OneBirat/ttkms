@@ -261,3 +261,36 @@ async def test_pay_slip_and_the_paid_months_check(client, db, make_user, login):
     # Once the days are marked the month drops off the list.
     await attend(db, anita, PREVIOUS)
     assert await unmarked_paid_months(db) == []
+
+
+async def test_days_after_leaving_are_unpaid(client, db, make_user, login):
+    from datetime import UTC, datetime
+
+    from app.core.models import EmployeeStatus
+
+    anita = await _employee(db)
+    await attend(db, anita, PREVIOUS)
+    await _owner(client, db, make_user, login, anita)
+    summary = await attendance_summary(anita, PREVIOUS)
+    assert summary.days_after_leaving == 0
+    # She left on the 10th day of last month (deactivated that day, Kathmandu noon).
+    last_day = DAYS[9]
+    anita.status = EmployeeStatus.inactive
+    anita.deactivated_at = datetime(last_day.year, last_day.month, last_day.day, 6, 15, tzinfo=UTC)
+    await db.flush()
+    summary = await attendance_summary(anita, PREVIOUS)
+    after = len(DAYS) - 10
+    worked = [d for d in WORKDAYS if d <= last_day]
+    assert summary.days_after_leaving == after
+    # Up to the leaving day nothing changes: every working day was marked, Saturdays are paid.
+    assert (summary.not_marked, summary.absent, summary.present) == (0, 0, len(WORKDAYS))
+    assert summary.weekly_off == 10 - len(worked)
+    # The pay rule deducts salary / 30 for each of those days (never below zero).
+    from app.modules.payroll.rules import monthly_pay
+
+    pay = monthly_pay(30000, 125, summary)
+    assert pay.unpaid_days == after
+    assert pay.absence_deduction == min(1000 * after, 30000) and pay.net == 30000 - 1000 * after
+    # The month after leaving is worth nothing.
+    gone = await attendance_summary(anita, CURRENT)
+    assert monthly_pay(30000, 125, gone, so_far=True).net == 0

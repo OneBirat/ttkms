@@ -58,6 +58,9 @@ class MonthSummary:
     #: Computed, never stored: marking the day later takes it out. Today and future days are
     #: never counted.
     not_marked: int = 0
+    #: Calendar days of the month after an inactive employee's leaving day (up to today in the
+    #: running month), Saturdays included. Unpaid: nobody is paid after leaving. 0 while active.
+    days_after_leaving: int = 0
 
 
 #: How payroll pays Saturday work to monthly staff - a core.settings key set on admin Settings.

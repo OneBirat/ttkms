@@ -843,13 +843,26 @@ def _rs(value: int) -> str:
 
 
 def unpaid_days_text(ledger: MonthLedger) -> str:
-    """ "2 absent + 3 not marked = 5 day(s)", or just "2 day(s)" / "3 not marked day(s)"."""
-    absent, not_marked = ledger.attendance.absent, ledger.attendance.not_marked
-    if absent and not_marked:
-        return f"{absent} absent + {not_marked} not marked = {absent + not_marked} day(s)"
-    if not_marked:
-        return f"{not_marked} not marked day(s)"
-    return f"{absent} day(s)"
+    """ "2 absent + 3 not marked = 5 day(s)", "3 not marked day(s)", "2 day(s)"; an employee
+    who left adds "+ 12 after leaving"."""
+    a = ledger.attendance
+    parts = [
+        text
+        for count, text in (
+            (a.absent, f"{a.absent} absent"),
+            (a.not_marked, f"{a.not_marked} not marked"),
+            (a.days_after_leaving, f"{a.days_after_leaving} after leaving"),
+        )
+        if count
+    ]
+    if len(parts) > 1:
+        total = a.absent + a.not_marked + a.days_after_leaving
+        return f"{' + '.join(parts)} = {total} day(s)"
+    if a.days_after_leaving:
+        return f"{a.days_after_leaving} day(s) after leaving"
+    if a.not_marked:
+        return f"{a.not_marked} not marked day(s)"
+    return f"{a.absent} day(s)"
 
 
 async def transactions(db: AsyncSession, employee: Employee) -> EmployeeLedgerOut:

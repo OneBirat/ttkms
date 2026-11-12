@@ -271,6 +271,8 @@ class MonthSummaryOut(BaseModel):
     saturday_ot_hours: int = 0
     #: Past working days without a record (from joining, before today): unpaid like absent.
     not_marked: int = 0
+    #: Days after an inactive employee's leaving day (Saturdays included): unpaid.
+    days_after_leaving: int = 0
 
 
 class PaymentOut(BaseModel):

@@ -91,6 +91,20 @@ def test_not_marked_is_past_working_days_without_a_record_inside_the_active_peri
     # Left on 23 Oct (inactive): 18-23 Oct, no Saturday, nothing after it.
     gone = contract.summarise(START, END, date(2026, 12, 1), joined, [], date(2026, 10, 23))
     assert (gone.not_marked, gone.weekly_off) == (6, 0)
+    # ... and every day after the leaving day is unpaid (24 Oct - 16 Nov, Saturdays included);
+    # in the running month only the days up to today; none while active or before leaving.
+    assert gone.days_after_leaving == 24
+    seen_early = contract.summarise(START, END, date(2026, 10, 25), joined, [], date(2026, 10, 23))
+    assert seen_early.days_after_leaving == 2
+    assert contract.summarise(START, END, date(2026, 12, 1), joined, []).days_after_leaving == 0
+    left_before = contract.summarise(START, END, date(2026, 12, 1), joined, [], date(2026, 9, 1))
+    assert (left_before.days_after_leaving, left_before.not_marked, left_before.weekly_off) == (
+        30,
+        0,
+        0,
+    )
+    left_later = contract.summarise(START, END, date(2026, 12, 1), joined, [], date(2026, 11, 30))
+    assert left_later.days_after_leaving == 0
     # An absent mark is absent, not "not marked"; paid days are counted, never month − absent.
     s = contract.summarise(START, END, date(2026, 12, 1), joined, RECORDS)
     assert s.paid_days == s.present + s.overtime_days + s.weekly_off == 6
