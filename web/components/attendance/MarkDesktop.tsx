@@ -6,6 +6,8 @@ import { useEffect, useRef, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BSDate } from "@/components/date";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { LockBanner } from "./LockBanner";
+import { lockLine } from "./lock";
 import { CheckIcon, ScanIcon, SearchIcon } from "./icons";
 import { MarkRow } from "./MarkRow";
 import { Pager } from "./Pager";
@@ -243,6 +245,7 @@ export function MarkDesktop({ state }: { state: MarkState }) {
           </p>
         </div>
       ) : null}
+      <LockBanner lock={state.lock} />
       {weeklyOff ? (
         <div className={styles.messages}>
           <p role="status" className={shared.status}>
@@ -266,7 +269,7 @@ export function MarkDesktop({ state }: { state: MarkState }) {
                         type="checkbox"
                         aria-label="Select all not marked on this page"
                         checked={allOnPageSelected}
-                        disabled={openOnPage.length === 0}
+                        disabled={openOnPage.length === 0 || !state.canBulk}
                         onChange={(e) => state.setSelected(openOnPage, e.target.checked)}
                       />
                     ) : null}
@@ -284,7 +287,7 @@ export function MarkDesktop({ state }: { state: MarkState }) {
                       <button
                         type="button"
                         className={styles.bulkSelBtn}
-                        disabled={selectedOpen === 0 || state.bulkBusy || weeklyOff}
+                        disabled={selectedOpen === 0 || state.bulkBusy || weeklyOff || !state.canBulk}
                         onClick={state.markSelected}
                       >
                         Mark selected as Present
@@ -293,7 +296,7 @@ export function MarkDesktop({ state }: { state: MarkState }) {
                         <button
                           type="button"
                           className={styles.bulkAllBtn}
-                          disabled={state.bulkBusy || counts.not_marked === 0 || weeklyOff}
+                          disabled={state.bulkBusy || counts.not_marked === 0 || weeklyOff || !state.canBulk}
                           onClick={state.markDepartment}
                         >
                           Mark all {counts.not_marked} in {department?.name ?? ""} as Present
@@ -317,6 +320,8 @@ export function MarkDesktop({ state }: { state: MarkState }) {
                   bulk={bulk}
                   selected={selected.has(row.employee.id)}
                   pending={state.pending.has(row.employee.id)}
+                  locked={state.accessOf(row) === "locked"}
+                  hint={lockLine(state.lock, row.record) ?? undefined}
                   onToggleSelect={state.toggleSelected}
                   onPick={state.pickStatus}
                   onOvertime={state.openOvertime}

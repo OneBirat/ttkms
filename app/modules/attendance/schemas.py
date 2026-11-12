@@ -68,6 +68,12 @@ class AttendanceRecord(BaseModel):
     marked_by: str
     marked_via: MarkedVia
     updated_at: datetime
+    #: When the mark was first saved; it can be changed or removed until ``editable_until``
+    #: (24 hours later - editing does not extend it).
+    created_at: datetime
+    editable_until: datetime
+    #: True once that window has passed: only the super admin can change it now.
+    locked: bool
 
 
 class PaymentFlags(BaseModel):
@@ -75,6 +81,24 @@ class PaymentFlags(BaseModel):
 
     advance: int = 0
     salary: int = 0
+
+
+class DayLock(BaseModel):
+    """What the caller may do on this day (the API enforces it; the screens only show it).
+
+    * ``open`` - today: marking works as always.
+    * ``locked`` - a past day: nobody can be newly marked; a mark saved less than 24 hours ago
+      can still be changed (its ``locked`` is false) and everything else is read-only.
+    """
+
+    mode: Literal["open", "locked"]
+    is_today: bool
+    #: New marks (one by one and in bulk) are possible.
+    can_create: bool
+    #: "Kartik 14, 2083"
+    date_label: str
+    #: The banner above the list ("" on an open day).
+    message: str
 
 
 class MarkRow(BaseModel):
@@ -88,6 +112,7 @@ class DayAttendance(BaseModel):
     date_bs: str
     day: DayHeader
     settings: AttendanceSettings
+    lock: DayLock
     branches: list[BranchRef]
     departments: list[DepartmentRef]
     rows: list[MarkRow]

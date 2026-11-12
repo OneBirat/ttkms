@@ -576,12 +576,13 @@ def sort_rows(
     return sorted(newest_first, key=key)
 
 
-async def settlement_month(rows: Sequence[MonthLedger | None]) -> tuple[int, int]:
-    """Previous BS month while any employee still owes for it, else the running month."""
-    year, month = ledgers.current_month()
-    previous = bsdate.shift_month(year, month, -1)
-    any_due = any(ledger is not None and ledger.due > 0 for ledger in rows)
-    return previous if any_due else (year, month)
+def tiles_month(to_bs: bsdate.BSDate | None) -> tuple[int, int]:
+    """The BS month the tiles describe: the month of the range's To date - the running month
+    with no To, or with a To after it (nothing is earned in a month that has not begun)."""
+    running = ledgers.current_month()
+    if to_bs is None:
+        return running
+    return min((to_bs.year, to_bs.month), running)
 
 
 def totals_of(rows: Sequence[RegisterRowOut]) -> tuple[int, int, int]:
@@ -696,30 +697,18 @@ async def register(
     rows = [r for r in in_range if in_department(r)]
     shown = sort_rows([r for r in listed if in_department(r)], sort, branch is None)
 
-    # Tiles and By employee: the settlement month, for the scoped (branch + department) staff.
+    # Tiles and By employee: the month of To (tiles_month), for the scoped (branch +
+    # department) staff. The running month is earned so far (ledger_for), like Pay salary.
     scoped = [e for e in employees if department is None or e.department_id == department.id]
     ids = [e.id for e in scoped]
     structures = await ledgers.load_structures(db, ids)
     all_payments = await ledgers.load_payments(db, ids)
-    year, month = ledgers.current_month()
-    previous = bsdate.shift_month(year, month, -1)
     rule = await ledgers.saturday_rule(db)
-    prev_ledgers = [
-        await ledgers.ledger_for(
-            e,
-            *previous,
-            structures.get(e.id, []),
-            all_payments.get(e.id, []),
-            saturday_rule=rule,
-        )
-        for e in scoped
-        if e.status == EmployeeStatus.active
-    ]
-    settle_month = await settlement_month(prev_ledgers)
+    tile_month = tiles_month(to_bs)
     month_ledgers = [
         await ledgers.ledger_for(
             e,
-            *settle_month,
+            *tile_month,
             structures.get(e.id, []),
             all_payments.get(e.id, []),
             saturday_rule=rule,
@@ -750,7 +739,8 @@ async def register(
         show_voided=show_voided,
         rows=shown,
         totals=RegisterTotalsOut(
-            month=month_out(*settle_month),
+            month=month_out(*tile_month),
+            in_progress=tile_month == ledgers.current_month(),
             staff=len(month_ledgers),
             month_net=sum(ledger.net for ledger in month_ledgers),
             salary_paid=sum(ledger.settled.salary_paid for ledger in month_ledgers),

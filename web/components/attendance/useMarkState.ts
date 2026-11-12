@@ -34,6 +34,7 @@ import {
   type MarkCounts,
   type StatusFilter,
 } from "./helpers";
+import { canBulk, isLockedError, rowAccess, type RowAccess } from "./lock";
 import type { Scan, ScanFlow } from "./scan/scanFlow";
 import { useScanFlow } from "./scan/useScanFlow";
 import { SPEECH, beep as rawBeep, speak as rawSpeak, unlockAudio } from "./speak";
@@ -41,6 +42,7 @@ import type {
   AttendanceRecord,
   CellStatus,
   DayAttendance,
+  DayLock,
   MarkRow,
   MarkStatus,
   TodayRef,
@@ -150,6 +152,12 @@ export interface MarkState {
   counts: MarkCounts;
   scopeLabel: string;
   pending: ReadonlySet<number>;
+  // the lock (lock.ts): the server decides, the screens only show it
+  lock: DayLock | null;
+  /** "edit" = the row's buttons work; "locked" = they are disabled. */
+  accessOf: (row: MarkRow) => RowAccess;
+  /** New marks in bulk are possible (today only). */
+  canBulk: boolean;
   // desktop paging / phone batches
   page: number;
   setPage: (p: number) => void;
@@ -258,6 +266,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState<BulkMessage | null>(null);
   const [clearAsk, setClearAsk] = useState<ClearConfirm | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Default date = today (BS).
   useEffect(() => {
@@ -294,7 +303,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     return () => {
       cancelled = true;
     };
-  }, [date, branchId]);
+  }, [date, branchId, reloadKey]);
 
   // Date-picker dots: days with any mark, for the date's month and the month before.
   const [markedDays, setMarkedDays] = useState<string[]>([]);
@@ -321,6 +330,21 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   }, [data]);
   const rowsRef = useRef(rowsById);
   rowsRef.current = rowsById;
+
+  const lock = data?.lock ?? null;
+  const lockRef = useRef(lock);
+  lockRef.current = lock;
+  const accessOf = useCallback((row: MarkRow): RowAccess => rowAccess(lock, row.record), [lock]);
+  /** The row's access right now (callbacks; the 24 hours may have run out since the render). */
+  const accessNow = (employeeId: number): RowAccess => {
+    const row = rowsRef.current.get(employeeId);
+    return row ? rowAccess(lockRef.current, row.record) : "locked";
+  };
+  /** A refused save: say why; when the mark turned out to be locked, load the day again. */
+  const failed = useCallback((err: unknown, fallback: string) => {
+    setError(err instanceof Error ? err.message : fallback);
+    if (isLockedError(err)) setReloadKey((k) => k + 1);
+  }, []);
 
   const statusOf = useCallback((row: MarkRow): CellStatus => recordStatus(row.record), []);
   const draftOf = useCallback((row: MarkRow): Draft => draftFromRecord(row.record), []);
@@ -430,7 +454,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
         });
         return result.record;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not save. Try again.");
+        failed(err, "Could not save. Try again.");
         return null;
       } finally {
         setPending((p) => {
@@ -440,14 +464,14 @@ export function useMarkState(options: { phone: boolean }): MarkState {
         });
       }
     },
-    [data, applyRecords],
+    [data, applyRecords, failed],
   );
 
   // Desktop: click → save → "Saved as" pop-up.
   const pickStatus = useCallback(
     (employeeId: number, status: "P" | "A") => {
       const row = rowsRef.current.get(employeeId);
-      if (!row) return;
+      if (!row || accessNow(employeeId) === "locked") return;
       const previous = recordStatus(row.record);
       void markNow(employeeId, status).then((record) => {
         if (record) setSaved({ employeeId, status, hours: 0, previous, editing: false });
@@ -491,7 +515,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   );
   const askStatus = (employeeId: number, status: "P" | "A") => {
     const row = rowsRef.current.get(employeeId);
-    if (!row) return;
+    if (!row || accessNow(employeeId) === "locked") return;
     setAction(null);
     setAsk({ employeeId, status, previous: recordStatus(row.record) });
   };
@@ -516,7 +540,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   // Overtime pop-up (both layouts): Save writes at once.
   const openOvertime = useCallback((employeeId: number) => {
     const row = rowsRef.current.get(employeeId);
-    if (!row) return;
+    if (!row || accessNow(employeeId) === "locked") return;
     setAction(null);
     const current = draftFromRecord(row.record);
     setOtModal({ employeeId, hours: current.status === "O" ? current.ot_hours : 1 });
@@ -546,7 +570,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
 
   const askClear = (employeeId: number) => {
     const row = rowsRef.current.get(employeeId);
-    if (!row || !row.record) return;
+    if (!row || !row.record || accessNow(employeeId) === "locked") return;
     setAction(null);
     setSaved(null);
     setClearAsk({ employeeId, previous: recordStatus(row.record) });
@@ -566,7 +590,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
             : current,
         );
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not clear the mark. Try again."))
+      .catch((err: unknown) => failed(err, "Could not clear the mark. Try again."))
       .finally(() =>
         setPending((p) => {
           const next = new Set(p);
@@ -606,13 +630,13 @@ export function useMarkState(options: { phone: boolean }): MarkState {
       setPage(1);
       setBulkMessage({ text: label(result.marked.length), names: result.marked.map((m) => m.name) });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not mark them. Try again.");
+      failed(err, "Could not mark them. Try again.");
     } finally {
       setBulkBusy(false);
     }
   };
   const markSelected = () => {
-    if (!data) return;
+    if (!data || !canBulk(lock)) return;
     const ids = scopeRows
       .filter((row) => selected.has(row.employee.id) && statusOf(row) === "N")
       .map((row) => row.employee.id);
@@ -623,7 +647,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     );
   };
   const markDepartment = () => {
-    if (!data || departmentId === null) return;
+    if (!data || departmentId === null || !canBulk(lock)) return;
     const name = department?.name ?? "department";
     void runBulk(
       { date_bs: data.day.bs_date, branch_id: branchId, department_id: departmentId },
@@ -720,6 +744,9 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     counts,
     scopeLabel,
     pending,
+    lock,
+    accessOf,
+    canBulk: canBulk(lock),
     page,
     setPage,
     paged,

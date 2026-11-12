@@ -1,6 +1,7 @@
 """Marking: the day list, mark / change / clear, bulk Present, the rules (P / O + 1-12 hours /
 A, Saturday, future days, the Kathmandu day boundary, inactive staff), permissions, branch
-scoping and the audit trail."""
+scoping and the audit trail. New marks are for today only (the lock: test_lock.py), so these
+tests mark today; the Saturday ones first move the clock to a Saturday."""
 
 from datetime import UTC, date, datetime, timedelta
 
@@ -25,9 +26,17 @@ def _last(weekday: int, before: date = TODAY) -> date:
 
 
 SATURDAY = _last(6)
-WORKDAY = _last(3)  # a Wednesday
+WORKDAY = TODAY  # never a Saturday on the suite's frozen days (tests/conftest.py TEST_DAYS)
+assert bsdate.weekday_index(WORKDAY) != 6
 BS_SAT = bsdate.ad_to_bs(SATURDAY).isoformat()
 BS_DAY = bsdate.ad_to_bs(WORKDAY).isoformat()
+
+
+def _clock_on(monkeypatch, day: date) -> None:
+    """Mid-morning in Kathmandu on ``day``."""
+    monkeypatch.setattr(
+        services, "now", lambda: datetime(day.year, day.month, day.day, 4, tzinfo=UTC)
+    )
 
 
 async def _headers(client):
@@ -67,7 +76,10 @@ async def test_mark_change_overtime_and_clear(client, db, login, user_in, world)
     body = first.json()
     assert body["previous"] == "N" and body["date"] == WORKDAY.isoformat()
     assert body["date_bs"] == BS_DAY
-    assert body["record"] | {"updated_at": None} == {
+    record = dict(body["record"])
+    assert record.pop("created_at") and record.pop("editable_until")
+    assert record.pop("locked") is False
+    assert record | {"updated_at": None} == {
         "employee_id": anita.id,
         "date_bs": BS_DAY,
         "date_ad": WORKDAY.isoformat(),
@@ -139,9 +151,11 @@ async def test_bad_dates_and_future_days(client, login, user_in, world):
     bad = await client.post("/api/attendance/mark", json=_mark(anita, day="2083-13-01"), headers=h)
     assert bad.status_code == 422 and bad.json()["detail"] == "2083-13-01 is not a valid BS date."
     tomorrow = bsdate.ad_to_bs(TODAY + timedelta(days=1)).isoformat()
+    read = await client.get("/api/attendance/day", params={"date_bs": tomorrow})
+    assert read.status_code == 422
+    assert read.json()["detail"] == "Attendance cannot be marked for a future day."
     for response in (
         await client.post("/api/attendance/mark", json=_mark(anita, day=tomorrow), headers=h),
-        await client.get("/api/attendance/day", params={"date_bs": tomorrow}),
         await client.delete(
             "/api/attendance/mark", params={"employee_id": anita.id, "date_bs": tomorrow}, headers=h
         ),
@@ -151,7 +165,8 @@ async def test_bad_dates_and_future_days(client, login, user_in, world):
             headers=h,
         ),
     ):
-        assert response.status_code == 422
+        assert response.status_code == 403
+        assert response.json()["code"] == "future_date"
         assert response.json()["detail"] == "Attendance cannot be marked for a future day."
     today = bsdate.ad_to_bs(TODAY).isoformat()
     ok = await client.post("/api/attendance/mark", json=_mark(anita, day=today), headers=h)
@@ -167,7 +182,7 @@ async def test_kathmandu_day_boundary(client, login, user_in, world, monkeypatch
     monkeypatch.setattr(services, "now", lambda: datetime(2026, 10, 20, 18, 14, tzinfo=UTC))
     assert services.today() == date(2026, 10, 20)
     late = await client.post("/api/attendance/mark", json=body, headers=h)
-    assert late.status_code == 422
+    assert late.status_code == 403 and late.json()["code"] == "future_date"
     monkeypatch.setattr(services, "now", lambda: datetime(2026, 10, 20, 18, 16, tzinfo=UTC))
     assert services.today() == the_21st
     early = await client.post("/api/attendance/mark", json=body, headers=h)
@@ -175,8 +190,11 @@ async def test_kathmandu_day_boundary(client, login, user_in, world, monkeypatch
     assert early.json()["record"]["date_ad"] == "2026-10-21"
 
 
-async def test_saturday_work_is_stored_but_never_absent(client, db, login, user_in, world):
+async def test_saturday_work_is_stored_but_never_absent(
+    client, db, login, user_in, world, monkeypatch
+):
     h = await _as(client, login, user_in, branch=world.main)
+    _clock_on(monkeypatch, SATURDAY)
     anita = world.people["Anita"]
     absent = await client.post(
         "/api/attendance/mark", json=_mark(anita, "A", day=BS_SAT), headers=h
@@ -201,7 +219,7 @@ async def test_inactive_and_not_yet_joined_cannot_be_marked(client, db, login, u
     old = await client.post("/api/attendance/mark", json=_mark(world.people["Old Hari"]), headers=h)
     assert old.status_code == 404
     chandra = world.people["Chandra"]
-    chandra.joined_ad = TODAY
+    chandra.joined_ad = TODAY + timedelta(days=1)
     await db.flush()
     early = await client.post("/api/attendance/mark", json=_mark(chandra), headers=h)
     assert early.status_code == 422 and "joined on" in early.json()["detail"]
@@ -323,7 +341,7 @@ async def test_bulk_marks_only_the_unmarked(client, db, login, user_in, world):
     assert await _changes(db, bikash) == [(None, "P", 0, 0, "bulk")]
 
 
-async def test_bulk_needs_a_scope_and_skips_saturday(client, login, user_in, world):
+async def test_bulk_needs_a_scope_and_skips_saturday(client, login, user_in, world, monkeypatch):
     h = await _as(client, login, user_in, branch=world.main)
     none = await client.post(
         "/api/attendance/bulk-mark", json={"date_bs": BS_DAY, "branch_id": world.main.id}, headers=h
@@ -331,6 +349,7 @@ async def test_bulk_needs_a_scope_and_skips_saturday(client, login, user_in, wor
     assert (
         none.status_code == 422 and none.json()["detail"] == "Give employee_ids or a department_id."
     )
+    _clock_on(monkeypatch, SATURDAY)
     sat = await client.post(
         "/api/attendance/bulk-mark",
         json={"date_bs": BS_SAT, "branch_id": world.main.id, "department_id": world.store.id},

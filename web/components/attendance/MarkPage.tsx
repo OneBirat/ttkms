@@ -9,6 +9,7 @@ import { MarkMobile } from "./MarkMobile";
 import { OvertimeModal } from "./OvertimeModal";
 import { SavedModal } from "./SavedModal";
 import { ScanCamera } from "./scan/ScanCamera";
+import { editableUntilText, lockLine } from "./lock";
 import { isListOrigin, isSheetStep } from "./scan/scanFlow";
 import { ScanSheet } from "./scan/ScanSheet";
 import { useMarkState } from "./useMarkState";
@@ -44,6 +45,7 @@ export function MarkPage() {
           onEdit={state.savedEdit}
           onChange={state.savedChange}
           onClear={() => state.askClear(state.saved!.employeeId)}
+          editableUntil={editableUntilText(savedRow.record)}
           onClose={state.savedClose}
         />
       ) : null}
@@ -78,6 +80,8 @@ export function MarkPage() {
           }}
           onClear={() => state.askClear(actionRow.employee.id)}
           canPay={state.canPay}
+          locked={state.accessOf(actionRow) === "locked"}
+          lockNote={lockLine(state.lock, actionRow.record)}
           onClose={state.closeAction}
         />
       ) : null}

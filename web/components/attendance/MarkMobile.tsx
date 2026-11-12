@@ -7,6 +7,7 @@ import { formatAdShort, formatBs, toNepaliDigits, validBs } from "@/lib/bs";
 import { useShell } from "@/lib/shell";
 import { MenuIcon, ScanIcon, SearchIcon } from "./icons";
 import { draftText, type Draft, type StatusFilter } from "./helpers";
+import { LockBanner } from "./LockBanner";
 import type { CellStatus, MarkRow } from "./types";
 import type { MarkState } from "./useMarkState";
 import styles from "./mobile.module.css";
@@ -117,17 +118,7 @@ export function MarkMobile({ state }: { state: MarkState }) {
       </header>
 
       <div className={styles.body}>
-        {state.isPast ? (
-          <div role="status" className={styles.pastBanner}>
-            <span className={styles.pastText}>
-              <b>Editing a past day</b> · {selEn}{" "}
-              <span lang="ne">({selNpShort})</span>
-            </span>
-            <button type="button" className={styles.pastToday} onClick={state.goToday}>
-              Today
-            </button>
-          </div>
-        ) : null}
+        <LockBanner lock={state.lock} phone onToday={state.goToday} />
         <div className={styles.pad}>
           <div className={styles.search}>
             <SearchIcon size={18} />
@@ -217,6 +208,7 @@ export function MarkMobile({ state }: { state: MarkState }) {
 function Card({ row, draft, status, state }: { row: MarkRow; draft: Draft; status: CellStatus; state: MarkState }) {
   const e = row.employee;
   const pending = state.pending.has(e.id);
+  const off = pending || state.accessOf(row) === "locked";
   return (
     <article className={styles.card} data-status={status} aria-busy={pending || undefined}>
       <div className={styles.cardHead}>
@@ -244,7 +236,7 @@ function Card({ row, draft, status, state }: { row: MarkRow; draft: Draft; statu
       </div>
       {status === "N" ? (
         <div role="group" aria-label={`Status for ${e.name}`} className={styles.cardBtns}>
-          <button type="button" className={styles.cardBtn} data-status="P" disabled={pending} onClick={() => state.askStatus(e.id, "P")}>
+          <button type="button" className={styles.cardBtn} data-status="P" disabled={off} onClick={() => state.askStatus(e.id, "P")}>
             ✓ Present
           </button>
           <button
@@ -252,12 +244,12 @@ function Card({ row, draft, status, state }: { row: MarkRow; draft: Draft; statu
             className={styles.cardBtn}
             data-status="O"
             aria-haspopup="dialog"
-            disabled={pending}
+            disabled={off}
             onClick={() => state.openOvertime(e.id)}
           >
             + Overtime
           </button>
-          <button type="button" className={styles.cardBtn} data-status="A" disabled={pending} onClick={() => state.askStatus(e.id, "A")}>
+          <button type="button" className={styles.cardBtn} data-status="A" disabled={off} onClick={() => state.askStatus(e.id, "A")}>
             ✕ Absent
           </button>
         </div>

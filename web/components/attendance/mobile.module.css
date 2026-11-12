@@ -224,33 +224,6 @@
   padding: 0 14px;
 }
 
-.pastBanner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: -12px 0 0;
-  padding: 8px 14px;
-  background: #fff4cc;
-  color: #7a5600;
-  font-size: 13px;
-}
-
-.pastText {
-  flex: 1;
-}
-
-.pastToday {
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid #e0a800;
-  border-radius: 999px;
-  background: #fff;
-  color: #7a5600;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .search {
   display: flex;
   align-items: center;
@@ -778,6 +751,30 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.actChangeBtn:disabled,
+.actItem:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* "Editable until …" / "Locked …" under the name in the ⋮ sheet. */
+.actLock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #e6f5f3;
+  color: #0a5454;
+  font-size: 13px;
+}
+
+.actLock[data-locked] {
+  background: #eef0f2;
+  color: #3e4a52;
 }
 
 .actChangeBtn[data-status="P"] {

@@ -3,6 +3,7 @@
 import { FaceContent } from "./Face";
 import { useId } from "react";
 import { draftText, type Draft } from "./helpers";
+import { LockIcon } from "./icons";
 import type { EmployeeRef } from "./types";
 import { useDialog } from "./useDialog";
 import styles from "./mobile.module.css";
@@ -18,11 +19,27 @@ export interface ActionSheetProps {
   onClear: () => void;
   /** Without salary_advances there is no "View payments". */
   canPay: boolean;
+  /** The lock: "Add overtime", "Change status" and "Clear mark" are disabled. */
+  locked?: boolean;
+  /** "Editable until 9:45 AM, Kartik 16, 2083", or that the mark is locked. */
+  lockNote?: string | null;
   onClose: () => void;
 }
 
 /** Phone ⋮ menu: Add overtime · View payments · View attendance calendar · Change status · Clear mark. */
-export function ActionSheet({ employee, current, onOvertime, onPayments, onCalendar, onChange, onClear, canPay, onClose }: ActionSheetProps) {
+export function ActionSheet({
+  employee,
+  current,
+  onOvertime,
+  onPayments,
+  onCalendar,
+  onChange,
+  onClear,
+  canPay,
+  locked = false,
+  lockNote,
+  onClose,
+}: ActionSheetProps) {
   const titleId = useId();
   const dialog = useDialog(onClose);
   const status = current.status ?? "N";
@@ -55,8 +72,20 @@ export function ActionSheet({ employee, current, onOvertime, onPayments, onCalen
             {draftText(current)}
           </span>
         </div>
+        {lockNote ? (
+          <p className={styles.actLock} data-locked={locked || undefined}>
+            {locked ? <LockIcon size={14} /> : null}
+            {lockNote}
+          </p>
+        ) : null}
         <div className={styles.actList}>
-          <button type="button" className={`${styles.actItem} ${styles.actItemOt}`} onClick={onOvertime} data-autofocus="">
+          <button
+            type="button"
+            className={`${styles.actItem} ${styles.actItemOt}`}
+            onClick={onOvertime}
+            disabled={locked}
+            data-autofocus={locked ? undefined : ""}
+          >
             <span className={`${styles.actIcon} ${styles.actIconOt}`}>+</span>
             <span className={styles.actItemText}>
               <span className={styles.actItemTitle}>{status === "O" ? "Change overtime hours" : "Add overtime"}</span>
@@ -96,12 +125,12 @@ export function ActionSheet({ employee, current, onOvertime, onPayments, onCalen
           {(["P", "A"] as const)
             .filter((k) => k !== status)
             .map((k) => (
-              <button key={k} type="button" className={styles.actChangeBtn} data-status={k} onClick={() => onChange(k)}>
+              <button key={k} type="button" className={styles.actChangeBtn} data-status={k} disabled={locked} onClick={() => onChange(k)}>
                 {k === "P" ? "✓ Present" : "✕ Absent"}
               </button>
             ))}
           {status !== "N" ? (
-            <button type="button" className={styles.actChangeBtn} data-status="N" onClick={onClear}>
+            <button type="button" className={styles.actChangeBtn} data-status="N" disabled={locked} onClick={onClear}>
               Clear mark
             </button>
           ) : null}

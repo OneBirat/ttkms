@@ -17,13 +17,15 @@ export interface SavedModalProps {
   onChange: (status: MarkStatus) => void;
   /** "Clear mark" (asks first): back to not marked. */
   onClear: () => void;
+  /** "Editable until 9:45 AM, Kartik 16, 2083" (the mark's 24 hours). */
+  editableUntil?: string | null;
   onClose: () => void;
 }
 
 const NP: Record<MarkStatus, string> = { P: "हाजिर", O: "ओभरटाइम", A: "अनुपस्थित" };
 
 /** Desktop: "Saved as Present / Absent" after a click, with Edit → change to P / O / A. */
-export function SavedModal({ saved, employee, onEdit, onChange, onClear, onClose }: SavedModalProps) {
+export function SavedModal({ saved, employee, onEdit, onChange, onClear, editableUntil, onClose }: SavedModalProps) {
   const titleId = useId();
   const dialog = useDialog(onClose);
   const label = saved.status === "O" ? `Overtime · ${saved.hours} h` : statusLabel(saved.status);
@@ -65,6 +67,7 @@ export function SavedModal({ saved, employee, onEdit, onChange, onClear, onClose
         {changed ? (
           <span className={styles.cfmChanged}>Changed from {statusLabel(saved.previous)}.</span>
         ) : null}
+        {editableUntil ? <span className={styles.cfmChanged}>{editableUntil}</span> : null}
         {saved.editing ? (
           <div className={styles.cfmEditBox}>
             <span className={styles.cfmEditLabel}>Change to</span>

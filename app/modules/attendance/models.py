@@ -89,6 +89,11 @@ class Record(Base):
     note: Mapped[str] = mapped_column(
         String(200), nullable=False, default="", server_default=text("''")
     )
+    #: When the day's mark was FIRST saved (the app server's clock). The mark can be changed or
+    #: removed for 24 hours from here; editing never moves it (``marked_at`` does move).
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     employee: Mapped[Employee] = relationship(lazy="raise")
     marker: Mapped[User | None] = relationship(lazy="raise")

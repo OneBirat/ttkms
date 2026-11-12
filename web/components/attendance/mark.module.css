@@ -420,6 +420,12 @@
   cursor: wait;
 }
 
+/* The lock: the row cannot be changed (a past day, or the mark's 24 hours are over). */
+.statusGroup[data-locked] .st:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .stInner {
   display: inline-flex;
   align-items: center;

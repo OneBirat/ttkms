@@ -22,6 +22,10 @@ export interface MarkRowProps {
   bulk: boolean;
   selected: boolean;
   pending: boolean;
+  /** The lock: no new mark and no change for this row (lock.ts). */
+  locked?: boolean;
+  /** Tooltip on the buttons: "Editable until …" or why they are disabled. */
+  hint?: string;
   onToggleSelect: (employeeId: number) => void;
   onPick: (employeeId: number, status: "P" | "A") => void;
   onOvertime: (employeeId: number) => void;
@@ -36,11 +40,14 @@ function MarkRowInner({
   bulk,
   selected,
   pending,
+  locked = false,
+  hint,
   onToggleSelect,
   onPick,
   onOvertime,
   onOpenProfile,
 }: MarkRowProps) {
+  const off = pending || locked;
   const open = status === "N";
   const href = `/people/employees/${employee.id}?dept=${employee.department_id}`;
   const onNameClick = (event: MouseEvent) => event.preventDefault(); // single click does nothing
@@ -56,7 +63,7 @@ function MarkRowInner({
             type="checkbox"
             aria-label={`Select ${employee.name}`}
             checked={selected}
-            disabled={!open}
+            disabled={!open || locked}
             onChange={() => onToggleSelect(employee.id)}
           />
         </td>
@@ -90,13 +97,19 @@ function MarkRowInner({
         </div>
       </td>
       <td>
-        <div role="group" aria-label={`Status for ${employee.name}`} className={styles.statusGroup}>
+        <div
+          role="group"
+          aria-label={`Status for ${employee.name}`}
+          className={styles.statusGroup}
+          data-locked={locked || undefined}
+          title={hint}
+        >
           <button
             type="button"
             className={styles.st}
             data-status="P"
             aria-pressed={status === "P"}
-            disabled={pending}
+            disabled={off}
             onClick={() => onPick(employee.id, "P")}
           >
             <span className={styles.stInner}>
@@ -110,7 +123,7 @@ function MarkRowInner({
             data-status="O"
             aria-pressed={status === "O"}
             aria-haspopup="dialog"
-            disabled={pending}
+            disabled={off}
             onClick={() => onOvertime(employee.id)}
           >
             <span className={styles.stInner}>{status === "O" ? `Overtime · ${hours} h` : "Overtime"}</span>
@@ -120,7 +133,7 @@ function MarkRowInner({
             className={styles.st}
             data-status="A"
             aria-pressed={status === "A"}
-            disabled={pending}
+            disabled={off}
             onClick={() => onPick(employee.id, "A")}
           >
             <span className={styles.stInner}>Absent</span>

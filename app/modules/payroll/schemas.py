@@ -592,10 +592,13 @@ class RegisterRowOut(BaseModel):
 
 
 class RegisterTotalsOut(BaseModel):
-    """The settlement month (previous BS month while anyone still owes for it, else the running
-    month), within the branch / department scope; ``count`` / ``amount`` are the rows."""
+    """The BS month of the range's To date (the running month with no To, or a later one),
+    within the branch / department scope. The running month is earned so far, like the Pay
+    salary dialog; voided payments never count. ``count`` / ``amount`` are the rows."""
 
     month: BsMonthOut
+    #: The month is the running month: ``month_net`` is earned so far.
+    in_progress: bool = False
     staff: int
     month_net: int
     salary_paid: int

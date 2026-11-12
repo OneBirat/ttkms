@@ -473,6 +473,7 @@ def register_sheets(data: PaymentsRegisterOut) -> list[Sheet]:
     salary, advances, total_amount = _split(rows)
     rng = _range_label(data)
     month = month_label(data.totals.month.bs_year, data.totals.month.bs_month)
+    so_far = " · earned so far" if data.totals.in_progress else ""
 
     HEADER = 4
     first = HEADER + 1
@@ -665,7 +666,7 @@ def register_sheets(data: PaymentsRegisterOut) -> list[Sheet]:
             name="Summary",
             rows=[
                 [Styled(f"Summary · {month}", "title")],
-                ["Net payroll", num(t.month_net), Styled(f"{t.staff} staff", "muted")],
+                ["Net payroll", num(t.month_net), Styled(f"{t.staff} staff{so_far}", "muted")],
                 ["Salary paid", num(salary), Styled("in this range", "muted")],
                 ["Advances paid", num(advances), Styled("in this range", "muted")],
                 [Styled("Total paid", "bold"), Styled(total_amount, "number_bold", "B3+B4")],
@@ -754,6 +755,7 @@ def register_pdf(data: PaymentsRegisterOut, printed_by: str) -> bytes:
     rows = data.rows
     salary, advances, total_amount = _split(rows)
     t = data.totals
+    so_far = " · earned so far" if t.in_progress else ""
     month = month_label(t.month.bs_year, t.month.bs_month)
     all_branches = data.branch is None
     # Sort = branch: branch blocks. Sort = department: department blocks, nested inside branch
@@ -835,7 +837,7 @@ def register_pdf(data: PaymentsRegisterOut, printed_by: str) -> bytes:
         "kind_label": _kind_label,
         "month_label": month_label,
         "stats": [
-            ("Net payroll", f"Rs {t.month_net:,}", f"{t.staff} staff · {month}"),
+            ("Net payroll", f"Rs {t.month_net:,}", f"{t.staff} staff · {month}{so_far}"),
             (
                 "Salary paid",
                 f"Rs {salary:,}",

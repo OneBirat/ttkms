@@ -137,6 +137,30 @@ export interface AttendanceRecord {
   marked_via: "manual" | "scan" | "bulk";
   /** ISO timestamp. */
   updated_at: string;
+  /** When the mark was FIRST saved (ISO). Editing never moves it. */
+  created_at?: string;
+  /** created_at + 24 hours: until then the mark can be changed or removed. */
+  editable_until?: string;
+  /** True once those 24 hours are over: only the super admin can change it. */
+  locked?: boolean;
+}
+
+/**
+ * What the caller may do on the day (`DayAttendance.lock`). The API enforces it; the screens
+ * only show it (lock.ts).
+ * - "open": today, marking works as always.
+ * - "locked": a past day. Nobody can be newly marked; a mark saved less than 24 hours ago
+ *   can still be changed (its `locked` is false).
+ */
+export interface DayLock {
+  mode: "open" | "locked";
+  is_today: boolean;
+  /** New marks (one by one and in bulk) are possible. */
+  can_create: boolean;
+  /** "Kartik 14, 2083" */
+  date_label: string;
+  /** The banner above the list ("" on an open day). */
+  message: string;
 }
 
 /** A row of the Mark attendance screen: the employee and their record, if any. */
@@ -157,6 +181,8 @@ export interface MarkRow {
 export interface DayAttendance {
   day: DayHeader;
   settings: AttendanceSettings;
+  /** The lock for this day and caller (absent only in the node tests' mock). */
+  lock?: DayLock;
   branches: BranchRef[];
   /** Departments in the selected branch, with headcount in that branch. */
   departments: DepartmentRef[];

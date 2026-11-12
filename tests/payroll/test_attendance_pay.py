@@ -81,18 +81,12 @@ async def _report_net(client, employee, month):
 
 async def test_marking_absent_lowers_the_month_by_salary_over_30(client, db, make_user, login):
     anita = await _anita(db)
-    h = await _admin(client, make_user, login)
+    await _admin(client, make_user, login)
     assert await _earned(client, anita, PREVIOUS) == 30000
-    marked = await client.post(
-        "/api/attendance/mark",
-        json={
-            "date_bs": bsdate.ad_to_bs(WORKDAY).isoformat(),
-            "employee_id": anita.id,
-            "status": "A",
-        },
-        headers=h,
-    )
-    assert marked.status_code == 200
+    # A past day is locked for marking through the API (tests/attendance/test_lock.py); the
+    # absence is stored directly.
+    db.add(_rec(anita, WORKDAY, "A"))
+    await db.flush()
     assert await _earned(client, anita, PREVIOUS) == 29000
     ledger = await _report_net(client, anita, PREVIOUS)
     assert ledger["absence_deduction"] == 1000 and ledger["net"] == 29000

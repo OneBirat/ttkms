@@ -4,13 +4,18 @@ Rules (docs/attendance-backend-plan.md): P / O (+ whole hours 1-12) / A only; no
 row; Saturday is the weekly off - computed, never stored, so a Saturday row means the person came
 in (P or O; A is refused). The attendance day is an AD date in Asia/Kathmandu and future days are
 never writable. Only active employees can be marked; every write lands in ``record_changes``.
+
+The lock (enforced here, the screens only reflect it): a new mark can be made for TODAY only -
+a day nobody marked stays "not marked"; a mark can be changed or removed for 24 hours from when
+it was FIRST saved (``records.created_at``, this server's clock; editing does not extend it).
+Everything else answers 403 ``attendance_locked``; a future day answers 403 ``future_date``.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
@@ -46,6 +51,9 @@ def today() -> date:
     return bsdate.today_ad(now())
 
 
+#: How long a mark stays changeable after it was first saved.
+EDIT_WINDOW = timedelta(hours=24)
+
 # -------------------------------------------------------------------------------- errors
 
 
@@ -72,12 +80,76 @@ def parse_day(date_bs: str, field: str = "date_bs") -> date:
 
 
 def check_not_future(ad: date, field: str = "date_bs") -> None:
+    """Reading a day that has not come yet (422)."""
     if ad > today():
         raise invalid("Attendance cannot be marked for a future day.", field)
 
 
+def check_no_future_write(ad: date) -> None:
+    """Nobody writes a future day (403 ``future_date``)."""
+    if ad > today():
+        raise ApiError(
+            status.HTTP_403_FORBIDDEN,
+            "Attendance cannot be marked for a future day.",
+            "future_date",
+            field="date_bs",
+        )
+
+
 def bs_of(ad: date) -> str:
     return bsdate.ad_to_bs(ad).isoformat()
+
+
+def bs_label(ad: date) -> str:
+    """ "Kartik 14, 2083" """
+    return bsdate.ad_to_bs(ad).format()
+
+
+# ---------------------------------------------------------------------------------- lock
+
+
+def locked_error(ad: date) -> ApiError:
+    return ApiError(
+        status.HTTP_403_FORBIDDEN,
+        f"Attendance for {bs_label(ad)} is locked. Only the super admin can change it.",
+        "attendance_locked",
+        date_bs=bs_of(ad),
+    )
+
+
+def editable_until(created_at: datetime) -> datetime:
+    return created_at + EDIT_WINDOW
+
+
+def window_passed(created_at: datetime) -> bool:
+    """True once 24 hours have gone by since the mark was first saved."""
+    return now() >= editable_until(created_at)
+
+
+def check_writable(ad: date, existing: Record | None) -> None:
+    """The lock for one (employee, day): an existing mark can be changed or removed inside its
+    24-hour window; a day without a mark can be marked only while it is today."""
+    if existing is not None:
+        if window_passed(existing.created_at):
+            raise locked_error(ad)
+    elif ad != today():
+        raise locked_error(ad)
+
+
+def day_lock(ad: date) -> schemas.DayLock:
+    is_today = ad == today()
+    label = bs_label(ad)
+    return schemas.DayLock(
+        mode="open" if is_today else "locked",
+        is_today=is_today,
+        can_create=is_today,
+        date_label=label,
+        message=(
+            ""
+            if is_today
+            else f"Locked · {label} · Only the super admin can change past attendance."
+        ),
+    )
 
 
 def day_header(ad: date) -> schemas.DayHeader:
@@ -130,6 +202,9 @@ def record_out(r: Record, names: dict[int, str]) -> schemas.AttendanceRecord:
         marked_by=names.get(r.marked_by or 0, ""),
         marked_via=r.source,
         updated_at=r.marked_at,
+        created_at=r.created_at,
+        editable_until=editable_until(r.created_at),
+        locked=window_passed(r.created_at),
     )
 
 
@@ -219,11 +294,14 @@ async def upsert(
     source: Source,
 ) -> tuple[Record, str]:
     """Insert or update the day's record (row-locked); returns it and the previous status ("N"
-    when there was none). Writes an audit row when anything changed. The caller commits."""
+    when there was none). Writes an audit row when anything changed. The caller commits.
+    Refuses (403) a future day, a mark whose 24 hours are over and a new mark on a past day."""
+    check_no_future_write(ad)
     check_mark(employee, ad, status_, hours)
     existing = await db.scalar(
         select(Record).where(Record.employee_id == employee.id, Record.date == ad).with_for_update()
     )
+    check_writable(ad, existing)
     if existing is None:
         # ON CONFLICT DO NOTHING: a concurrent insert for the same day wins, we then update it.
         new_id = await db.scalar(
@@ -237,6 +315,7 @@ async def upsert(
                 source=source.value,
                 marked_by=user.id if user else None,
                 note=note or "",
+                created_at=now(),
             )
             .on_conflict_do_nothing(index_elements=["employee_id", "date"])
             .returning(Record.id)
@@ -253,6 +332,7 @@ async def upsert(
             .with_for_update()
         )
         assert existing is not None
+        check_writable(ad, existing)
     old = (existing.status, existing.overtime_hours, existing.note)
     new_note = existing.note if note is None else note
     if old != (status_, hours, new_note):
@@ -273,7 +353,7 @@ async def mark_one(
     db: AsyncSession, user: User, scope: Scope, body: schemas.MarkOneRequest
 ) -> schemas.MarkOneResponse:
     ad = parse_day(body.date_bs)
-    check_not_future(ad)
+    check_no_future_write(ad)
     employee = await employee_to_mark(db, scope, body.employee_id)
     note = " ".join(body.note.split()) if body.note is not None else None
     record, previous = await upsert(
@@ -289,13 +369,14 @@ async def clear_mark(
 ) -> schemas.ClearMarkResponse:
     """Back to "not marked" (the weekly off again on a Saturday). Idempotent."""
     ad = parse_day(date_bs)
-    check_not_future(ad)
+    check_no_future_write(ad)
     employee = await employee_to_mark(db, scope, employee_id)
     record = await db.scalar(
         select(Record).where(Record.employee_id == employee.id, Record.date == ad).with_for_update()
     )
     previous = "N"
     if record is not None:
+        check_writable(ad, record)
         previous = record.status
         db.add(
             change_row(
@@ -324,7 +405,9 @@ async def bulk_present(
     """Present for every active employee of the scope still unmarked that day - one transaction,
     ``INSERT ... ON CONFLICT DO NOTHING``, so a mark made meanwhile is never overwritten."""
     ad = parse_day(body.date_bs)
-    check_not_future(ad)
+    check_no_future_write(ad)
+    if ad != today():  # bulk only makes new marks, and those are for today only
+        raise locked_error(ad)
     if body.employee_ids is None and body.department_id is None:
         raise invalid("Give employee_ids or a department_id.", "employee_ids")
     if is_weekly_off(ad):
@@ -339,6 +422,7 @@ async def bulk_present(
         query = query.where(Employee.id.in_(body.employee_ids or [0]))
     employees = list(await db.scalars(query.order_by(Employee.full_name, Employee.id)))
     inserted: dict[int, int] = {}
+    saved_at = now()
     if employees:
         rows = await db.execute(
             insert(Record)
@@ -353,6 +437,7 @@ async def bulk_present(
                         "source": Source.bulk.value,
                         "marked_by": user.id,
                         "note": "",
+                        "created_at": saved_at,
                     }
                     for e in employees
                 ]
@@ -483,6 +568,7 @@ async def day_attendance(
         date_bs=bs_of(ad),
         day=day_header(ad),
         settings=SETTINGS,
+        lock=day_lock(ad),
         branches=await branch_refs(db, scope),
         departments=dept_refs,
         rows=[

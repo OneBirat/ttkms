@@ -364,10 +364,10 @@ async def test_register_filters_sorts_and_grouped_totals(client, db, make_user, 
         "Store": 2,
     }
     assert sum(d["total"] for d in active["by_department"]) == 11000
-    # Tiles: the settlement month is the previous month while anyone still owes for it.
-    assert tuple(active["totals"]["month"].values()) == PREVIOUS
-    assert active["totals"]["staff"] == 2
-    assert active["totals"]["salary_paid"] == 8000 and active["totals"]["advance_paid"] == 0
+    # Tiles: the month of To - the running month here, though Anita is still owed for the last.
+    assert tuple(active["totals"]["month"].values()) == CURRENT
+    assert active["totals"]["in_progress"] is True and active["totals"]["staff"] == 2
+    assert active["totals"]["salary_paid"] == 0 and active["totals"]["advance_paid"] == 3000
     assert (
         len(active["by_employee"]) == 2
         and sum(e["due"] for e in active["by_employee"]) == active["totals"]["due"]

@@ -13,12 +13,33 @@ branch scope), `services.py` (marking rules), `report.py` (report, employee mont
 - **Saturday is the weekly off (`W`)**: computed, never stored. A Saturday row means the person came in:
   `P` or `O` are stored, `A` is refused (422), bulk Present is refused on a Saturday.
 - The attendance day is an **AD date in Asia/Kathmandu** (`services.today()`; 23:59 there is still
-  today, 00:01 is tomorrow). Future days are never writable (422 "Attendance cannot be marked for a
-  future day."). Every mark saves at once.
+  today, 00:01 is tomorrow). Future days are never writable (403 `future_date` "Attendance cannot
+  be marked for a future day."; reading a future day is 422). Every mark saves at once.
+- **The lock** (below): new marks for today only; a mark can be changed or removed for 24 hours.
 - Employees come only from `core.employees`. Only **active** employees who have joined by that day can
   be marked (404 / 422); inactive staff keep their history and appear in the months they worked.
 - Every insert, change and clear writes `attendance.record_changes` (old → new status / hours / note,
   who, when); a save that changes nothing writes nothing.
+
+## The lock (server-side; the screens only reflect it)
+
+For everyone with `mark_attendance`, Admin and Manager included:
+
+- A **new** mark can be made for **today** only (the BS / Kathmandu day). A day nobody marked stays
+  "not marked". Bulk mark works for today only.
+- A mark can be **changed or removed** (P / O / A, overtime hours) for **24 hours from when it was
+  first saved**: `records.created_at`, set from the app server's clock (`services.now()`) on the
+  insert and never moved by an edit (`marked_at` does move). So yesterday's mark can still be
+  corrected this morning; a cleared mark on a past day cannot be made again.
+- Anything else is **403**, `code: "attendance_locked"`, `date_bs`, detail
+  "Attendance for Kartik 14, 2083 is locked. Only the super admin can change it."
+- Every record carries `created_at`, `editable_until` (= created_at + 24 h) and `locked`; `GET /day`
+  carries `lock {mode: open | locked, is_today, can_create, date_label, message}` - `message` is
+  the banner ("Locked · Kartik 14, 2083 · Only the super admin can change past attendance.").
+- Everyone can still open past days to read them.
+
+Tests: `tests/attendance/test_lock.py` (23 h / 24 h 01 min, the window is not extended, past and
+future days, 00:30 Nepal time). Web: `web/components/attendance/lock.ts`, `LockBanner.tsx`.
 
 ## Permissions (app/modules/admin/permissions.py)
 
@@ -46,8 +67,9 @@ attendance.records
   branch_id int NOT NULL → core.branches -- the employee's branch on that day
   source varchar(6) CHECK IN ('manual','scan','bulk')
   marked_by int → core.users ON DELETE SET NULL
-  marked_at timestamptz DEFAULT now()
+  marked_at timestamptz DEFAULT now()    -- the last change
   note varchar(200) DEFAULT ''
+  created_at timestamptz DEFAULT now()   -- attendance_0002: the FIRST save; the 24-hour window
   UNIQUE (employee_id, date), INDEX (date, branch_id)
 
 attendance.record_changes
