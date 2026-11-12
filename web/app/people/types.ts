@@ -435,15 +435,10 @@ export interface ReportTotals {
   pending_count: number;
 }
 
-export interface MonthNetTotal {
-  month: BsMonth;
-  net: number;
-}
-
-export interface DepartmentNetTotal {
+/** One department chip: how many people of the sheet are in the department. */
+export interface DepartmentStaff {
   department: DepartmentRef;
   staff: number;
-  net: number;
 }
 
 /** The month per branch (sent by the API; the UI always shows one branch, so it is not displayed). */
@@ -458,17 +453,15 @@ export interface BranchNetTotal {
 
 export interface SalaryReport {
   month: BsMonth;
-  /** The chosen branch (rows, totals, by_department and the trend are scoped to it); null = all. */
+  /** The chosen branch (rows, totals and by_department are scoped to it); null = all. */
   branch: Branch | null;
   department: DepartmentRef | null;
   rows: ReportRow[];
   totals: ReportTotals;
-  /** Every department of the chosen branch (all branches when none), unfiltered by department, for the chips and the chart. */
-  by_department: DepartmentNetTotal[];
+  /** Every department of the chosen branch (all branches when none), unfiltered by department, for the chips. */
+  by_department: DepartmentStaff[];
   /** Net payroll, paid and due per branch (department filter applied); one entry when a branch is chosen. */
   by_branch: BranchNetTotal[];
-  /** Oldest first, the report month last. */
-  trend: MonthNetTotal[];
   /** Staff on the sheet before the department filter. */
   all_staff: number;
 }

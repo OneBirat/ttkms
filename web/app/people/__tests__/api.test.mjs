@@ -72,9 +72,9 @@ test("last month has paid, part paid and pending staff", async () => {
   assert.equal(report.totals.paid_count + report.totals.part_paid_count + report.totals.pending_count, report.rows.length);
   assert.equal(report.totals.net, report.rows.reduce((s, r) => s + r.ledger.net, 0));
   assert.ok(report.totals.advance_paid > 0);
-  assert.equal(report.trend.length, 5);
-  assert.deepEqual(report.trend.at(-1).month, PREVIOUS);
   assert.equal(report.by_department.length, 5);
+  assert.deepEqual(Object.keys(report.by_department[0]).sort(), ["department", "staff"]);
+  assert.equal("trend" in report, false);
 });
 
 test("department filter narrows rows but not the chips", async () => {
@@ -319,7 +319,6 @@ test("branch_id scopes the payments register and the salary report; department c
   const both = await api.getSalaryReport(PREVIOUS, 2, 2);
   assert.ok(both.rows.every((r) => r.employee.branch.id === 2 && r.employee.department.id === 2));
   assert.equal(both.all_staff, branchReport.rows.length);
-  assert.ok(both.trend.at(-1).net <= branchReport.trend.at(-1).net);
   await assert.rejects(api.getSalaryReport(PREVIOUS, null, 99), /branch/i);
 });
 

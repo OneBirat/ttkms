@@ -381,15 +381,11 @@ class ReportTotalsOut(BaseModel):
     pending_count: int
 
 
-class MonthNetTotalOut(BaseModel):
-    month: BsMonthOut
-    net: int
+class DepartmentStaffOut(BaseModel):
+    """The department chips: how many people of the sheet are in each department."""
 
-
-class DepartmentNetTotalOut(BaseModel):
     department: DepartmentRef
     staff: int
-    net: int
 
 
 class BranchNetTotalOut(BaseModel):
@@ -407,11 +403,9 @@ class SalaryReportOut(BaseModel):
     rows: list[ReportRowOut]
     totals: ReportTotalsOut
     #: Every department of the branch scope, unfiltered by department.
-    by_department: list[DepartmentNetTotalOut]
+    by_department: list[DepartmentStaffOut]
     #: Per branch with the department filter applied; one entry when a branch is chosen.
     by_branch: list[BranchNetTotalOut]
-    #: Oldest first, the report month last.
-    trend: list[MonthNetTotalOut]
     #: Staff on the sheet before the department filter.
     all_staff: int
 

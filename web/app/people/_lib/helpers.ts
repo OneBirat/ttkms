@@ -46,11 +46,6 @@ export function formatDays(days: number): string {
   return Number.isInteger(days) ? String(days) : days.toFixed(1);
 }
 
-/** "Rs 1.23L" style label for chart bars (lakh). */
-export function formatLakh(value: number): string {
-  return `${(value / 100000).toFixed(2)}L`;
-}
-
 /** "8 h" */
 export function formatHours(hours: number): string {
   return `${formatDays(hours)} h`;
@@ -212,12 +207,6 @@ export function paginate<T>(items: T[], page: number, size: number): { items: T[
   const pages = Math.max(1, Math.ceil(items.length / size));
   const current = Math.min(Math.max(1, page), pages);
   return { items: items.slice((current - 1) * size, current * size), pages, page: current };
-}
-
-/** Percent change from `from` to `to`, rounded; null when `from` is 0. */
-export function percentChange(from: number, to: number): number | null {
-  if (from === 0) return null;
-  return Math.round(((to - from) / from) * 100);
 }
 
 /** RFC 4180-ish CSV: quotes fields that need it, CRLF line ends, BOM for Excel. */

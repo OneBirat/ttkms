@@ -276,7 +276,7 @@ async def salary_report(
     branch_id: int | None = None,
     department_id: int | None = None,
 ) -> SalaryReportOut:
-    """One BS month ("2083-07"): rows, totals, per department and per branch, the trend. Scoped
+    """One BS month ("2083-07"): rows, totals, per department and per branch. Scoped
     to the caller's branch unless they hold ``see_other_branches``."""
     year, month = reports.parse_month_key(month_key)
     scope = await services.scope_for(db, me, branch_id)

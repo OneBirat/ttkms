@@ -1,5 +1,5 @@
 """The salary report for one BS month: rows per employee (derived ledgers), totals, per
-department / per branch summaries and the net-payroll trend. Scoped server-side."""
+department / per branch summaries. Scoped server-side."""
 
 from __future__ import annotations
 
@@ -19,18 +19,15 @@ from app.modules.payroll.schemas import (
     BranchNetTotalOut,
     BranchRef,
     BsMonthOut,
-    DepartmentNetTotalOut,
     DepartmentRef,
+    DepartmentStaffOut,
     MonthLedgerOut,
-    MonthNetTotalOut,
     MonthSummaryOut,
     PaymentOut,
     ReportRowOut,
     ReportTotalsOut,
     SalaryReportOut,
 )
-
-TREND_MONTHS = 5
 
 
 def month_label(year: int, month: int) -> str:
@@ -247,10 +244,9 @@ async def salary_report(
 
     departments = list(await db.scalars(select(Department).order_by(Department.name)))
     by_department = [
-        DepartmentNetTotalOut(
+        DepartmentStaffOut(
             department=DepartmentRef(id=d.id, name=d.name),
             staff=sum(1 for r in all_rows if r.employee.department_id == d.id),
-            net=sum(r.net for r in all_rows if r.employee.department_id == d.id),
         )
         for d in departments
     ]
@@ -268,21 +264,6 @@ async def salary_report(
         if branch is None or b.id == branch.id
     ]
     by_branch = [b for b in by_branch if b.staff > 0 or b.paid > 0]
-
-    trend: list[MonthNetTotalOut] = []
-    for k in range(TREND_MONTHS - 1, -1, -1):
-        ty, tm = bsdate.shift_month(year, month, -k)
-        net = 0
-        for e in employees:
-            if department is not None and e.department_id != department.id:
-                continue
-            if not on_sheet(e) and e.status != EmployeeStatus.active:
-                continue
-            ledger = await ledgers.ledger_for(
-                e, ty, tm, structures.get(e.id, []), payments.get(e.id, []), saturday_rule=rule
-            )
-            net += ledger.net if ledger else 0
-        trend.append(MonthNetTotalOut(month=BsMonthOut(bs_year=ty, bs_month=tm), net=net))
 
     totals = totals_for(rows)
     salary_paid, advance_paid = paid_in_branch(rows, scope.branch_id)
@@ -309,7 +290,6 @@ async def salary_report(
         totals=totals,
         by_department=by_department,
         by_branch=by_branch,
-        trend=trend,
         all_staff=len(all_rows),
     )
     return ReportData(out=out, ledgers=rows, title=" · ".join(p for p in title_parts if p))

@@ -12,7 +12,6 @@ import {
   matchesEmployee,
   normalizePhone,
   paginate,
-  percentChange,
   sortEmployees,
   sortRows,
   statusPill,
@@ -154,11 +153,6 @@ test("paginate at 25 rows", () => {
   assert.equal(paginate(items, 1, 25).pages, 3);
   assert.deepEqual(paginate(items, 3, 25).items, items.slice(50));
   assert.equal(paginate(items, 9, 25).page, 3);
-});
-
-test("percentChange", () => {
-  assert.equal(percentChange(100, 110), 10);
-  assert.equal(percentChange(0, 10), null);
 });
 
 test("toCsv quotes and uses a BOM", () => {

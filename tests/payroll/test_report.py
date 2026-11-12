@@ -1,4 +1,4 @@
-"""/api/payroll/report/{YYYY-MM}: scoping, department filter, by_branch, trend, Excel and PDF."""
+"""/api/payroll/report/{YYYY-MM}: scoping, department filter, by_branch, Excel and PDF."""
 
 from datetime import date
 from io import BytesIO
@@ -116,7 +116,7 @@ async def test_report_rows_totals_and_summaries(client, db, make_user, login, on
         "Kitchen": 1,
         "Store": 1,
     }
-    assert len(body["trend"]) == 5 and body["trend"][-1]["month"] == body["month"]
+    assert "trend" not in body and "net" not in body["by_department"][0]
     assert body["all_staff"] == 2
     # Switching the active branch switches the report.
     await on_branch("admin", second.id)

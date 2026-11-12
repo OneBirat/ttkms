@@ -13,16 +13,14 @@ import { MonthStatusPill } from "./MonthStatusPill";
 import { Avatar } from "./Avatar";
 import { useReportBranch } from "../_lib/useBranchScope";
 import { withBranch } from "@/lib/branchContext";
-import { monthKey, monthLabel, monthName, parseMonthKey, sameMonth } from "../_lib/months";
+import { monthKey, monthLabel, parseMonthKey, sameMonth } from "../_lib/months";
 import {
   formatAmount,
   formatDeduction,
-  formatLakh,
   formatPaidDays,
   formatRs,
   matchesEmployee,
   paginate,
-  percentChange,
   sortRows,
   thumbUrl,
 } from "../_lib/helpers";
@@ -134,7 +132,8 @@ export function SalaryReportScreen() {
         }
       />
 
-      <section aria-label="Departments" className={`${styles.chips} ${styles.noPrint}`}>
+      {/* One line that scrolls sideways (swipe, trackpad, or the arrow keys when focused). */}
+      <section aria-label="Departments" tabIndex={0} className={`${styles.chipScroll} ${styles.noPrint}`}>
         <button type="button" className={shared.chip} aria-pressed={department === null} onClick={() => setParams({ dept: null })}>
           <span className={shared.chipName}>All departments</span>
           <span>{data?.all_staff ?? ""}</span>
@@ -167,10 +166,6 @@ export function SalaryReportScreen() {
         <>
           <Totals data={data} />
           <UnmarkedWarning data={data} />
-          <div className={styles.charts}>
-            <TrendChart data={data} />
-            <DepartmentChart data={data} selected={department} />
-          </div>
 
           <section aria-labelledby="pay-h" className={`card ${styles.sheet}`}>
             <div className={styles.sheetHead}>
@@ -360,87 +355,5 @@ function UnmarkedWarning({ data }: { data: SalaryReport }) {
       </span>
       <Link href={UNMARKED_HREF}>Mark attendance · Not marked</Link>
     </p>
-  );
-}
-
-function TrendChart({ data }: { data: SalaryReport }) {
-  const trend = data.trend;
-  const max = Math.max(1, ...trend.map((t) => t.net));
-  const first = trend[0];
-  const last = trend[trend.length - 1];
-  const change = first && last ? percentChange(first.net, last.net) : null;
-  const note =
-    change === null || !first
-      ? ""
-      : change === 0
-        ? `unchanged since ${monthName(first.month)}`
-        : `${change > 0 ? "up" : "down"} ${Math.abs(change)}% since ${monthName(first.month)}`;
-  const alt =
-    first && last
-      ? `Net payroll went from ${formatRs(first.net)} in ${monthLabel(first.month)} to ${formatRs(last.net)} in ${monthLabel(last.month)}`
-      : "Net payroll trend";
-  return (
-    <section aria-labelledby="trend-h" className={`card ${styles.trend}`}>
-      <div className={styles.trendHead}>
-        <h2 id="trend-h" className={shared.cardTitle}>
-          Net payroll, last {trend.length} months
-        </h2>
-        <span className={shared.note} style={{ fontSize: 13 }}>
-          {note}
-        </span>
-      </div>
-      <div role="img" aria-label={alt} className={styles.bars}>
-        {trend.map((t, index) => {
-          const current = index === trend.length - 1;
-          return (
-            <div key={monthKey(t.month)} className={styles.barCol} title={`${monthLabel(t.month)}: ${formatRs(t.net)}`}>
-              <span className={styles.barLabel}>{formatLakh(t.net)}</span>
-              <div
-                className={current ? `${styles.bar} ${styles.barCurrent}` : styles.bar}
-                style={{ height: `${Math.round((t.net / max) * 150)}px` }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div className={styles.barMonths} aria-hidden="true">
-        {trend.map((t) => (
-          <span key={monthKey(t.month)} className={styles.barMonth}>
-            {monthName(t.month)}
-          </span>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function DepartmentChart({ data, selected }: { data: SalaryReport; selected: number | null }) {
-  const max = Math.max(1, ...data.by_department.map((d) => d.net));
-  return (
-    <section aria-labelledby="dept-h" className={`card ${styles.dept}`}>
-      <h2 id="dept-h" className={shared.cardTitle}>
-        Net pay by department
-      </h2>
-      {data.by_department.map((d) => {
-        const on = selected === null || selected === d.department.id;
-        const avg = d.staff ? Math.round(d.net / d.staff) : 0;
-        return (
-          <div key={d.department.id} className={styles.deptRow} title={`${d.department.name}: ${formatRs(d.net)} for ${d.staff} staff`}>
-            <div className={styles.deptMeta}>
-              <span>
-                <span style={{ fontWeight: 600 }}>{d.department.name}</span>{" "}
-                <span className={shared.muted}>
-                  · {d.staff} staff · avg {formatRs(avg)}
-                </span>
-              </span>
-              <span className="mono">{formatAmount(d.net)}</span>
-            </div>
-            <div className={styles.deptTrack} role="img" aria-label={`${d.department.name}: ${formatRs(d.net)}`}>
-              <div className={on ? `${styles.deptBar} ${styles.deptBarOn}` : styles.deptBar} style={{ width: `${Math.round((d.net / max) * 100)}%` }} />
-            </div>
-          </div>
-        );
-      })}
-    </section>
   );
 }

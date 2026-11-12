@@ -34,7 +34,7 @@ import type {
   BranchNetTotal,
   BsMonth,
   Department,
-  DepartmentNetTotal,
+  DepartmentStaff,
   Employee,
   EmployeeIn,
   EmployeeLedger,
@@ -43,7 +43,6 @@ import type {
   LedgerEntry,
   MonthBalance,
   MonthLedger,
-  MonthNetTotal,
   MonthSummary,
   Payment,
   PaymentInput,
@@ -988,21 +987,10 @@ export async function getSalaryReport(month: BsMonth, department_id: number | nu
       return { branch: b, staff: mine.length, net: sumBy(mine, (l) => l.net), paid: sumBy(mine, (l) => l.paid), due: sumBy(mine, (l) => l.due) };
     })
     .filter((b) => b.staff > 0);
-  const by_department: DepartmentNetTotal[] = current.departments
-    .map((department) => {
-      const mine = allRows.filter((r) => r.employee.department?.id === department.id);
-      return { department, staff: mine.length, net: mine.reduce((sum, r) => sum + r.ledger.net, 0) };
-    });
-  const trend: MonthNetTotal[] = monthsKept()
-    .filter((m) => compareMonths(m, month) <= 0)
-    .map((m) => ({
-      month: m,
-      net: current.employees
-        .filter((e) => !branch || e.branch.id === branch.id)
-        .filter((e) => department_id === null || e.department?.id === department_id)
-        .map((e) => ledgerFor(current, e, m))
-        .reduce((sum, l) => sum + (l?.net ?? 0), 0),
-    }));
+  const by_department: DepartmentStaff[] = current.departments.map((department) => ({
+    department,
+    staff: allRows.filter((r) => r.employee.department?.id === department.id).length,
+  }));
   return respond({
     month,
     branch,
@@ -1011,7 +999,6 @@ export async function getSalaryReport(month: BsMonth, department_id: number | nu
     totals: totalsFor(rows.map((r) => r.ledger)),
     by_department,
     by_branch,
-    trend,
     all_staff: allRows.length,
   });
 }
