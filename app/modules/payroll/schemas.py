@@ -410,6 +410,101 @@ class SalaryReportOut(BaseModel):
     all_staff: int
 
 
+# --------------------------------------------------------------------------- pay slips
+
+UnpaidReason = Literal["absent", "not_marked", "after_leaving", "unpaid_holiday"]
+
+
+class PayslipEmployeeOut(BaseModel):
+    id: int
+    #: "E-022"
+    code: str
+    name: str
+    #: The designation; null when none is set.
+    role: str | None
+    department: str | None
+    pay_type: PayType
+    #: Monthly: salary per month. Daily: wage per day.
+    rate: int
+
+
+class PayslipMonthOut(BaseModel):
+    bs_year: int
+    bs_month: int
+    #: "Kartik"
+    name: str
+    #: The month's real length, as the report's "26 / 30" shows it.
+    days_in_month: int
+
+
+class PayslipDeductionOut(BaseModel):
+    """One unpaid-days line of a monthly slip; the amounts add up to ``absence_deduction``."""
+
+    reason: UnpaidReason
+    days: int
+    amount: int
+
+
+class PayslipPaymentOut(BaseModel):
+    date: DateBothOut
+    kind: PaymentKind
+    #: The payment mode's name ("Cash").
+    mode: str
+    amount: int
+
+
+class PayslipOut(BaseModel):
+    """One employee's month, every amount taken from the Salary report row (the same ledger):
+    ``base_amount - absence_deduction + overtime_amount = earned`` and
+    ``balance_due`` = the row's due."""
+
+    employee: PayslipEmployeeOut
+    month: PayslipMonthOut
+    #: The running month: the figures are "so far" (salary prorated by ``days_counted`` / 30).
+    in_progress: bool
+    days_counted: int
+    paid_days: int
+    absent_days: int
+    #: BS dates ("2083-07-14") of the Absent days, ascending.
+    absent_dates: list[str]
+    overtime_hours: int
+    overtime_amount: int
+    #: Rupees per overtime hour (the salary row's rate; default salary / 30 / 8).
+    overtime_rate: int
+    #: Monthly: the salary (the report's gross before overtime). Daily: days x wage.
+    base_amount: int
+    #: Rupees per day to the paisa: salary / 30 (monthly) or the wage (daily).
+    day_rate: float
+    absence_deduction: int
+    #: The deduction per reason (monthly staff; only reasons with days). Sums to
+    #: ``absence_deduction``.
+    deductions: list[PayslipDeductionOut]
+    #: The report row's Net.
+    earned: int
+    #: Every payment (not voided) recorded against the month, oldest first - advances and
+    #: salary payments alike.
+    advances: list[PayslipPaymentOut]
+    advances_total: int
+    #: The report row's due: max(0, earned - advances_total).
+    balance_due: int
+    #: Past working days of the month without an attendance record (a warning only).
+    unmarked_days: int
+    #: The latest print of this slip (POST /payslips/printed); null if never printed.
+    slip_printed_at: datetime | None = None
+    slip_printed_by: str | None = None
+
+
+class PayslipsOut(BaseModel):
+    #: core.settings company_name ("TTK").
+    business: str
+    branch: BranchRef
+    month: BsMonthOut
+    #: Today in Kathmandu ("Printed Kartik 26, 2083").
+    today: DateBothOut
+    #: In the order asked for.
+    slips: list[PayslipOut]
+
+
 # ---------------------------------------------------------------------------- payments
 
 

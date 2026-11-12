@@ -67,6 +67,8 @@ class MonthSummary:
     holidays: int = 0
     #: Unpaid public holidays without a mark: not "not marked", but the day's pay is cut.
     unpaid_holidays: int = 0
+    #: The days counted in ``absent`` (AD dates, ascending) - the pay slip prints them.
+    absent_dates: tuple[dt.date, ...] = ()
 
 
 #: How payroll pays Saturday work to monthly staff - a core.settings key set on admin Settings.

@@ -100,7 +100,8 @@ def summarise(
             unpaid_holidays += 1
     # After leaving: every counted day past the leaving day (Saturdays too) is unpaid.
     after_leaving = max(0, (upto - max(left, start - timedelta(days=1))).days) if left else 0
-    present = overtime_days = overtime_hours = absent = sat_days = sat_hours = 0
+    present = overtime_days = overtime_hours = sat_days = sat_hours = 0
+    absent_dates: list[date] = []
     for r in records:
         if not start <= r.date <= upto:
             continue
@@ -114,13 +115,13 @@ def summarise(
             overtime_days += 1
             overtime_hours += r.overtime_hours
         elif r.status == "A" and r.date not in forgiven:
-            absent += 1
+            absent_dates.append(r.date)
     return MonthSummary(
         days_in_month=days_in_month,
         present=present,
         overtime_days=overtime_days,
         overtime_hours=overtime_hours,
-        absent=absent,
+        absent=len(absent_dates),
         weekly_off=weekly_off,
         paid_days=present + overtime_days + weekly_off + paid_holidays,
         days_counted=days_counted,
@@ -130,6 +131,7 @@ def summarise(
         days_after_leaving=after_leaving,
         holidays=paid_holidays,
         unpaid_holidays=unpaid_holidays,
+        absent_dates=tuple(sorted(absent_dates)),
     )
 
 

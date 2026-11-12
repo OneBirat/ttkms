@@ -133,6 +133,49 @@ def monthly_pay(
     )
 
 
+#: The reasons a monthly salary is cut, in the order the pay slip prints them.
+UnpaidReason = Literal["absent", "not_marked", "after_leaving", "unpaid_holiday"]
+
+
+def unpaid_reasons(s: MonthSummary) -> list[tuple[UnpaidReason, int]]:
+    """The unpaid days of the month by reason (only the reasons with days) - the same four
+    counts :func:`monthly_pay` adds up."""
+    counts: list[tuple[UnpaidReason, int]] = [
+        ("absent", max(0, s.absent)),
+        ("not_marked", max(0, s.not_marked)),
+        ("after_leaving", max(0, s.days_after_leaving)),
+        ("unpaid_holiday", max(0, s.unpaid_holidays)),
+    ]
+    return [(reason, days) for reason, days in counts if days > 0]
+
+
+def split_deduction(total: int, days: Iterable[int]) -> list[int]:
+    """``total`` (a month's absence deduction) shared over groups of unpaid days, in whole
+    rupees that add up to ``total`` exactly: each group gets its share half-up, the last group
+    with days takes what is left."""
+    days = [max(0, d) for d in days]
+    unpaid = sum(days)
+    out = [0] * len(days)
+    if unpaid <= 0 or total <= 0:
+        return out
+    last = max(i for i, d in enumerate(days) if d > 0)
+    left = total
+    for i, d in enumerate(days):
+        if i == last:
+            out[i] = left
+        elif d > 0:
+            out[i] = min(left, round_rs(Decimal(total) * d / unpaid))
+            left -= out[i]
+    return out
+
+
+def day_rate(pay_type: PayTypeName, rate: int) -> float:
+    """Rupees per day, to the paisa: salary / 30 for monthly staff, the wage for daily staff."""
+    if pay_type == "daily":
+        return float(rate)
+    return float((Decimal(rate) / PAY_DAYS).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
 def daily_pay(wage: int, ot_rate: int, s: MonthSummary) -> PayResult:
     """A Saturday worked is a day worked (daily staff are not paid for the weekly off)."""
     worked = max(0, s.present) + max(0, s.overtime_days) + max(0, s.saturday_days_worked)

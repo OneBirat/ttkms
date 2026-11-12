@@ -57,6 +57,8 @@ def test_past_month_counts_everything():
         saturday_ot_hours=5,
         # 26 working days, 4 of them marked (19, 20, 21 Oct and 2 Nov).
         not_marked=22,
+        # The Absent days themselves, oldest first (the pay slip prints them).
+        absent_dates=(date(2026, 10, 21), date(2026, 11, 2)),
     )
 
 

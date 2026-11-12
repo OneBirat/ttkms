@@ -29,7 +29,15 @@ from app.core.modules import Module, NavItem, WidgetContext
 from app.core.schemas import ErrorOut, ModuleStatusOut
 from app.db import DbSession
 from app.modules.admin.permissions import require_access, require_any_access
-from app.modules.payroll import contract, exports, payments, photos, reports, services
+from app.modules.payroll import (
+    contract,
+    exports,
+    payments,
+    payslips,
+    photos,
+    reports,
+    services,
+)
 from app.modules.payroll.models import Payment
 from app.modules.payroll.schemas import (
     AccountSummaryOut,
@@ -49,6 +57,7 @@ from app.modules.payroll.schemas import (
     PaymentOut,
     PaymentResultOut,
     PaymentsRegisterOut,
+    PayslipsOut,
     PhotoTokenIn,
     PhotoTokenInfoOut,
     PhotoTokenOut,
@@ -281,6 +290,23 @@ async def salary_report(
     year, month = reports.parse_month_key(month_key)
     scope = await services.scope_for(db, me, branch_id)
     return (await reports.salary_report(db, scope, year, month, department_id)).out
+
+
+# ---------------------------------------------------------------------------- pay slips
+
+
+@router.get("/payslips", response_model=PayslipsOut, responses=ERRORS, name="payroll:payslips")
+async def get_payslips(
+    me: CanPay, db: DbSession, branch_id: int, month: str, employee_ids: str
+) -> PayslipsOut:
+    """Pay slip data for the Salary report's batch printing: one slip per employee id
+    (``employee_ids=3,1,2``), in the order asked for, for one BS month ("2083-07") of one
+    branch. Every amount is the Salary report row's. 403 for a branch the caller may not
+    open; an employee who is not on that branch's report for the month is refused (404 / 403 /
+    422), never dropped."""
+    year, month_no = reports.parse_month_key(month)
+    ids = payslips.parse_ids(employee_ids)
+    return await payslips.payslips(db, me, branch_id, year, month_no, ids)
 
 
 # ------------------------------------------------------------------------------ account
