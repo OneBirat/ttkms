@@ -17,7 +17,7 @@ from sqlalchemy import select
 
 from app.core.models import Employee, EmployeeStatus
 from app.core.modules import Module, NavItem, WidgetContext
-from app.modules.attendance import contract, services
+from app.modules.attendance import contract, holidays, services
 from app.modules.attendance.access import MARK, REPORT, scope_for
 from app.modules.attendance.routes import router
 
@@ -47,7 +47,9 @@ async def today_figures(ctx: WidgetContext) -> dict[str, Any]:
         query = query.where(Employee.branch_id == scope.branch_id)
     employees = sorted(await ctx.db.scalars(query), key=lambda e: (e.full_name.lower(), e.id))
     records = await services.day_records(ctx.db, day, [e.id for e in employees])
-    weekly_off = services.is_weekly_off(day)
+    holiday = await holidays.on_day(ctx.db, scope.branch_id, day)
+    # A public holiday is like the weekly off here: nobody needs a mark.
+    weekly_off = services.is_weekly_off(day) or holiday is not None
     counts = {"P": 0, "O": 0, "A": 0, "N": 0}
     hours = 0
     not_in: list[dict[str, Any]] = []
@@ -72,6 +74,7 @@ async def today_figures(ctx: WidgetContext) -> dict[str, Any]:
         "absent": counts["A"],
         "not_marked": counts["N"],
         "weekly_off": weekly_off,
+        "holiday": holiday.name if holiday else None,
         "not_in": not_in[:NOT_IN_LIMIT],
         "mark_path": "/attendance/mark",
     }
@@ -121,7 +124,9 @@ async def dashboard_today(db, user, branch_id: int) -> dict[str, Any]:
         key=lambda e: (e.full_name.lower(), e.id),
     )
     records = await services.day_records(db, day, [e.id for e in employees])
-    weekly_off = services.is_weekly_off(day)
+    holiday = await holidays.on_day(db, branch_id, day)
+    # A public holiday is like the weekly off: only those working count, nobody is "not marked".
+    weekly_off = services.is_weekly_off(day) or holiday is not None
     counts = {"P": 0, "O": 0, "A": 0}
     hours = 0
     not_in = []
@@ -156,6 +161,7 @@ async def dashboard_today(db, user, branch_id: int) -> dict[str, Any]:
             "absent": counts["A"],
             "not_marked": len(not_in),
             "weekly_off": weekly_off,
+            "holiday": holiday.name if holiday else None,
             "not_in": not_in,
             "mark_path": "/attendance/mark",
         }

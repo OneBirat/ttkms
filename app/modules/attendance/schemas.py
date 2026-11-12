@@ -9,7 +9,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 MarkStatus = Literal["P", "O", "A"]
-CellStatus = Literal["P", "O", "A", "W", "N"]
+#: "H" = a public holiday without a record (also on a Saturday: the holiday label wins).
+CellStatus = Literal["P", "O", "A", "W", "N", "H"]
 MarkedVia = Literal["manual", "scan", "bulk"]
 
 
@@ -49,12 +50,71 @@ class AttendanceSettings(BaseModel):
     weekly_off: int
 
 
+#: ``date`` the type, for models that also have a field called ``date``.
+AdDate = date
+
+
+class HolidayRef(BaseModel):
+    """The public holiday of a day for the branch on screen."""
+
+    id: int
+    name: str
+    is_paid: bool
+
+
 class DayHeader(BaseModel):
     bs_date: str
     bs_day: int
     ad_date: date
     weekday: int
     is_weekly_off: bool
+    #: The branch's public holiday on this day, when there is one.
+    holiday: HolidayRef | None = None
+
+
+class HolidayOut(BaseModel):
+    id: int
+    #: AD date (the stored value); ``date_bs`` is derived.
+    date: AdDate
+    date_bs: str
+    #: 0 = Sunday ... 6 = Saturday.
+    weekday: int
+    name: str
+    all_branches: bool
+    #: The chosen branches when ``all_branches`` is false (else empty).
+    branch_ids: list[int]
+    branch_names: list[str]
+    is_paid: bool
+    is_weekly_off: bool
+    #: The day has passed (Kathmandu): no edit, no delete, for anyone.
+    locked: bool
+
+
+class HolidayList(BaseModel):
+    #: Today in Asia/Kathmandu, from the server - the screens never use the device's date.
+    today: date
+    holidays: list[HolidayOut]
+
+
+class HolidayIn(BaseModel):
+    """POST /holidays. Blank name, a past date and "selected branches" without any are 422s
+    from the service (with ``field``), so the form can show them next to the field."""
+
+    date: AdDate
+    name: str = ""
+    all_branches: bool = True
+    branch_ids: list[int] = []
+    is_paid: bool = True
+
+
+class HolidayPatch(BaseModel):
+    """PATCH /holidays/{id}: only the fields sent change."""
+
+    date: AdDate | None = None
+    name: str | None = None
+    all_branches: bool | None = None
+    branch_ids: list[int] | None = None
+    is_paid: bool | None = None
 
 
 class AttendanceRecord(BaseModel):
@@ -117,6 +177,8 @@ class DayAttendance(BaseModel):
     day: DayHeader
     settings: AttendanceSettings
     lock: DayLock
+    #: The branch's public holiday on this day: a banner, and nobody counts as "not marked".
+    holiday: HolidayRef | None = None
     branches: list[BranchRef]
     departments: list[DepartmentRef]
     rows: list[MarkRow]
@@ -259,6 +321,8 @@ class AttendanceTotals(BaseModel):
     absent: int = 0
     weekly_off: int = 0
     not_marked: int = 0
+    #: Public holidays without a mark ("H" cells), plus paid holidays marked absent.
+    holidays: int = 0
     marked_days: int = 0
     attended: int = 0
     paid_days: int = 0

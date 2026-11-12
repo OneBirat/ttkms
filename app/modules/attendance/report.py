@@ -17,10 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.contracts import PaymentRecord, get_payroll_payments
 from app.core import bsdate
 from app.core.models import Department, Employee, EmployeeStatus
+from app.modules.attendance import holidays as holiday_service
 from app.modules.attendance import schemas, services
 from app.modules.attendance.access import Scope, one_branch, other_branch
 from app.modules.attendance.contract import left_on
-from app.modules.attendance.models import Record, RecordChange
+from app.modules.attendance.models import Holiday, Record, RecordChange
 
 
 def month_or_404(bs_year: int, bs_month: int) -> tuple[date, date]:
@@ -36,9 +37,18 @@ def month_or_404(bs_year: int, bs_month: int) -> tuple[date, date]:
     return start, end
 
 
-def month_ref(bs_year: int, bs_month: int) -> schemas.BsMonthRef:
+def month_ref(
+    bs_year: int, bs_month: int, holidays: dict[date, Holiday] | None = None
+) -> schemas.BsMonthRef:
+    """``holidays``: the public holidays of the branch on screen (each day header carries its
+    own)."""
     start, end = bsdate.bs_month_range(bs_year, bs_month)
-    days = [services.day_header(start + timedelta(days=i)) for i in range((end - start).days + 1)]
+    days = [
+        services.day_header(
+            start + timedelta(days=i), (holidays or {}).get(start + timedelta(days=i))
+        )
+        for i in range((end - start).days + 1)
+    ]
     name_np = bsdate.bs_month_name(bs_month, "ne")
     return schemas.BsMonthRef(
         bs_year=bs_year,
@@ -166,6 +176,9 @@ def cells_for(
         active = day.ad_date >= joined and (left is None or day.ad_date <= left)
         if record is not None:
             cell = schemas.DayCell(status=record.status, ot_hours=record.overtime_hours)
+        elif day.holiday is not None and active:
+            # A public holiday without a mark - also on a Saturday: the holiday label wins.
+            cell = schemas.DayCell(status="H")
         elif day.is_weekly_off and day.ad_date >= joined:
             cell = schemas.DayCell(status="W")
         else:
@@ -186,6 +199,7 @@ def totals_of(
     days: Sequence[schemas.DayHeader], cells: Sequence[schemas.DayCell]
 ) -> schemas.AttendanceTotals:
     t = schemas.AttendanceTotals()
+    paid_holidays = 0
     for day, cell in zip(days, cells, strict=True):
         if cell.status == "P":
             t.present += 1
@@ -193,9 +207,18 @@ def totals_of(
             t.overtime_days += 1
             t.overtime_hours += cell.ot_hours
         elif cell.status == "A":
-            t.absent += 1
+            # An absent mark on a paid public holiday is no absence (as in the pay summary).
+            if day.holiday is not None and day.holiday.is_paid and not day.is_weekly_off:
+                t.holidays += 1
+                paid_holidays += 1
+            else:
+                t.absent += 1
         elif cell.status == "W":
             t.weekly_off += 1
+        elif cell.status == "H":
+            t.holidays += 1
+            if day.is_weekly_off or (day.holiday is not None and day.holiday.is_paid):
+                paid_holidays += 1
         elif cell.not_marked:
             t.not_marked += 1
         if day.is_weekly_off and cell.status in ("P", "O"):
@@ -203,7 +226,7 @@ def totals_of(
             t.saturday_ot_hours += cell.ot_hours
     t.marked_days = t.present + t.overtime_days + t.absent
     t.attended = t.present + t.overtime_days
-    t.paid_days = t.present + t.overtime_days + t.weekly_off
+    t.paid_days = t.present + t.overtime_days + t.weekly_off + paid_holidays
     return t
 
 
@@ -256,8 +279,10 @@ async def month_report(
 ) -> schemas.MonthReport:
     """``money`` = the caller holds salary_advances; without it no payment badges at all."""
     start, end = month_or_404(bs_year, bs_month)
-    month = month_ref(bs_year, bs_month)
     branch_id = scope.branch_id
+    month = month_ref(
+        bs_year, bs_month, await holiday_service.for_branch(db, branch_id, start, end)
+    )
     employees = await report_employees(db, branch_id, start, end)
     ids = [e.id for e in employees]
     records = await month_records(db, start, end, ids, branch_id)
@@ -311,7 +336,9 @@ async def employee_month(
     if not scope.allows(employee.branch_id):
         raise other_branch(employee)
     start, end = month_or_404(bs_year, bs_month)
-    month = month_ref(bs_year, bs_month)
+    month = month_ref(
+        bs_year, bs_month, await holiday_service.for_branch(db, employee.branch_id, start, end)
+    )
     records = (await month_records(db, start, end, [employee.id], None)).get(employee.id, {})
     payments = (
         (await get_payroll_payments().for_month(bs_year, bs_month, [employee.id])).get(

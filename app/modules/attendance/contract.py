@@ -12,11 +12,16 @@ before the joining date (and after an inactive employee's leaving date) count fo
 unpaid like absent days - computed here and nowhere else, never stored as ``A`` rows; today
 and future days are never counted. ``days_after_leaving``: the counted days after an inactive
 employee's leaving day - unpaid as well.
+
+Public holidays (holidays.py) of the employee's branch are applied here, at read time: a paid
+holiday without a mark is a paid day (``holidays``), never not marked, and an A mark on it is
+no absence; an unpaid holiday without a mark is ``unpaid_holidays``. Working on a holiday is
+P / O as usual (the overtime hours are paid at the overtime rate).
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -27,6 +32,7 @@ from app.contracts import MonthSummary, TodayStatus
 from app.core import bsdate
 from app.core.models import Employee, EmployeeStatus
 from app.db import SessionLocal
+from app.modules.attendance import holidays as holiday_service
 from app.modules.attendance import services
 from app.modules.attendance.models import Record
 
@@ -47,10 +53,13 @@ def summarise(
     joined: date | None,
     records: Iterable,
     left: date | None = None,
+    holidays: Mapping[date, bool] | None = None,
 ) -> MonthSummary:
     """The month ``start..end`` as seen on ``today`` (pure; unit-tested). ``joined`` / ``left``
-    bound the employee's active period (``left`` only for an inactive employee)."""
+    bound the employee's active period (``left`` only for an inactive employee). ``holidays``:
+    the public holidays of the employee's branch, date -> is_paid."""
     records = list(records)
+    holidays = holidays or {}
     days_in_month = (end - start).days + 1
     if start > today:
         upto, days_counted = start - timedelta(days=1), 0
@@ -60,20 +69,35 @@ def summarise(
         upto, days_counted = end, days_in_month
     first = max(start, joined) if joined else start
     last = min(upto, left) if left else upto
-    weekly_off = sum(
-        1
-        for i in range((last - first).days + 1)
-        if services.is_weekly_off(first + timedelta(days=i))
-    )
-    # Not marked: working days without a record, before today, inside the active period.
-    marked = {r.date for r in records}
-    last_past = min(last, today - timedelta(days=1))
+    active = [first + timedelta(days=i) for i in range((last - first).days + 1)]
+    weekly_off = sum(1 for day in active if services.is_weekly_off(day))
+    by_day = {r.date: r for r in records}
+    # Not marked: working days without a record, before today, inside the active period. A
+    # public holiday is never "not marked".
     not_marked = sum(
         1
-        for i in range((last_past - first).days + 1)
-        if not services.is_weekly_off(first + timedelta(days=i))
-        and first + timedelta(days=i) not in marked
+        for day in active
+        if day < today
+        and not services.is_weekly_off(day)
+        and day not in by_day
+        and day not in holidays
     )
+    # Public holidays on working days: paid ones count as paid days unless the person worked
+    # (P / O are counted as such); an A mark on a paid holiday is not an absence. Unpaid ones
+    # without a mark cost the day.
+    paid_holidays = unpaid_holidays = 0
+    forgiven: set[date] = set()
+    for day in active:
+        if day not in holidays or services.is_weekly_off(day):
+            continue
+        record = by_day.get(day)
+        if holidays[day]:
+            if record is None or record.status == "A":
+                paid_holidays += 1
+                if record is not None:
+                    forgiven.add(day)
+        elif record is None:
+            unpaid_holidays += 1
     # After leaving: every counted day past the leaving day (Saturdays too) is unpaid.
     after_leaving = max(0, (upto - max(left, start - timedelta(days=1))).days) if left else 0
     present = overtime_days = overtime_hours = absent = sat_days = sat_hours = 0
@@ -89,7 +113,7 @@ def summarise(
         elif r.status == "O":
             overtime_days += 1
             overtime_hours += r.overtime_hours
-        elif r.status == "A":
+        elif r.status == "A" and r.date not in forgiven:
             absent += 1
     return MonthSummary(
         days_in_month=days_in_month,
@@ -98,12 +122,14 @@ def summarise(
         overtime_hours=overtime_hours,
         absent=absent,
         weekly_off=weekly_off,
-        paid_days=present + overtime_days + weekly_off,
+        paid_days=present + overtime_days + weekly_off + paid_holidays,
         days_counted=days_counted,
         saturday_days_worked=sat_days,
         saturday_ot_hours=sat_hours,
         not_marked=not_marked,
         days_after_leaving=after_leaving,
+        holidays=paid_holidays,
+        unpaid_holidays=unpaid_holidays,
     )
 
 
@@ -144,9 +170,12 @@ async def month_if(
     if status is not None:
         changed.append(WhatIfMark(ad, status, hours))
     today = services.today()
+    off = holiday_service.paid_map(
+        await holiday_service.for_branch(db, employee.branch_id, start, end)
+    )
     return (
-        summarise(start, end, today, employee.joined_ad, records, left_on(employee)),
-        summarise(start, end, today, employee.joined_ad, changed, left_on(employee)),
+        summarise(start, end, today, employee.joined_ad, records, left_on(employee), off),
+        summarise(start, end, today, employee.joined_ad, changed, left_on(employee), off),
         current,
     )
 
@@ -165,9 +194,15 @@ class AttendanceSummaryService:
                     )
                 )
             )
+            # The holidays of the employee's (current) branch.
+            off = holiday_service.paid_map(
+                await holiday_service.for_branch(
+                    db, employee.branch_id if employee else None, start, end
+                )
+            )
         joined = employee.joined_ad if employee else None
         left = left_on(employee) if employee else None
-        return summarise(start, end, services.today(), joined, records, left)
+        return summarise(start, end, services.today(), joined, records, left, off)
 
     async def today(
         self, employee_ids: Iterable[int], day: date | None = None

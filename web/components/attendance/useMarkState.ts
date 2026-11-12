@@ -462,7 +462,12 @@ export function useMarkState(options: { phone: boolean }): MarkState {
       ),
     [data, departmentId],
   );
-  const counts = useMemo(() => countMarks(scopeRows.map(draftOf)), [scopeRows, draftOf]);
+  // On a public holiday or the weekly off nobody counts as "not marked".
+  const offDay = Boolean(data && (data.holiday || data.day.is_weekly_off));
+  const counts = useMemo(() => {
+    const c = countMarks(scopeRows.map(draftOf));
+    return offDay ? { ...c, not_marked: 0 } : c;
+  }, [scopeRows, draftOf, offDay]);
   const listRows = useMemo(
     () =>
       scopeRows.filter(
@@ -473,7 +478,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const paged = useMemo(() => paginate(listRows, page, DESKTOP_PAGE), [listRows, page]);
 
   const department = data?.departments.find((d) => d.id === departmentId);
-  const filterWord = { "": "staff", N: "not marked", P: "present", O: "overtime", A: "absent", W: "weekly off" }[statusFilter];
+  const filterWord = { "": "staff", N: "not marked", P: "present", O: "overtime", A: "absent", W: "weekly off", H: "holiday" }[statusFilter];
   const scopeLabel = phone
     ? `${department ? department.name : "All departments"} · ${listRows.length} ${filterWord}`
     : `${branchName || "…"}, ${department ? department.name : "all departments"} · ${scopeRows.length} staff`;

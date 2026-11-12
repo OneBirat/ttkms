@@ -443,6 +443,8 @@ export interface DashboardAttendance {
   absent: number;
   not_marked: number;
   weekly_off: boolean;
+  /** The branch's public holiday today (its name); weekly_off is true then as well. */
+  holiday?: string | null;
   not_in: DashboardPerson[];
   mark_path: string;
 }

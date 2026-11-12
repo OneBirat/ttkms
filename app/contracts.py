@@ -44,7 +44,7 @@ class MonthSummary:
     #: Weekly-off days (Saturdays) counted - worked or not, they are paid. Only days up to
     #: today, from the joining date (and up to the leaving date of an inactive employee).
     weekly_off: int
-    #: present + overtime_days + weekly_off. Never days_in_month - absent.
+    #: present + overtime_days + weekly_off + holidays. Never days_in_month - absent.
     paid_days: int
     #: Days the figures cover: days_in_month for a past month, today's BS day for the running
     #: month, 0 for a month that has not started.
@@ -61,6 +61,12 @@ class MonthSummary:
     #: Calendar days of the month after an inactive employee's leaving day (up to today in the
     #: running month), Saturdays included. Unpaid: nobody is paid after leaving. 0 while active.
     days_after_leaving: int = 0
+    #: Paid public holidays of the employee's branch (not Saturdays) without a P / O mark, up
+    #: to today, inside the active period. Paid like a weekly off: inside ``paid_days``, never
+    #: not marked, and an A mark on such a day is not an absence.
+    holidays: int = 0
+    #: Unpaid public holidays without a mark: not "not marked", but the day's pay is cut.
+    unpaid_holidays: int = 0
 
 
 #: How payroll pays Saturday work to monthly staff - a core.settings key set on admin Settings.

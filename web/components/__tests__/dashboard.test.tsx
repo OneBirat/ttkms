@@ -118,6 +118,15 @@ describe("dashboard header", () => {
     assert.doesNotMatch(html, /role="tab" aria-selected="true"[^>]*>Main branch/);
   });
 
+  it("the action (the super admin's Holiday calendar button) sits in the header only when given", () => {
+    assert.doesNotMatch(render(state()), /Holiday calendar/);
+    const button = createElement("a", { href: "/holidays" }, "Holiday calendar");
+    const html = renderToStaticMarkup(
+      createElement(BranchContext.Provider, { value: state() }, createElement(DashboardHeader, { today: null, action: button })),
+    );
+    assert.match(html, /<a href="\/holidays">Holiday calendar<\/a>/);
+  });
+
   it("staff: no tabs", () => {
     const html = render(state({ canSwitch: false, branches: [] }));
     assert.doesNotMatch(html, /role="tab"/);

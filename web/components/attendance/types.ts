@@ -16,7 +16,48 @@
 export type MarkStatus = "P" | "O" | "A";
 
 /** What one report cell can show: a mark, the weekly off ("–") or nothing yet. */
-export type CellStatus = MarkStatus | "W" | "N";
+/** "H" = a public holiday without a mark (also on a Saturday: the holiday label wins). */
+export type CellStatus = MarkStatus | "W" | "N" | "H";
+
+/** The public holiday of a day for the branch on screen. */
+export interface HolidayRef {
+  id: number;
+  name: string;
+  is_paid: boolean;
+}
+
+/** GET /api/attendance/holidays item (app/modules/attendance/schemas.py HolidayOut). */
+export interface Holiday {
+  id: number;
+  /** AD "YYYY-MM-DD" (the stored value). */
+  date: string;
+  date_bs: string;
+  /** 0 = Sunday … 6 = Saturday. */
+  weekday: number;
+  name: string;
+  all_branches: boolean;
+  /** The chosen branches when all_branches is false (else empty). */
+  branch_ids: number[];
+  branch_names: string[];
+  is_paid: boolean;
+  is_weekly_off: boolean;
+  /** The day has passed (Kathmandu): no edit, no delete, for anyone. */
+  locked: boolean;
+}
+
+export interface HolidayList {
+  /** Today in Asia/Kathmandu, from the server (AD). */
+  today: string;
+  holidays: Holiday[];
+}
+
+export interface HolidayInput {
+  date: string;
+  name: string;
+  all_branches: boolean;
+  branch_ids: number[];
+  is_paid: boolean;
+}
 
 export const MARK_STATUSES: readonly MarkStatus[] = ["P", "O", "A"];
 
@@ -81,6 +122,8 @@ export interface DayHeader {
   /** 0 = Sunday … 6 = Saturday. */
   weekday: number;
   is_weekly_off: boolean;
+  /** The branch's public holiday on this day, when there is one. */
+  holiday?: HolidayRef | null;
 }
 
 /** A BS month with its days. */
@@ -187,6 +230,8 @@ export interface DayAttendance {
   settings: AttendanceSettings;
   /** The lock for this day and caller (absent only in the node tests' mock). */
   lock?: DayLock;
+  /** The branch's public holiday on this day: a banner, and nobody counts as "not marked". */
+  holiday?: HolidayRef | null;
   branches: BranchRef[];
   /** Departments in the selected branch, with headcount in that branch. */
   departments: DepartmentRef[];
@@ -402,6 +447,8 @@ export interface AttendanceTotals {
   absent: number;
   weekly_off: number;
   not_marked: number;
+  /** Public holidays without a mark ("H" cells), plus paid holidays marked absent. */
+  holidays?: number;
   /** Days with any mark (present + overtime_days + absent). */
   marked_days: number;
   /** present + overtime_days – the attendance numerator. */

@@ -139,7 +139,7 @@ export function compareCard(day: DashboardToday, index: number): CompareCard {
     bar: a ? bar(a) : null,
     marked: a ? `${a.staff - a.not_marked} of ${a.staff} marked` : null,
     paid: day.payments ? { amount: `Rs ${formatRs(day.payments.paid)}`, count: plural(day.payments.count, "payment") } : null,
-    missing: a ? (a.weekly_off ? "Saturday · weekly off" : a.not_in.map((p) => p.name).join(", ") || "Everyone is marked ✓") : null,
+    missing: a ? (a.weekly_off ? (a.holiday ? `Public holiday · ${a.holiday}` : "Saturday · weekly off") : a.not_in.map((p) => p.name).join(", ") || "Everyone is marked ✓") : null,
   };
 }
 

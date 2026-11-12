@@ -42,6 +42,13 @@
   cursor: pointer;
 }
 
+/* A public holiday (amber) on the day list (DayBanner); the weekly off keeps the grey. */
+.banner[data-mode="holiday"] {
+  border-color: #f0c89a;
+  background: #fdf5ea;
+  color: #7a3f08;
+}
+
 /* The super admin on a past day: amber, "Past date · changes are logged". */
 .banner[data-mode="override"] {
   border-color: #e0a800;

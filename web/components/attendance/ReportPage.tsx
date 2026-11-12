@@ -354,6 +354,12 @@ export function ReportPage() {
         <span className={styles.cell} data-status="N" data-unmarked="true" aria-hidden="true" />
         Not marked (unpaid)
       </span>
+      <span className={styles.key}>
+        <span className={styles.cell} data-status="H" aria-hidden="true">
+          H
+        </span>
+        Public holiday
+      </span>
       {!hideOff ? (
         <span className={styles.key}>
           <span className={styles.cell} data-status="W" aria-hidden="true">

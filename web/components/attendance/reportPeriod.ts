@@ -194,10 +194,10 @@ export function periodIndices(period: Period): number[] {
 // ------------------------------------------------------------ cells
 
 /**
- * What a day cell looks like: a mark, Saturday, not marked (red), or blank ("F": a future day,
- * or a day before the employee joined).
+ * What a day cell looks like: a mark, Saturday, a public holiday ("H", amber), not marked (red),
+ * or blank ("F": a future day, or a day before the employee joined).
  */
-export type CellLook = "P" | "O" | "A" | "W" | "N" | "F";
+export type CellLook = "P" | "O" | "A" | "W" | "N" | "F" | "H";
 
 export function cellLook(cell: DayCell | undefined, day: DayHeader, today: string): CellLook {
   if (day.bs_date > today) return "F";
@@ -215,6 +215,7 @@ export const STRIP_COLOUR: Record<CellLook, string> = {
   W: "#D5D9D5",
   N: "#FFFFFF",
   F: "#FFFFFF",
+  H: "#FBE3C8",
 };
 
 /** Outline of a strip block: red for not marked, grey for future, none otherwise. */
@@ -225,6 +226,7 @@ export const STRIP_OUTLINE: Record<CellLook, string | null> = {
   W: null,
   N: "#C0392B",
   F: "#E2E5E1",
+  H: null,
 };
 
 /** Pale background / text of calendar, week and day cells. */
@@ -235,6 +237,7 @@ export const PALE_COLOUR: Record<CellLook, { bg: string; fg: string }> = {
   W: { bg: "#F4F5F2", fg: "#B42318" },
   N: { bg: "#FFFFFF", fg: "#8E2F12" },
   F: { bg: "#FFFFFF", fg: "#B5BEB9" },
+  H: { bg: "#FDF5EA", fg: "#7A3F08" },
 };
 
 /** Calendar cell mark: P / "O 2h" / A / W / "–" (not marked) / "" (future). */
@@ -264,6 +267,8 @@ export function dayPillText(look: CellLook, otHours: number): string {
       return "Saturday";
     case "N":
       return "Not marked";
+    case "H":
+      return "Public holiday";
     default:
       return "—";
   }

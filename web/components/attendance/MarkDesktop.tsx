@@ -6,6 +6,7 @@ import { useEffect, useRef, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { BSDate } from "@/components/date";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { DayBanner, isOffDay } from "./DayBanner";
 import { LockBanner } from "./LockBanner";
 import { lockLine } from "./lock";
 import { CheckIcon, ScanIcon, SearchIcon } from "./icons";
@@ -72,7 +73,8 @@ export function MarkDesktop({ state }: { state: MarkState }) {
   const openOnPage = paged.items.filter((row) => state.statusOf(row) === "N").map((row) => row.employee.id);
   const allOnPageSelected = openOnPage.length > 0 && openOnPage.every((id) => selected.has(id));
   const selectedOpen = state.scopeRows.filter((row) => selected.has(row.employee.id) && state.statusOf(row) === "N").length;
-  const weeklyOff = data?.day.is_weekly_off ?? false;
+  // A public holiday is like the weekly off: a banner, and no "mark everyone" in bulk.
+  const weeklyOff = isOffDay(data);
 
   return (
     <>
@@ -246,13 +248,7 @@ export function MarkDesktop({ state }: { state: MarkState }) {
         </div>
       ) : null}
       <LockBanner lock={state.lock} />
-      {weeklyOff ? (
-        <div className={styles.messages}>
-          <p role="status" className={shared.status}>
-            {data?.day.bs_date} is the weekly off (Saturday). Nobody needs a mark; mark only staff who came in.
-          </p>
-        </div>
-      ) : null}
+      <DayBanner data={data} />
 
       <section className={`card ${styles.form}`} aria-label="Staff">
         <div className={styles.scroll}>

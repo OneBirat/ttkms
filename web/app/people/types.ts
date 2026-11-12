@@ -137,6 +137,9 @@ export interface MonthSummary {
   not_marked: number;
   /** Days after an inactive employee's leaving day (Saturdays included): unpaid. 0 while active. */
   days_after_leaving?: number;
+  /** Paid public holidays without a P / O mark (inside paid_days); unpaid ones without a mark (the day is cut). */
+  holidays?: number;
+  unpaid_holidays?: number;
   /** Days the figures cover: the whole month when past, today's BS day for the running month. */
   days_counted?: number;
   /** Saturdays marked P or O - never inside present / overtime_days (app/contracts.py). */

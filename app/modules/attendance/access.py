@@ -18,6 +18,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import CurrentUser
 from app.core.models import User
 from app.modules.admin.permissions import access_for_user, branch_scope, require_access
 
@@ -68,3 +69,15 @@ async def one_branch(db: AsyncSession, scope: Scope) -> int:
 
 CanMark = Annotated[User, Depends(require_access(MARK))]
 CanReport = Annotated[User, Depends(require_access(REPORT))]
+
+
+async def require_super_admin(user: CurrentUser) -> User:
+    """The one protected account (``users.is_super_admin``, set from the server command line)."""
+    if not user.is_super_admin:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="Only the super admin can change the holidays."
+        )
+    return user
+
+
+SuperAdmin = Annotated[User, Depends(require_super_admin)]

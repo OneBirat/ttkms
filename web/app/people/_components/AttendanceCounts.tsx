@@ -22,6 +22,11 @@ export function AttendanceCounts({ attendance: a, short = false, className }: { 
       <span className={shared.attNotMarked} data-any={notMarked > 0 || undefined} title="Past working days without an attendance record: not paid">
         Not marked <b>{notMarked}</b>
       </span>
+      {(a.holidays ?? 0) + (a.unpaid_holidays ?? 0) > 0 ? (
+        <span title="Public holidays without a mark: not absent">
+          {short ? "H" : "Holidays"} <b>{(a.holidays ?? 0) + (a.unpaid_holidays ?? 0)}</b>
+        </span>
+      ) : null}
     </span>
   );
 }

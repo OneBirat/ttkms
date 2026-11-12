@@ -24,9 +24,10 @@ export type MonthDetailRow =
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** The days the deduction covers: absent + not marked + after leaving. */
+/** The days the deduction covers: absent + not marked + after leaving + unpaid public holidays. */
 function unpaidDays(l: Pick<MonthLedger, "attendance">): number {
-  return l.attendance.absent + (l.attendance.not_marked ?? 0) + (l.attendance.days_after_leaving ?? 0);
+  const a = l.attendance;
+  return a.absent + (a.not_marked ?? 0) + (a.days_after_leaving ?? 0) + (a.unpaid_holidays ?? 0);
 }
 
 /** Per unpaid day: what was actually deducted ÷ those days (salary ÷ 30 when none). */
@@ -40,10 +41,13 @@ export function deductionSplit(l: Pick<MonthLedger, "absence_deduction" | "atten
   const notMarked = l.attendance.not_marked ?? 0;
   const after = l.attendance.days_after_leaving ?? 0;
   const unpaid = unpaidDays(l);
-  if (unpaid <= 0 || notMarked + after <= 0) return { absent: l.absence_deduction, not_marked: 0, after_leaving: 0 };
+  const absentPart = unpaid > 0 ? Math.round((l.absence_deduction * l.attendance.absent) / unpaid) : l.absence_deduction;
+  if (unpaid <= 0 || notMarked + after <= 0) return { absent: absentPart, not_marked: 0, after_leaving: 0 };
   const nm = Math.round((l.absence_deduction * notMarked) / unpaid);
   const al = Math.round((l.absence_deduction * after) / unpaid);
-  return { absent: l.absence_deduction - nm - al, not_marked: nm, after_leaving: al };
+  // Whatever is left after the others is the absent days' share (and any unpaid holidays').
+  const holidays = l.attendance.unpaid_holidays ?? 0;
+  return { absent: holidays > 0 ? absentPart : l.absence_deduction - nm - al, not_marked: nm, after_leaving: al };
 }
 
 export function monthDetailRows(l: MonthLedger): MonthDetailRow[] {
@@ -108,6 +112,18 @@ export function monthDetailRows(l: MonthLedger): MonthDetailRow[] {
       rate: `${formatAmount(absencePerDay(l))} / day`,
       amount: split.after_leaving > 0 ? `−${formatAmount(split.after_leaving)}` : "0",
       danger: true,
+    });
+  }
+  // An unpaid public holiday without a mark: the day is cut (never shown as absent).
+  const unpaidHolidays = a.unpaid_holidays ?? 0;
+  if (unpaidHolidays > 0 && l.pay_type === "monthly") {
+    const amount = l.absence_deduction - split.absent - split.not_marked - split.after_leaving;
+    rows.push({
+      kind: "line",
+      label: "Unpaid holiday",
+      qty: plural(unpaidHolidays, "day"),
+      rate: `${formatAmount(absencePerDay(l))} / day`,
+      amount: amount > 0 ? `−${formatAmount(amount)}` : "0",
     });
   }
   rows.push({ kind: "net", label: "Net salary", qty: "", rate: "", amount: formatAmount(l.net) });

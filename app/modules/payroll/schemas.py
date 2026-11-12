@@ -273,6 +273,10 @@ class MonthSummaryOut(BaseModel):
     not_marked: int = 0
     #: Days after an inactive employee's leaving day (Saturdays included): unpaid.
     days_after_leaving: int = 0
+    #: Paid public holidays without a P / O mark (inside ``paid_days``), and unpaid ones
+    #: without a mark (the day's pay is cut).
+    holidays: int = 0
+    unpaid_holidays: int = 0
 
 
 class PaymentOut(BaseModel):

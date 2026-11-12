@@ -202,7 +202,8 @@ def day_lock(ad: date, user: User | None = None) -> schemas.DayLock:
     )
 
 
-def day_header(ad: date) -> schemas.DayHeader:
+def day_header(ad: date, holiday=None) -> schemas.DayHeader:
+    """``holiday``: the branch's models.Holiday of that day, if any."""
     bs = bsdate.ad_to_bs(ad)
     return schemas.DayHeader(
         bs_date=bs.isoformat(),
@@ -210,6 +211,11 @@ def day_header(ad: date) -> schemas.DayHeader:
         ad_date=ad,
         weekday=bsdate.weekday_index(ad),
         is_weekly_off=is_weekly_off(ad),
+        holiday=(
+            schemas.HolidayRef(id=holiday.id, name=holiday.name, is_paid=holiday.is_paid)
+            if holiday is not None
+            else None
+        ),
     )
 
 
@@ -648,12 +654,17 @@ async def day_attendance(
         rows = [(e, r) for e, r in rows if (e.department_id or 0) == department_id]
     names = await usernames(db, [r for _, r in rows if r])
     flags = await payments_on(ad, [e.id for e, _ in rows]) if money else {}
+    from app.modules.attendance import holidays  # holidays imports this module
+
+    holiday = await holidays.on_day(db, branch_id, ad)
+    header = day_header(ad, holiday)
     return schemas.DayAttendance(
         date=ad,
         date_bs=bs_of(ad),
-        day=day_header(ad),
+        day=header,
         settings=SETTINGS,
         lock=day_lock(ad, user),
+        holiday=header.holiday,
         branches=await branch_refs(db, scope),
         departments=dept_refs,
         rows=[

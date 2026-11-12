@@ -679,7 +679,7 @@ function AttendanceRecord({ scan, state, titleId }: StepProps<"attrec">) {
       ? "F"
       : h.is_weekly_off && (!cell || cell.status === "W" || cell.status === "N")
         ? "off"
-        : !cell || cell.status === "W"
+        : !cell || cell.status === "W" || cell.status === "H"
           ? "off"
           : cell.status === "N"
             ? "N"

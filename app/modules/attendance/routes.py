@@ -3,22 +3,25 @@ server-side (:func:`app.modules.attendance.access.scope_for`)."""
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, Response, status
 
+from app.core.auth import CurrentUser
 from app.core.errors import CodedErrorOut
 from app.core.models import User
 from app.core.schemas import ErrorOut, ModuleStatusOut
 from app.db import DbSession
 from app.modules.admin.permissions import require_any_access
-from app.modules.attendance import preview, report, schemas, services
+from app.modules.attendance import holidays, preview, report, schemas, services
 from app.modules.attendance.access import (
     EMPLOYEES,
     MARK,
     REPORT,
     CanMark,
     CanReport,
+    SuperAdmin,
     scope_for,
     sees_money,
 )
@@ -153,3 +156,54 @@ async def marked_days(
     """BS dates with a mark - for one employee, else for the branch (BSDatePicker dots)."""
     scope = await scope_for(db, me, branch)
     return await report.marked_days(db, scope, bs_year, bs_month, employee_id)
+
+
+# ------------------------------------------------------------------------------ holidays
+
+HOLIDAY_ERRORS: dict[int | str, dict[str, Any]] = {**ERRORS, 409: {"model": CodedErrorOut}}
+
+
+@router.get("/holidays", response_model=schemas.HolidayList, responses=ERRORS)
+async def list_holidays(
+    me: CurrentUser,
+    db: DbSession,
+    from_: Annotated[date, Query(alias="from")],
+    to: date,
+    branch_id: int | None = None,
+) -> schemas.HolidayList:
+    """Public holidays in an AD date range (any signed-in user: Mark attendance, the reports and
+    the dashboard read them). ``branch_id`` keeps only the holidays that apply to that branch.
+    ``today`` is the Kathmandu day; ``locked`` = the holiday's day has passed."""
+    return await holidays.list_holidays(db, from_, to, branch_id)
+
+
+@router.post(
+    "/holidays",
+    response_model=schemas.HolidayOut,
+    status_code=status.HTTP_201_CREATED,
+    responses=HOLIDAY_ERRORS,
+)
+async def create_holiday(
+    body: schemas.HolidayIn, me: SuperAdmin, db: DbSession
+) -> schemas.HolidayOut:
+    """Super admin only. 422 for a past date, a blank name or no branch chosen; 409 when the
+    date already has a holiday for one of the branches."""
+    return await holidays.create(db, me, body)
+
+
+@router.patch("/holidays/{holiday_id}", response_model=schemas.HolidayOut, responses=HOLIDAY_ERRORS)
+async def update_holiday(
+    holiday_id: int, body: schemas.HolidayPatch, me: SuperAdmin, db: DbSession
+) -> schemas.HolidayOut:
+    """Super admin only. 403 once the holiday's day has passed; the new date must be today or
+    later too."""
+    return await holidays.update(db, holiday_id, body)
+
+
+@router.delete(
+    "/holidays/{holiday_id}", status_code=status.HTTP_204_NO_CONTENT, responses=HOLIDAY_ERRORS
+)
+async def delete_holiday(holiday_id: int, me: SuperAdmin, db: DbSession) -> Response:
+    """Super admin only. 403 once the holiday's day has passed."""
+    await holidays.delete(db, holiday_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

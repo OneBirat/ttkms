@@ -852,14 +852,17 @@ def unpaid_days_text(ledger: MonthLedger) -> str:
             (a.absent, f"{a.absent} absent"),
             (a.not_marked, f"{a.not_marked} not marked"),
             (a.days_after_leaving, f"{a.days_after_leaving} after leaving"),
+            (a.unpaid_holidays, f"{a.unpaid_holidays} unpaid holiday"),
         )
         if count
     ]
     if len(parts) > 1:
-        total = a.absent + a.not_marked + a.days_after_leaving
+        total = a.absent + a.not_marked + a.days_after_leaving + a.unpaid_holidays
         return f"{' + '.join(parts)} = {total} day(s)"
     if a.days_after_leaving:
         return f"{a.days_after_leaving} day(s) after leaving"
+    if a.unpaid_holidays:
+        return f"{a.unpaid_holidays} unpaid holiday(s)"
     if a.not_marked:
         return f"{a.not_marked} not marked day(s)"
     return f"{a.absent} day(s)"

@@ -84,6 +84,7 @@ function PayBadges({ cell }: { cell: DayCell }) {
 
 function cellTitle(monthName: string, day: DayHeader, cell: DayCell, payIcons: boolean): string {
   let title = `${bsDayLabel(monthName, day)}: ${cellText(cell)}`;
+  if (day.holiday) title += cell.status === "H" ? ` · ${day.holiday.name}` : ` · public holiday: ${day.holiday.name}`;
   if (payIcons && cell.salary) title += ` · salary Rs ${cell.salary.toLocaleString("en-IN")}`;
   if (payIcons && cell.advance) title += ` · advance Rs ${cell.advance.toLocaleString("en-IN")}`;
   if (cell.override) title += ` · ${cell.override.text}`;
@@ -111,7 +112,7 @@ function Cell({
         <span className={styles.wcellMain}>
           {cell.status === "P" ? <Tick size={14} /> : null}
           <span>
-            {cell.status === "P" ? "Present" : cell.status === "O" ? "Overtime" : cell.status === "A" ? "Absent" : cell.status === "W" ? "Off" : "·"}
+            {cell.status === "P" ? "Present" : cell.status === "O" ? "Overtime" : cell.status === "A" ? "Absent" : cell.status === "W" ? "Off" : cell.status === "H" ? "Holiday" : "·"}
           </span>
         </span>
         {cell.status === "O" ? <span className={styles.wcellHours}>+{cell.ot_hours} h</span> : null}
@@ -124,7 +125,7 @@ function Cell({
   return (
     <span className={styles.cell} data-status={cell.status} data-unmarked={cell.not_marked || undefined} title={title}>
       <span aria-hidden="true" className={styles.cellCode}>
-        {cell.status === "P" ? (pay ? null : <Tick />) : cell.status === "O" ? `${cell.ot_hours}h` : cell.status === "A" ? "A" : cell.status === "W" ? "–" : "·"}
+        {cell.status === "P" ? (pay ? null : <Tick />) : cell.status === "O" ? `${cell.ot_hours}h` : cell.status === "A" ? "A" : cell.status === "W" ? "–" : cell.status === "H" ? "H" : "·"}
       </span>
       {pay ? <PayBadges cell={cell} /> : null}
       {cell.override ? <OverrideDot text={cell.override.text} /> : null}
@@ -201,8 +202,8 @@ export function ReportGrid({
               <th
                 key={day.bs_date}
                 scope="col"
-                className={`${wide ? styles.dayHeadWide : styles.dayHead} ${day.is_weekly_off ? styles.dayHeadOff : ""}`}
-                title={`${bsDayLabel(monthName, day)} · ${formatAdShort(day.ad_date, true)} · ${WEEKDAYS_EN[day.weekday]}`}
+                className={`${wide ? styles.dayHeadWide : styles.dayHead} ${day.is_weekly_off ? styles.dayHeadOff : ""} ${day.holiday ? styles.dayHeadHoliday : ""}`}
+                title={`${bsDayLabel(monthName, day)} · ${formatAdShort(day.ad_date, true)} · ${WEEKDAYS_EN[day.weekday]}${day.holiday ? ` · Public holiday: ${day.holiday.name}` : ""}`}
               >
                 <span className={styles.dayHeadInner}>
                   <span className={styles.dayNum}>{day.bs_day}</span>

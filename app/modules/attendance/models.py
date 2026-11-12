@@ -9,6 +9,11 @@
   ``is_override``. Append-only: database triggers (attendance_0004) refuse every UPDATE,
   DELETE and TRUNCATE, so history rows cannot be edited or deleted.
 
+* ``holidays`` / ``holiday_branches`` - public holidays, one dated entry each (no recurrence),
+  for every branch or a chosen list. Only the super admin writes them, and only for today or a
+  later day; once the day has passed the entry is locked. Applied when attendance and pay are
+  read: no attendance row is ever written or rewritten for a holiday.
+
 Employees live in ``core.employees`` (``ON DELETE RESTRICT``). Migration order: ``core`` ->
 ``admin`` -> ``payroll`` -> ``attendance`` (README).
 """
@@ -152,4 +157,54 @@ class RecordChange(Base):
     #: True when the super admin changed a past day (the lock was overridden).
     is_override: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
+    )
+
+
+HOLIDAY_NAME_MAX = 120
+
+
+class Holiday(Base):
+    """A public holiday on one AD date (Asia/Kathmandu day). ``all_branches`` false = only the
+    branches in ``holiday_branches``. Two holidays never share a date and a branch (service
+    layer, 409). ``is_paid``: staff are not counted absent and nothing is cut for the day."""
+
+    __tablename__ = "holidays"
+    __table_args__ = (Index("ix_holidays_date", "date"), {"schema": SCHEMA})
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    name: Mapped[str] = mapped_column(String(HOLIDAY_NAME_MAX), nullable=False)
+    all_branches: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+    is_paid: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("core.users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    branches: Mapped[list[HolidayBranch]] = relationship(
+        lazy="selectin", cascade="all, delete-orphan", passive_deletes=True
+    )
+
+    def applies_to(self, branch_id: int) -> bool:
+        return self.all_branches or any(b.branch_id == branch_id for b in self.branches)
+
+
+class HolidayBranch(Base):
+    """A branch of a holiday with ``all_branches`` false."""
+
+    __tablename__ = "holiday_branches"
+    __table_args__ = ({"schema": SCHEMA},)
+
+    holiday_id: Mapped[int] = mapped_column(
+        ForeignKey(f"{SCHEMA}.holidays.id", ondelete="CASCADE"), primary_key=True
+    )
+    branch_id: Mapped[int] = mapped_column(
+        ForeignKey("core.branches.id", ondelete="CASCADE"), primary_key=True
     )

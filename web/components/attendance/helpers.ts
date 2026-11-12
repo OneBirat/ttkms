@@ -44,6 +44,7 @@ export const STATUS_META: Record<CellStatus, StatusMeta> = {
   A: { label: "Absent", label_np: "अनुपस्थित", code: "A", key: "✕" },
   W: { label: "Weekly off", label_np: "साप्ताहिक बिदा", code: "–", key: "" },
   N: { label: "Not marked", label_np: "हाजिरी छैन", code: "", key: "" },
+  H: { label: "Public holiday", label_np: "सार्वजनिक बिदा", code: "H", key: "" },
 };
 
 export function statusLabel(status: CellStatus): string {
@@ -116,6 +117,10 @@ export function computeTotals(cells: readonly DayCell[]): AttendanceTotals {
         break;
       case "W":
         t.weekly_off += 1;
+        break;
+      case "H":
+        // A public holiday without a mark: its own count, never absent or not marked.
+        t.holidays = (t.holidays ?? 0) + 1;
         break;
       default:
         // Only the days the server flags (past working days from joining): never today or later.

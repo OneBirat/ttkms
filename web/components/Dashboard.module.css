@@ -589,3 +589,10 @@ a.personName:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* The super admin's "Holiday calendar" button: top right of the header. */
+.headerAction {
+  order: 2;
+  align-self: flex-start;
+  margin-left: auto;
+}

@@ -5,9 +5,10 @@ Decided rules (the brief overrides any older design text):
 * Monthly: ``net = salary - (salary / 30 * unpaid days) + overtime - TDS`` - a fixed 30-day
   divisor whatever the BS month's real length. Unpaid days = absent + not marked (a past
   working day without any record is unpaid, exactly like a day marked absent) + the days after
-  an inactive employee's leaving day; the counts come from the MonthSummary and are never
-  derived here. Saturdays (the weekly off) are paid. No
-  half days, no leave.
+  an inactive employee's leaving day + unpaid public holidays without a mark; the counts come
+  from the MonthSummary and are never derived here. A paid public holiday is a paid day like a
+  Saturday: nothing is cut for it, and work on it pays the overtime hours marked. Saturdays
+  (the weekly off) are paid. No half days, no leave.
 * Running month ("earned so far", which also caps advances): the salary is prorated as
   ``salary * min(days_counted, 30) / 30`` (days_counted = today's BS day), then the unpaid days
   and overtime so far apply as above (today itself is never "not marked"). Past months are
@@ -105,7 +106,12 @@ def monthly_pay(
     at 30)."""
     per_day = salary / PAY_DAYS
     base = round_rs(salary * min(max(0, s.days_counted), PAY_DAYS) / PAY_DAYS if so_far else salary)
-    unpaid = max(0, s.absent) + max(0, s.not_marked) + max(0, s.days_after_leaving)
+    unpaid = (
+        max(0, s.absent)
+        + max(0, s.not_marked)
+        + max(0, s.days_after_leaving)
+        + max(0, s.unpaid_holidays)
+    )
     absence = min(round_rs(per_day * unpaid), base)
     overtime = overtime_pay(s.overtime_hours + s.saturday_ot_hours, ot_rate)
     saturday = (

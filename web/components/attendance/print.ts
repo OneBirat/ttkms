@@ -19,9 +19,9 @@ const esc = (s: string | number) =>
 
 export const PDF_LEGEND =
   "✓ present · number = overtime hours (present + overtime) · A absent · red empty box = not marked (NM, unpaid) · " +
-  "– weekly off (Saturday). P counts overtime days too. Paid days = P + W; overtime hours are paid on top.";
+  "H public holiday · – weekly off (Saturday). P counts overtime days too. Paid days = P + W; overtime hours are paid on top.";
 export const PDF_LEGEND_NO_SATURDAY =
-  "✓ present · number = overtime hours (present + overtime) · A absent · red empty box = not marked (NM, unpaid). " +
+  "✓ present · number = overtime hours (present + overtime) · A absent · red empty box = not marked (NM, unpaid) · H public holiday. " +
   "Saturdays (weekly off) are hidden but still counted in W. P counts overtime days too. Paid days = P + W; " +
   "overtime hours are paid on top.";
 
@@ -55,6 +55,8 @@ export function pdfCell(cell: DayCell): { text: string; style: string } {
       return { text: "A", style: "background:#F6D9CF;color:#8E2F12;font-weight:700" };
     case "W":
       return { text: "–", style: "background:#EEF0EC;color:#6B757B" };
+    case "H":
+      return { text: "H", style: "background:#FBE3C8;color:#7A3F08;font-weight:700" };
     default:
       // Not marked (a past working day without a record, unpaid): a red empty cell.
       return cell.not_marked

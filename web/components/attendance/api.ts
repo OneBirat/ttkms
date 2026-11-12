@@ -23,6 +23,9 @@ import type {
   DayAttendance,
   EmployeeMonth,
   ExportFile,
+  Holiday,
+  HolidayInput,
+  HolidayList,
   LookupResponse,
   MarkOneRequest,
   MarkOneResponse,
@@ -341,4 +344,26 @@ export async function recordPayment(input: PaymentInput): Promise<PaymentResult>
     },
   });
   return { payment: paymentRecord(result.payment), due_after: result.due_after };
+}
+
+// ------------------------------------------------------------------------ holidays
+
+/** GET /api/attendance/holidays?from&to&branch_id - AD range; any signed-in user. */
+export function listHolidays(from: string, to: string, branchId?: number | null): Promise<HolidayList> {
+  return apiFetch<HolidayList>(`/api/attendance/holidays${qs({ from, to, branch_id: branchId })}`);
+}
+
+/** POST (super admin): 422 with `field` for a past date / blank name / no branch, 409 on overlap. */
+export function createHoliday(body: HolidayInput): Promise<Holiday> {
+  return apiFetch<Holiday>("/api/attendance/holidays", { method: "POST", json: body });
+}
+
+/** PATCH (super admin): 403 once the holiday's day has passed. */
+export function updateHoliday(id: number, body: Partial<HolidayInput>): Promise<Holiday> {
+  return apiFetch<Holiday>(`/api/attendance/holidays/${id}`, { method: "PATCH", json: body });
+}
+
+/** DELETE (super admin): 403 once the holiday's day has passed. */
+export function deleteHoliday(id: number): Promise<void> {
+  return apiFetch<void>(`/api/attendance/holidays/${id}`, { method: "DELETE" });
 }

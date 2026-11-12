@@ -9,6 +9,7 @@ import { useActiveBranch } from "@/lib/branchContext";
 import { useSession } from "@/lib/session";
 import { useApi } from "@/lib/useApi";
 import { DashboardHeader } from "./dashboard/Header";
+import { NextHoliday } from "./dashboard/NextHoliday";
 import { bar, compareCard, formatRs, initials, moneyTiles, tiles } from "./dashboard/model";
 import styles from "./Dashboard.module.css";
 
@@ -20,7 +21,8 @@ import styles from "./Dashboard.module.css";
  * Nothing is ever added up across branches.
  */
 export function Dashboard() {
-  const { today: sessionToday } = useSession();
+  const { today: sessionToday, enabled, user } = useSession();
+  const attendance = enabled.includes("attendance");
   const { branch, canSwitch, setActiveBranch } = useActiveBranch();
   const router = useRouter();
   const params = useSearchParams();
@@ -35,12 +37,21 @@ export function Dashboard() {
       <DashboardHeader
         today={today}
         compare={compare}
+        action={
+          attendance && user?.is_super_admin ? (
+            <Link href="/holidays" className="btn btn--primary" data-testid="holiday-calendar-button">
+              <Icon name="calendar" size={16} />
+              Holiday calendar
+            </Link>
+          ) : null
+        }
         onCompare={() => router.replace("/?view=compare", { scroll: false })}
         onBranch={(id) => {
           void setActiveBranch(id);
           if (compare) branchView();
         }}
       />
+      {attendance ? <NextHoliday todayAd={today?.date ?? null} branchId={branch?.id ?? null} /> : null}
       {compare ? (
         <CompareView
           onOpen={(id) => {
@@ -214,7 +225,7 @@ function AttendanceCard({ branch, a }: { branch: string; a: DashboardAttendance 
       </div>
       <div className={styles.notIn}>
         {a.weekly_off ? (
-          <span className={styles.notInTitle}>Saturday · weekly off</span>
+          <span className={styles.notInTitle}>{a.holiday ? `Public holiday · ${a.holiday}` : "Saturday · weekly off"}</span>
         ) : (
           <>
             <span className={styles.notInTitle}>Not in yet · {a.not_in.length} staff</span>

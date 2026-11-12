@@ -331,6 +331,7 @@ export const LEGEND: { look: CellLook; label: string }[] = [
   { look: "A", label: "Absent" },
   { look: "W", label: "Saturday" },
   { look: "N", label: "Not marked" },
+  { look: "H", label: "Public holiday" },
 ];
 
 // ------------------------------------------------------------ download sheet

@@ -7,6 +7,7 @@ import { formatAdShort, formatBs, toNepaliDigits, validBs } from "@/lib/bs";
 import { useShell } from "@/lib/shell";
 import { MenuIcon, ScanIcon, SearchIcon } from "./icons";
 import { draftText, type Draft, type StatusFilter } from "./helpers";
+import { DayBanner } from "./DayBanner";
 import { LockBanner } from "./LockBanner";
 import type { CellStatus, MarkRow } from "./types";
 import type { MarkState } from "./useMarkState";
@@ -119,6 +120,7 @@ export function MarkMobile({ state }: { state: MarkState }) {
 
       <div className={styles.body}>
         <LockBanner lock={state.lock} phone onToday={state.goToday} />
+        <DayBanner data={state.data} phone />
         <div className={styles.pad}>
           <div className={styles.search}>
             <SearchIcon size={18} />

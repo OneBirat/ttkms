@@ -222,3 +222,40 @@ shows a red empty cell; other `N` cells - today, future, before joining - stay n
 writes `NM` in those cells and has a "Not marked" column on Daily grid and By department plus a Summary
 line; the PDF has the red empty cell, an NM column and a "Not marked days" box.
 `/attendance/mark?status=N` opens Mark attendance on the Not marked filter.
+
+## Holiday calendar (2026-11-12)
+
+Tables `attendance.holidays` (AD `date`, `name`, `all_branches`, `is_paid`, `created_by`, timestamps;
+index on `date`) and `attendance.holiday_branches` (holiday + branch, cascade) - migration
+`attendance_0005`. One dated entry per holiday, no recurrence. Weekly off stays every Saturday,
+computed in code.
+
+| | |
+|---|---|
+| GET `/api/attendance/holidays?from&to&branch_id` | AD range; any signed-in user. → `{today, holidays[]}`: `today` is the Kathmandu day on the server; each holiday has `id, date, date_bs, weekday, name, all_branches, branch_ids, branch_names, is_paid, is_weekly_off, locked` (`locked` = its day has passed). `branch_id` keeps the holidays that apply to that branch |
+| POST `/api/attendance/holidays` | super admin (`access.SuperAdmin`, 403 for everyone else). 422 + `field` for a past `date`, a blank `name`, `all_branches` false without `branch_ids`; 409 `holiday_overlap` when the date already has a holiday sharing a branch (all branches shares every one) |
+| PATCH `/api/attendance/holidays/{id}` | super admin; only the fields sent change. 403 when the holiday is locked; the new date must be today or later (422) |
+| DELETE `/api/attendance/holidays/{id}` | super admin; 403 when locked; 204 |
+
+`holidays.guard_write` is the one "today or later / locked" check behind the three writes.
+
+Applied at read time only (no attendance row is written or changed):
+
+- `GET /day`: `holiday` (`{id, name, is_paid}`) and `day.holiday` for the branch on screen → the
+  "Public holiday: {name}" banner; the screen counts nobody as not marked that day (same for the weekly
+  off). Marking P / O still works.
+- Report and employee month: every `month.days[]` header carries `holiday`; a day without a mark is the
+  cell status **`H`** (also on a Saturday) - never `A` or not marked; `totals.holidays` counts them (and a
+  paid holiday marked `A`), and they are inside `totals.paid_days` when paid.
+- `MonthSummary` (payroll): `holidays` = paid holidays of the employee's (current) branch on working days
+  without a P / O mark - paid days, never not marked, and an `A` mark on one is no absence;
+  `unpaid_holidays` = unpaid ones without a mark - not "not marked", but the day's pay is cut. Working
+  on a holiday is P / O as usual: only the overtime hours marked are paid, at the employee's overtime rate.
+  Daily-wage staff are paid for days worked only.
+- Dashboard today (`/api/today` counts, `/api/dashboard/today`): on the branch's holiday nobody is "not
+  marked" (`weekly_off` true, `holiday` = its name).
+
+Frontend: `/holidays` (`components/attendance/holidays/`, super admin only - others are sent back to the
+Dashboard; opened from the Dashboard's "Holiday calendar" button, not the sidebar), the Dashboard's
+"Next public holiday" strip for everyone (`components/dashboard/NextHoliday.tsx`, the active branch's next
+holiday), `DayBanner` on Mark attendance.

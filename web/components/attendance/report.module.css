@@ -790,3 +790,16 @@
   color: #b42318;
   font-weight: 700;
 }
+
+/* Public holiday without a mark: amber, its own status (never absent or not marked). */
+.cell[data-status="H"],
+.wcell[data-status="H"] {
+  background: #fbe3c8;
+  color: #7a3f08;
+  font-weight: 700;
+}
+
+.dayHeadHoliday {
+  background: #fdf5ea;
+  color: #7a3f08;
+}

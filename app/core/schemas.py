@@ -345,6 +345,8 @@ class DashboardAttendance(BaseModel):
     absent: int
     not_marked: int
     weekly_off: bool
+    #: The branch's public holiday today (its name); ``weekly_off`` is true then as well.
+    holiday: str | None = None
     #: Not marked yet, A-Z (empty on the weekly off).
     not_in: list[DashboardPerson]
     mark_path: str = "/attendance/mark"

@@ -60,6 +60,7 @@ async def test_widget_and_counts_for_a_branch(client, db, login, user_in, world,
         "absent": 1,
         "not_marked": 1,
         "weekly_off": False,
+        "holiday": None,
         "not_in": [
             {"employee_id": p["Bikash"].id, "name": "Bikash", "status": "A"},
             {"employee_id": p["Chandra"].id, "name": "Chandra", "status": "N"},

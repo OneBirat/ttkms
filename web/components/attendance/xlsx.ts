@@ -42,6 +42,8 @@ export function sheetCode(cell: DayCell): SheetCell {
       return "A";
     case "W":
       return "–";
+    case "H":
+      return "H";
     default:
       return cell.not_marked ? "NM" : "";
   }
@@ -94,7 +96,7 @@ export function buildReportWorkbook(model: ExportModel): Workbook {
       ["Absences", s.absent],
       ["Not marked days (unpaid)", s.not_marked],
       [],
-      ["Daily grid: ✓ present · number = overtime hours (present + overtime) · A absent · NM not marked · – weekly off (Saturday)."],
+      ["Daily grid: ✓ present · number = overtime hours (present + overtime) · A absent · NM not marked · H public holiday · – weekly off (Saturday)."],
       ["P counts overtime days too. O = overtime hours. W = weekly-off days. Not marked = past working days without a record."],
       [PAID_RULE],
       [`Generated ${model.printed_at_ad} by ${model.printed_by}`],

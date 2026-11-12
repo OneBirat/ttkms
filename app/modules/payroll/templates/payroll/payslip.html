@@ -11,6 +11,8 @@
     <tr><td class="nm">Absent</td><td class="num">{{ a.absent }}</td></tr>
     <tr><td class="nm"{% if a.not_marked %} style="color: #b42318"{% endif %}>Not marked (unpaid)</td><td class="num"{% if a.not_marked %} style="color: #b42318; font-weight: 700"{% endif %}>{{ a.not_marked }}</td></tr>
     {% if a.days_after_leaving %}<tr><td class="nm">Days after leaving (unpaid)</td><td class="num">{{ a.days_after_leaving }}</td></tr>{% endif %}
+    {% if a.holidays %}<tr><td class="nm">Public holidays (paid)</td><td class="num">{{ a.holidays }}</td></tr>{% endif %}
+    {% if a.unpaid_holidays %}<tr><td class="nm">Public holidays (unpaid)</td><td class="num">{{ a.unpaid_holidays }}</td></tr>{% endif %}
     <tr><td class="nm">Weekly off (paid)</td><td class="num">{{ a.weekly_off }}</td></tr>
   </tbody>
 </table>
@@ -25,7 +27,7 @@
 <table class="pg" style="width: 60%">
   <thead><tr><th class="nm">Deductions</th><th class="num">Rs</th></tr></thead>
   <tbody>
-    <tr><td class="nm">{% if ledger.pay_type == "monthly" %}{% if a.not_marked or a.days_after_leaving %}Absent {{ a.absent }} + not marked {{ a.not_marked }}{% if a.days_after_leaving %} + after leaving {{ a.days_after_leaving }}{% endif %} = {{ a.absent + a.not_marked + a.days_after_leaving }}{% else %}Absence {{ a.absent }}{% endif %} × Rs {{ "{:,}".format(per_day) }} per day{% else %}Absence{% endif %}</td><td class="num">{% if ledger.absence_deduction %}− {{ "{:,}".format(ledger.absence_deduction) }}{% else %}0{% endif %}</td></tr>
+    <tr><td class="nm">{% if ledger.pay_type == "monthly" %}{% if a.not_marked or a.days_after_leaving or a.unpaid_holidays %}Absent {{ a.absent }} + not marked {{ a.not_marked }}{% if a.days_after_leaving %} + after leaving {{ a.days_after_leaving }}{% endif %}{% if a.unpaid_holidays %} + unpaid holiday {{ a.unpaid_holidays }}{% endif %} = {{ a.absent + a.not_marked + a.days_after_leaving + a.unpaid_holidays }}{% else %}Absence {{ a.absent }}{% endif %} × Rs {{ "{:,}".format(per_day) }} per day{% else %}Absence{% endif %}</td><td class="num">{% if ledger.absence_deduction %}− {{ "{:,}".format(ledger.absence_deduction) }}{% else %}0{% endif %}</td></tr>
     <tr><td class="nm"><b>Net salary</b></td><td class="num"><b>{{ "{:,}".format(ledger.net) }}</b></td></tr>
   </tbody>
 </table>
