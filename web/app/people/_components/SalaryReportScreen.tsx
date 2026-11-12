@@ -3,7 +3,7 @@
 import { PageBranchSelect } from "@/components/PageBranchSelect";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useId, useMemo } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
@@ -28,6 +28,21 @@ import type { ReportSort, SalaryReport } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import { AttendanceCounts } from "./AttendanceCounts";
 import { UNMARKED_HREF, unmarkedWarningText } from "../_lib/monthDetail";
+import {
+  NO_SELECTION,
+  allShownSelected,
+  printOrder,
+  selectShown,
+  selectionIn,
+  selectionScope,
+  slipPrintedTitle,
+  toggleRow,
+  toggleShown,
+  type SelectionState,
+  type SlipSelection,
+} from "../_lib/payslipSelection";
+import { PayslipPrintBar } from "./PayslipPrintBar";
+import { useSession } from "@/lib/session";
 import styles from "./report.module.css";
 import shared from "./payroll.module.css";
 
@@ -96,6 +111,36 @@ export function SalaryReportScreen() {
     return sortRows(rows, sort, departments.data ?? []);
   }, [data, query, sort, departments.data]);
   const paged = paginate(filteredRows, page, PAGE_SIZE);
+
+  // Pay slips to print: ticks survive the department chip, search and sort; a new branch or
+  // month starts with none (the ticks are only read back for the scope they were made in).
+  const { user } = useSession();
+  const scopeKey = selectionScope(branchScope.branchId, month);
+  const [picked, setPicked] = useState<SelectionState>({ scope: scopeKey, rows: NO_SELECTION });
+  const selection = selectionIn(picked, scopeKey);
+  const changeSelection = (change: (current: SlipSelection) => SlipSelection) =>
+    setPicked((state) => ({ scope: scopeKey, rows: change(selectionIn(state, scopeKey)) }));
+  const slipRows = useMemo(
+    () => printOrder(selection, data?.rows ?? [], sort, departments.data ?? []),
+    [selection, data, sort, departments.data],
+  );
+  const allTicked = allShownSelected(selection, filteredRows);
+
+  // A print / preview tab was opened: when this tab is looked at again, refetch the rows so
+  // "Slip printed" shows up.
+  const slipTabOpened = useRef(false);
+  const reloadReport = report.reload;
+  useEffect(() => {
+    const refetch = () => {
+      if (slipTabOpened.current && document.visibilityState === "visible") reloadReport();
+    };
+    window.addEventListener("focus", refetch);
+    document.addEventListener("visibilitychange", refetch);
+    return () => {
+      window.removeEventListener("focus", refetch);
+      document.removeEventListener("visibilitychange", refetch);
+    };
+  }, [reloadReport]);
   const deptName = department !== null ? (departments.data ?? []).find((d) => d.id === department)?.name : null;
   const scope = `${branchScope.label} · ${deptName ?? "all departments"}`;
 
@@ -202,6 +247,19 @@ export function SalaryReportScreen() {
               </div>
             </div>
 
+            <PayslipPrintBar
+              rows={slipRows}
+              shownCount={filteredRows.length}
+              branchId={branchScope.branchId}
+              month={month}
+              userId={user?.id ?? null}
+              onSelectShown={() => changeSelection((current) => selectShown(current, filteredRows))}
+              onClear={() => changeSelection(() => NO_SELECTION)}
+              onOpened={() => {
+                slipTabOpened.current = true;
+              }}
+            />
+
             <div className={shared.tableWrap}>
               <table className={shared.table}>
                 <caption className={shared.srOnly}>
@@ -209,6 +267,17 @@ export function SalaryReportScreen() {
                 </caption>
                 <thead>
                   <tr>
+                    <th scope="col" className={`${styles.tickCol} ${styles.noPrint}`}>
+                      <label className={styles.tick}>
+                        <input
+                          type="checkbox"
+                          aria-label="Select all shown employees"
+                          checked={allTicked}
+                          disabled={filteredRows.length === 0}
+                          onChange={() => changeSelection((current) => toggleShown(current, filteredRows))}
+                        />
+                      </label>
+                    </th>
                     <th scope="col">Employee</th>
                     <th scope="col">Dept</th>
                     <th scope="col" className={shared.num}>
@@ -232,44 +301,69 @@ export function SalaryReportScreen() {
                 <tbody>
                   {paged.items.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className={shared.empty}>
+                      <td colSpan={9} className={shared.empty}>
                         No employee matches.
                       </td>
                     </tr>
                   ) : (
-                    paged.items.map(({ employee, ledger }) => (
-                      <tr key={employee.id}>
-                        <td>
-                          <Link href={`/people/employees/${employee.id}`} className={`${styles.empCell} ${styles.empCellPhoto}`}>
-                            <Avatar name={employee.full_name} photoUrl={thumbUrl(employee)} size={32} />
-                            <span className={styles.empText}>
-                              <span className={styles.empName}>{employee.full_name}</span>
-                              <span className={styles.empSub}>
-                                {employee.code} · {employee.designation ?? "—"} · {ledger.pay_type === "monthly" ? "Monthly" : `Daily ${formatAmount(ledger.rate)}/day`}
+                    paged.items.map((row) => {
+                      const { employee, ledger } = row;
+                      const ticked = selection.has(employee.id);
+                      const printedTitle = slipPrintedTitle(row);
+                      return (
+                        <tr key={employee.id} className={ticked ? styles.rowTicked : undefined}>
+                          <td className={`${styles.tickCol} ${styles.noPrint}`}>
+                            <label className={styles.tick}>
+                              <input
+                                type="checkbox"
+                                aria-label={`Print pay slip for ${employee.full_name}`}
+                                checked={ticked}
+                                onChange={() => changeSelection((current) => toggleRow(current, row))}
+                              />
+                            </label>
+                          </td>
+                          <td>
+                            <Link href={`/people/employees/${employee.id}`} className={`${styles.empCell} ${styles.empCellPhoto}`}>
+                              <Avatar name={employee.full_name} photoUrl={thumbUrl(employee)} size={32} />
+                              <span className={styles.empText}>
+                                <span className={styles.empName}>{employee.full_name}</span>
+                                <span className={styles.empSub}>
+                                  {employee.code} · {employee.designation ?? "—"} · {ledger.pay_type === "monthly" ? "Monthly" : `Daily ${formatAmount(ledger.rate)}/day`}
+                                </span>
                               </span>
+                            </Link>
+                          </td>
+                          <td>{employee.department?.name ?? "—"}</td>
+                          <td className={shared.num}>
+                            {formatPaidDays(ledger.paid_days, ledger.attendance.days_in_month)}
+                            <AttendanceCounts attendance={ledger.attendance} short className={styles.rowCounts} />
+                          </td>
+                          <td className={shared.num} title={ledger.overtime_pay ? `incl. overtime ${formatRs(ledger.overtime_pay)}` : undefined}>
+                            {formatAmount(ledger.earnings)}
+                          </td>
+                          <td className={shared.num}>{formatDeduction(ledger.absence_deduction)}</td>
+                          <td className={shared.num}>{formatDeduction(ledger.advance_paid)}</td>
+                          <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(ledger.net)}</td>
+                          <td>
+                            <span className={styles.statusCell}>
+                              <MonthStatusPill ledger={ledger} />
+                              {printedTitle ? (
+                                <span className={styles.slipPrinted} title={printedTitle}>
+                                  <Icon name="check" size={14} />
+                                  Slip printed
+                                  <span className={shared.srOnly}> · {printedTitle}</span>
+                                </span>
+                              ) : null}
                             </span>
-                          </Link>
-                        </td>
-                        <td>{employee.department?.name ?? "—"}</td>
-                        <td className={shared.num}>
-                          {formatPaidDays(ledger.paid_days, ledger.attendance.days_in_month)}
-                          <AttendanceCounts attendance={ledger.attendance} short className={styles.rowCounts} />
-                        </td>
-                        <td className={shared.num} title={ledger.overtime_pay ? `incl. overtime ${formatRs(ledger.overtime_pay)}` : undefined}>
-                          {formatAmount(ledger.earnings)}
-                        </td>
-                        <td className={shared.num}>{formatDeduction(ledger.absence_deduction)}</td>
-                        <td className={shared.num}>{formatDeduction(ledger.advance_paid)}</td>
-                        <td className={`${shared.num} ${shared.kvStrong}`}>{formatAmount(ledger.net)}</td>
-                        <td>
-                          <MonthStatusPill ledger={ledger} />
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
                 <tfoot>
                   <tr>
+                    <td className={`${styles.tickCol} ${styles.noPrint}`} />
                     <th scope="row" colSpan={3} style={{ textAlign: "left" }}>
                       Total · {filteredRows.length} staff · {scope}
                     </th>

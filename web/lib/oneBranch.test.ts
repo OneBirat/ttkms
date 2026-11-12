@@ -17,6 +17,8 @@ function sources(dir: string): string[] {
   return out;
 }
 
+const PAYSLIP_PRINT_LINK = /\/app\/people\/(_lib\/payslipSelection\.ts|_components\/PayslipSheets\.tsx)$/;
+
 describe("one active branch: no page picks its own", () => {
   it("exports and reports carry no branch (the server uses the active one)", () => {
     const month = { bs_year: 2083, bs_month: 7 };
@@ -29,6 +31,10 @@ describe("one active branch: no page picks its own", () => {
 
   it("no screen keeps its own branch: no ?branch=, no local branch state, no own drop-down", () => {
     const offenders = [...sources(join(WEB, "app")), ...sources(join(WEB, "components"))].filter((file) => {
+      // The one exception: the pay slip print tab. Its link names the branch the Salary report
+      // was showing (?branch=), so a slip can never print for another branch than the one ticked;
+      // it has no branch control of its own and the server refuses a branch the user may not open.
+      if (PAYSLIP_PRINT_LINK.test(file)) return false;
       const text = readFileSync(file, "utf8");
       return /params\.get\("branch"\)|branch=\$\{|useState<number \| null>\(homeBranch|aria-label="Branch"|useReportBranch\([^)]/.test(text);
     });

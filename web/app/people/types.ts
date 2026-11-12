@@ -411,6 +411,9 @@ export interface SalaryPaymentResult {
 export interface ReportRow {
   employee: Employee;
   ledger: MonthLedger;
+  /** The latest print of this month's pay slip (ISO timestamp) and who printed it; null / absent = never printed. */
+  slip_printed_at?: string | null;
+  slip_printed_by?: string | null;
 }
 
 export interface ReportTotals {

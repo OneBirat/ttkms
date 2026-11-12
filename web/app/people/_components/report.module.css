@@ -420,3 +420,174 @@
   margin-top: 2px;
   font-size: 11.5px;
 }
+
+/* ---- Salary report: pay slip printing (design/payslips/SalaryReportPayslips) ---- */
+
+.tickCol {
+  width: 44px;
+  padding: 0 4px !important;
+}
+
+/* 44 px hit area around the 20 px box. */
+.tick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+}
+
+.tick input,
+.slipOffice input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.rowTicked td,
+.rowTicked:hover td {
+  background: #f3f9f8 !important;
+}
+
+.statusCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slipPrinted {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pill-ok-fg);
+  white-space: nowrap;
+}
+
+.slipHint {
+  margin: 0 10px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px dashed var(--color-input-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--color-muted);
+}
+
+.slipHintText {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slipBarWrap {
+  margin: 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slipBar {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--pill-ok-bg);
+  border: 1px solid #9fc9c4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.slipBarGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+}
+
+.slipBarActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.slipCount {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-primary-hover);
+}
+
+.slipPer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.slipSeg {
+  display: inline-flex;
+}
+
+.slipSegOption {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.slipSegOption + .slipSegOption {
+  margin-left: -1px;
+}
+
+.slipSegOption:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.slipSegOption:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.slipSegOption[aria-pressed="true"] {
+  position: relative;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.slipOffice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.slipPages {
+  font-size: 13px;
+  color: #33424d;
+}
+
+.slipWarning {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #e6b877;
+  background: var(--pill-low-bg);
+  color: var(--pill-low-fg);
+  font-size: 14px;
+}
