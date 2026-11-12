@@ -140,17 +140,26 @@ test("payments: 0, above due, future month and future date are refused", async (
   await assert.rejects(api.recordPayment({ ...base, kind: "salary", amount: 100, date_bs: "2099-01-01" }), /future/);
 });
 
-test("payments register: BS date range + type filter, settlement-month totals, by_employee", async () => {
+test("payments register: BS date range + type filter, totals of the To month, by_employee", async () => {
   const all = await api.listPayments({ from_bs: null, to_bs: null, type: "all" });
   assert.ok(all.rows.length > 25);
+  // No To (or To = today, the screen's default): the tiles describe the running month, earned so far.
+  assert.deepEqual(all.totals.month, CURRENT);
+  assert.equal(all.totals.in_progress, true);
+  const running = await api.listPayments({ ...rangeFor("last_30", NOW), type: "all" });
+  assert.deepEqual(running.totals.month, CURRENT);
+  const soFar = await api.getSalaryReport(CURRENT);
+  assert.equal(running.totals.month_net, soFar.totals.net);
+  assert.equal(running.totals.due, soFar.totals.due);
   const range = rangeFor("last_month", NOW);
   const advances = await api.listPayments({ ...range, type: "advance" });
   assert.ok(advances.rows.length > 0);
   assert.ok(advances.rows.every((r) => r.payment.kind === "advance" && r.payment.date.bs >= range.from_bs && r.payment.date.bs <= range.to_bs));
   assert.equal(advances.totals.amount, advances.rows.reduce((s, r) => s + r.payment.amount, 0));
   assert.equal(advances.totals.count, advances.rows.length);
-  // Tiles describe the settlement month (last month while anything is due for it).
+  // A range ending in an older month: the tiles follow that month.
   assert.deepEqual(advances.totals.month, PREVIOUS);
+  assert.equal(advances.totals.in_progress, false);
   const report = await api.getSalaryReport(PREVIOUS);
   assert.equal(advances.totals.month_net, report.totals.net);
   assert.equal(advances.totals.due, report.totals.due);

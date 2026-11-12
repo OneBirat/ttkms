@@ -13,9 +13,9 @@ import { currentMonth, listDepartments, listPayments, receiptUrl, registerExport
 import { useReportBranch } from "../_lib/useBranchScope";
 import { withBranch } from "@/lib/branchContext";
 import { formatBs, isValidBs } from "@/lib/bs";
-import { monthLabel, monthName, monthStart, rangeFor } from "../_lib/months";
+import { monthLabel, monthStart, rangeFor } from "../_lib/months";
 import { formatAmount, formatRs, matchesEmployee, paginate, thumbUrl } from "../_lib/helpers";
-import { REGISTER_SORTS, displayRows, isRegisterSort } from "../_lib/register";
+import { REGISTER_SORTS, displayRows, isRegisterSort, registerTiles, type RegisterTile } from "../_lib/register";
 import { monthsText } from "../_lib/settle";
 import type { DateRange, RegisterSort, RegisterTypeFilter } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
@@ -37,12 +37,20 @@ function isType(value: string | null): value is RegisterTypeFilter {
 
 type Ask = { ext: "xlsx" | "pdf" } | null;
 
+const TILE_COLOR: Record<RegisterTile["key"], { color: string } | undefined> = {
+  net: undefined,
+  salary: undefined,
+  advances: { color: "var(--pill-leave-fg)" },
+  due: { color: "var(--pill-low-fg)" },
+};
+
 /**
  * /people/payments "Payment reports" (design Payments.dc.html): every salary and advance
  * payment in a BS date range, filtered by department (chips) and sorted (Date / Department /
  * Employee / Amount; Department groups the rows with a subtotal each). ?dept=&sort= live in
- * the URL. Excel and PDF download exactly that range, department and sort; a range reaching
- * into a previous month asks first.
+ * the URL. The four tiles describe the BS month of the To date (the running month by default,
+ * earned so far). Excel and PDF download exactly that range, department and sort, with the
+ * same month in their summary; a range reaching into a previous month asks first.
  */
 export function PaymentsRegisterScreen() {
   const router = useRouter();
@@ -134,7 +142,8 @@ export function PaymentsRegisterScreen() {
   const rangeText = `${from_bs} → ${to_bs}`;
   const monthStartBs = monthStart(currentMonth()).bs;
   const previousMonth = from_bs < monthStartBs;
-  const settle = data?.totals.month ?? currentMonth();
+  // Tiles: the BS month of To (the server's `totals.month`; the running month by default).
+  const tiles = data ? registerTiles(data.totals, `${branchScope.label}${deptName ? ` · ${deptName}` : ""}`) : [];
 
   // Files come from the server with the same From/To, type, branch, department and sort.
   const download = (ext: "xlsx" | "pdf", r: DateRange) => {
@@ -200,33 +209,15 @@ export function PaymentsRegisterScreen() {
       ) : (
         <>
           <section aria-label="Totals" className={styles.cards4}>
-            <div className={`card ${styles.total}`}>
-              <span className={styles.totalLabel}>{monthName(settle)} net payroll</span>
-              <span className={styles.totalValue}>{formatRs(data.totals.month_net)}</span>
-              <span className={styles.totalHint}>
-                {data.totals.staff} staff · {branchScope.label}
-                {deptName ? ` · ${deptName}` : ""}
-              </span>
-            </div>
-            <div className={`card ${styles.total}`}>
-              <span className={styles.totalLabel}>Salary paid</span>
-              <span className={`${styles.totalValue} ${shared.ok}`}>{formatRs(data.totals.salary_paid)}</span>
-              <span className={styles.totalHint}>{monthLabel(settle)}</span>
-            </div>
-            <div className={`card ${styles.total}`}>
-              <span className={styles.totalLabel}>Advances paid</span>
-              <span className={styles.totalValue} style={{ color: "var(--pill-leave-fg)" }}>
-                {formatRs(data.totals.advance_paid)}
-              </span>
-              <span className={styles.totalHint}>counted as part of {monthName(settle)} salary</span>
-            </div>
-            <div className={`card ${styles.total} ${styles.totalDue}`}>
-              <span className={styles.totalLabel}>Still due</span>
-              <span className={styles.totalValue} style={{ color: "var(--pill-low-fg)" }}>
-                {formatRs(data.totals.due)}
-              </span>
-              <span className={styles.totalHint}>to pay for {monthLabel(settle)}</span>
-            </div>
+            {tiles.map((tile) => (
+              <div key={tile.key} className={`card ${styles.total} ${tile.key === "due" ? styles.totalDue : ""}`}>
+                <span className={styles.totalLabel}>{tile.label}</span>
+                <span className={`${styles.totalValue} ${tile.key === "salary" ? shared.ok : ""}`} style={TILE_COLOR[tile.key]}>
+                  {formatRs(tile.amount)}
+                </span>
+                <span className={styles.totalHint}>{tile.hint}</span>
+              </div>
+            ))}
           </section>
 
           <section aria-labelledby="reg-h" className={`card ${styles.sheet}`}>

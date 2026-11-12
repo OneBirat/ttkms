@@ -466,17 +466,19 @@ export interface RegisterRow {
 }
 
 /**
- * Totals of the settlement month (the previous BS month while anything is
- * still due for it, otherwise the running month), independent of the range.
+ * Totals of the tiles' month: the BS month of the range's To date (the running
+ * month with no To, or a To after it). Voided payments never count.
  */
 export interface RegisterTotals {
   month: BsMonth;
+  /** `month` is the running month: `month_net` is earned so far (as in Pay salary). */
+  in_progress: boolean;
   staff: number;
-  /** Net payroll of the settlement month (all employees). */
+  /** Net payroll of the month (the scoped employees); earned so far while it runs. */
   month_net: number;
   salary_paid: number;
   advance_paid: number;
-  /** Still due for the settlement month. */
+  /** Still due for the month: net − salary paid − advances paid, per employee. */
   due: number;
   /** Rows in the range after filters. */
   count: number;

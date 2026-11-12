@@ -728,13 +728,13 @@ export interface PaymentsQuery {
 }
 
 /**
- * The month the register's tiles describe: the previous BS month while any
- * employee still has something due for it, otherwise the running month.
+ * The month the register's tiles describe: the BS month of the range's To date -
+ * the running month with no To, or with a To after it.
  */
-export function settlementMonth(current: MockState = getState()): BsMonth {
-  const previous = addMonths(thisMonth(), -1);
-  const anyDue = current.employees.some((e) => (ledgerFor(current, e, previous)?.due ?? 0) > 0);
-  return anyDue ? previous : thisMonth();
+export function tilesMonth(to_bs: string | null | undefined): BsMonth {
+  const running = thisMonth();
+  const asked = to_bs ? parseMonthKey(to_bs.slice(0, 7)) : null;
+  return asked && compareMonths(asked, running) < 0 ? asked : running;
 }
 
 /** GET /api/payroll/payments?from_bs=&to_bs=&type=&employee_id= — newest first. */
@@ -778,7 +778,7 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
       return { branch: b, count: mine.length, ...groupTotals(mine) };
     })
     .filter((b) => b.count > 0);
-  const month = settlementMonth(current);
+  const month = tilesMonth(query.to_bs);
   // Tiles and "By employee" follow the chosen branch and department.
   const ledgers = current.employees
     .filter((employee) => !branch || employee.branch.id === branch.id)
@@ -805,6 +805,7 @@ export async function listPayments(query: PaymentsQuery): Promise<PaymentsRegist
     by_branch,
     totals: {
       month,
+      in_progress: sameMonth(month, thisMonth()),
       staff: ledgers.length,
       month_net: sumBy(ledgers, (l) => l.net),
       salary_paid: sumBy(ledgers, (l) => l.salary_paid),

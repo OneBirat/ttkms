@@ -4,7 +4,8 @@
  * these; the backend applies the same order for `?sort=`.
  */
 
-import type { Department, DepartmentRef, RegisterRow, RegisterSort } from "../types";
+import { monthLabel, monthName } from "./months";
+import type { Department, DepartmentRef, RegisterRow, RegisterSort, RegisterTotals } from "../types";
 
 export const REGISTER_SORTS: { value: RegisterSort; label: string }[] = [
   { value: "date", label: "Date" },
@@ -114,4 +115,26 @@ export function displayRows(rows: readonly RegisterRow[], sort: RegisterSort): D
     out.push({ kind: "subtotal", group });
   }
   return out;
+}
+
+export interface RegisterTile {
+  key: "net" | "salary" | "advances" | "due";
+  label: string;
+  amount: number;
+  hint: string;
+}
+
+/**
+ * The four tiles. They describe `totals.month` - the BS month of the range's To date (the
+ * running month by default) - and every label names it. `scope` = "{Branch}[ · {Department}]".
+ */
+export function registerTiles(totals: RegisterTotals, scope: string): RegisterTile[] {
+  const name = monthName(totals.month);
+  const label = monthLabel(totals.month);
+  return [
+    { key: "net", label: `${name} net payroll`, amount: totals.month_net, hint: `${totals.in_progress ? "earned so far · " : ""}${totals.staff} staff · ${scope}` },
+    { key: "salary", label: `Salary paid · ${label}`, amount: totals.salary_paid, hint: `salary payments for ${name}` },
+    { key: "advances", label: "Advances paid", amount: totals.advance_paid, hint: `counted as part of ${name} salary` },
+    { key: "due", label: "Still due", amount: totals.due, hint: `to pay for ${label}` },
+  ];
 }

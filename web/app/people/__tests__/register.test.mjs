@@ -1,9 +1,9 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import * as api from "../_lib/mockApi.ts";
-import { departmentPaymentCounts, displayRows, groupRowsByDepartment, groupTotals, isRegisterSort, sortRegisterRows } from "../_lib/register.ts";
+import { departmentPaymentCounts, displayRows, groupRowsByDepartment, groupTotals, isRegisterSort, registerTiles, sortRegisterRows } from "../_lib/register.ts";
 import { registerFileName, registerPdfHtml, registerWorkbook } from "../_lib/exports.ts";
-import { rangeFor } from "../_lib/months.ts";
+import { addMonths, monthLabel, monthName, rangeFor, thisMonth } from "../_lib/months.ts";
 
 const NOW = new Date("2026-10-24T06:00:00Z");
 
@@ -123,4 +123,36 @@ test("voided payments are listed but never summed (group totals)", async () => {
   assert.equal(after.total, before.total - first.payment.amount);
   const groups = groupRowsByDepartment(sortRegisterRows([voided, ...rest], "department"));
   assert.equal(groups.reduce((s, g) => s + g.total, 0), after.total);
+});
+
+test("tiles: the month of the To date, named in every label; exports carry the same month and figures", async () => {
+  const CURRENT = thisMonth(NOW);
+  const PREVIOUS = addMonths(CURRENT, -1);
+  const input = (register) => ({ register, rows: register.rows, branch: "Main branch", generatedBy: "Test", previousMonth: false });
+  // The default range (last 30 days) ends today: the running month, earned so far.
+  const now = await api.listPayments({ ...rangeFor("last_30", NOW), type: "all" });
+  // A range ending in an older month: that month.
+  const past = await api.listPayments({ ...range, type: "all" });
+  for (const [register, month, soFar] of [[now, CURRENT, true], [past, PREVIOUS, false]]) {
+    const t = register.totals;
+    assert.deepEqual(t.month, month);
+    assert.equal(t.in_progress, soFar);
+    const name = monthName(month);
+    const label = monthLabel(month);
+    const tiles = registerTiles(t, "Main branch");
+    assert.deepEqual(tiles.map((x) => x.label), [`${name} net payroll`, `Salary paid · ${label}`, "Advances paid", "Still due"]);
+    assert.deepEqual(tiles.map((x) => x.amount), [t.month_net, t.salary_paid, t.advance_paid, t.due]);
+    assert.equal(tiles[0].hint, `${soFar ? "earned so far · " : ""}${t.staff} staff · Main branch`);
+    assert.equal(tiles[2].hint, `counted as part of ${name} salary`);
+    assert.equal(tiles[3].hint, `to pay for ${label}`);
+    // Excel summary and PDF: the same month, net payroll and still due.
+    const summary = registerWorkbook(input(register)).find((s) => s.name === "Summary").rows;
+    assert.equal(summary[0][0].v, `Summary · ${label}`);
+    assert.equal(summary[1][1].v, t.month_net);
+    assert.equal(summary[5][0].v, `Still due · ${label}`);
+    assert.equal(summary[5][1].v, t.due);
+    assert.ok(registerPdfHtml(input(register)).includes(`Still due for ${label}`));
+  }
+  assert.equal(monthLabel(CURRENT), "Kartik 2083");
+  assert.notDeepEqual(now.totals.month, past.totals.month);
 });

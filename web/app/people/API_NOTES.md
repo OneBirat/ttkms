@@ -143,6 +143,16 @@ From/To range and branch, from `by_department`), Sort (Date · Department · Emp
 rows per department with a subtotal (Salary · Advances · Total) (`_lib/register.ts`: `sortRegisterRows`,
 `groupRowsByDepartment`, `displayRows`). Phone: the same chips as a slider and the sort in a bottom sheet.
 
+**Tiles month (2026-11-12).** The four tiles (`totals`) and `by_employee` describe the BS month of the
+range's **To** date - the running month by default (To = today), with no To, or with a To after it;
+a range ending in an older month shows that month. `totals.in_progress` = it is the running month:
+`month_net` is then earned so far (the Pay salary figure) and `due` = that net − salary paid − advances
+paid for the month, per employee, voided payments left out. Completed months are whole as before.
+Labels name the month (`_lib/register.ts` `registerTiles`): "{Month} net payroll", "Salary paid ·
+{Month} {Year}", "counted as part of {Month} salary", "to pay for {Month} {Year}". The Excel Summary /
+By employee sheets and the PDF figures use the same `totals.month`. (Before: the previous month while
+anyone was still owed for it.)
+
 ## Departments (real, `main`, 2026-10-25)
 
 `web/app/people/api.ts` calls these for real (`apiFetch`); everything else in the file is still mock.
