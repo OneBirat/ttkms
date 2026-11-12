@@ -19,10 +19,16 @@ export interface BSDateRangePickerProps extends PickerLimits {
   /** Show a Clear chip when either end is set; `onChange({ from: "", to: "" }, null)` is sent. */
   clearable?: boolean;
   placeholder?: string;
+  /**
+   * One line that never wraps: the From / To labels sit left of their fields and the preset
+   * chips scroll sideways when the line is too narrow. Every control is as tall as
+   * `--row-control-height` (set on the row the picker sits in).
+   */
+  inline?: boolean;
 }
 
 /** From / To dates plus presets. Picking a From after To (or vice versa) moves the other end. */
-export function BSDateRangePicker({ value, onChange, lang: langProp, presets = true, labels, size, now, clearable, placeholder, ...limits }: BSDateRangePickerProps) {
+export function BSDateRangePicker({ value, onChange, lang: langProp, presets = true, labels, size, now, clearable, placeholder, inline, ...limits }: BSDateRangePickerProps) {
   const [savedLang] = useDateLang();
   const lang = langProp ?? savedLang;
   const active = presetOf(value, now);
@@ -32,12 +38,13 @@ export function BSDateRangePicker({ value, onChange, lang: langProp, presets = t
   }
 
   return (
-    <div className={styles.range}>
+    <div className={inline ? `${styles.range} ${styles.rangeInline}` : styles.range}>
       <BSDate
         label={labels?.from ?? (lang === "ne" ? "देखि" : "From")}
         value={value.from}
         lang={lang}
         size={size}
+        inlineLabel={inline}
         now={now}
         placeholder={placeholder}
         {...limits}
@@ -48,6 +55,7 @@ export function BSDateRangePicker({ value, onChange, lang: langProp, presets = t
         value={value.to}
         lang={lang}
         size={size}
+        inlineLabel={inline}
         now={now}
         placeholder={placeholder}
         {...limits}

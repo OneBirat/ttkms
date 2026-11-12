@@ -67,6 +67,8 @@ export interface BSDateProps extends BSDateTextProps, PickerLimits {
   align?: "left" | "right";
   /** Display block (full-width field) instead of inline. */
   block?: boolean;
+  /** The label sits left of the field, on its line, instead of above it. */
+  inlineLabel?: boolean;
   now?: Date | string | number;
   /** BS dates to flag with a dot in the picker, and the legend text for it. */
   markedDays?: Iterable<string>;
@@ -77,7 +79,7 @@ export interface BSDateProps extends BSDateTextProps, PickerLimits {
  * A date, BS first and AD small ("Kartik 7, 2083 · 24 Oct 2026"). With `onChange` it is a
  * button that opens <BSDatePicker>; without it, plain text.
  */
-export function BSDate({ onChange, label, name, id, size = "md", disabled, required, invalid, align, block, now, min, max, noFutureDays, markedDays, markedLabel, ...text }: BSDateProps) {
+export function BSDate({ onChange, label, name, id, size = "md", disabled, required, invalid, align, block, inlineLabel, now, min, max, noFutureDays, markedDays, markedLabel, ...text }: BSDateProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const [open, setOpen] = useState(false);
@@ -87,7 +89,7 @@ export function BSDate({ onChange, label, name, id, size = "md", disabled, requi
   if (!onChange) return <BSDateText {...text} />;
 
   return (
-    <div className={`${styles.field}${block ? ` ${styles.fieldBlock}` : ""}`}>
+    <div className={`${styles.field}${block ? ` ${styles.fieldBlock}` : ""}${inlineLabel ? ` ${styles.fieldInline}` : ""}`}>
       {label ? (
         <label htmlFor={inputId} className={styles.label}>
           {label}

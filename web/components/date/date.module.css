@@ -426,6 +426,78 @@
   font-family: var(--font-np);
 }
 
+/* ---- range on one line (`inline`): labels left of the fields, presets scroll sideways ---- */
+
+.fieldInline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.fieldInline .label {
+  margin: 0;
+  white-space: nowrap;
+}
+.rangeInline {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.rangeInline .trigger,
+.rangeInline .chip {
+  min-height: var(--row-control-height, 36px);
+}
+.rangeInline .chip {
+  flex: none;
+  white-space: nowrap;
+}
+.rangeInline .presets {
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  min-width: 0;
+  /* Room for the focus ring, which the scroll box would cut off. */
+  padding: 3px;
+  margin: -3px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.rangeInline .presets::-webkit-scrollbar {
+  display: none;
+}
+/* Narrow desktop: tighter, and no calendar icon, so the whole line still fits at 1280 px. */
+@media (max-width: 1439px) {
+  .rangeInline {
+    gap: 8px;
+  }
+  .fieldInline {
+    gap: 4px;
+  }
+  .rangeInline .trigger {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .rangeInline .triggerIcon {
+    display: none;
+  }
+  .rangeInline .presets {
+    gap: 4px;
+  }
+  .rangeInline .chip {
+    padding: 0 10px;
+  }
+}
+/* Narrower than From + To: the presets take their own line and scroll there. */
+@media (max-width: 719px) {
+  .rangeInline {
+    flex-wrap: wrap;
+  }
+  .rangeInline .presets {
+    flex-basis: 100%;
+  }
+}
+
 /* ---- date + time ---- */
 
 .dateTime {

@@ -38,6 +38,56 @@
   border-radius: 3px;
 }
 
+/*
+ * Payment register department chips (ChipScroller): one line, no scrollbar, and a soft fade on
+ * the right edge while more chips are hidden there.
+ */
+.chipLine {
+  position: relative;
+  margin: 0 10px;
+  min-width: 0;
+}
+
+.chipLineScroll {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  /* Room for the focus ring, which the scroll box would cut off. */
+  padding: 3px;
+  margin: -3px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.chipLineScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.chipLineScroll > * {
+  flex: none;
+  white-space: nowrap;
+}
+
+.chipLine::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  bottom: -3px;
+  width: 56px;
+  background: linear-gradient(to right, transparent, var(--color-card));
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.chipLine[data-more]::after {
+  opacity: 1;
+}
+
 .totals {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -230,12 +280,57 @@
   box-shadow: 0 1px 2px rgba(23, 34, 42, 0.12);
 }
 
+/* Branch, From, To and the quick ranges: one line, every control the same height. */
 .rangeRow {
+  --row-control-height: 44px;
+  --row-branch-min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  min-width: 0;
+}
+
+.rangeRow > * {
+  flex: none;
+}
+
+/* The date range may shrink: its quick range chips then scroll sideways. */
+.rangeRow > :last-child {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 1439px) {
+  .rangeRow {
+    gap: 8px;
+  }
+}
+
+/* Too narrow for Branch + From + To on one line: the dates take the next line, chips still scroll. */
+@media (max-width: 1023px) {
+  .rangeRow {
+    flex-wrap: wrap;
+  }
+
+  .rangeRow > :last-child {
+    max-width: 100%;
+  }
+}
+
+/* Under the row: a date warning on the left, "27 payments · from → to" on the right. */
+.rangeCaption {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px 12px;
   padding: 0 10px;
+}
+
+.rangeCaption > :first-child:not(:last-child) {
+  margin-right: auto;
 }
 
 .rangeField {

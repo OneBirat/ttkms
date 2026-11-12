@@ -21,6 +21,7 @@ import type { DateRange, RegisterSort, RegisterTypeFilter } from "../types";
 import { payrollErrorMessage, usePayroll } from "../_lib/usePayroll";
 import { VoidedNote } from "./VoidPaymentDialog";
 import { Avatar } from "./Avatar";
+import { ChipScroller } from "./ChipScroller";
 import styles from "./report.module.css";
 import shared from "./payroll.module.css";
 
@@ -254,7 +255,7 @@ export function PaymentsRegisterScreen() {
               </label>
             </div>
 
-            <div role="group" aria-label="Department" className={styles.chips} style={{ padding: "0 10px" }}>
+            <ChipScroller label="Department">
               <button type="button" className={styles.presetChip} aria-pressed={departmentId === null} onClick={() => setParams({ dept: null })}>
                 All <b>{allCount}</b>
               </button>
@@ -264,14 +265,16 @@ export function PaymentsRegisterScreen() {
                 </button>
               ))}
               {countOf(null) > 0 ? <span className={shared.note}>+ {countOf(null)} without a department</span> : null}
-            </div>
+            </ChipScroller>
 
             <div className={styles.rangeRow}>
               <PageBranchSelect />
-              <BSDateRangePicker value={{ from: from_bs, to: to_bs }} onChange={(r) => setRange({ from_bs: r.from, to_bs: r.to })} size="sm" />
+              <BSDateRangePicker value={{ from: from_bs, to: to_bs }} onChange={(r) => setRange({ from_bs: r.from, to_bs: r.to })} size="sm" inline />
+            </div>
+            <div className={styles.rangeCaption}>
               {rangeBad ? <span className={shared.warn}>&quot;From&quot; is after &quot;To&quot; — swap the dates.</span> : null}
               {!validRange ? <span className={shared.warn}>Pick both dates.</span> : null}
-              <span className={shared.note} style={{ marginLeft: "auto" }}>
+              <span className={shared.note}>
                 {counted.length} payments · {rangeText}
                 {deptName ? ` · ${deptName}` : ""}
               </span>
