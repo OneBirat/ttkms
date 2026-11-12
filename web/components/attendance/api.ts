@@ -82,9 +82,12 @@ export async function markOne(request: MarkOneRequest): Promise<MarkOneResponse>
   });
 }
 
-/** DELETE /api/attendance/mark?employee_id=&date_bs= -> ClearMarkResponse ("Clear mark"). */
-export async function clearMark(employeeId: number, dateBs: string): Promise<ClearMarkResponse> {
-  return apiFetch<ClearMarkResponse>(`/api/attendance/mark${qs({ employee_id: employeeId, date_bs: dateBs })}`, {
+/**
+ * DELETE /api/attendance/mark?employee_id=&date_bs=[&reason=] -> ClearMarkResponse ("Clear mark").
+ * `reason` is required when the super admin clears a mark on a past day.
+ */
+export async function clearMark(employeeId: number, dateBs: string, reason?: string): Promise<ClearMarkResponse> {
+  return apiFetch<ClearMarkResponse>(`/api/attendance/mark${qs({ employee_id: employeeId, date_bs: dateBs, reason })}`, {
     method: "DELETE",
   });
 }

@@ -5,14 +5,19 @@
  *
  * - today: marking works as always;
  * - a past day: nobody can be newly marked, and a mark can be changed or removed only for
- *   24 hours from when it was first saved.
+ *   24 hours from when it was first saved;
+ * - the super admin on a past day ("override"): everything works, each change asks for a reason.
  */
 
 import { formatBs, kathmanduDateBs, kathmanduTime } from "@/lib/bs";
-import type { AttendanceRecord, DayLock } from "./types";
+import type { AttendanceRecord, CellStatus, DayLock, MarkStatus } from "./types";
 
-/** What one row allows: change it now, or nothing. */
-export type RowAccess = "edit" | "locked";
+/** What one row allows: change it now, nothing, or change it as the super admin (with a reason). */
+export type RowAccess = "edit" | "locked" | "override";
+
+/** An override needs a reason of at least this many characters (the API checks it too). */
+export const REASON_MIN = 5;
+export const REASON_MAX = 300;
 
 type LockedFields = Pick<AttendanceRecord, "locked" | "editable_until">;
 
@@ -30,6 +35,7 @@ export function rowAccess(
   now: number = Date.now(),
 ): RowAccess {
   if (!lock || lock.mode === "open") return "edit";
+  if (lock.mode === "override") return "override";
   return record && isEditable(record, now) ? "edit" : "locked";
 }
 
@@ -64,7 +70,44 @@ export function lockLine(
 ): string | null {
   const access = rowAccess(lock, record, now);
   if (access === "locked") return LOCKED_MARK;
+  if (access === "override") return null;
   return editableUntilText(record, now);
+}
+
+/** "Present", "Overtime · 2 h", "Absent", "Not marked", "Weekly off". */
+export function markText(status: CellStatus | null, hours = 0): string {
+  switch (status) {
+    case "P":
+      return "Present";
+    case "O":
+      return `Overtime · ${hours} h`;
+    case "A":
+      return "Absent";
+    case "W":
+      return "Weekly off";
+    default:
+      return "Not marked";
+  }
+}
+
+/** What an override changes, old → new: "Present → Absent", "Overtime · 2 h → Not marked". */
+export function changeText(
+  previous: CellStatus,
+  previousHours: number,
+  next: MarkStatus | null,
+  nextHours: number,
+  weeklyOff = false,
+): string {
+  const before = previous === "N" && weeklyOff ? "W" : previous;
+  const after = next ?? (weeklyOff ? "W" : "N");
+  return `${markText(before, previousHours)} → ${markText(after, nextHours)}`;
+}
+
+/** Why the reason cannot be sent yet, or null when it is long enough. */
+export function reasonError(reason: string): string | null {
+  return reason.trim().replace(/\s+/g, " ").length < REASON_MIN
+    ? `Give a reason (at least ${REASON_MIN} characters).`
+    : null;
 }
 
 /** True for the API's 403 `attendance_locked` (the window closed while the screen was open). */

@@ -34,12 +34,25 @@ For everyone with `mark_attendance`, Admin and Manager included:
 - Anything else is **403**, `code: "attendance_locked"`, `date_bs`, detail
   "Attendance for Kartik 14, 2083 is locked. Only the super admin can change it."
 - Every record carries `created_at`, `editable_until` (= created_at + 24 h) and `locked`; `GET /day`
-  carries `lock {mode: open | locked, is_today, can_create, date_label, message}` - `message` is
-  the banner ("Locked · Kartik 14, 2083 · Only the super admin can change past attendance.").
+  carries `lock {mode: open | locked | override, is_today, can_create, reason_required,
+  date_label, message}` - `message` is the banner ("Locked · Kartik 14, 2083 · Only the super
+  admin can change past attendance.", or "Past date · changes are logged" for the super admin).
 - Everyone can still open past days to read them.
 
+**Super admin override** (`core.users.is_super_admin`, set only by
+`python -m app.cli set-super-admin` / `deploy/set-super-admin.sh`): on any **past** day the super
+admin can create, change or remove any mark, and bulk-mark - never on a future day (403
+`future_date`). Every such write needs `reason` (`POST /mark` and `/bulk-mark` body,
+`DELETE /mark?reason=`), at least 5 characters after trimming, else **422**
+`code: "reason_required"`, `field: "reason"`. It is stored on the `record_changes` row with
+`is_override = true`. Today is ordinary marking for the super admin too (no reason, not an
+override), and a reason sent by anyone else changes nothing: the lock still answers 403. The other
+rules of a mark (no A on a Saturday, hours only with O, joined by that day) still apply.
+
 Tests: `tests/attendance/test_lock.py` (23 h / 24 h 01 min, the window is not extended, past and
-future days, 00:30 Nepal time). Web: `web/components/attendance/lock.ts`, `LockBanner.tsx`.
+future days, 00:30 Nepal time), `tests/attendance/test_override.py`. Web:
+`web/components/attendance/lock.ts`, `LockBanner.tsx`, `OverrideSheet.tsx` (old → new, the
+reason, "Change as super admin").
 
 ## Permissions (app/modules/admin/permissions.py)
 
@@ -76,6 +89,8 @@ attendance.record_changes
   id, record_id (plain number), employee_id → core.employees, date, old_status / new_status
   (null = not marked / cleared), old_hours, new_hours, old_note, new_note, source, changed_by,
   changed_at; INDEX (employee_id, date)
+  reason varchar(300) DEFAULT '', is_override bool DEFAULT false   -- attendance_0003;
+  CHECK (NOT is_override OR char_length(btrim(reason)) >= 5)
 ```
 
 The API keeps the frontend's names: `ot_hours` (= overtime_hours), `marked_via` (= source),
@@ -88,9 +103,9 @@ Every response carries the AD `date` and the BS `date_bs` (records: `date_ad` / 
 | Method | Path | Body / query | Answer | Permission |
 |---|---|---|---|---|
 | GET | `/day?date_bs=&branch=&department_id=` | | `DayAttendance`: day header, settings `{weekly_off: 6}`, branches with headcount, departments of the branch, active staff joined by that day (department, then name) with the record or null and `payments_today {advance, salary}` from payroll | mark |
-| POST | `/mark` | `{date_bs, employee_id, status, ot_hours, note?}` | `{record, previous}` – one upsert for mark, change status and set overtime | mark |
-| DELETE | `/mark?employee_id=&date_bs=` | | `{previous, now: N\|W}` – "Clear mark", idempotent | mark |
-| POST | `/bulk-mark` | `{date_bs, branch_id, employee_ids? \| department_id?}` | `{marked: [{employee_id, name}], skipped, records}` – Present only for the still unmarked, one `INSERT … ON CONFLICT DO NOTHING` | mark |
+| POST | `/mark` | `{date_bs, employee_id, status, ot_hours, note?, reason?}` | `{record, previous}` – one upsert for mark, change status and set overtime | mark |
+| DELETE | `/mark?employee_id=&date_bs=&reason=` | | `{previous, now: N\|W}` – "Clear mark", idempotent | mark |
+| POST | `/bulk-mark` | `{date_bs, branch_id, employee_ids? \| department_id?, reason?}` | `{marked: [{employee_id, name}], skipped, records}` – Present only for the still unmarked, one `INSERT … ON CONFLICT DO NOTHING` | mark |
 | GET | `/lookup?employee_id=` | after payroll's `GET /api/payroll/employees/by-barcode/{code}` (TTK-E001, legacy TTK-E-001, E-001, 1) | `{code, employee, today: record \| null}` | mark |
 | POST | `/scan` | `{employee_id, action: present\|overtime, ot_hours}` | `{employee, record, previous}` – today, source scan | mark |
 | GET | `/employees/{id}/month?bs_year=&bs_month=` | | `EmployeeMonth`: cells (P/O/A/W/N + advance / salary paid that day), totals, payments newest first | mark, report or manage_employees |

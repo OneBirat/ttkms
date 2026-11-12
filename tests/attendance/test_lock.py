@@ -100,6 +100,7 @@ async def test_a_manager_marks_today(client, db, api, world):
         "mode": "open",
         "is_today": True,
         "can_create": True,
+        "reason_required": False,
         "date_label": label(TODAY),
         "message": "",
     }
@@ -200,6 +201,7 @@ async def test_a_past_day_can_still_be_opened_and_says_it_is_locked(client, db, 
         "mode": "locked",
         "is_today": False,
         "can_create": False,
+        "reason_required": False,
         "date_label": label(TODAY),
         "message": f"Locked · {label(TODAY)} · Only the super admin can change past attendance.",
     }

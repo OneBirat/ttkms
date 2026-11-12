@@ -90,3 +90,13 @@ export function LockIcon(props: Props) {
     </Svg>
   );
 }
+
+/** Pencil: a past day the super admin can change. */
+export function PencilIcon(props: Props) {
+  return (
+    <Svg size={16} {...props}>
+      <path d="M4 20h4L19 9l-4-4L4 16v4z" />
+      <path d="M13.5 6.5l4 4" />
+    </Svg>
+  );
+}

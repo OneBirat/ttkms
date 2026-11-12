@@ -34,12 +34,13 @@ import {
   type MarkCounts,
   type StatusFilter,
 } from "./helpers";
-import { canBulk, isLockedError, rowAccess, type RowAccess } from "./lock";
+import { canBulk, isLockedError, reasonError, rowAccess, type RowAccess } from "./lock";
 import type { Scan, ScanFlow } from "./scan/scanFlow";
 import { useScanFlow } from "./scan/useScanFlow";
 import { SPEECH, beep as rawBeep, speak as rawSpeak, unlockAudio } from "./speak";
 import type {
   AttendanceRecord,
+  BulkMarkRequest,
   CellStatus,
   DayAttendance,
   DayLock,
@@ -107,6 +108,26 @@ export interface ClearConfirm {
   previous: CellStatus;
 }
 
+/**
+ * The super admin's confirm sheet for a change on a past day: old → new, the required reason.
+ * One person (mark / clear) or a bulk "Mark as Present".
+ */
+export interface OverrideAsk {
+  kind: "mark" | "clear" | "bulk";
+  /** null for bulk. */
+  employeeId: number | null;
+  /** The new mark; null = clear it. */
+  status: MarkStatus | null;
+  hours: number;
+  previous: CellStatus;
+  previousHours: number;
+  /** Bulk only. */
+  bulk?: { request: BulkMarkRequest; count: number; scope: string; done: (n: number) => string };
+  reason: string;
+  busy: boolean;
+  error: string | null;
+}
+
 export interface BulkMessage {
   text: string;
   names: string[];
@@ -156,8 +177,13 @@ export interface MarkState {
   lock: DayLock | null;
   /** "edit" = the row's buttons work; "locked" = they are disabled. */
   accessOf: (row: MarkRow) => RowAccess;
-  /** New marks in bulk are possible (today only). */
+  /** New marks in bulk are possible (today; a past day for the super admin). */
   canBulk: boolean;
+  // the super admin's confirm sheet on a past day (every change needs a reason)
+  override: OverrideAsk | null;
+  setOverrideReason: (reason: string) => void;
+  overrideConfirm: () => void;
+  overrideCancel: () => void;
   // desktop paging / phone batches
   page: number;
   setPage: (p: number) => void;
@@ -267,6 +293,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const [bulkMessage, setBulkMessage] = useState<BulkMessage | null>(null);
   const [clearAsk, setClearAsk] = useState<ClearConfirm | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [override, setOverride] = useState<OverrideAsk | null>(null);
 
   // Default date = today (BS).
   useEffect(() => {
@@ -336,15 +363,44 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   lockRef.current = lock;
   const accessOf = useCallback((row: MarkRow): RowAccess => rowAccess(lock, row.record), [lock]);
   /** The row's access right now (callbacks; the 24 hours may have run out since the render). */
-  const accessNow = (employeeId: number): RowAccess => {
+  const accessNow = useCallback((employeeId: number): RowAccess => {
     const row = rowsRef.current.get(employeeId);
     return row ? rowAccess(lockRef.current, row.record) : "locked";
-  };
+  }, []);
   /** A refused save: say why; when the mark turned out to be locked, load the day again. */
   const failed = useCallback((err: unknown, fallback: string) => {
     setError(err instanceof Error ? err.message : fallback);
     if (isLockedError(err)) setReloadKey((k) => k + 1);
   }, []);
+
+  /**
+   * On a past day the super admin's changes go through the confirm sheet (old → new + reason)
+   * instead of saving at once. True when the row is in override mode - the caller then stops.
+   */
+  const beginOverride = useCallback((employeeId: number, status: MarkStatus | null, hours = 0): boolean => {
+    if (accessNow(employeeId) !== "override") return false;
+    const record = rowsRef.current.get(employeeId)?.record ?? null;
+    const previous = recordStatus(record);
+    const previousHours = record?.ot_hours ?? 0;
+    setAction(null);
+    setAsk(null);
+    setSaved(null);
+    setOtModal(null);
+    setClearAsk(null);
+    if (status === null ? !record : previous === status && previousHours === hours) return true; // nothing to change
+    setOverride({
+      kind: status === null ? "clear" : "mark",
+      employeeId,
+      status,
+      hours,
+      previous,
+      previousHours,
+      reason: "",
+      busy: false,
+      error: null,
+    });
+    return true;
+  }, [accessNow]);
 
   const statusOf = useCallback((row: MarkRow): CellStatus => recordStatus(row.record), []);
   const draftOf = useCallback((row: MarkRow): Draft => draftFromRecord(row.record), []);
@@ -472,12 +528,13 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     (employeeId: number, status: "P" | "A") => {
       const row = rowsRef.current.get(employeeId);
       if (!row || accessNow(employeeId) === "locked") return;
+      if (beginOverride(employeeId, status)) return;
       const previous = recordStatus(row.record);
       void markNow(employeeId, status).then((record) => {
         if (record) setSaved({ employeeId, status, hours: 0, previous, editing: false });
       });
     },
-    [markNow],
+    [markNow, accessNow, beginOverride],
   );
   const savedEdit = () => setSaved((s) => (s ? { ...s, editing: !s.editing } : s));
   const savedChange = (status: MarkStatus) => {
@@ -488,6 +545,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
       return;
     }
     const target = saved;
+    if (beginOverride(target.employeeId, status)) return;
     void markNow(target.employeeId, status).then((record) => {
       if (record) {
         setSaved((s) => (s && s.employeeId === target.employeeId ? { ...s, status, hours: 0, editing: false } : s));
@@ -516,6 +574,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const askStatus = (employeeId: number, status: "P" | "A") => {
     const row = rowsRef.current.get(employeeId);
     if (!row || accessNow(employeeId) === "locked") return;
+    if (beginOverride(employeeId, status)) return;
     setAction(null);
     setAsk({ employeeId, status, previous: recordStatus(row.record) });
   };
@@ -544,7 +603,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     setAction(null);
     const current = draftFromRecord(row.record);
     setOtModal({ employeeId, hours: current.status === "O" ? current.ot_hours : 1 });
-  }, []);
+  }, [accessNow]);
   const setOvertimeHours = (hours: number) =>
     setOtModal((m) => (m ? { ...m, hours: clampHours(hours) } : m));
   const cancelOvertime = () => setOtModal(null);
@@ -553,6 +612,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     const { employeeId, hours } = otModal;
     const row = rowsRef.current.get(employeeId);
     const previous = recordStatus(row?.record);
+    if (beginOverride(employeeId, "O", hours)) return;
     setOtModal(null);
     void markNow(employeeId, "O", hours).then((record) => {
       if (!record) return;
@@ -571,6 +631,7 @@ export function useMarkState(options: { phone: boolean }): MarkState {
   const askClear = (employeeId: number) => {
     const row = rowsRef.current.get(employeeId);
     if (!row || !row.record || accessNow(employeeId) === "locked") return;
+    if (beginOverride(employeeId, null)) return;
     setAction(null);
     setSaved(null);
     setClearAsk({ employeeId, previous: recordStatus(row.record) });
@@ -620,7 +681,23 @@ export function useMarkState(options: { phone: boolean }): MarkState {
       return next;
     });
 
-  const runBulk = async (request: Parameters<typeof bulkMarkPresent>[0], label: (n: number) => string) => {
+  const runBulk = async (request: BulkMarkRequest, label: (n: number) => string, count = 0, scope = "") => {
+    if (lock?.mode === "override") {
+      // A past day, the super admin: the same confirm sheet, for everyone picked at once.
+      setOverride({
+        kind: "bulk",
+        employeeId: null,
+        status: "P",
+        hours: 0,
+        previous: "N",
+        previousHours: 0,
+        bulk: { request, count, scope, done: label },
+        reason: "",
+        busy: false,
+        error: null,
+      });
+      return;
+    }
     setBulkBusy(true);
     setError(null);
     try {
@@ -644,6 +721,8 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     void runBulk(
       { date_bs: data.day.bs_date, branch_id: branchId, employee_ids: ids },
       (n) => `Marked ${n} as Present`,
+      ids.length,
+      `${ids.length} selected`,
     );
   };
   const markDepartment = () => {
@@ -652,7 +731,71 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     void runBulk(
       { date_bs: data.day.bs_date, branch_id: branchId, department_id: departmentId },
       (n) => `Marked ${n} in ${name} as Present`,
+      counts.not_marked,
+      `${counts.not_marked} not marked in ${name}`,
     );
+  };
+
+  // ---- the super admin's confirm sheet (a past day): one save with the reason
+
+  const setOverrideReason = (reason: string) => setOverride((o) => (o ? { ...o, reason, error: null } : o));
+  const overrideCancel = () => setOverride((o) => (o?.busy ? o : null));
+  const overrideConfirm = () => {
+    const o = override;
+    if (!o || o.busy || !data) return;
+    const problem = reasonError(o.reason);
+    if (problem) {
+      setOverride({ ...o, error: problem });
+      return;
+    }
+    const reason = o.reason.trim();
+    const dateBs = data.day.bs_date;
+    setOverride({ ...o, busy: true, error: null });
+    setError(null);
+    const save = async () => {
+      if (o.kind === "bulk" && o.bulk) {
+        const result = await bulkMarkPresent({ ...o.bulk.request, reason });
+        applyRecords(result.records);
+        setSelectedRaw(new Set());
+        setPage(1);
+        setBulkMessage({ text: o.bulk.done(result.marked.length), names: result.marked.map((m) => m.name) });
+        if (result.records.length) setMarkedDays((days) => (days.includes(dateBs) ? days : [...days, dateBs]));
+        return;
+      }
+      const employeeId = o.employeeId!;
+      if (o.status === null) {
+        await clearMark(employeeId, dateBs, reason);
+        setData((current) =>
+          current && current.day.bs_date === dateBs
+            ? { ...current, rows: current.rows.map((row) => (row.employee.id === employeeId ? { ...row, record: null } : row)) }
+            : current,
+        );
+        return;
+      }
+      const result = await markOne({
+        date_bs: dateBs,
+        employee_id: employeeId,
+        status: o.status,
+        ot_hours: o.status === "O" ? clampHours(o.hours) : 0,
+        reason,
+      });
+      applyRecords([result.record]);
+      setMarkedDays((days) => (days.includes(dateBs) ? days : [...days, dateBs]));
+      const done = { employeeId, status: o.status, hours: result.record.ot_hours, previous: o.previous };
+      if (phone) showManualDone(done);
+      else setSaved({ ...done, editing: false });
+    };
+    save()
+      .then(() => setOverride(null))
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : "Could not save. Try again.";
+        if (isLockedError(err)) {
+          setOverride(null);
+          failed(err, message);
+        } else {
+          setOverride((cur) => (cur ? { ...cur, busy: false, error: message } : cur));
+        }
+      });
   };
 
   // ---- scan flow (scan/scanFlow.ts)
@@ -747,6 +890,10 @@ export function useMarkState(options: { phone: boolean }): MarkState {
     lock,
     accessOf,
     canBulk: canBulk(lock),
+    override,
+    setOverrideReason,
+    overrideConfirm,
+    overrideCancel,
     page,
     setPage,
     paged,

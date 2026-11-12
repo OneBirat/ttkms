@@ -9,12 +9,17 @@ The lock (enforced here, the screens only reflect it): a new mark can be made fo
 a day nobody marked stays "not marked"; a mark can be changed or removed for 24 hours from when
 it was FIRST saved (``records.created_at``, this server's clock; editing does not extend it).
 Everything else answers 403 ``attendance_locked``; a future day answers 403 ``future_date``.
+
+The super admin (``users.is_super_admin``) may create, change or remove any mark on any PAST day
+- never a future one. Each such write is an override: it needs a reason of at least 5
+characters (422 ``reason_required``) and is logged with ``is_override`` and the reason.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException, status
@@ -30,7 +35,15 @@ from app.core.models import Branch, Department, Employee, EmployeeStatus, User
 from app.core.modules import is_enabled
 from app.modules.attendance import schemas
 from app.modules.attendance.access import Scope, one_branch, other_branch
-from app.modules.attendance.models import OT_MAX, OT_MIN, Record, RecordChange, Source
+from app.modules.attendance.models import (
+    OT_MAX,
+    OT_MIN,
+    REASON_MAX,
+    REASON_MIN,
+    Record,
+    RecordChange,
+    Source,
+)
 
 #: Saturday (0 = Sunday ... 6 = Saturday). The rule is fixed: Saturday is the weekly off.
 WEEKLY_OFF = 6
@@ -136,9 +149,46 @@ def check_writable(ad: date, existing: Record | None) -> None:
         raise locked_error(ad)
 
 
-def day_lock(ad: date) -> schemas.DayLock:
+@dataclass(frozen=True)
+class Override:
+    """A super-admin write to a past day: the lock does not apply, the reason is logged."""
+
+    reason: str
+
+
+def is_override_day(user: User | None, ad: date) -> bool:
+    """The super admin on a past day (today is ordinary marking for them too)."""
+    return bool(user and user.is_super_admin) and ad < today()
+
+
+def override_for(user: User | None, ad: date, reason: str | None) -> Override | None:
+    """``None`` for an ordinary write (the lock applies and any reason sent is ignored); for the
+    super admin on a past day the :class:`Override`, or 422 when the reason is missing or short."""
+    if not is_override_day(user, ad):
+        return None
+    text = " ".join((reason or "").split())[:REASON_MAX]
+    if len(text) < REASON_MIN:
+        raise ApiError(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"Give a reason for changing a past date (at least {REASON_MIN} characters).",
+            "reason_required",
+            field="reason",
+        )
+    return Override(text)
+
+
+def day_lock(ad: date, user: User | None = None) -> schemas.DayLock:
     is_today = ad == today()
     label = bs_label(ad)
+    if is_override_day(user, ad):
+        return schemas.DayLock(
+            mode="override",
+            is_today=False,
+            can_create=True,
+            reason_required=True,
+            date_label=label,
+            message="Past date · changes are logged",
+        )
     return schemas.DayLock(
         mode="open" if is_today else "locked",
         is_today=is_today,
@@ -263,6 +313,7 @@ def change_row(
     old: tuple[str | None, int, str],
     user: User | None,
     source: str,
+    override: Override | None = None,
 ) -> RecordChange:
     old_status, old_hours, old_note = old
     return RecordChange(
@@ -277,6 +328,8 @@ def change_row(
         new_note=record.note if record else "",
         source=source,
         changed_by=user.id if user else None,
+        reason=override.reason if override else "",
+        is_override=override is not None,
     )
 
 
@@ -292,16 +345,19 @@ async def upsert(
     hours: int,
     note: str | None,
     source: Source,
+    override: Override | None = None,
 ) -> tuple[Record, str]:
     """Insert or update the day's record (row-locked); returns it and the previous status ("N"
     when there was none). Writes an audit row when anything changed. The caller commits.
-    Refuses (403) a future day, a mark whose 24 hours are over and a new mark on a past day."""
+    Refuses (403) a future day, a mark whose 24 hours are over and a new mark on a past day -
+    the last two unless ``override`` (the super admin, with a reason)."""
     check_no_future_write(ad)
     check_mark(employee, ad, status_, hours)
     existing = await db.scalar(
         select(Record).where(Record.employee_id == employee.id, Record.date == ad).with_for_update()
     )
-    check_writable(ad, existing)
+    if override is None:
+        check_writable(ad, existing)
     if existing is None:
         # ON CONFLICT DO NOTHING: a concurrent insert for the same day wins, we then update it.
         new_id = await db.scalar(
@@ -323,7 +379,7 @@ async def upsert(
         if new_id is not None:
             record = await db.get(Record, new_id)
             assert record is not None
-            db.add(change_row(record, employee.id, ad, (None, 0, ""), user, source.value))
+            db.add(change_row(record, employee.id, ad, (None, 0, ""), user, source.value, override))
             await db.flush()
             return record, "N"
         existing = await db.scalar(
@@ -332,7 +388,8 @@ async def upsert(
             .with_for_update()
         )
         assert existing is not None
-        check_writable(ad, existing)
+        if override is None:
+            check_writable(ad, existing)
     old = (existing.status, existing.overtime_hours, existing.note)
     new_note = existing.note if note is None else note
     if old != (status_, hours, new_note):
@@ -344,7 +401,7 @@ async def upsert(
         existing.marked_at = func.now()
         await db.flush()
         await db.refresh(existing)
-        db.add(change_row(existing, employee.id, ad, old, user, source.value))
+        db.add(change_row(existing, employee.id, ad, old, user, source.value, override))
         await db.flush()
     return existing, old[0]
 
@@ -357,7 +414,15 @@ async def mark_one(
     employee = await employee_to_mark(db, scope, body.employee_id)
     note = " ".join(body.note.split()) if body.note is not None else None
     record, previous = await upsert(
-        db, user, employee, ad, body.status, body.ot_hours, note, Source.manual
+        db,
+        user,
+        employee,
+        ad,
+        body.status,
+        body.ot_hours,
+        note,
+        Source.manual,
+        override_for(user, ad, body.reason),
     )
     out = (await records_out(db, [record]))[0]
     await db.commit()
@@ -365,7 +430,12 @@ async def mark_one(
 
 
 async def clear_mark(
-    db: AsyncSession, user: User, scope: Scope, employee_id: int, date_bs: str
+    db: AsyncSession,
+    user: User,
+    scope: Scope,
+    employee_id: int,
+    date_bs: str,
+    reason: str | None = None,
 ) -> schemas.ClearMarkResponse:
     """Back to "not marked" (the weekly off again on a Saturday). Idempotent."""
     ad = parse_day(date_bs)
@@ -375,8 +445,10 @@ async def clear_mark(
         select(Record).where(Record.employee_id == employee.id, Record.date == ad).with_for_update()
     )
     previous = "N"
+    override = override_for(user, ad, reason)
     if record is not None:
-        check_writable(ad, record)
+        if override is None:
+            check_writable(ad, record)
         previous = record.status
         db.add(
             change_row(
@@ -386,6 +458,7 @@ async def clear_mark(
                 (record.status, record.overtime_hours, record.note),
                 user,
                 Source.manual.value,
+                override,
             )
         )
         await db.execute(delete(Record).where(Record.id == record.id))
@@ -406,7 +479,8 @@ async def bulk_present(
     ``INSERT ... ON CONFLICT DO NOTHING``, so a mark made meanwhile is never overwritten."""
     ad = parse_day(body.date_bs)
     check_no_future_write(ad)
-    if ad != today():  # bulk only makes new marks, and those are for today only
+    override = override_for(user, ad, body.reason)
+    if ad != today() and override is None:  # new marks are for today only
         raise locked_error(ad)
     if body.employee_ids is None and body.department_id is None:
         raise invalid("Give employee_ids or a department_id.", "employee_ids")
@@ -452,7 +526,11 @@ async def bulk_present(
         else []
     )
     for record in records:
-        db.add(change_row(record, record.employee_id, ad, (None, 0, ""), user, Source.bulk.value))
+        db.add(
+            change_row(
+                record, record.employee_id, ad, (None, 0, ""), user, Source.bulk.value, override
+            )
+        )
     out = await records_out(db, sorted(records, key=lambda r: r.employee_id))
     await db.commit()
     return schemas.BulkMarkResponse(
@@ -550,7 +628,13 @@ async def day_rows(
 
 
 async def day_attendance(
-    db: AsyncSession, scope: Scope, date_bs: str, department_id: int | None, *, money: bool = True
+    db: AsyncSession,
+    scope: Scope,
+    date_bs: str,
+    department_id: int | None,
+    *,
+    money: bool = True,
+    user: User | None = None,
 ) -> schemas.DayAttendance:
     """``money`` = salary_advances: only then do rows carry today's payment flags."""
     ad = parse_day(date_bs)
@@ -568,7 +652,7 @@ async def day_attendance(
         date_bs=bs_of(ad),
         day=day_header(ad),
         settings=SETTINGS,
-        lock=day_lock(ad),
+        lock=day_lock(ad, user),
         branches=await branch_refs(db, scope),
         departments=dept_refs,
         rows=[

@@ -89,12 +89,16 @@ class DayLock(BaseModel):
     * ``open`` - today: marking works as always.
     * ``locked`` - a past day: nobody can be newly marked; a mark saved less than 24 hours ago
       can still be changed (its ``locked`` is false) and everything else is read-only.
+    * ``override`` - a past day for the super admin: everything can be created, changed or
+      removed, and every such change needs a ``reason``.
     """
 
-    mode: Literal["open", "locked"]
+    mode: Literal["open", "locked", "override"]
     is_today: bool
     #: New marks (one by one and in bulk) are possible.
     can_create: bool
+    #: Every write on this day must carry a reason (the super admin on a past day).
+    reason_required: bool = False
     #: "Kartik 14, 2083"
     date_label: str
     #: The banner above the list ("" on an open day).
@@ -124,6 +128,8 @@ class MarkOneRequest(BaseModel):
     status: MarkStatus
     ot_hours: int = 0
     note: str | None = Field(default=None, max_length=200)
+    #: Required (at least 5 characters) when the super admin changes a past day.
+    reason: str | None = Field(default=None, max_length=300)
 
 
 class MarkOneResponse(BaseModel):
@@ -148,6 +154,8 @@ class BulkMarkRequest(BaseModel):
     branch_id: int
     employee_ids: list[int] | None = None
     department_id: int | None = None
+    #: Required (at least 5 characters) when the super admin bulk-marks a past day.
+    reason: str | None = Field(default=None, max_length=300)
 
 
 class MarkedName(BaseModel):

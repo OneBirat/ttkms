@@ -6,6 +6,7 @@ import { ClearMarkModal } from "./ClearMarkModal";
 import { ManualDoneSheet } from "./ManualDoneSheet";
 import { MarkDesktop } from "./MarkDesktop";
 import { MarkMobile } from "./MarkMobile";
+import { OverrideSheet } from "./OverrideSheet";
 import { OvertimeModal } from "./OvertimeModal";
 import { SavedModal } from "./SavedModal";
 import { ScanCamera } from "./scan/ScanCamera";
@@ -105,6 +106,18 @@ export function MarkPage() {
           onHours={state.setOvertimeHours}
           onCancel={state.cancelOvertime}
           onSave={state.saveOvertime}
+        />
+      ) : null}
+      {state.override && state.lock ? (
+        <OverrideSheet
+          ask={state.override}
+          employee={rowOf(state.override.employeeId ?? undefined)?.employee ?? null}
+          dateLabel={state.lock.date_label}
+          weeklyOff={state.data?.day.is_weekly_off ?? false}
+          phone={phone}
+          onReason={state.setOverrideReason}
+          onConfirm={state.overrideConfirm}
+          onCancel={state.overrideCancel}
         />
       ) : null}
       {phone && state.manualDone && doneRow ? (

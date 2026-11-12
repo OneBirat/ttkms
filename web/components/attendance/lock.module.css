@@ -41,3 +41,223 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+/* The super admin on a past day: amber, "Past date · changes are logged". */
+.banner[data-mode="override"] {
+  border-color: #e0a800;
+  background: #fff4cc;
+  color: #7a5600;
+}
+
+.banner[data-mode="override"] .today {
+  border-color: #e0a800;
+}
+
+/* ---- "Change past attendance" (the super admin's confirm sheet) ---- */
+
+.ovBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 24, 29, 0.55);
+}
+
+.ovBackdrop[data-phone] {
+  align-items: flex-end;
+  padding: 0;
+}
+
+.ovDialog {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 100%;
+  padding: 20px;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: var(--color-card);
+  box-shadow: 0 24px 48px rgba(15, 24, 29, 0.3);
+  outline: none;
+}
+
+.ovBackdrop[data-phone] .ovDialog {
+  max-width: none;
+  padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
+  border-radius: 18px 18px 0 0;
+}
+
+.ovHandle {
+  display: block;
+  width: 40px;
+  height: 4px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.ovHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ovAvatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.ovHeadText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ovTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.ovMeta {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.ovChange {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid #e0a800;
+  border-radius: 12px;
+  background: #fff9e3;
+}
+
+.ovDate {
+  font-size: 13px;
+  font-weight: 600;
+  color: #7a5600;
+}
+
+.ovArrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.ovOld {
+  color: var(--color-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.ovNew {
+  color: var(--color-text);
+}
+
+.ovWarning {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e6b3a1;
+  border-radius: 10px;
+  background: #fdf0eb;
+  color: #8e2f12;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.ovField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ovLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ovReq {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.ovReason {
+  width: 100%;
+  min-height: 76px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-input);
+  background: var(--color-card);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 16px; /* no zoom on iOS */
+  resize: vertical;
+}
+
+.ovReason[aria-invalid="true"] {
+  border-color: var(--pill-danger-fg);
+}
+
+.ovHint {
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.ovError {
+  font-size: 13px;
+  color: var(--pill-danger-fg);
+}
+
+.ovActions {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+}
+
+.ovCancel,
+.ovConfirm {
+  min-height: 48px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ovCancel {
+  border: 1px solid var(--color-input-border);
+  background: var(--color-card);
+  color: var(--color-text);
+}
+
+.ovConfirm {
+  border: none;
+  background: #e0a800;
+  color: #3a2b00;
+  font-weight: 700;
+}
+
+.ovCancel:disabled,
+.ovConfirm:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}

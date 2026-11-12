@@ -53,7 +53,7 @@ async def get_day(
 ) -> schemas.DayAttendance:
     scope = await scope_for(db, me, branch)
     return await services.day_attendance(
-        db, scope, date_bs, department_id, money=await sees_money(db, me)
+        db, scope, date_bs, department_id, money=await sees_money(db, me), user=me
     )
 
 
@@ -66,10 +66,13 @@ async def mark(body: schemas.MarkOneRequest, me: CanMark, db: DbSession) -> sche
 
 @router.delete("/mark", response_model=schemas.ClearMarkResponse, responses=ERRORS)
 async def clear_mark(
-    me: CanMark, db: DbSession, employee_id: int, date_bs: str
+    me: CanMark, db: DbSession, employee_id: int, date_bs: str, reason: str | None = None
 ) -> schemas.ClearMarkResponse:
-    """ "Clear mark": back to not marked (weekly off on a Saturday)."""
-    return await services.clear_mark(db, me, await scope_for(db, me, None), employee_id, date_bs)
+    """ "Clear mark": back to not marked (weekly off on a Saturday). ``reason`` is required when
+    the super admin clears a mark on a past day."""
+    return await services.clear_mark(
+        db, me, await scope_for(db, me, None), employee_id, date_bs, reason
+    )
 
 
 @router.post("/bulk-mark", response_model=schemas.BulkMarkResponse, responses=ERRORS)

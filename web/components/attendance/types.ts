@@ -151,12 +151,16 @@ export interface AttendanceRecord {
  * - "open": today, marking works as always.
  * - "locked": a past day. Nobody can be newly marked; a mark saved less than 24 hours ago
  *   can still be changed (its `locked` is false).
+ * - "override": a past day for the super admin. Everything can be created, changed or
+ *   removed; every such change needs a reason and is logged.
  */
 export interface DayLock {
-  mode: "open" | "locked";
+  mode: "open" | "locked" | "override";
   is_today: boolean;
   /** New marks (one by one and in bulk) are possible. */
   can_create: boolean;
+  /** Every write on this day must carry a reason (the super admin on a past day). */
+  reason_required?: boolean;
   /** "Kartik 14, 2083" */
   date_label: string;
   /** The banner above the list ("" on an open day). */
@@ -217,6 +221,8 @@ export interface MarkOneRequest {
   /** 1–12 with "O", 0 otherwise. */
   ot_hours: number;
   note?: string;
+  /** Required (5+ characters) when the super admin changes a past day. */
+  reason?: string;
 }
 
 export interface MarkOneResponse {
@@ -246,6 +252,8 @@ export interface BulkMarkRequest {
   branch_id: number;
   employee_ids?: number[];
   department_id?: number;
+  /** Required (5+ characters) when the super admin bulk-marks a past day. */
+  reason?: string;
 }
 
 export interface BulkMarkResponse {

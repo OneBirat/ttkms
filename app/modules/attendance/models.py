@@ -4,8 +4,9 @@
   only ``P`` present, ``O`` overtime (present + whole hours 1-12) or ``A`` absent. "Not marked"
   is no row; the weekly off (Saturday) is computed, never stored - a Saturday row means the
   person came in (P / O). The BS date is derived on output (docs/bs-calendar.md).
-* ``record_changes`` - the audit trail: one row per insert, change or clear (``new_status``
-  null), with who and when.
+* ``record_changes`` - the history: one row per insert, change or clear (``new_status``
+  null), with who and when; a super-admin change to a past day also carries the reason and
+  ``is_override``.
 
 Employees live in ``core.employees`` (``ON DELETE RESTRICT``). Migration order: ``core`` ->
 ``admin`` -> ``payroll`` -> ``attendance`` (README).
@@ -18,6 +19,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -35,6 +37,10 @@ from app.core.models import Employee, User
 from app.db import Base
 
 SCHEMA = "attendance"
+
+#: An override needs a reason of at least this many characters.
+REASON_MIN = 5
+REASON_MAX = 300
 
 #: Overtime is whole hours, 1-12, and only with status O.
 OT_MIN = 1
@@ -109,6 +115,10 @@ class RecordChange(Base):
     __tablename__ = "record_changes"
     __table_args__ = (
         Index("ix_record_changes_employee_date", "employee_id", "date"),
+        CheckConstraint(
+            f"NOT is_override OR char_length(btrim(reason)) >= {REASON_MIN}",
+            name="override_reason",
+        ),
         {"schema": SCHEMA},
     )
 
@@ -128,4 +138,12 @@ class RecordChange(Base):
     changed_by: Mapped[int | None] = mapped_column(ForeignKey("core.users.id", ondelete="SET NULL"))
     changed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    #: Why, for an override (required there); "" for an ordinary change.
+    reason: Mapped[str] = mapped_column(
+        String(REASON_MAX), nullable=False, default="", server_default=text("''")
+    )
+    #: True when the super admin changed a past day (the lock was overridden).
+    is_override: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
     )

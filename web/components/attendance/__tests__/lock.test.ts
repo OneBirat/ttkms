@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { canBulk, clockText, editableUntilText, isEditable, isLockedError, lockLine, LOCKED_MARK, rowAccess } from "../lock";
+import {
+  canBulk,
+  changeText,
+  clockText,
+  editableUntilText,
+  isEditable,
+  isLockedError,
+  lockLine,
+  LOCKED_MARK,
+  reasonError,
+  rowAccess,
+} from "../lock";
 import type { DayLock } from "../types";
 
 const OPEN: DayLock = { mode: "open", is_today: true, can_create: true, date_label: "Kartik 15, 2083", message: "" };
@@ -10,6 +21,15 @@ const LOCKED: DayLock = {
   can_create: false,
   date_label: "Kartik 14, 2083",
   message: "Locked · Kartik 14, 2083 · Only the super admin can change past attendance.",
+};
+
+const OVERRIDE: DayLock = {
+  mode: "override",
+  is_today: false,
+  can_create: true,
+  reason_required: true,
+  date_label: "Kartik 14, 2083",
+  message: "Past date · changes are logged",
 };
 
 // Saved 31 Oct 2026 09:45 Nepal time (04:00 UTC); editable until the same time on 1 Nov.
@@ -55,6 +75,31 @@ describe("attendance lock (what the screens show)", () => {
     assert.equal(lockLine(LOCKED, fresh, after), LOCKED_MARK);
     assert.equal(lockLine(LOCKED, null), LOCKED_MARK);
     assert.equal(lockLine(OPEN, null), null);
+  });
+
+  it("the super admin on a past day: every row works, through the reason sheet", () => {
+    assert.equal(rowAccess(OVERRIDE, null), "override");
+    assert.equal(rowAccess(OVERRIDE, { locked: true, editable_until: UNTIL }, after), "override");
+    assert.equal(rowAccess(OVERRIDE, fresh, before), "override");
+    assert.equal(canBulk(OVERRIDE), true);
+    assert.equal(lockLine(OVERRIDE, fresh, after), null);
+  });
+
+  it("the confirm sheet shows old → new", () => {
+    assert.equal(changeText("P", 0, "A", 0), "Present → Absent");
+    assert.equal(changeText("N", 0, "O", 3), "Not marked → Overtime · 3 h");
+    assert.equal(changeText("O", 2, "O", 5), "Overtime · 2 h → Overtime · 5 h");
+    assert.equal(changeText("A", 0, null, 0), "Absent → Not marked");
+    assert.equal(changeText("O", 4, null, 0, true), "Overtime · 4 h → Weekly off");
+    assert.equal(changeText("N", 0, "P", 0, true), "Weekly off → Present");
+  });
+
+  it("the reason needs at least 5 characters", () => {
+    assert.equal(reasonError(""), "Give a reason (at least 5 characters).");
+    assert.equal(reasonError("  ok  "), "Give a reason (at least 5 characters).");
+    assert.equal(reasonError("a   b"), "Give a reason (at least 5 characters).");
+    assert.equal(reasonError("sick."), null);
+    assert.equal(reasonError("Was on site, list missed"), null);
   });
 
   it("recognises the API's attendance_locked answer", () => {
